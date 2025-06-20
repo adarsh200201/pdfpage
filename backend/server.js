@@ -22,7 +22,8 @@ app.use(
           "'unsafe-eval'",
           "https://www.google-analytics.com",
           "https://www.googletagmanager.com",
-          "https://checkout.razorpay.com"
+          "https://checkout.razorpay.com",
+          "https://pagead2.googlesyndication.com"
         ],
         connectSrc: ["'self'", "https://api.razorpay.com"],
         frameSrc: ["'self'", "https://checkout.razorpay.com"],
