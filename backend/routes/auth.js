@@ -101,10 +101,14 @@ router.post(
 
       console.log("🔄 [REGISTER] Creating new user:", { name, email });
       
-      // Create user
+      // Create user with a generated username if not provided
+      const username = email.split('@')[0].toLowerCase().replace(/[^a-z0-9]/g, '') + 
+        Math.floor(1000 + Math.random() * 9000); // Add random 4-digit number
+        
       const user = new User({
         name,
         email,
+        username, // Add the generated username
         password,
       });
 

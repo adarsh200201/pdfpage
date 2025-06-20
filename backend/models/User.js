@@ -9,6 +9,16 @@ const userSchema = new mongoose.Schema(
       trim: true,
       maxlength: [50, "Name cannot exceed 50 characters"],
     },
+    username: {
+      type: String,
+      required: false, // We'll generate it if not provided
+      unique: true,
+      trim: true,
+      lowercase: true,
+      minlength: [3, "Username must be at least 3 characters"],
+      maxlength: [30, "Username cannot exceed 30 characters"],
+      match: [/^[a-z0-9]+$/, "Username can only contain letters and numbers"],
+    },
     email: {
       type: String,
       required: [true, "Email is required"],
@@ -111,7 +121,8 @@ userSchema.virtual("premiumDaysRemaining").get(function () {
 });
 
 // Index for better query performance
-userSchema.index({ email: 1 });
+userSchema.index({ email: 1 }, { unique: true });
+userSchema.index({ username: 1 }, { unique: true, sparse: true });
 userSchema.index({ isPremium: 1 });
 userSchema.index({ premiumExpiryDate: 1 });
 
