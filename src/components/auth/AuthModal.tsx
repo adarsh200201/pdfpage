@@ -1,10 +1,4 @@
 import React, { useState } from "react";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -90,10 +84,17 @@ const AuthModal: React.FC<AuthModalProps> = ({
     }));
   };
 
-  return (
-    <div className="fixed inset-0 z-50 overflow-y-auto">
+  const ModalHeader = ({ children }: { children: React.ReactNode }) => (
+    <div className="text-center mb-6">
+      <h2 className="text-2xl font-bold">{children}</h2>
+    </div>
+  );
+
+  return isOpen ? (
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-black bg-opacity-50">
       <div className="flex min-h-full items-center justify-center p-4 text-center">
-        <div className="relative w-full max-w-md transform overflow-y-auto rounded-2xl bg-white p-6 text-left align-middle shadow-xl transition-all">
+        <div className="relative w-full max-w-md transform overflow-hidden rounded-2xl bg-white p-6 text-left align-middle shadow-xl transition-all">
+          {/* Close button */}
           <button
             onClick={onClose}
             className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none"
@@ -101,15 +102,13 @@ const AuthModal: React.FC<AuthModalProps> = ({
             <X className="h-4 w-4" />
             <span className="sr-only">Close</span>
           </button>
-          <div className="space-y-4 max-h-[80vh] overflow-y-auto px-2">
-            <DialogHeader>
-              <DialogTitle className="text-center text-2xl font-bold">
-                Welcome to PdfPage
-              </DialogTitle>
-            </DialogHeader>
 
+          {/* Modal content */}
+          <div className="space-y-4 max-h-[80vh] overflow-y-auto">
+            <ModalHeader>Welcome to PdfPage</ModalHeader>
             <PromoBanner className="mb-4" closeable={false} />
 
+            {/* Tabs */}
             <Tabs
               value={activeTab}
               onValueChange={(value) => setActiveTab(value as "login" | "register")}
@@ -118,14 +117,12 @@ const AuthModal: React.FC<AuthModalProps> = ({
                 <TabsTrigger value="login">Login</TabsTrigger>
                 <TabsTrigger value="register">Sign Up</TabsTrigger>
               </TabsList>
-
               <TabsContent value="login" className="space-y-4 mt-6">
                 <div className="text-center mb-6">
                   <p className="text-text-light">
                     Sign in to access premium features
                   </p>
                 </div>
-
                 <form onSubmit={handleSubmit} className="space-y-4">
                   <div className="space-y-2">
                     <Label htmlFor="email">Email</Label>
@@ -143,7 +140,6 @@ const AuthModal: React.FC<AuthModalProps> = ({
                       />
                     </div>
                   </div>
-
                   <div className="space-y-2">
                     <Label htmlFor="password">Password</Label>
                     <div className="relative">
@@ -167,7 +163,6 @@ const AuthModal: React.FC<AuthModalProps> = ({
                       </button>
                     </div>
                   </div>
-
                   <Button
                     type="submit"
                     className="w-full bg-brand-red hover:bg-red-600"
@@ -184,14 +179,12 @@ const AuthModal: React.FC<AuthModalProps> = ({
                   </Button>
                 </form>
               </TabsContent>
-
               <TabsContent value="register" className="space-y-4 mt-6">
                 <div className="text-center mb-6">
                   <p className="text-text-light">
                     Create an account to get started
                   </p>
                 </div>
-
                 <form onSubmit={handleSubmit} className="space-y-4">
                   <div className="space-y-2">
                     <Label htmlFor="name">Full Name</Label>
@@ -209,7 +202,6 @@ const AuthModal: React.FC<AuthModalProps> = ({
                       />
                     </div>
                   </div>
-
                   <div className="space-y-2">
                     <Label htmlFor="email">Email</Label>
                     <div className="relative">
@@ -226,7 +218,6 @@ const AuthModal: React.FC<AuthModalProps> = ({
                       />
                     </div>
                   </div>
-
                   <div className="space-y-2">
                     <Label htmlFor="password">Password</Label>
                     <div className="relative">
@@ -251,7 +242,6 @@ const AuthModal: React.FC<AuthModalProps> = ({
                       </button>
                     </div>
                   </div>
-
                   <div className="space-y-2">
                     <Label htmlFor="confirmPassword">Confirm Password</Label>
                     <div className="relative">
@@ -268,7 +258,6 @@ const AuthModal: React.FC<AuthModalProps> = ({
                       />
                     </div>
                   </div>
-
                   <Button
                     type="submit"
                     className="w-full bg-brand-red hover:bg-red-600"
@@ -287,6 +276,7 @@ const AuthModal: React.FC<AuthModalProps> = ({
               </TabsContent>
             </Tabs>
 
+            {/* Footer */}
             <div className="text-center text-sm text-text-light mt-4">
               By continuing, you agree to our{' '}
               <a href="/terms" className="text-brand-red hover:underline">
@@ -301,7 +291,7 @@ const AuthModal: React.FC<AuthModalProps> = ({
         </div>
       </div>
     </div>
-  );
+  ) : null;
 };
 
 export default AuthModal;
