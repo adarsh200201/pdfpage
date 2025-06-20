@@ -39,6 +39,8 @@ app.use(
       "http://localhost:5173",
       "http://localhost:8080", // Frontend dev server
       "https://your-domain.com", // Add your production domain
+      "https://pdfpagee.netlify.app",
+      "https://pdfpage.onrender.com",
     ],
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
