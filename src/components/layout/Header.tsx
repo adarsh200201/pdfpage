@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import {
   Menu,
@@ -26,22 +26,22 @@ import {
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/contexts/AuthContext";
-import AuthModal from "@/components/auth/AuthModal";
 
 const Header = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [showMegaMenu, setShowMegaMenu] = useState(false);
-  const [showAuthModal, setShowAuthModal] = useState(false);
-  const [authModalTab, setAuthModalTab] = useState<"login" | "register">(
-    "login",
-  );
+  const location = useLocation();
 
   const { user, isAuthenticated, logout } = useAuth();
+
+  // Determine if current page is image-related
+  const isImagePage = location.pathname.startsWith("/img");
 
   const navItems = [
     { label: "Merge PDF", href: "/merge" },
     { label: "Split PDF", href: "/split" },
     { label: "Compress PDF", href: "/compress" },
+    { label: isImagePage ? "Image Tools" : "PdfPage", href: "/img" },
   ];
 
   const allPdfTools = [
@@ -86,56 +86,73 @@ const Header = () => {
       title: "Word to PDF",
       href: "/word-to-pdf",
       icon: FileText,
-      color: "from-blue-600 to-blue-700",
+      color: "from-blue-500 to-blue-600",
     },
     {
       title: "PowerPoint to PDF",
       href: "/powerpoint-to-pdf",
       icon: FileText,
-      color: "from-red-600 to-red-700",
+      color: "from-red-500 to-red-600",
     },
     {
       title: "Excel to PDF",
       href: "/excel-to-pdf",
       icon: FileText,
-      color: "from-emerald-600 to-emerald-700",
-    },
-    {
-      title: "Edit PDF",
-      href: "/edit-pdf",
-      icon: FileText,
-      color: "from-indigo-500 to-indigo-600",
-      isNew: true,
-    },
-    {
-      title: "PDF to JPG",
-      href: "/pdf-to-jpg",
-      icon: FileImage,
-      color: "from-pink-500 to-pink-600",
+      color: "from-emerald-500 to-emerald-600",
     },
     {
       title: "JPG to PDF",
       href: "/jpg-to-pdf",
       icon: FileImage,
-      color: "from-pink-600 to-pink-700",
+      color: "from-pink-500 to-pink-600",
+    },
+    {
+      title: "PDF to JPG",
+      href: "/pdf-to-jpg",
+      icon: FileImage,
+      color: "from-yellow-500 to-yellow-600",
+    },
+    {
+      title: "Watermark PDF",
+      href: "/watermark",
+      icon: Scissors,
+      color: "from-cyan-500 to-cyan-600",
+    },
+    {
+      title: "Unlock PDF",
+      href: "/unlock-pdf",
+      icon: Shield,
+      color: "from-red-500 to-red-600",
+    },
+    {
+      title: "Protect PDF",
+      href: "/protect-pdf",
+      icon: Shield,
+      color: "from-green-500 to-green-600",
+    },
+    {
+      title: "Organize PDF",
+      href: "/organize-pdf",
+      icon: FileText,
+      color: "from-indigo-500 to-indigo-600",
+    },
+    {
+      title: "Edit PDF",
+      href: "/edit-pdf",
+      icon: FileText,
+      color: "from-purple-500 to-purple-600",
     },
     {
       title: "Sign PDF",
       href: "/sign-pdf",
       icon: FileText,
-      color: "from-violet-500 to-violet-600",
+      color: "from-orange-500 to-orange-600",
     },
     {
-      title: "Watermark",
-      href: "/watermark",
+      title: "Page Numbers",
+      href: "/page-numbers",
       icon: FileText,
-      color: "from-cyan-500 to-cyan-600",
-    },
-    {
-      title: "Rotate PDF",
-      href: "/rotate-pdf",
-      icon: FileText,
-      color: "from-teal-500 to-teal-600",
+      color: "from-blue-600 to-blue-700",
     },
     {
       title: "HTML to PDF",
@@ -144,38 +161,20 @@ const Header = () => {
       color: "from-amber-500 to-amber-600",
     },
     {
-      title: "Unlock PDF",
-      href: "/unlock-pdf",
-      icon: FileText,
-      color: "from-lime-500 to-lime-600",
-    },
-    {
-      title: "Protect PDF",
-      href: "/protect-pdf",
-      icon: Shield,
-      color: "from-red-500 to-red-600",
-    },
-    {
-      title: "Organize PDF",
-      href: "/organize-pdf",
-      icon: FileText,
-      color: "from-slate-500 to-slate-600",
-    },
-    {
       title: "PDF to PDF/A",
       href: "/pdf-to-pdfa",
       icon: FileText,
-      color: "from-gray-500 to-gray-600",
+      color: "from-teal-500 to-teal-600",
     },
     {
       title: "Repair PDF",
       href: "/repair-pdf",
       icon: FileText,
-      color: "from-orange-600 to-orange-700",
+      color: "from-red-600 to-red-700",
     },
     {
-      title: "Page numbers",
-      href: "/page-numbers",
+      title: "Rotate PDF",
+      href: "/rotate-pdf",
       icon: FileText,
       color: "from-purple-600 to-purple-700",
     },
@@ -250,309 +249,295 @@ const Header = () => {
               </button>
               <div className="absolute left-1/2 transform -translate-x-1/2 mt-2 w-80 bg-white rounded-xl shadow-2xl border border-gray-100 z-50 p-4 opacity-0 group-hover:opacity-100 pointer-events-none group-hover:pointer-events-auto transition-opacity duration-200">
                 <div className="grid grid-cols-2 gap-3">
-                  <Link to="/word-to-pdf" className="group flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-50 transition-colors duration-200">
+                  <Link
+                    to="/word-to-pdf"
+                    className="group flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-50 transition-colors duration-200"
+                  >
                     <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-600 to-blue-700 flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform duration-200">
                       <FileText className="w-4 h-4 text-white" />
                     </div>
-                    <span className="text-sm font-medium text-text-dark group-hover:text-brand-red transition-colors duration-200 truncate">Word to PDF</span>
+                    <span className="text-sm font-medium text-text-dark group-hover:text-brand-red transition-colors duration-200 truncate">
+                      Word to PDF
+                    </span>
                   </Link>
-                  <Link to="/powerpoint-to-pdf" className="group flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-50 transition-colors duration-200">
+                  <Link
+                    to="/powerpoint-to-pdf"
+                    className="group flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-50 transition-colors duration-200"
+                  >
                     <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-red-600 to-red-700 flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform duration-200">
                       <FileText className="w-4 h-4 text-white" />
                     </div>
-                    <span className="text-sm font-medium text-text-dark group-hover:text-brand-red transition-colors duration-200 truncate">PowerPoint to PDF</span>
+                    <span className="text-sm font-medium text-text-dark group-hover:text-brand-red transition-colors duration-200 truncate">
+                      PowerPoint to PDF
+                    </span>
                   </Link>
-                  <Link to="/excel-to-pdf" className="group flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-50 transition-colors duration-200">
+                  <Link
+                    to="/excel-to-pdf"
+                    className="group flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-50 transition-colors duration-200"
+                  >
                     <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-600 to-emerald-700 flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform duration-200">
                       <FileText className="w-4 h-4 text-white" />
                     </div>
-                    <span className="text-sm font-medium text-text-dark group-hover:text-brand-red transition-colors duration-200 truncate">Excel to PDF</span>
+                    <span className="text-sm font-medium text-text-dark group-hover:text-brand-red transition-colors duration-200 truncate">
+                      Excel to PDF
+                    </span>
                   </Link>
-                  <Link to="/jpg-to-pdf" className="group flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-50 transition-colors duration-200">
+                  <Link
+                    to="/jpg-to-pdf"
+                    className="group flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-50 transition-colors duration-200"
+                  >
                     <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-pink-600 to-pink-700 flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform duration-200">
                       <FileImage className="w-4 h-4 text-white" />
                     </div>
-                    <span className="text-sm font-medium text-text-dark group-hover:text-brand-red transition-colors duration-200 truncate">JPG to PDF</span>
+                    <span className="text-sm font-medium text-text-dark group-hover:text-brand-red transition-colors duration-200 truncate">
+                      JPG to PDF
+                    </span>
                   </Link>
-                  <Link to="/html-to-pdf" className="group flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-50 transition-colors duration-200">
+                  <Link
+                    to="/html-to-pdf"
+                    className="group flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-50 transition-colors duration-200"
+                  >
                     <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-amber-500 to-amber-600 flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform duration-200">
                       <FileText className="w-4 h-4 text-white" />
                     </div>
-                    <span className="text-sm font-medium text-text-dark group-hover:text-brand-red transition-colors duration-200 truncate">HTML to PDF</span>
+                    <span className="text-sm font-medium text-text-dark group-hover:text-brand-red transition-colors duration-200 truncate">
+                      HTML to PDF
+                    </span>
                   </Link>
-                  <Link to="/scan-to-pdf" className="group flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-50 transition-colors duration-200">
-                    <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-green-600 to-green-700 flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform duration-200">
-                      <FileText className="w-4 h-4 text-white" />
+                  <Link
+                    to="/pdf-to-jpg"
+                    className="group flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-50 transition-colors duration-200"
+                  >
+                    <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-yellow-600 to-yellow-700 flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform duration-200">
+                      <FileImage className="w-4 h-4 text-white" />
                     </div>
-                    <span className="text-sm font-medium text-text-dark group-hover:text-brand-red transition-colors duration-200 truncate">Scan to PDF</span>
-                  </Link>
-                  <Link to="/ocr-pdf" className="group flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-50 transition-colors duration-200">
-                    <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-700 to-blue-800 flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform duration-200">
-                      <FileText className="w-4 h-4 text-white" />
-                    </div>
-                    <span className="text-sm font-medium text-text-dark group-hover:text-brand-red transition-colors duration-200 truncate">OCR PDF</span>
+                    <span className="text-sm font-medium text-text-dark group-hover:text-brand-red transition-colors duration-200 truncate">
+                      PDF to JPG
+                    </span>
                   </Link>
                 </div>
               </div>
             </div>
 
-            {/* All PDF Tools with Mega Menu */}
-            <div
-              className="relative"
-              onMouseEnter={() => setShowMegaMenu(true)}
-              onMouseLeave={() => setShowMegaMenu(false)}
+            {/* All Tools Button */}
+            <button
+              onClick={() => setShowMegaMenu(!showMegaMenu)}
+              className="text-body-medium text-text-medium hover:text-brand-red transition-colors duration-200 flex items-center"
             >
-              <button className="text-body-medium text-text-medium hover:text-brand-red transition-colors duration-200 flex items-center">
-                All PDF tools
-                <ChevronDown className="w-4 h-4 ml-1" />
-              </button>
+              All Tools
+              <ChevronDown className="w-4 h-4 ml-1" />
+            </button>
 
-              {/* Mega Menu */}
-              {showMegaMenu && (
-                <div
-                  className="absolute top-full left-1/2 transform -translate-x-1/2 mt-2 w-screen max-w-4xl bg-white rounded-xl shadow-2xl border border-gray-100 z-50 p-6"
-                  onMouseEnter={() => setShowMegaMenu(true)}
-                  onMouseLeave={() => setShowMegaMenu(false)}
-                >
-                  <div className="mb-4">
-                    <h3 className="text-heading-small text-text-dark mb-2">
-                      All PDF Tools
-                    </h3>
-                    <p className="text-body-small text-text-light">
-                      Choose from our complete collection of PDF tools
-                    </p>
-                  </div>
-
-                  <div className="grid grid-cols-4 gap-3 max-h-96 overflow-y-auto">
-                    {allPdfTools.map((tool) => {
-                      const IconComponent = tool.icon;
-                      return (
-                        <Link
-                          key={tool.href}
-                          to={tool.href}
-                          className="group flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-50 transition-colors duration-200 relative"
-                          onClick={() => setShowMegaMenu(false)}
-                        >
-                          {tool.isNew && (
-                            <div className="absolute -top-1 -right-1 bg-brand-red text-white text-xs font-bold px-1.5 py-0.5 rounded-full">
-                              New!
-                            </div>
-                          )}
-                          {tool.available && (
-                            <div className="absolute -top-1 -left-1 bg-green-500 text-white text-xs font-bold px-1.5 py-0.5 rounded-full">
-                              Live
-                            </div>
-                          )}
-                          <div
-                            className={`w-8 h-8 rounded-lg bg-gradient-to-br ${tool.color} flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform duration-200`}
-                          >
-                            <IconComponent className="w-4 h-4 text-white" />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-text-dark group-hover:text-brand-red transition-colors duration-200 truncate">
-                              {tool.title}
-                            </p>
-                          </div>
-                        </Link>
-                      );
-                    })}
-                  </div>
-
-                  <div className="mt-4 pt-4 border-t border-gray-100">
-                    <Link
-                      to="/"
-                      className="text-body-medium text-brand-red hover:text-red-600 transition-colors duration-200"
-                      onClick={() => setShowMegaMenu(false)}
-                    >
-                      View all tools on homepage →
-                    </Link>
-                  </div>
-                </div>
-              )}
-            </div>
+            {/* Get Premium */}
+            <Link
+              to="/pricing"
+              className="text-body-medium text-text-medium hover:text-brand-red transition-colors duration-200"
+            >
+              Get Premium
+            </Link>
           </nav>
 
           {/* Right Side Actions */}
           <div className="flex items-center space-x-4">
             {/* Language Selector */}
             <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm" className="hidden sm:flex">
-                  <Globe className="w-4 h-4 mr-2" />
-                  EN
-                </Button>
+              <DropdownMenuTrigger className="hidden md:flex items-center text-text-medium hover:text-brand-red transition-colors duration-200">
+                <Globe className="w-4 h-4 mr-1" />
+                EN
               </DropdownMenuTrigger>
               <DropdownMenuContent>
-                <DropdownMenuItem>English</DropdownMenuItem>
-                <DropdownMenuItem>Español</DropdownMenuItem>
-                <DropdownMenuItem>Français</DropdownMenuItem>
-                <DropdownMenuItem>Deutsch</DropdownMenuItem>
+                <DropdownMenuItem>🇺🇸 English</DropdownMenuItem>
+                <DropdownMenuItem>🇪🇸 Español</DropdownMenuItem>
+                <DropdownMenuItem>🇫🇷 Français</DropdownMenuItem>
+                <DropdownMenuItem>🇩🇪 Deutsch</DropdownMenuItem>
+                <DropdownMenuItem>🇮🇹 Italiano</DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
 
             {/* User Actions */}
-            {isAuthenticated ? (
-              <div className="hidden sm:flex items-center space-x-2">
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="flex items-center space-x-2"
-                    >
-                      <div className="w-8 h-8 bg-gradient-to-br from-brand-red to-red-600 rounded-full flex items-center justify-center">
-                        <span className="text-white font-bold text-sm">
-                          {user?.name?.charAt(0).toUpperCase()}
-                        </span>
-                      </div>
-                      <div className="flex flex-col items-start">
-                        <span className="text-sm font-medium">
-                          {user?.name}
-                        </span>
-                        {user?.isPremium && (
-                          <span className="text-xs text-brand-yellow">
-                            Premium
-                          </span>
-                        )}
-                      </div>
-                      <ChevronDown className="w-4 h-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-56">
-                    <DropdownMenuItem asChild>
-                      <Link to="/dashboard" className="flex items-center">
-                        <User className="w-4 h-4 mr-2" />
-                        Dashboard
-                      </Link>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem asChild>
-                      <Link to="/settings" className="flex items-center">
-                        <Settings className="w-4 h-4 mr-2" />
-                        Settings
-                      </Link>
-                    </DropdownMenuItem>
-                    {!user?.isPremium && (
-                      <DropdownMenuItem asChild>
-                        <Link to="/pricing" className="flex items-center">
-                          <Crown className="w-4 h-4 mr-2" />
-                          Upgrade to Premium
-                        </Link>
-                      </DropdownMenuItem>
-                    )}
-                    {user?.isPremium && (
-                      <DropdownMenuItem asChild>
-                        <Link to="/billing" className="flex items-center">
-                          <CreditCard className="w-4 h-4 mr-2" />
-                          Billing
-                        </Link>
-                      </DropdownMenuItem>
-                    )}
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={logout} className="text-red-600">
-                      <LogOut className="w-4 h-4 mr-2" />
-                      Log out
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
+            {isAuthenticated && user ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger className="hidden md:flex items-center space-x-2">
+                  <div className="w-8 h-8 bg-brand-red rounded-full flex items-center justify-center">
+                    <span className="text-white text-sm font-semibold">
+                      {user.name.charAt(0).toUpperCase()}
+                    </span>
+                  </div>
+                  <span className="text-text-dark font-medium">
+                    {user.name}
+                  </span>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  <div className="px-3 py-2 border-b border-gray-100">
+                    <p className="text-sm font-medium text-text-dark">
+                      {user.name}
+                    </p>
+                    <p className="text-xs text-text-light">{user.email}</p>
+                  </div>
+                  <DropdownMenuItem asChild>
+                    <Link to="/dashboard" className="flex items-center">
+                      <User className="w-4 h-4 mr-2" />
+                      Dashboard
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link to="/settings" className="flex items-center">
+                      <Settings className="w-4 h-4 mr-2" />
+                      Settings
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link to="/pricing" className="flex items-center">
+                      <Crown className="w-4 h-4 mr-2" />
+                      Upgrade to Pro
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={logout} className="text-red-600">
+                    <LogOut className="w-4 h-4 mr-2" />
+                    Logout
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             ) : (
-              <div className="hidden sm:flex items-center space-x-2">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => {
-                    setAuthModalTab("login");
-                    setShowAuthModal(true);
-                  }}
-                >
-                  <User className="w-4 h-4 mr-2" />
-                  Login
-                </Button>
-                <Button
-                  size="sm"
-                  className="bg-brand-red hover:bg-red-600"
-                  onClick={() => {
-                    setAuthModalTab("register");
-                    setShowAuthModal(true);
-                  }}
-                >
-                  Sign Up
-                </Button>
+              <div className="hidden md:flex items-center space-x-3">
+                <Link to="/login">
+                  <Button variant="outline" size="sm">
+                    <User className="w-4 h-4 mr-2" />
+                    Login
+                  </Button>
+                </Link>
+                <Link to="/register">
+                  <Button size="sm" className="bg-brand-red hover:bg-red-600">
+                    <Crown className="w-4 h-4 mr-2" />
+                    Get Started
+                  </Button>
+                </Link>
               </div>
             )}
 
-            {/* Premium Button */}
-            <Button
-              asChild
-              size="sm"
-              className="bg-brand-yellow text-black hover:bg-yellow-400 hidden lg:flex"
-            >
-              <Link to="/pricing">
-                <Crown className="w-4 h-4 mr-2" />
-                Get Premium
-              </Link>
-            </Button>
-
             {/* Mobile Menu Button */}
-            <Button
-              variant="ghost"
-              size="sm"
-              className="md:hidden"
+            <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className="md:hidden"
             >
               {mobileMenuOpen ? (
-                <X className="w-5 h-5" />
+                <X className="w-6 h-6 text-text-dark" />
               ) : (
-                <Menu className="w-5 h-5" />
+                <Menu className="w-6 h-6 text-text-dark" />
               )}
-            </Button>
+            </button>
           </div>
         </div>
 
         {/* Mobile Menu */}
         {mobileMenuOpen && (
-          <div className="md:hidden py-4 border-t border-gray-100">
-            <div className="flex flex-col space-y-4">
-              {navItems.map((item) => (
-                <Link
-                  key={item.href}
-                  to={item.href}
-                  className="text-body-medium text-text-medium hover:text-brand-red transition-colors duration-200"
-                  onClick={() => setMobileMenuOpen(false)}
-                >
-                  {item.label}
-                </Link>
-              ))}
-              <div className="flex flex-col space-y-2 pt-4 border-t border-gray-100">
-                <Button variant="ghost" size="sm" className="justify-start">
-                  <User className="w-4 h-4 mr-2" />
-                  Login
-                </Button>
-                <Button size="sm" className="bg-brand-red hover:bg-red-600">
-                  Sign Up
-                </Button>
-                <Button
-                  size="sm"
-                  className="bg-brand-yellow text-black hover:bg-yellow-400"
-                  asChild
-                >
-                  <Link to="/pricing">
-                    <Crown className="w-4 h-4 mr-2" />
-                    Get Premium
+          <div className="md:hidden border-t border-gray-100 py-4">
+            {navItems.map((item) => (
+              <Link
+                key={item.href}
+                to={item.href}
+                className="text-body-medium text-text-medium hover:text-brand-red transition-colors duration-200 block py-2"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                {item.label}
+              </Link>
+            ))}
+            <div className="flex flex-col space-y-2 pt-4 border-t border-gray-100 mt-4">
+              {!isAuthenticated ? (
+                <>
+                  <Link to="/login" onClick={() => setMobileMenuOpen(false)}>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="w-full justify-start"
+                    >
+                      <User className="w-4 h-4 mr-2" />
+                      Login
+                    </Button>
                   </Link>
-                </Button>
-              </div>
+                  <Link to="/register" onClick={() => setMobileMenuOpen(false)}>
+                    <Button
+                      size="sm"
+                      className="w-full justify-start bg-brand-red hover:bg-red-600"
+                    >
+                      <Crown className="w-4 h-4 mr-2" />
+                      Get Started
+                    </Button>
+                  </Link>
+                </>
+              ) : (
+                <>
+                  <Link
+                    to="/dashboard"
+                    onClick={() => setMobileMenuOpen(false)}
+                  >
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="w-full justify-start"
+                    >
+                      <User className="w-4 h-4 mr-2" />
+                      Dashboard
+                    </Button>
+                  </Link>
+                  <Button
+                    onClick={() => {
+                      logout();
+                      setMobileMenuOpen(false);
+                    }}
+                    variant="outline"
+                    size="sm"
+                    className="w-full justify-start text-red-600"
+                  >
+                    <LogOut className="w-4 h-4 mr-2" />
+                    Logout
+                  </Button>
+                </>
+              )}
             </div>
           </div>
         )}
       </div>
 
-      {/* Auth Modal */}
-      <AuthModal
-        isOpen={showAuthModal}
-        onClose={() => setShowAuthModal(false)}
-        defaultTab={authModalTab}
-      />
+      {/* Mega Menu Overlay */}
+      {showMegaMenu && (
+        <div className="absolute top-full left-0 w-full bg-white shadow-2xl border-t border-gray-100 z-40">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
+              {allPdfTools.map((tool, index) => {
+                const IconComponent = tool.icon;
+                return (
+                  <Link
+                    key={index}
+                    to={tool.href}
+                    className="group flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-50 transition-colors duration-200"
+                    onClick={() => setShowMegaMenu(false)}
+                  >
+                    <div
+                      className={`w-10 h-10 rounded-lg bg-gradient-to-br ${tool.color} flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform duration-200`}
+                    >
+                      <IconComponent className="w-5 h-5 text-white" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center">
+                        <span className="text-sm font-medium text-text-dark group-hover:text-brand-red transition-colors duration-200 truncate">
+                          {tool.title}
+                        </span>
+                        {tool.isNew && (
+                          <span className="ml-2 px-2 py-1 text-xs bg-green-100 text-green-800 rounded-full">
+                            New
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
     </header>
   );
 };

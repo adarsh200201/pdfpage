@@ -57,7 +57,10 @@ router.post(
       const options = {
         amount: amount, // amount in paise
         currency: "INR",
-        receipt: `rcpt_${req.userId.toString().slice(-6)}_${Date.now()}`.slice(0, 40),
+        receipt: `rcpt_${req.userId.toString().slice(-6)}_${Date.now()}`.slice(
+          0,
+          40,
+        ),
         notes: {
           userId: req.userId.toString(),
           planType: planType,
@@ -207,7 +210,7 @@ router.get("/plans", (req, res) => {
     {
       id: "monthly",
       name: "Premium Monthly",
-      price: 299,
+      price: 49,
       currency: "INR",
       interval: "month",
       popular: true,
@@ -225,11 +228,11 @@ router.get("/plans", (req, res) => {
     {
       id: "yearly",
       name: "Premium Yearly",
-      price: 2999,
+      price: 299,
       currency: "INR",
       interval: "year",
-      originalPrice: 3588,
-      savings: 589,
+      originalPrice: 588,
+      savings: 289,
       bestValue: true,
       features: [
         "Everything in Premium Monthly",

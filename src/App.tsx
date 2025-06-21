@@ -6,6 +6,15 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import Index from "./pages/Index";
+import ImgPage from "./pages/ImgPage";
+import ImgCompress from "./pages/ImgCompress";
+import ImgResize from "./pages/ImgResize";
+import ImgJpgToPng from "./pages/ImgJpgToPng";
+import ImgPngToJpg from "./pages/ImgPngToJpg";
+import ImgWatermark from "./pages/ImgWatermark";
+import ImgRotate from "./pages/ImgRotate";
+import Login from "./pages/Login";
+import Register from "./pages/Register";
 import Merge from "./pages/Merge";
 import Split from "./pages/Split";
 import Compress from "./pages/Compress";
@@ -84,6 +93,15 @@ const App = () => (
         <BrowserRouter>
           <Routes>
             <Route path="/" element={<Index />} />
+            <Route path="/img" element={<ImgPage />} />
+            <Route path="/img/compress" element={<ImgCompress />} />
+            <Route path="/img/resize" element={<ImgResize />} />
+            <Route path="/img/jpg-to-png" element={<ImgJpgToPng />} />
+            <Route path="/img/png-to-jpg" element={<ImgPngToJpg />} />
+            <Route path="/img/watermark" element={<ImgWatermark />} />
+            <Route path="/img/rotate" element={<ImgRotate />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/register" element={<Register />} />
             <Route path="/merge" element={<Merge />} />
             <Route path="/split" element={<Split />} />
             <Route path="/compress" element={<Compress />} />

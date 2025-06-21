@@ -281,7 +281,7 @@ const TestAllTools = () => {
                     {user?.isPremium ? "Premium" : "Free"}
                     {user?.isPremium && (
                       <Badge className="ml-2 bg-yellow-100 text-yellow-800">
-                        ₹299/month
+                        ₹49/month
                       </Badge>
                     )}
                   </p>
@@ -442,7 +442,7 @@ const TestAllTools = () => {
                   💰 Revenue Tracking
                 </h4>
                 <ul className="space-y-2 text-sm">
-                  <li>• User premium subscriptions (₹299/₹2999)</li>
+                  <li>• User premium subscriptions (₹49/₹299)</li>
                   <li>• Payment history and billing cycles</li>
                   <li>• Conversion rates from free to premium</li>
                   <li>• Monthly recurring revenue (MRR)</li>

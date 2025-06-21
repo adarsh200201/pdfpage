@@ -1,0 +1,368 @@
+import { useState } from "react";
+import { Link } from "react-router-dom";
+import ImgHeader from "@/components/layout/ImgHeader";
+import FileUpload from "@/components/ui/file-upload";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  ArrowLeft,
+  Download,
+  ImageIcon,
+  FileImage,
+  CheckCircle,
+  Loader2,
+  ArrowRight,
+  Layers,
+  Palette,
+} from "lucide-react";
+import { imageService } from "@/services/imageService";
+import { useToast } from "@/hooks/use-toast";
+
+interface ProcessedImage {
+  id: string;
+  file: File;
+  name: string;
+  size: number;
+  width: number;
+  height: number;
+  preview: string;
+}
+
+const ImgJpgToPng = () => {
+  const [images, setImages] = useState<ProcessedImage[]>([]);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [convertedImages, setConvertedImages] = useState<
+    { original: ProcessedImage; converted: File; preview: string }[]
+  >([]);
+
+  const { toast } = useToast();
+
+  const handleFilesSelect = async (files: File[]) => {
+    const validImages: ProcessedImage[] = [];
+
+    for (const file of files) {
+      if (!imageService.isValidImageFile(file)) {
+        toast({
+          title: "Invalid file type",
+          description: `${file.name} is not a valid image file`,
+          variant: "destructive",
+        });
+        continue;
+      }
+
+      // Check if it's JPG/JPEG
+      if (!file.type.includes("jpeg") && !file.type.includes("jpg")) {
+        toast({
+          title: "Wrong format",
+          description: `${file.name} is not a JPG/JPEG file`,
+          variant: "destructive",
+        });
+        continue;
+      }
+
+      try {
+        const info = await imageService.getImageInfo(file);
+        const preview = URL.createObjectURL(file);
+
+        validImages.push({
+          id: Math.random().toString(36).substr(2, 9),
+          file,
+          name: file.name,
+          size: file.size,
+          width: info.width,
+          height: info.height,
+          preview,
+        });
+      } catch (error) {
+        toast({
+          title: "Error loading image",
+          description: `Failed to load ${file.name}`,
+          variant: "destructive",
+        });
+      }
+    }
+
+    setImages(validImages);
+    setConvertedImages([]);
+  };
+
+  const handleConvert = async () => {
+    if (images.length === 0) return;
+
+    setIsProcessing(true);
+    const converted: {
+      original: ProcessedImage;
+      converted: File;
+      preview: string;
+    }[] = [];
+
+    try {
+      for (const image of images) {
+        const convertedFile = await imageService.convertFormat(
+          image.file,
+          "image/png",
+        );
+        const preview = URL.createObjectURL(convertedFile);
+
+        converted.push({
+          original: image,
+          converted: convertedFile,
+          preview,
+        });
+      }
+
+      setConvertedImages(converted);
+
+      toast({
+        title: "Conversion completed!",
+        description: `Successfully converted ${converted.length} image(s) to PNG`,
+      });
+    } catch (error) {
+      toast({
+        title: "Conversion failed",
+        description: "Failed to convert some images. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleDownload = (convertedImage: {
+    original: ProcessedImage;
+    converted: File;
+    preview: string;
+  }) => {
+    const url = URL.createObjectURL(convertedImage.converted);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = convertedImage.converted.name;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleDownloadAll = () => {
+    convertedImages.forEach((convertedImage) => {
+      setTimeout(() => handleDownload(convertedImage), 100);
+    });
+  };
+
+  const resetState = () => {
+    setImages([]);
+    setConvertedImages([]);
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
+      <ImgHeader />
+
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Header */}
+        <div className="flex items-center mb-8">
+          <Link
+            to="/img"
+            className="flex items-center text-red-600 hover:text-red-700 mr-4"
+          >
+            <ArrowLeft className="w-5 h-5 mr-2" />
+            Back to ImgPage
+          </Link>
+        </div>
+
+        <div className="text-center mb-8">
+          <div className="bg-gradient-to-r from-red-600 to-pink-600 p-4 rounded-2xl w-fit mx-auto mb-4">
+            <FileImage className="w-8 h-8 text-white" />
+          </div>
+          <h1 className="text-3xl font-bold text-gray-900 mb-4">
+            JPG to PNG Converter
+          </h1>
+          <p className="text-gray-600 max-w-2xl mx-auto">
+            Convert your JPG/JPEG images to PNG format with transparency
+            support. Perfect for web graphics and professional design work.
+          </p>
+        </div>
+
+        {/* Main Content */}
+        <div className="space-y-8">
+          {images.length === 0 ? (
+            <Card>
+              <CardContent className="p-8">
+                <FileUpload
+                  onFilesSelect={handleFilesSelect}
+                  acceptedFileTypes={{
+                    "image/jpeg": [".jpg", ".jpeg"],
+                  }}
+                  maxFiles={10}
+                  maxSize={50}
+                />
+
+                <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="text-center p-4">
+                    <Layers className="w-8 h-8 text-red-600 mx-auto mb-2" />
+                    <h3 className="font-semibold text-gray-900">
+                      Transparency Support
+                    </h3>
+                    <p className="text-gray-600 text-sm">
+                      PNG format supports transparent backgrounds
+                    </p>
+                  </div>
+                  <div className="text-center p-4">
+                    <Palette className="w-8 h-8 text-blue-600 mx-auto mb-2" />
+                    <h3 className="font-semibold text-gray-900">
+                      Lossless Quality
+                    </h3>
+                    <p className="text-gray-600 text-sm">
+                      No compression artifacts, perfect quality
+                    </p>
+                  </div>
+                  <div className="text-center p-4">
+                    <CheckCircle className="w-8 h-8 text-green-600 mx-auto mb-2" />
+                    <h3 className="font-semibold text-gray-900">
+                      Batch Processing
+                    </h3>
+                    <p className="text-gray-600 text-sm">
+                      Convert multiple images at once
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="space-y-6">
+              {/* Original Images */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center">
+                    <ImageIcon className="w-5 h-5 mr-2" />
+                    JPG Images ({images.length})
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                    {images.map((image) => (
+                      <div key={image.id} className="text-center">
+                        <img
+                          src={image.preview}
+                          alt={image.name}
+                          className="w-full h-32 object-cover rounded-lg border"
+                        />
+                        <p className="text-sm text-gray-600 mt-2 truncate">
+                          {image.name}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          {image.width} × {image.height}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Conversion Arrow */}
+              <div className="flex justify-center">
+                <div className="bg-gradient-to-r from-red-600 to-pink-600 p-3 rounded-full">
+                  <ArrowRight className="w-6 h-6 text-white" />
+                </div>
+              </div>
+
+              {/* Converted Images */}
+              {convertedImages.length > 0 && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center text-green-600">
+                      <CheckCircle className="w-5 h-5 mr-2" />
+                      PNG Images ({convertedImages.length})
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                      {convertedImages.map((convertedImage, index) => (
+                        <div key={index} className="text-center">
+                          <img
+                            src={convertedImage.preview}
+                            alt={convertedImage.converted.name}
+                            className="w-full h-32 object-cover rounded-lg border"
+                          />
+                          <p className="text-sm text-gray-600 mt-2 truncate">
+                            {convertedImage.converted.name}
+                          </p>
+                          <p className="text-xs text-gray-500 mb-2">
+                            {imageService.formatFileSize(
+                              convertedImage.converted.size,
+                            )}
+                          </p>
+                          <Button
+                            size="sm"
+                            onClick={() => handleDownload(convertedImage)}
+                            className="w-full"
+                          >
+                            <Download className="w-3 h-3 mr-1" />
+                            Download
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+
+                    {convertedImages.length > 1 && (
+                      <div className="mt-6 text-center">
+                        <Button onClick={handleDownloadAll} size="lg">
+                          <Download className="w-4 h-4 mr-2" />
+                          Download All PNG Files
+                        </Button>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Actions */}
+              <div className="flex flex-col sm:flex-row gap-4">
+                {convertedImages.length === 0 ? (
+                  <Button
+                    onClick={handleConvert}
+                    disabled={isProcessing || images.length === 0}
+                    className="flex-1"
+                    size="lg"
+                  >
+                    {isProcessing ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Converting to PNG...
+                      </>
+                    ) : (
+                      <>
+                        <FileImage className="w-4 h-4 mr-2" />
+                        Convert to PNG
+                      </>
+                    )}
+                  </Button>
+                ) : (
+                  <Button
+                    onClick={handleDownloadAll}
+                    className="flex-1"
+                    size="lg"
+                  >
+                    <Download className="w-4 h-4 mr-2" />
+                    Download All PNG Files
+                  </Button>
+                )}
+
+                <Button
+                  variant="outline"
+                  onClick={resetState}
+                  size="lg"
+                  className="flex-1 sm:flex-initial"
+                >
+                  Convert More Images
+                </Button>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default ImgJpgToPng;

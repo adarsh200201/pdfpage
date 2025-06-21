@@ -14,6 +14,7 @@ import {
   Minimize,
   FileText,
   FileImage,
+  ImageIcon,
   Shield,
   Zap,
   Users,
@@ -714,6 +715,87 @@ const Index = () => {
                   }`}
                 />
               ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ImgPage Promotion Section */}
+      <section className="py-20 bg-gradient-to-br from-blue-50 to-indigo-100">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-12">
+            <Badge className="mb-6 bg-blue-600/10 text-blue-600 border-blue-600/20 text-sm px-4 py-2">
+              🎨 NEW: Image Tools Available
+            </Badge>
+            <h2 className="text-4xl lg:text-5xl font-bold text-gray-900 mb-6">
+              Introducing ImgPage
+            </h2>
+            <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+              The same powerful experience you love for PDFs, now available for
+              image processing. Compress, resize, convert, and enhance your
+              images with professional tools.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+            <div>
+              <div className="grid grid-cols-2 gap-4 mb-8">
+                {[
+                  { icon: "🗜️", title: "Compress", desc: "Reduce file sizes" },
+                  { icon: "📏", title: "Resize", desc: "Perfect dimensions" },
+                  { icon: "🔄", title: "Convert", desc: "JPG ↔ PNG" },
+                  { icon: "💧", title: "Watermark", desc: "Protect your work" },
+                ].map((tool, index) => (
+                  <div
+                    key={index}
+                    className="bg-white p-4 rounded-xl shadow-sm text-center"
+                  >
+                    <div className="text-2xl mb-2">{tool.icon}</div>
+                    <h3 className="font-semibold text-gray-900">
+                      {tool.title}
+                    </h3>
+                    <p className="text-sm text-gray-600">{tool.desc}</p>
+                  </div>
+                ))}
+              </div>
+
+              <Link to="/img">
+                <Button
+                  size="lg"
+                  className="bg-blue-600 hover:bg-blue-700 text-white"
+                >
+                  <ImageIcon className="w-5 h-5 mr-2" />
+                  Try ImgPage Now
+                </Button>
+              </Link>
+            </div>
+
+            <div className="relative">
+              <div className="bg-white p-8 rounded-2xl shadow-xl">
+                <div className="flex items-center justify-center mb-6">
+                  <div className="bg-gradient-to-r from-blue-600 to-purple-600 p-4 rounded-2xl">
+                    <ImageIcon className="w-12 h-12 text-white" />
+                  </div>
+                </div>
+                <h3 className="text-2xl font-bold text-gray-900 text-center mb-4">
+                  Professional Image Tools
+                </h3>
+                <div className="space-y-3">
+                  {[
+                    "12+ image processing tools",
+                    "Batch processing support",
+                    "Lossless quality compression",
+                    "Social media presets",
+                    "Watermark protection",
+                    "Format conversion (JPG, PNG, WebP)",
+                  ].map((feature, index) => (
+                    <div key={index} className="flex items-center">
+                      <CheckCircle className="w-5 h-5 text-green-500 mr-3 flex-shrink-0" />
+                      <span className="text-gray-700">{feature}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
           </div>
         </div>

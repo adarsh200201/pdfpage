@@ -150,7 +150,7 @@ const Pricing = () => {
                 Premium Monthly
               </h3>
               <div className="flex items-center justify-center mb-4">
-                <span className="text-4xl font-bold text-text-dark">₹299</span>
+                <span className="text-4xl font-bold text-text-dark">₹49</span>
                 <span className="text-text-light ml-2">/month</span>
               </div>
               <p className="text-body-medium text-text-light">
@@ -173,7 +173,8 @@ const Pricing = () => {
               className="w-full bg-brand-red hover:bg-red-600"
               onClick={() => handleSubscribe("monthly")}
               disabled={
-                isProcessing || (user?.isPremium && user?.premiumPlan === "monthly")
+                isProcessing ||
+                (user?.isPremium && user?.premiumPlan === "monthly")
               }
             >
               {isProcessing ? (
@@ -211,15 +212,13 @@ const Pricing = () => {
                 Premium Yearly
               </h3>
               <div className="flex items-center justify-center mb-2">
-                <span className="text-4xl font-bold text-black">₹2,999</span>
+                <span className="text-4xl font-bold text-black">₹299</span>
                 <span className="text-gray-700 ml-2">/year</span>
               </div>
               <div className="flex items-center justify-center mb-4">
-                <span className="text-sm line-through text-gray-600">
-                  ₹3,588
-                </span>
+                <span className="text-sm line-through text-gray-600">₹588</span>
                 <span className="text-sm font-medium text-green-700 ml-2">
-                  Save ₹589!
+                  Save ₹289!
                 </span>
               </div>
               <p className="text-body-medium text-gray-700">
@@ -240,7 +239,8 @@ const Pricing = () => {
               className="w-full bg-black text-white hover:bg-gray-800"
               onClick={() => handleSubscribe("yearly")}
               disabled={
-                isProcessing || (user?.isPremium && user?.premiumPlan === "yearly")
+                isProcessing ||
+                (user?.isPremium && user?.premiumPlan === "yearly")
               }
             >
               {isProcessing ? (
