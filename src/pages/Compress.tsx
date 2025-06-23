@@ -41,6 +41,12 @@ const Compress = () => {
   } | null>(null);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [usageLimitReached, setUsageLimitReached] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [estimatedTime, setEstimatedTime] = useState<string>("");
+  const [compressionPreview, setCompressionPreview] = useState<{
+    estimatedSize: number;
+    estimatedSavings: number;
+  } | null>(null);
 
   const { user, isAuthenticated } = useAuth();
   const { toast } = useToast();
@@ -56,6 +62,35 @@ const Compress = () => {
       });
       setIsComplete(false);
       setCompressionStats(null);
+      updateCompressionPreview(selectedFile, quality[0]);
+    }
+  };
+
+  // Real-time compression preview
+  const updateCompressionPreview = (
+    selectedFile: File,
+    qualityValue: number,
+  ) => {
+    // Estimate compression based on quality setting
+    const compressionRatio = 1 - qualityValue * 0.8; // Rough estimation
+    const estimatedSize = selectedFile.size * (1 - compressionRatio);
+    const estimatedSavings = selectedFile.size - estimatedSize;
+
+    setCompressionPreview({
+      estimatedSize,
+      estimatedSavings,
+    });
+
+    // Estimate processing time based on file size
+    const timeInSeconds = Math.max(2, (selectedFile.size / (1024 * 1024)) * 2); // 2 seconds per MB
+    setEstimatedTime(`${timeInSeconds.toFixed(0)} seconds`);
+  };
+
+  // Update preview when quality changes
+  const handleQualityChange = (newQuality: number[]) => {
+    setQuality(newQuality);
+    if (file) {
+      updateCompressionPreview(file.file, newQuality[0]);
     }
   };
 
@@ -81,8 +116,15 @@ const Compress = () => {
     }
 
     setIsProcessing(true);
+    setProgress(0);
+    const startTime = Date.now();
 
     try {
+      toast({
+        title: `🔄 Compressing ${file.name}...`,
+        description: `Quality: ${Math.round(quality[0] * 100)}% • Estimated time: ${estimatedTime}`,
+      });
+
       // Check file size limits
       const maxSize = user?.isPremium ? 100 * 1024 * 1024 : 25 * 1024 * 1024;
       if (file.size > maxSize) {

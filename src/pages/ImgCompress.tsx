@@ -181,6 +181,9 @@ const ImgCompress = () => {
                   }}
                   maxFiles={1}
                   maxSize={50}
+                  multiple={false}
+                  uploadText="Select image files or drop image files here"
+                  supportText="Supports JPG, PNG, GIF, WebP formats"
                 />
 
                 <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-4">

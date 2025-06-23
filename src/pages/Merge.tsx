@@ -39,6 +39,8 @@ const Merge = () => {
   const [mergedFileUrl, setMergedFileUrl] = useState<string>("");
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [usageLimitReached, setUsageLimitReached] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [mergedFileSize, setMergedFileSize] = useState(0);
 
   const { user, isAuthenticated } = useAuth();
   const { toast } = useToast();
@@ -91,7 +93,14 @@ const Merge = () => {
   };
 
   const handleMerge = async () => {
-    if (files.length < 2) return;
+    if (files.length < 2) {
+      toast({
+        title: "Not enough files",
+        description: "Please select at least 2 PDF files to merge.",
+        variant: "destructive",
+      });
+      return;
+    }
 
     // Check usage limits
     const usageCheck = await PDFService.checkUsageLimit();
@@ -104,8 +113,14 @@ const Merge = () => {
     }
 
     setIsProcessing(true);
+    setProgress(0);
 
     try {
+      toast({
+        title: `🔄 Merging ${files.length} PDF files...`,
+        description: "Processing your documents",
+      });
+
       // Get total file size
       const totalSize = files.reduce((sum, file) => sum + file.size, 0);
 
@@ -117,7 +132,17 @@ const Merge = () => {
         );
       }
 
-      const mergedPdfBytes = await PDFService.mergePDFs(files);
+      setProgress(10);
+
+      // Use optimized merge with progress tracking
+      const mergedPdfBytes = await PDFService.mergePDFs(
+        files,
+        (progressPercent) => {
+          setProgress(progressPercent);
+        },
+      );
+
+      setMergedFileSize(mergedPdfBytes.length);
 
       // Track usage
       await PDFService.trackUsage("merge", files.length, totalSize);
@@ -137,7 +162,9 @@ const Merge = () => {
       }
 
       // Download the merged file
-      const downloadLink = document.querySelector("a[download]") as HTMLAnchorElement | null;
+      const downloadLink = document.querySelector(
+        "a[download]",
+      ) as HTMLAnchorElement | null;
       if (downloadLink) {
         downloadLink.click();
       }
@@ -173,7 +200,9 @@ const Merge = () => {
       try {
         const mergedPdfBytes = await PDFService.mergePDFs(files);
         const downloadLink = document.createElement("a");
-        downloadLink.href = URL.createObjectURL(new Blob([mergedPdfBytes], { type: 'application/pdf' }));
+        downloadLink.href = URL.createObjectURL(
+          new Blob([mergedPdfBytes], { type: "application/pdf" }),
+        );
         downloadLink.download = "merged-document.pdf";
         downloadLink.click();
       } catch (error) {

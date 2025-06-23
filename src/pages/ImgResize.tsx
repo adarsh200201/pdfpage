@@ -205,6 +205,9 @@ const ImgResize = () => {
                   }}
                   maxFiles={1}
                   maxSize={50}
+                  multiple={false}
+                  uploadText="Select image file or drop image file here"
+                  supportText="Supports JPG, PNG, GIF, WebP formats"
                 />
 
                 <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-4">

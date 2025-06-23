@@ -1,6 +1,7 @@
 import { defineConfig } from "vite";
-import react from "@vitejs/plugin-react-swc";
+import react from "@vitejs/plugin-react";
 import path from "path";
+import { createRequire } from "module";
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
@@ -9,17 +10,44 @@ export default defineConfig(({ mode }) => ({
     port: 3000,
   },
   plugins: [react()],
+  ssr: {
+    noExternal: ["pdf-lib", "pako"],
+  },
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  build: {
+    commonjsOptions: {
+      include: [/pdf-lib/, /pako/, /pdfjs-dist/, /react-pdf/, /node_modules/],
+    },
+    rollupOptions: {
+      external: (id) => {
+        // Don't bundle PDF.js worker - let it be loaded externally
+        return id.includes("pdf.worker");
+      },
+    },
+  },
   optimizeDeps: {
-    include: ["pdfjs-dist", "pdfjs-dist/build/pdf.worker.min.js"],
+    include: [
+      "pdfjs-dist",
+      "pdf-lib",
+      "pako",
+      "@pdf-lib/standard-fonts",
+      "@pdf-lib/upng",
+      "react-pdf",
+    ],
     exclude: ["pdfjs-dist/build/pdf.worker.js"],
+    esbuildOptions: {
+      define: {
+        global: "globalThis",
+      },
+    },
   },
   worker: {
     format: "es",
+    plugins: () => [],
   },
   define: {
     // Help PDF.js work better in Vite

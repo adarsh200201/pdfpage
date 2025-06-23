@@ -26,58 +26,62 @@ import {
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/contexts/AuthContext";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { useTranslation } from "@/hooks/useTranslation";
 
 const ImgHeader = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [showMegaMenu, setShowMegaMenu] = useState(false);
 
   const { user, isAuthenticated, logout } = useAuth();
+  const { currentLanguage, setLanguage, languages } = useLanguage();
+  const { t } = useTranslation();
 
   const imageNavItems = [
-    { label: "Compress Image", href: "/img/compress" },
-    { label: "Resize Image", href: "/img/resize" },
-    { label: "Convert JPG to PNG", href: "/img/jpg-to-png" },
-    { label: "Convert PNG to JPG", href: "/img/png-to-jpg" },
+    { label: t("img.compressImage"), href: "/img/compress" },
+    { label: t("img.resizeImage"), href: "/img/resize" },
+    { label: t("img.jpgToPng"), href: "/img/jpg-to-png" },
+    { label: t("img.pngToJpg"), href: "/img/png-to-jpg" },
   ];
 
   const allImageTools = [
     {
-      title: "Compress Image",
+      title: t("img.compressImage"),
       href: "/img/compress",
       icon: Minimize2,
       color: "from-blue-500 to-blue-600",
       description: "Reduce file size while maintaining quality",
     },
     {
-      title: "Resize Image",
+      title: t("img.resizeImage"),
       href: "/img/resize",
       icon: Crop,
       color: "from-green-500 to-green-600",
       description: "Change image dimensions and scale",
     },
     {
-      title: "JPG to PNG",
+      title: t("img.jpgToPng"),
       href: "/img/jpg-to-png",
       icon: ImageIcon,
       color: "from-purple-500 to-purple-600",
       description: "Convert JPEG images to PNG format",
     },
     {
-      title: "PNG to JPG",
+      title: t("img.pngToJpg"),
       href: "/img/png-to-jpg",
       icon: ImageIcon,
       color: "from-orange-500 to-orange-600",
       description: "Convert PNG images to JPEG format",
     },
     {
-      title: "Add Watermark",
+      title: t("img.addWatermark"),
       href: "/img/watermark",
       icon: Type,
       color: "from-pink-500 to-pink-600",
       description: "Add text or image watermarks",
     },
     {
-      title: "Rotate Image",
+      title: t("img.rotateImage"),
       href: "/img/rotate",
       icon: RotateCw,
       color: "from-cyan-500 to-cyan-600",
@@ -134,7 +138,7 @@ const ImgHeader = () => {
               onClick={() => setShowMegaMenu(!showMegaMenu)}
               className="text-body-medium text-text-medium hover:text-blue-600 transition-colors duration-200 flex items-center"
             >
-              All Image Tools
+              {t("img.allImageTools")}
               <ChevronDown className="w-4 h-4 ml-1" />
             </button>
 
@@ -143,7 +147,7 @@ const ImgHeader = () => {
               to="/"
               className="text-body-medium text-text-medium hover:text-red-600 transition-colors duration-200 flex items-center"
             >
-              Back to PdfPage
+              {t("img.backToPdfPage")}
             </Link>
 
             {/* Get Premium */}
@@ -151,7 +155,7 @@ const ImgHeader = () => {
               to="/pricing"
               className="text-body-medium text-text-medium hover:text-blue-600 transition-colors duration-200"
             >
-              Get Premium
+              {t("nav.getPremium")}
             </Link>
           </nav>
 
@@ -159,16 +163,30 @@ const ImgHeader = () => {
           <div className="flex items-center space-x-4">
             {/* Language Selector */}
             <DropdownMenu>
-              <DropdownMenuTrigger className="hidden md:flex items-center text-text-medium hover:text-blue-600 transition-colors duration-200">
-                <Globe className="w-4 h-4 mr-1" />
-                EN
+              <DropdownMenuTrigger asChild>
+                <button className="hidden md:flex items-center text-text-medium hover:text-blue-600 transition-colors duration-200 cursor-pointer">
+                  <Globe className="w-4 h-4 mr-1" />
+                  {currentLanguage.code.toUpperCase()}
+                </button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent>
-                <DropdownMenuItem>🇺🇸 English</DropdownMenuItem>
-                <DropdownMenuItem>🇪🇸 Español</DropdownMenuItem>
-                <DropdownMenuItem>🇫🇷 Français</DropdownMenuItem>
-                <DropdownMenuItem>🇩🇪 Deutsch</DropdownMenuItem>
-                <DropdownMenuItem>🇮🇹 Italiano</DropdownMenuItem>
+              <DropdownMenuContent className="max-h-80 overflow-y-auto w-56">
+                {languages.map((language) => (
+                  <DropdownMenuItem
+                    key={language.code}
+                    onClick={() => setLanguage(language)}
+                    className={`cursor-pointer ${
+                      currentLanguage.code === language.code
+                        ? "bg-blue-50 text-blue-600"
+                        : ""
+                    }`}
+                  >
+                    <span className="mr-2">{language.flag}</span>
+                    <span className="flex-1">{language.nativeName}</span>
+                    {currentLanguage.code === language.code && (
+                      <span className="text-blue-600 text-xs">✓</span>
+                    )}
+                  </DropdownMenuItem>
+                ))}
               </DropdownMenuContent>
             </DropdownMenu>
 
@@ -195,25 +213,25 @@ const ImgHeader = () => {
                   <DropdownMenuItem asChild>
                     <Link to="/dashboard" className="flex items-center">
                       <User className="w-4 h-4 mr-2" />
-                      Dashboard
+                      {t("nav.dashboard")}
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild>
                     <Link to="/settings" className="flex items-center">
                       <Settings className="w-4 h-4 mr-2" />
-                      Settings
+                      {t("nav.settings")}
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild>
                     <Link to="/pricing" className="flex items-center">
                       <Crown className="w-4 h-4 mr-2" />
-                      Upgrade to Pro
+                      {t("nav.upgradeToPro")}
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={logout} className="text-red-600">
                     <LogOut className="w-4 h-4 mr-2" />
-                    Logout
+                    {t("nav.logout")}
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -222,13 +240,13 @@ const ImgHeader = () => {
                 <Link to="/login">
                   <Button variant="outline" size="sm">
                     <User className="w-4 h-4 mr-2" />
-                    Login
+                    {t("nav.login")}
                   </Button>
                 </Link>
                 <Link to="/register">
                   <Button size="sm" className="bg-blue-600 hover:bg-blue-700">
                     <Crown className="w-4 h-4 mr-2" />
-                    Get Started
+                    {t("nav.getStarted")}
                   </Button>
                 </Link>
               </div>
@@ -271,7 +289,7 @@ const ImgHeader = () => {
                       className="w-full justify-start"
                     >
                       <User className="w-4 h-4 mr-2" />
-                      Login
+                      {t("nav.login")}
                     </Button>
                   </Link>
                   <Link to="/register" onClick={() => setMobileMenuOpen(false)}>
@@ -280,7 +298,7 @@ const ImgHeader = () => {
                       className="w-full justify-start bg-blue-600 hover:bg-blue-700"
                     >
                       <Crown className="w-4 h-4 mr-2" />
-                      Get Started
+                      {t("nav.getStarted")}
                     </Button>
                   </Link>
                 </>
@@ -296,7 +314,7 @@ const ImgHeader = () => {
                       className="w-full justify-start"
                     >
                       <User className="w-4 h-4 mr-2" />
-                      Dashboard
+                      {t("nav.dashboard")}
                     </Button>
                   </Link>
                   <Button
@@ -309,10 +327,44 @@ const ImgHeader = () => {
                     className="w-full justify-start text-red-600"
                   >
                     <LogOut className="w-4 h-4 mr-2" />
-                    Logout
+                    {t("nav.logout")}
                   </Button>
                 </>
               )}
+
+              {/* Mobile Language Selector */}
+              <div className="pt-4 border-t border-gray-100 mt-4">
+                <div className="flex items-center mb-2">
+                  <Globe className="w-4 h-4 mr-2 text-text-medium" />
+                  <span className="text-sm font-medium text-text-dark">
+                    {t("nav.language")}
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto">
+                  {languages.map((language) => (
+                    <button
+                      key={language.code}
+                      onClick={() => {
+                        setLanguage(language);
+                        setMobileMenuOpen(false);
+                      }}
+                      className={`flex items-center p-2 rounded-lg text-left transition-colors duration-200 ${
+                        currentLanguage.code === language.code
+                          ? "bg-blue-50 text-blue-600"
+                          : "hover:bg-gray-50"
+                      }`}
+                    >
+                      <span className="mr-2 text-sm">{language.flag}</span>
+                      <span className="text-xs truncate flex-1">
+                        {language.nativeName}
+                      </span>
+                      {currentLanguage.code === language.code && (
+                        <span className="text-blue-600 text-xs ml-1">✓</span>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
           </div>
         )}

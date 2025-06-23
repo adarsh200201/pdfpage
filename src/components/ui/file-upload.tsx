@@ -8,8 +8,10 @@ interface FileUploadProps {
   accept?: string;
   multiple?: boolean;
   maxSize?: number; // in MB
+  maxFiles?: number;
   className?: string;
   allowedTypes?: string[]; // e.g., ["pdf", "image"]
+  acceptedFileTypes?: Record<string, string[]>; // For image tools compatibility
   uploadText?: string;
   supportText?: string;
 }
@@ -25,45 +27,69 @@ const FileUpload: React.FC<FileUploadProps> = ({
   accept = ".pdf",
   multiple = true,
   maxSize = 10,
+  maxFiles,
   className,
   allowedTypes = ["pdf"],
+  acceptedFileTypes,
   uploadText = "Select PDF files or drop PDF files here",
   supportText = "Supports PDF format",
 }) => {
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
   const [isDragOver, setIsDragOver] = useState(false);
 
-  const validateFile = (file: File): string | null => {
-    // Check file type based on allowedTypes
-    const isValidType = allowedTypes.some((type) => {
-      if (type === "pdf") {
-        return (
-          file.type.includes("pdf") || file.name.toLowerCase().endsWith(".pdf")
-        );
-      }
-      if (type === "image") {
-        return (
-          file.type.startsWith("image/") ||
-          /\.(jpg|jpeg|png|gif|bmp|webp)$/i.test(file.name)
-        );
-      }
-      return file.type.includes(type);
-    });
+  const validateFile = useCallback(
+    (file: File): string | null => {
+      // Handle acceptedFileTypes prop (used by image tools)
+      if (acceptedFileTypes) {
+        const isValidType = Object.keys(acceptedFileTypes).some((mimeType) => {
+          if (mimeType === "image/*") {
+            return (
+              file.type.startsWith("image/") ||
+              /\.(jpg|jpeg|png|gif|bmp|webp)$/i.test(file.name)
+            );
+          }
+          return file.type === mimeType;
+        });
 
-    if (!isValidType) {
-      const typeNames = allowedTypes.map((type) => {
-        if (type === "image") return "Image files (JPG, PNG, GIF, etc.)";
-        if (type === "pdf") return "PDF files";
-        return type.toUpperCase() + " files";
-      });
-      return `Only ${typeNames.join(", ")} are allowed`;
-    }
+        if (!isValidType) {
+          const extensions = Object.values(acceptedFileTypes).flat();
+          return `Only ${extensions.join(", ")} files are allowed`;
+        }
+      } else {
+        // Check file type based on allowedTypes (original logic)
+        const isValidType = allowedTypes.some((type) => {
+          if (type === "pdf") {
+            return (
+              file.type.includes("pdf") ||
+              file.name.toLowerCase().endsWith(".pdf")
+            );
+          }
+          if (type === "image") {
+            return (
+              file.type.startsWith("image/") ||
+              /\.(jpg|jpeg|png|gif|bmp|webp)$/i.test(file.name)
+            );
+          }
+          return file.type.includes(type);
+        });
 
-    if (file.size > maxSize * 1024 * 1024) {
-      return `File size must be less than ${maxSize}MB`;
-    }
-    return null;
-  };
+        if (!isValidType) {
+          const typeNames = allowedTypes.map((type) => {
+            if (type === "image") return "Image files (JPG, PNG, GIF, etc.)";
+            if (type === "pdf") return "PDF files";
+            return type.toUpperCase() + " files";
+          });
+          return `Only ${typeNames.join(", ")} are allowed`;
+        }
+      }
+
+      if (file.size > maxSize * 1024 * 1024) {
+        return `File size must be less than ${maxSize}MB`;
+      }
+      return null;
+    },
+    [maxSize, allowedTypes, acceptedFileTypes],
+  );
 
   const handleFiles = useCallback(
     (files: FileList | null) => {
@@ -72,7 +98,12 @@ const FileUpload: React.FC<FileUploadProps> = ({
       const newFiles: UploadedFile[] = [];
       const validFiles: File[] = [];
 
-      Array.from(files).forEach((file) => {
+      // Respect maxFiles limit
+      const filesToProcess = maxFiles
+        ? Array.from(files).slice(0, maxFiles)
+        : Array.from(files);
+
+      filesToProcess.forEach((file) => {
         const error = validateFile(file);
         const uploadedFile: UploadedFile = {
           file,
@@ -86,7 +117,7 @@ const FileUpload: React.FC<FileUploadProps> = ({
         }
       });
 
-      if (multiple) {
+      if (multiple && !maxFiles) {
         setUploadedFiles((prev) => [...prev, ...newFiles]);
       } else {
         setUploadedFiles(newFiles);
@@ -96,7 +127,14 @@ const FileUpload: React.FC<FileUploadProps> = ({
         onFilesSelect(validFiles);
       }
     },
-    [multiple, maxSize, onFilesSelect],
+    [
+      multiple,
+      maxFiles,
+      maxSize,
+      onFilesSelect,
+      allowedTypes,
+      acceptedFileTypes,
+    ],
   );
 
   const handleDrop = useCallback(
@@ -173,7 +211,9 @@ const FileUpload: React.FC<FileUploadProps> = ({
 
           <div>
             <h3 className="text-heading-small text-text-dark mb-2">
-              {uploadText.split(" or ")[0]}
+              {uploadText.includes(" or ")
+                ? uploadText.split(" or ")[0]
+                : uploadText}
             </h3>
             <p className="text-body-small text-text-light mb-4">
               {uploadText.includes(" or ")
@@ -188,7 +228,9 @@ const FileUpload: React.FC<FileUploadProps> = ({
                 document.querySelector('input[type="file"]')?.click()
               }
             >
-              {uploadText.split(" or ")[0]}
+              {uploadText.includes(" or ")
+                ? uploadText.split(" or ")[0]
+                : uploadText}
             </Button>
 
             <p className="text-xs text-text-light mt-2">

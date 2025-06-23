@@ -26,6 +26,7 @@ import {
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/contexts/AuthContext";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 const Header = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -33,6 +34,7 @@ const Header = () => {
   const location = useLocation();
 
   const { user, isAuthenticated, logout } = useAuth();
+  const { currentLanguage, setLanguage, languages } = useLanguage();
 
   // Determine if current page is image-related
   const isImagePage = location.pathname.startsWith("/img");
@@ -341,16 +343,30 @@ const Header = () => {
           <div className="flex items-center space-x-4">
             {/* Language Selector */}
             <DropdownMenu>
-              <DropdownMenuTrigger className="hidden md:flex items-center text-text-medium hover:text-brand-red transition-colors duration-200">
-                <Globe className="w-4 h-4 mr-1" />
-                EN
+              <DropdownMenuTrigger asChild>
+                <button className="hidden md:flex items-center text-text-medium hover:text-brand-red transition-colors duration-200 cursor-pointer">
+                  <Globe className="w-4 h-4 mr-1" />
+                  {currentLanguage.code.toUpperCase()}
+                </button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent>
-                <DropdownMenuItem>🇺🇸 English</DropdownMenuItem>
-                <DropdownMenuItem>🇪🇸 Español</DropdownMenuItem>
-                <DropdownMenuItem>🇫🇷 Français</DropdownMenuItem>
-                <DropdownMenuItem>🇩🇪 Deutsch</DropdownMenuItem>
-                <DropdownMenuItem>🇮🇹 Italiano</DropdownMenuItem>
+              <DropdownMenuContent className="max-h-80 overflow-y-auto w-56">
+                {languages.map((language) => (
+                  <DropdownMenuItem
+                    key={language.code}
+                    onClick={() => setLanguage(language)}
+                    className={`cursor-pointer ${
+                      currentLanguage.code === language.code
+                        ? "bg-blue-50 text-blue-600"
+                        : ""
+                    }`}
+                  >
+                    <span className="mr-2">{language.flag}</span>
+                    <span className="flex-1">{language.nativeName}</span>
+                    {currentLanguage.code === language.code && (
+                      <span className="text-blue-600 text-xs">✓</span>
+                    )}
+                  </DropdownMenuItem>
+                ))}
               </DropdownMenuContent>
             </DropdownMenu>
 
@@ -495,6 +511,40 @@ const Header = () => {
                   </Button>
                 </>
               )}
+
+              {/* Mobile Language Selector */}
+              <div className="pt-4 border-t border-gray-100 mt-4">
+                <div className="flex items-center mb-2">
+                  <Globe className="w-4 h-4 mr-2 text-text-medium" />
+                  <span className="text-sm font-medium text-text-dark">
+                    Language
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto">
+                  {languages.map((language) => (
+                    <button
+                      key={language.code}
+                      onClick={() => {
+                        setLanguage(language);
+                        setMobileMenuOpen(false);
+                      }}
+                      className={`flex items-center p-2 rounded-lg text-left transition-colors duration-200 ${
+                        currentLanguage.code === language.code
+                          ? "bg-blue-50 text-blue-600"
+                          : "hover:bg-gray-50"
+                      }`}
+                    >
+                      <span className="mr-2 text-sm">{language.flag}</span>
+                      <span className="text-xs truncate flex-1">
+                        {language.nativeName}
+                      </span>
+                      {currentLanguage.code === language.code && (
+                        <span className="text-blue-600 text-xs ml-1">✓</span>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
           </div>
         )}

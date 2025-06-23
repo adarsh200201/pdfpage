@@ -243,6 +243,9 @@ const ImgPngToJpg = () => {
                   }}
                   maxFiles={10}
                   maxSize={50}
+                  multiple={true}
+                  uploadText="Select PNG files or drop PNG files here"
+                  supportText="Supports PNG format"
                 />
 
                 <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-4">
