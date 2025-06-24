@@ -175,11 +175,7 @@ const PdfToJpg = () => {
         `https://cdn.jsdelivr.net/npm/pdfjs-dist@2.16.105/build/pdf.worker.min.js`,
       ];
 
-      // Use the first URL as primary
-      const workerUrl = workerUrls[0];
-      pdfjsLib.GlobalWorkerOptions.workerSrc = workerUrl;
-
-      console.log(`✅ PDF.js 2.16.105 configured with worker: ${workerUrl}`);
+      console.log(`✅ PDF.js 2.16.105 configured for conversion`);
 
       // Load PDF document
       const arrayBuffer = await file.arrayBuffer();
@@ -189,12 +185,12 @@ const PdfToJpg = () => {
 
       const loadingTask = pdfjsLib.getDocument({
         data: arrayBuffer,
-        disableWorker: false, // Allow worker since we have a proper URL
+        disableWorker: true, // Disable worker to avoid configuration issues
+        disableStream: true,
+        disableAutoFetch: true,
         verbosity: 0,
         isEvalSupported: false,
         useSystemFonts: true,
-        disableAutoFetch: false,
-        disableStream: false,
       });
 
       const pdfDocument = await loadingTask.promise;

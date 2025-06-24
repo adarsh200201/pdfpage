@@ -129,13 +129,15 @@ const PdfToWord = () => {
     file: File,
     mode: "editable" | "layout",
   ): Promise<Blob> => {
-    const { getDocument, GlobalWorkerOptions } = await import("pdfjs-dist");
-
-    // Set worker source
-    GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js`;
+    const { getDocument } = await import("pdfjs-dist");
 
     const arrayBuffer = await file.arrayBuffer();
-    const pdf = await getDocument({ data: arrayBuffer }).promise;
+    const pdf = await getDocument({
+      data: arrayBuffer,
+      disableWorker: true,
+      disableStream: true,
+      disableAutoFetch: true,
+    }).promise;
 
     let extractedText = "";
 

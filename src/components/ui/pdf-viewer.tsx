@@ -48,16 +48,8 @@ const PDFViewer: React.FC<PDFViewerProps> = ({
       try {
         console.log("🔄 Loading PDF with direct PDF.js:", file.name);
 
-        // Explicitly configure worker before each PDF load
-        console.log(
-          "Current worker source:",
-          pdfjsLib.GlobalWorkerOptions.workerSrc,
-        );
-
-        // Force disable worker completely for simpler approach
-        console.log("⚙️ Disabling worker for direct synchronous rendering...");
-        pdfjsLib.GlobalWorkerOptions.workerSrc = false;
-        console.log("✅ Worker disabled completely");
+        // Using document-level configuration instead of global worker options
+        console.log("⚙️ Preparing to load PDF with worker disabled...");
 
         // Convert file to ArrayBuffer
         console.log("📁 Converting file to ArrayBuffer...");
