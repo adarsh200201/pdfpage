@@ -76,8 +76,13 @@ const Register = () => {
       if (formData.name.length < 2) {
         throw new Error("Name must be at least 2 characters long");
       }
-      if (formData.password.length < 8) {
-        throw new Error("Password must be at least 8 characters long");
+      if (formData.password.length < 6) {
+        throw new Error("Password must be at least 6 characters long");
+      }
+      if (!/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(formData.password)) {
+        throw new Error(
+          "Password must contain at least one uppercase letter, one lowercase letter, and one number",
+        );
       }
       if (formData.password !== formData.confirmPassword) {
         throw new Error("Passwords do not match");
@@ -268,7 +273,8 @@ const Register = () => {
                     </button>
                   </div>
                   <p className="text-xs text-gray-500">
-                    Must be at least 8 characters long
+                    Must be at least 6 characters with uppercase, lowercase, and
+                    number
                   </p>
                 </div>
 

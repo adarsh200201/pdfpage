@@ -71,6 +71,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const login = async (email: string, password: string) => {
     try {
+      console.log("🔵 [FRONTEND] Attempting to login user:", { email });
+
       const response = await fetch(
         `${import.meta.env.VITE_API_URL}/auth/login`,
         {
@@ -86,18 +88,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         const { token, user } = await response.json();
         Cookies.set("token", token, { expires: 30 });
         setUser(user);
+        console.log("✅ [FRONTEND] Login successful");
       } else {
-        const error = await response.json();
+        const error = await response.json().catch(() => ({}));
         throw new Error(error.message || "Login failed");
       }
-    } catch (error) {
-      throw error;
+    } catch (error: any) {
+      console.error("🔴 [FRONTEND] Login error:", error);
+      throw new Error(error.message || "An error occurred during login");
     }
   };
 
   const register = async (name: string, email: string, password: string) => {
     try {
-      console.log("🔵 [FRONTEND] Attempting to register user:", { name, email });
+      console.log("🔵 [FRONTEND] Attempting to register user:", {
+        name,
+        email,
+      });
+
       const response = await fetch(
         `${import.meta.env.VITE_API_URL}/auth/register`,
         {
@@ -110,7 +118,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       );
 
       const responseData = await response.json().catch(() => ({}));
-      
+
       if (response.ok) {
         console.log("✅ [FRONTEND] Registration successful");
         const { token, user } = responseData;
@@ -120,12 +128,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         console.error("🔴 [FRONTEND] Registration failed:", {
           status: response.status,
           statusText: response.statusText,
-          error: responseData
+          error: responseData,
         });
         throw new Error(
-          responseData.message || 
-          responseData.error || 
-          `Registration failed with status ${response.status}`
+          responseData.message ||
+            responseData.error ||
+            `Registration failed with status ${response.status}`,
         );
       }
     } catch (error: any) {

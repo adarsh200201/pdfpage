@@ -811,7 +811,7 @@ const Index = () => {
               <h2 className="text-4xl lg:text-5xl font-bold mb-6">
                 Get Premium Power
               </h2>
-              <p className="text-xl text-red-100 mb-8 leading-relaxed">
+              <p className="text-xl text-white mb-8 leading-relaxed font-medium">
                 Unlock unlimited processing, advanced features, and priority
                 support. Perfect for businesses and power users.
               </p>
@@ -827,7 +827,7 @@ const Index = () => {
                 ].map((feature) => (
                   <div key={feature} className="flex items-center">
                     <CheckCircle className="w-5 h-5 text-yellow-300 mr-3 flex-shrink-0" />
-                    <span className="text-red-100">{feature}</span>
+                    <span className="text-white font-medium">{feature}</span>
                   </div>
                 ))}
               </div>
@@ -848,7 +848,7 @@ const Index = () => {
                 <Button
                   size="lg"
                   variant="outline"
-                  className="border-white text-white hover:bg-white/10 px-8 py-4"
+                  className="border-red-500 text-red-500 hover:bg-red-500 hover:text-white px-8 py-4 font-semibold shadow-lg"
                   asChild
                 >
                   <Link to="/pricing">View Pricing</Link>

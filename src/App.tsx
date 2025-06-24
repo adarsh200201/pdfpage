@@ -16,6 +16,7 @@ import ImgWatermark from "./pages/ImgWatermark";
 import ImgRotate from "./pages/ImgRotate";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
+import ForgotPassword from "./pages/ForgotPassword";
 import Merge from "./pages/Merge";
 import Split from "./pages/Split";
 import Compress from "./pages/Compress";
@@ -104,6 +105,7 @@ const App = () => (
               <Route path="/img/rotate" element={<ImgRotate />} />
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
+              <Route path="/forgot-password" element={<ForgotPassword />} />
               <Route path="/merge" element={<Merge />} />
               <Route path="/split" element={<Split />} />
               <Route path="/compress" element={<Compress />} />
