@@ -16,6 +16,12 @@ import ImgJpgToPng from "./pages/ImgJpgToPng";
 import ImgPngToJpg from "./pages/ImgPngToJpg";
 import ImgWatermark from "./pages/ImgWatermark";
 import ImgRotate from "./pages/ImgRotate";
+import ImgCrop from "./pages/ImgCrop";
+import ImgRemoveBg from "./pages/ImgRemoveBg";
+import ImgUpscale from "./pages/ImgUpscale";
+import ImgToPdf from "./pages/ImgToPdf";
+import ImgMeme from "./pages/ImgMeme";
+import ImgConvert from "./pages/ImgConvert";
 import FaviconConverter from "./pages/FaviconConverter";
 import FaviconPage from "./pages/FaviconPage";
 import Login from "./pages/Login";
@@ -87,6 +93,9 @@ import {
 } from "./pages/AllTools";
 import NotFound from "./pages/NotFound";
 import Settings from "./pages/Settings";
+import ToolRedirect from "./pages/ToolRedirect";
+import ToolAvailable from "./pages/ToolAvailable";
+import AvailableTools from "./pages/AvailableTools";
 
 const queryClient = new QueryClient();
 
@@ -128,6 +137,12 @@ const App = () => {
                 <Route path="/img/png-to-jpg" element={<ImgPngToJpg />} />
                 <Route path="/img/watermark" element={<ImgWatermark />} />
                 <Route path="/img/rotate" element={<ImgRotate />} />
+                <Route path="/img/crop" element={<ImgCrop />} />
+                <Route path="/img/remove-bg" element={<ImgRemoveBg />} />
+                <Route path="/img/upscale" element={<ImgUpscale />} />
+                <Route path="/img/to-pdf" element={<ImgToPdf />} />
+                <Route path="/img/meme" element={<ImgMeme />} />
+                <Route path="/img/convert" element={<ImgConvert />} />
                 <Route path="/img/favicon" element={<FaviconConverter />} />
                 <Route path="/favicon" element={<FaviconPage />} />
                 <Route path="/login" element={<Login />} />
@@ -199,6 +214,18 @@ const App = () => {
                 <Route path="/api-docs" element={<ApiDocs />} />
                 <Route path="/status" element={<Status />} />
                 <Route path="/settings" element={<Settings />} />
+
+                {/* Tool Redirect Pages */}
+                <Route path="/available-tools" element={<AvailableTools />} />
+                <Route
+                  path="/tool-redirect/:toolSlug"
+                  element={<ToolRedirect />}
+                />
+                <Route
+                  path="/tool-available/:toolSlug"
+                  element={<ToolAvailable />}
+                />
+
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                 <Route path="*" element={<NotFound />} />
               </Routes>

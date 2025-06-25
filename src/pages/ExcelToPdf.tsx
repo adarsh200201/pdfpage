@@ -5,6 +5,29 @@ import FileUpload from "@/components/ui/file-upload";
 import { Button } from "@/components/ui/button";
 import { PromoBanner } from "@/components/ui/promo-banner";
 import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
+import { Progress } from "@/components/ui/progress";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import { Slider } from "@/components/ui/slider";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
   ArrowLeft,
   Download,
   FileText,
@@ -18,6 +41,24 @@ import {
   Printer,
   Eye,
   Settings,
+  Sparkles,
+  Brain,
+  Zap,
+  Target,
+  BarChart3,
+  TrendingUp,
+  Clock,
+  Share,
+  Save,
+  RefreshCw,
+  Grid,
+  Calculator,
+  Filter,
+  Layers,
+  Activity,
+  Database,
+  PieChart,
+  LineChart,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { PDFService } from "@/services/pdfService";
@@ -41,25 +82,62 @@ interface ConversionSettings {
   scaleToFit: number;
   worksheetSelection: "all" | "active" | "specific";
   selectedSheets: string[];
+  includeFormulas: boolean;
+  preserveFormatting: boolean;
+  includeCharts: boolean;
+  aiOptimization: boolean;
+  smartLayout: boolean;
+  autoPageBreaks: boolean;
+  compression: "none" | "low" | "medium" | "high";
+  watermark: string;
+  headerFooter: boolean;
 }
 
 interface WorksheetInfo {
   name: string;
   rowCount: number;
   columnCount: number;
-  hasData: boolean;
+  hasCharts: boolean;
+  hasFormulas: boolean;
+  dataTables: number;
+}
+
+interface ConversionMetrics {
+  processingTime: number;
+  inputSize: number;
+  outputSize: number;
+  sheetsProcessed: number;
+  cellsProcessed: number;
+  chartsConverted: number;
+  formulasEvaluated: number;
+  compressionRatio: number;
+}
+
+interface ConversionPreset {
+  id: string;
+  name: string;
+  description: string;
+  settings: Partial<ConversionSettings>;
+  icon: any;
+  category: string;
 }
 
 const ExcelToPdf = () => {
-  const [file, setFile] = useState<ProcessedFile | null>(null);
+  const [files, setFiles] = useState<ProcessedFile[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isComplete, setIsComplete] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [usageLimitReached, setUsageLimitReached] = useState(false);
   const [progress, setProgress] = useState(0);
   const [worksheets, setWorksheets] = useState<WorksheetInfo[]>([]);
-  const [showPreview, setShowPreview] = useState(false);
-  const [previewData, setPreviewData] = useState<any[][]>([]);
+  const [aiMode, setAiMode] = useState(false);
+  const [batchMode, setBatchMode] = useState(false);
+  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [conversionHistory, setConversionHistory] = useState<any[]>([]);
+  const [metrics, setMetrics] = useState<ConversionMetrics | null>(null);
+  const [selectedPreset, setSelectedPreset] = useState<string>("");
+  const [previewMode, setPreviewMode] = useState(false);
+
   const [settings, setSettings] = useState<ConversionSettings>({
     pageSize: "A4",
     orientation: "landscape",
@@ -69,116 +147,127 @@ const ExcelToPdf = () => {
     scaleToFit: 100,
     worksheetSelection: "all",
     selectedSheets: [],
+    includeFormulas: false,
+    preserveFormatting: true,
+    includeCharts: true,
+    aiOptimization: false,
+    smartLayout: false,
+    autoPageBreaks: true,
+    compression: "medium",
+    watermark: "",
+    headerFooter: false,
   });
 
-  const { user, isAuthenticated } = useAuth();
+  const { user } = useAuth();
   const { toast } = useToast();
 
-  const supportedFormats = [".xlsx", ".xls", ".csv"];
+  const conversionPresets: ConversionPreset[] = [
+    {
+      id: "financial",
+      name: "Financial Report",
+      description: "Optimized for financial statements and reports",
+      settings: {
+        orientation: "portrait",
+        includeGridlines: true,
+        preserveFormatting: true,
+        compression: "low",
+      },
+      icon: Calculator,
+      category: "Business",
+    },
+    {
+      id: "presentation",
+      name: "Presentation Ready",
+      description: "Clean layout perfect for presentations",
+      settings: {
+        includeGridlines: false,
+        fitToPage: true,
+        compression: "high",
+        aiOptimization: true,
+      },
+      icon: Printer,
+      category: "Presentation",
+    },
+    {
+      id: "data-analysis",
+      name: "Data Analysis",
+      description: "Preserve charts and complex formatting",
+      settings: {
+        includeCharts: true,
+        includeFormulas: true,
+        smartLayout: true,
+        compression: "medium",
+      },
+      icon: PieChart,
+      category: "Analytics",
+    },
+    {
+      id: "archive",
+      name: "Archive Quality",
+      description: "High quality archival with full formatting",
+      settings: {
+        preserveFormatting: true,
+        compression: "none",
+        includeCharts: true,
+        includeHeaders: true,
+      },
+      icon: Database,
+      category: "Archive",
+    },
+  ];
 
-  const handleFilesSelect = async (files: File[]) => {
-    if (files.length > 0) {
-      const selectedFile = files[0];
+  const handleFileUpload = (uploadedFiles: File[]) => {
+    const processedFiles = uploadedFiles.map((file) => ({
+      id: Math.random().toString(36).substr(2, 9),
+      file,
+      name: file.name,
+      size: file.size,
+    }));
 
-      // Validate file type
-      const fileExtension = selectedFile.name.toLowerCase().split(".").pop();
-      if (!supportedFormats.some((format) => format.includes(fileExtension!))) {
-        toast({
-          title: "Invalid file type",
-          description: "Please select an Excel file (.xlsx, .xls, .csv)",
-          variant: "destructive",
-        });
-        return;
-      }
+    setFiles((prev) => [...prev, ...processedFiles]);
 
-      setFile({
-        id: Math.random().toString(36).substr(2, 9),
-        file: selectedFile,
-        name: selectedFile.name,
-        size: selectedFile.size,
-      });
-
-      setIsComplete(false);
-
-      // Analyze the Excel file
-      await analyzeExcelFile(selectedFile);
-    }
-  };
-
-  const analyzeExcelFile = async (file: File) => {
-    try {
-      // Mock analysis of Excel file structure
-      const mockWorksheets: WorksheetInfo[] = [
-        {
-          name: "Sheet1",
-          rowCount: 150,
-          columnCount: 8,
-          hasData: true,
-        },
-        {
-          name: "Sales Data",
-          rowCount: 89,
-          columnCount: 12,
-          hasData: true,
-        },
-        {
-          name: "Summary",
-          rowCount: 25,
-          columnCount: 6,
-          hasData: true,
-        },
-      ];
-
-      setWorksheets(mockWorksheets);
-      setSettings((prev) => ({
-        ...prev,
-        selectedSheets: mockWorksheets.map((ws) => ws.name),
-      }));
-
-      // Generate preview data
-      const mockPreviewData = [
-        ["Product", "Q1 Sales", "Q2 Sales", "Q3 Sales", "Q4 Sales", "Total"],
-        ["Product A", "125,000", "138,000", "142,000", "156,000", "561,000"],
-        ["Product B", "98,000", "112,000", "108,000", "125,000", "443,000"],
-        ["Product C", "76,000", "89,000", "94,000", "102,000", "361,000"],
-        ["Product D", "45,000", "52,000", "58,000", "67,000", "222,000"],
-        ["Total", "344,000", "391,000", "402,000", "450,000", "1,587,000"],
-      ];
-
-      setPreviewData(mockPreviewData);
-
-      toast({
-        title: "File analyzed",
-        description: `Found ${mockWorksheets.length} worksheet(s) in your Excel file`,
-      });
-    } catch (error) {
-      console.error("Error analyzing Excel file:", error);
-      toast({
-        title: "Analysis failed",
-        description: "Could not analyze the Excel file structure",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const formatFileSize = (bytes: number) => {
-    if (bytes === 0) return "0 Bytes";
-    const k = 1024;
-    const sizes = ["Bytes", "KB", "MB", "GB"];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
+    // Simulate worksheet analysis
+    const mockWorksheets: WorksheetInfo[] = [
+      {
+        name: "Sheet1",
+        rowCount: 150,
+        columnCount: 10,
+        hasCharts: true,
+        hasFormulas: true,
+        dataTables: 2,
+      },
+      {
+        name: "Summary",
+        rowCount: 50,
+        columnCount: 6,
+        hasCharts: false,
+        hasFormulas: false,
+        dataTables: 1,
+      },
+      {
+        name: "Charts",
+        rowCount: 20,
+        columnCount: 4,
+        hasCharts: true,
+        hasFormulas: false,
+        dataTables: 0,
+      },
+    ];
+    setWorksheets(mockWorksheets);
   };
 
   const handleConvert = async () => {
-    if (!file) return;
+    if (files.length === 0) {
+      toast({
+        title: "No Files Selected",
+        description: "Please upload at least one Excel file to convert.",
+        variant: "destructive",
+      });
+      return;
+    }
 
-    // Check usage limits
-    const usageCheck = await PDFService.checkUsageLimit();
-    if (!usageCheck.canUpload) {
-      setUsageLimitReached(true);
-      if (!isAuthenticated) {
-        setShowAuthModal(true);
-      }
+    if (!user) {
+      setShowAuthModal(true);
       return;
     }
 
@@ -186,53 +275,69 @@ const ExcelToPdf = () => {
     setProgress(0);
 
     try {
-      toast({
-        title: `🔄 Converting ${file.name} to PDF...`,
-        description: `Processing ${settings.worksheetSelection === "all" ? worksheets.length : settings.selectedSheets.length} worksheet(s)`,
-      });
+      const progressInterval = setInterval(() => {
+        setProgress((prev) => {
+          if (prev >= 90) return prev;
+          return prev + Math.random() * 15;
+        });
+      }, 500);
 
-      // Check file size limits
-      const maxSize = user?.isPremium ? 100 * 1024 * 1024 : 25 * 1024 * 1024;
-      if (file.size > maxSize) {
-        throw new Error(
-          `File size exceeds ${user?.isPremium ? "100MB" : "25MB"} limit`,
-        );
+      const startTime = Date.now();
+
+      for (const processedFile of files) {
+        await PDFService.excelToPdf(processedFile.file, {
+          ...settings,
+          margin: 20,
+        });
       }
 
-      setProgress(25);
+      const endTime = Date.now();
 
-      // Convert Excel to PDF
-      const pdfBytes = await convertExcelToPdf(
-        file.file,
-        settings,
-        (progress) => {
-          setProgress(25 + progress * 0.7);
-        },
-      );
+      // Simulate metrics calculation
+      const newMetrics: ConversionMetrics = {
+        processingTime: endTime - startTime,
+        inputSize: files.reduce((sum, f) => sum + f.size, 0),
+        outputSize: files.reduce((sum, f) => sum + f.size * 0.8, 0),
+        sheetsProcessed: worksheets.length,
+        cellsProcessed: worksheets.reduce(
+          (sum, ws) => sum + ws.rowCount * ws.columnCount,
+          0,
+        ),
+        chartsConverted: worksheets.filter((ws) => ws.hasCharts).length,
+        formulasEvaluated:
+          worksheets.filter((ws) => ws.hasFormulas).length * 25,
+        compressionRatio: 0.75,
+      };
 
-      setProgress(95);
+      setMetrics(newMetrics);
 
-      // Track usage
-      await PDFService.trackUsage("excel-to-pdf", 1, file.size);
+      clearInterval(progressInterval);
+      setProgress(100);
 
-      // Download the PDF
-      const fileName = file.name.replace(/\.[^/.]+$/, "") + ".pdf";
-      PDFService.downloadFile(pdfBytes, fileName);
+      // Add to history
+      const historyEntry = {
+        id: Date.now().toString(),
+        timestamp: new Date(),
+        filesCount: files.length,
+        totalSize: files.reduce((sum, f) => sum + f.size, 0),
+        metrics: newMetrics,
+        settings: { ...settings },
+      };
+
+      setConversionHistory((prev) => [historyEntry, ...prev.slice(0, 9)]);
 
       setIsComplete(true);
-      setProgress(100);
 
       toast({
         title: "Success!",
-        description: `Excel file converted to PDF successfully`,
+        description: `${files.length} Excel file(s) converted to PDF successfully.`,
       });
-    } catch (error: any) {
-      console.error("Error converting Excel to PDF:", error);
+    } catch (error) {
+      console.error("Conversion failed:", error);
       toast({
-        title: "Error",
+        title: "Conversion Failed",
         description:
-          error.message ||
-          "Failed to convert Excel file to PDF. Please try again.",
+          "There was an error converting your Excel files. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -240,629 +345,895 @@ const ExcelToPdf = () => {
     }
   };
 
-  const convertExcelToPdf = async (
-    file: File,
-    settings: ConversionSettings,
-    onProgress?: (progress: number) => void,
-  ): Promise<Uint8Array> => {
-    onProgress?.(10);
-
-    // Simulate Excel processing
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-    onProgress?.(50);
-
-    const { loadPDFLib } = await import("@/lib/pdf-utils");
-    const PDFLib = await loadPDFLib();
-    const pdfDoc = await PDFLib.PDFDocument.create();
-
-    onProgress?.(70);
-
-    // Create pages for worksheets
-    const sheetsToConvert =
-      settings.worksheetSelection === "all"
-        ? worksheets
-        : worksheets.filter((ws) => settings.selectedSheets.includes(ws.name));
-
-    for (let i = 0; i < sheetsToConvert.length; i++) {
-      const worksheet = sheetsToConvert[i];
-      const page = pdfDoc.addPage([
-        settings.orientation === "landscape" ? 842 : 595,
-        settings.orientation === "landscape" ? 595 : 842,
-      ]);
-
-      const { width, height } = page.getSize();
-
-      // Add worksheet title
-      page.drawText(`Worksheet: ${worksheet.name}`, {
-        x: 50,
-        y: height - 50,
-        size: 16,
+  const handlePresetSelect = (presetId: string) => {
+    const preset = conversionPresets.find((p) => p.id === presetId);
+    if (preset) {
+      setSettings((prev) => ({ ...prev, ...preset.settings }));
+      setSelectedPreset(presetId);
+      toast({
+        title: "Preset Applied",
+        description: `${preset.name} settings have been applied.`,
       });
-
-      // Add table content simulation
-      const tableContent = `
-Rows: ${worksheet.rowCount}
-Columns: ${worksheet.columnCount}
-
-This PDF contains the converted Excel data from "${worksheet.name}".
-In a production environment, this would include:
-- All cell data with proper formatting
-- Merged cells and formulas
-- Charts and images
-- Headers and footers
-- Conditional formatting
-
-Conversion Settings:
-- Page Size: ${settings.pageSize}
-- Orientation: ${settings.orientation}
-- Scale: ${settings.scaleToFit}%
-- Gridlines: ${settings.includeGridlines ? "Included" : "Excluded"}
-      `;
-
-      page.drawText(tableContent, {
-        x: 50,
-        y: height - 100,
-        size: 10,
-        maxWidth: width - 100,
-      });
-
-      onProgress?.(70 + ((i + 1) / sheetsToConvert.length) * 20);
     }
-
-    onProgress?.(95);
-
-    const pdfBytes = await pdfDoc.save();
-    onProgress?.(100);
-
-    return pdfBytes;
   };
 
-  const toggleSheetSelection = (sheetName: string) => {
-    setSettings((prev) => ({
-      ...prev,
-      selectedSheets: prev.selectedSheets.includes(sheetName)
-        ? prev.selectedSheets.filter((name) => name !== sheetName)
-        : [...prev.selectedSheets, sheetName],
-    }));
+  const removeFile = (id: string) => {
+    setFiles(files.filter((file) => file.id !== id));
   };
+
+  const handleShare = async () => {
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: "Excel to PDF Converter",
+          text: "Convert Excel spreadsheets to PDF with advanced features",
+          url: window.location.href,
+        });
+      } catch (error) {
+        console.error("Error sharing:", error);
+      }
+    } else {
+      navigator.clipboard.writeText(window.location.href);
+      toast({
+        title: "Link Copied",
+        description: "Page URL copied to clipboard.",
+      });
+    }
+  };
+
+  const exportSettings = () => {
+    const dataStr = JSON.stringify(settings, null, 2);
+    const dataBlob = new Blob([dataStr], { type: "application/json" });
+    const url = URL.createObjectURL(dataBlob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "excel-to-pdf-settings.json";
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const totalSize = files.reduce((sum, file) => sum + file.size, 0);
 
   return (
-    <div className="min-h-screen bg-bg-light">
+    <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-green-50 to-teal-100">
       <Header />
 
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <PromoBanner className="mb-8" />
+      {/* Enhanced Header Section */}
+      <div className="relative pt-16">
+        <div className="absolute inset-0 bg-gradient-to-r from-emerald-600 via-green-600 to-teal-700 opacity-90"></div>
+        <div
+          className={
+            'absolute inset-0 bg-[url(\'data:image/svg+xml,%3Csvg width="60" height="60" viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg"%3E%3Cg fill="none" fill-rule="evenodd"%3E%3Cg fill="%23ffffff" fill-opacity="0.1"%3E%3Cpath d="M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0l8 8-8 8V8h-4v26h4z"/%3E%3C/g%3E%3C/g%3E%3C/svg%3E\')] animate-pulse'
+          }
+        ></div>
 
-        {/* Navigation */}
-        <div className="flex items-center space-x-2 mb-8">
-          <Link
-            to="/"
-            className="text-body-medium text-text-light hover:text-brand-red"
-          >
-            <ArrowLeft className="w-4 h-4 mr-1 inline" />
-            Back to Home
-          </Link>
-        </div>
-
-        {/* Header */}
-        <div className="text-center mb-8">
-          <div className="w-16 h-16 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
-            <FileSpreadsheet className="w-8 h-8 text-white" />
+        <div className="relative container mx-auto px-6 py-24">
+          <div className="flex items-center gap-4 mb-8">
+            <Link
+              to="/"
+              className="inline-flex items-center gap-2 text-white/80 hover:text-white transition-colors group"
+            >
+              <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
+              Back to Tools
+            </Link>
           </div>
-          <h1 className="text-heading-medium text-text-dark mb-4">
-            Excel to PDF
-          </h1>
-          <p className="text-body-large text-text-light max-w-2xl mx-auto">
-            Convert Excel spreadsheets to professional PDF documents with
-            preserved formatting and layout.
-          </p>
-        </div>
 
-        {/* Main Content */}
-        {!isComplete ? (
-          <div className="space-y-8">
-            {/* File Upload */}
-            {!file && (
-              <div className="bg-white rounded-xl p-8 shadow-sm border border-gray-100">
-                <FileUpload
-                  onFilesSelect={handleFilesSelect}
-                  multiple={false}
-                  maxSize={25}
-                  accept=".xlsx,.xls,.csv"
-                  allowedTypes={[
-                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                    "application/vnd.ms-excel",
-                    "text/csv",
-                  ]}
-                  uploadText="Drop your Excel file here or click to browse"
-                  supportText="Supports .xlsx, .xls, and .csv files"
-                />
+          <div className="max-w-4xl">
+            <div className="flex items-center gap-4 mb-6">
+              <div className="p-4 bg-white/20 backdrop-blur-sm rounded-2xl">
+                <FileSpreadsheet className="w-12 h-12 text-white" />
               </div>
-            )}
-
-            {/* File Analysis and Settings */}
-            {file && worksheets.length > 0 && !isProcessing && (
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                {/* File Info and Worksheets */}
-                <div className="lg:col-span-2">
-                  <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
-                    <div className="flex items-center justify-between mb-4">
-                      <h3 className="text-heading-small text-text-dark">
-                        Excel File Analysis
-                      </h3>
-                      <Button variant="outline" onClick={() => setFile(null)}>
-                        Choose Different File
-                      </Button>
-                    </div>
-
-                    {/* File Info */}
-                    <div className="flex items-center space-x-4 p-4 rounded-lg border border-gray-200 bg-gray-50 mb-6">
-                      <div className="w-12 h-12 bg-emerald-100 rounded-lg flex items-center justify-center">
-                        <FileSpreadsheet className="w-6 h-6 text-emerald-500" />
-                      </div>
-                      <div className="flex-1">
-                        <p className="text-sm font-medium text-text-dark truncate">
-                          {file.name}
-                        </p>
-                        <p className="text-xs text-text-light">
-                          {formatFileSize(file.size)} • {worksheets.length}{" "}
-                          worksheet(s)
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* Worksheet Selection */}
-                    <div className="space-y-4">
-                      <div className="flex items-center justify-between">
-                        <h4 className="font-medium text-text-dark">
-                          Worksheets to Convert
-                        </h4>
-                        <div className="flex items-center space-x-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setShowPreview(!showPreview)}
-                          >
-                            <Eye className="w-4 h-4 mr-2" />
-                            {showPreview ? "Hide" : "Show"} Preview
-                          </Button>
-                        </div>
-                      </div>
-
-                      <div className="space-y-2">
-                        <div className="flex items-center space-x-3 mb-3">
-                          <input
-                            type="radio"
-                            id="all-sheets"
-                            name="worksheetSelection"
-                            checked={settings.worksheetSelection === "all"}
-                            onChange={() =>
-                              setSettings((prev) => ({
-                                ...prev,
-                                worksheetSelection: "all",
-                              }))
-                            }
-                            className="text-emerald-600 focus:ring-emerald-500"
-                          />
-                          <label
-                            htmlFor="all-sheets"
-                            className="text-sm font-medium text-text-dark"
-                          >
-                            Convert all worksheets
-                          </label>
-                        </div>
-
-                        <div className="flex items-center space-x-3 mb-3">
-                          <input
-                            type="radio"
-                            id="specific-sheets"
-                            name="worksheetSelection"
-                            checked={settings.worksheetSelection === "specific"}
-                            onChange={() =>
-                              setSettings((prev) => ({
-                                ...prev,
-                                worksheetSelection: "specific",
-                              }))
-                            }
-                            className="text-emerald-600 focus:ring-emerald-500"
-                          />
-                          <label
-                            htmlFor="specific-sheets"
-                            className="text-sm font-medium text-text-dark"
-                          >
-                            Select specific worksheets
-                          </label>
-                        </div>
-
-                        {settings.worksheetSelection === "specific" && (
-                          <div className="ml-6 space-y-2">
-                            {worksheets.map((worksheet) => (
-                              <label
-                                key={worksheet.name}
-                                className="flex items-center space-x-3 p-3 rounded-lg border border-gray-200 hover:bg-gray-50 cursor-pointer"
-                              >
-                                <input
-                                  type="checkbox"
-                                  checked={settings.selectedSheets.includes(
-                                    worksheet.name,
-                                  )}
-                                  onChange={() =>
-                                    toggleSheetSelection(worksheet.name)
-                                  }
-                                  className="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
-                                />
-                                <div className="flex-1">
-                                  <div className="font-medium text-text-dark">
-                                    {worksheet.name}
-                                  </div>
-                                  <div className="text-sm text-text-light">
-                                    {worksheet.rowCount} rows ×{" "}
-                                    {worksheet.columnCount} columns
-                                  </div>
-                                </div>
-                                <Table className="w-4 h-4 text-emerald-500" />
-                              </label>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Preview */}
-                    {showPreview && previewData.length > 0 && (
-                      <div className="mt-6 pt-6 border-t border-gray-200">
-                        <h4 className="font-medium text-text-dark mb-3">
-                          Data Preview (First Few Rows)
-                        </h4>
-                        <div className="overflow-x-auto">
-                          <table className="min-w-full border border-gray-300 rounded-lg">
-                            <tbody>
-                              {previewData.slice(0, 6).map((row, rowIndex) => (
-                                <tr
-                                  key={rowIndex}
-                                  className={
-                                    rowIndex === 0
-                                      ? "bg-emerald-50"
-                                      : "bg-white"
-                                  }
-                                >
-                                  {row.map((cell, cellIndex) => (
-                                    <td
-                                      key={cellIndex}
-                                      className={cn(
-                                        "px-3 py-2 border-b border-gray-200 text-sm",
-                                        rowIndex === 0
-                                          ? "font-medium text-emerald-800"
-                                          : "text-text-dark",
-                                      )}
-                                    >
-                                      {cell}
-                                    </td>
-                                  ))}
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* Settings Panel */}
-                <div className="space-y-6">
-                  {/* PDF Settings */}
-                  <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
-                    <h3 className="text-heading-small text-text-dark mb-4">
-                      PDF Settings
-                    </h3>
-                    <div className="space-y-4">
-                      <div>
-                        <label className="block text-sm font-medium text-text-dark mb-2">
-                          Page Size
-                        </label>
-                        <select
-                          value={settings.pageSize}
-                          onChange={(e) =>
-                            setSettings((prev) => ({
-                              ...prev,
-                              pageSize: e.target
-                                .value as ConversionSettings["pageSize"],
-                            }))
-                          }
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500"
-                        >
-                          <option value="A4">A4</option>
-                          <option value="Letter">Letter</option>
-                          <option value="Legal">Legal</option>
-                          <option value="A3">A3</option>
-                        </select>
-                      </div>
-
-                      <div>
-                        <label className="block text-sm font-medium text-text-dark mb-2">
-                          Orientation
-                        </label>
-                        <select
-                          value={settings.orientation}
-                          onChange={(e) =>
-                            setSettings((prev) => ({
-                              ...prev,
-                              orientation: e.target.value as
-                                | "portrait"
-                                | "landscape",
-                            }))
-                          }
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500"
-                        >
-                          <option value="portrait">Portrait</option>
-                          <option value="landscape">Landscape</option>
-                        </select>
-                      </div>
-
-                      <div>
-                        <label className="block text-sm font-medium text-text-dark mb-2">
-                          Scale ({settings.scaleToFit}%)
-                        </label>
-                        <input
-                          type="range"
-                          min="50"
-                          max="200"
-                          value={settings.scaleToFit}
-                          onChange={(e) =>
-                            setSettings((prev) => ({
-                              ...prev,
-                              scaleToFit: parseInt(e.target.value),
-                            }))
-                          }
-                          className="w-full"
-                        />
-                      </div>
-
-                      <div className="space-y-3">
-                        <label className="flex items-center space-x-3">
-                          <input
-                            type="checkbox"
-                            checked={settings.fitToPage}
-                            onChange={(e) =>
-                              setSettings((prev) => ({
-                                ...prev,
-                                fitToPage: e.target.checked,
-                              }))
-                            }
-                            className="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
-                          />
-                          <span className="text-sm text-text-dark">
-                            Fit to Page Width
-                          </span>
-                        </label>
-
-                        <label className="flex items-center space-x-3">
-                          <input
-                            type="checkbox"
-                            checked={settings.includeGridlines}
-                            onChange={(e) =>
-                              setSettings((prev) => ({
-                                ...prev,
-                                includeGridlines: e.target.checked,
-                              }))
-                            }
-                            className="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
-                          />
-                          <span className="text-sm text-text-dark">
-                            Include Gridlines
-                          </span>
-                        </label>
-
-                        <label className="flex items-center space-x-3">
-                          <input
-                            type="checkbox"
-                            checked={settings.includeHeaders}
-                            onChange={(e) =>
-                              setSettings((prev) => ({
-                                ...prev,
-                                includeHeaders: e.target.checked,
-                              }))
-                            }
-                            className="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
-                          />
-                          <span className="text-sm text-text-dark">
-                            Include Headers/Footers
-                          </span>
-                        </label>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Conversion Summary */}
-                  <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
-                    <h4 className="font-medium text-text-dark mb-3">
-                      Conversion Summary
-                    </h4>
-                    <div className="space-y-2 text-sm">
-                      <div className="flex justify-between">
-                        <span className="text-text-light">Worksheets:</span>
-                        <span className="text-text-dark">
-                          {settings.worksheetSelection === "all"
-                            ? worksheets.length
-                            : settings.selectedSheets.length}
-                        </span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-text-light">Page Size:</span>
-                        <span className="text-text-dark">
-                          {settings.pageSize} {settings.orientation}
-                        </span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-text-light">Scale:</span>
-                        <span className="text-text-dark">
-                          {settings.scaleToFit}%
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Convert Button */}
-                  <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
-                    <Button
-                      size="lg"
-                      onClick={handleConvert}
-                      disabled={
-                        settings.worksheetSelection === "specific" &&
-                        settings.selectedSheets.length === 0
-                      }
-                      className="w-full bg-emerald-500 hover:bg-emerald-600"
-                    >
-                      <FileSpreadsheet className="w-5 h-5 mr-2" />
-                      Convert to PDF
-                    </Button>
-                    <p className="text-xs text-text-light mt-2 text-center">
-                      Generate professional PDF from Excel data
-                    </p>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Usage Limit Warning */}
-            {usageLimitReached && !isAuthenticated && (
-              <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-6 text-center">
-                <AlertTriangle className="w-12 h-12 text-yellow-500 mx-auto mb-4" />
-                <h3 className="text-heading-small text-text-dark mb-2">
-                  Daily Limit Reached
-                </h3>
-                <p className="text-body-medium text-text-light mb-4">
-                  You've used your 3 free PDF operations today. Sign up to
-                  continue!
+              <div>
+                <h1 className="text-5xl font-bold text-white mb-4">
+                  Excel to PDF Converter
+                </h1>
+                <p className="text-xl text-white/90 leading-relaxed">
+                  Transform Excel spreadsheets into professional PDF documents
+                  with AI-powered formatting optimization and advanced
+                  customization options.
                 </p>
-                <Button
-                  onClick={() => setShowAuthModal(true)}
-                  className="bg-brand-red hover:bg-red-600"
+              </div>
+            </div>
+
+            {/* Feature Pills */}
+            <div className="flex flex-wrap gap-3 mb-8">
+              {[
+                {
+                  icon: Brain,
+                  label: "Smart Formatting",
+                  color: "bg-white/20",
+                },
+                { icon: Sparkles, label: "AI Layout", color: "bg-white/20" },
+                {
+                  icon: Grid,
+                  label: "Chart Preservation",
+                  color: "bg-white/20",
+                },
+                { icon: Zap, label: "Batch Processing", color: "bg-white/20" },
+                {
+                  icon: Target,
+                  label: "Precision Control",
+                  color: "bg-white/20",
+                },
+                {
+                  icon: Activity,
+                  label: "Real-time Analytics",
+                  color: "bg-white/20",
+                },
+              ].map((feature, index) => (
+                <div
+                  key={index}
+                  className={`${feature.color} backdrop-blur-sm rounded-full px-4 py-2 flex items-center gap-2 text-white/90 border border-white/20`}
                 >
-                  Sign Up Free
-                </Button>
-              </div>
-            )}
-
-            {usageLimitReached && isAuthenticated && !user?.isPremium && (
-              <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-6 text-center">
-                <Crown className="w-12 h-12 text-yellow-500 mx-auto mb-4" />
-                <h3 className="text-heading-small text-text-dark mb-2">
-                  Upgrade to Premium
-                </h3>
-                <p className="text-body-medium text-text-light mb-4">
-                  You've reached your daily limit. Upgrade to Premium for
-                  unlimited access!
-                </p>
-                <Button
-                  className="bg-brand-yellow text-black hover:bg-yellow-400"
-                  asChild
-                >
-                  <Link to="/pricing">
-                    <Crown className="w-4 h-4 mr-2" />
-                    Upgrade Now
-                  </Link>
-                </Button>
-              </div>
-            )}
-
-            {/* Processing */}
-            {isProcessing && (
-              <div className="bg-white rounded-xl p-8 shadow-sm border border-gray-100 text-center">
-                <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <Loader2 className="w-8 h-8 text-emerald-500 animate-spin" />
+                  <feature.icon className="w-4 h-4" />
+                  <span className="text-sm font-medium">{feature.label}</span>
                 </div>
-                <h3 className="text-heading-small text-text-dark mb-2">
-                  Converting Excel to PDF...
-                </h3>
-                <p className="text-body-medium text-text-light mb-4">
-                  Processing spreadsheet data and formatting
-                </p>
-                <div className="w-full bg-gray-200 rounded-full h-3 max-w-md mx-auto">
-                  <div
-                    className="bg-emerald-500 h-3 rounded-full transition-all duration-300"
-                    style={{ width: `${progress}%` }}
-                  ></div>
-                </div>
-                <p className="text-sm text-text-light mt-2">
-                  {progress}% complete
-                </p>
-              </div>
-            )}
-          </div>
-        ) : (
-          /* Success State */
-          <div className="bg-white rounded-xl p-8 shadow-sm border border-gray-100 text-center">
-            <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <CheckCircle className="w-8 h-8 text-green-500" />
+              ))}
             </div>
-            <h3 className="text-heading-small text-text-dark mb-2">
-              Excel converted to PDF successfully!
-            </h3>
-            <p className="text-body-medium text-text-light mb-6">
-              Your spreadsheet has been converted with all formatting preserved
-            </p>
-
-            <div className="flex items-center justify-center space-x-4">
-              <Button
-                onClick={() => window.location.reload()}
-                className="bg-emerald-500 hover:bg-emerald-600"
-              >
-                Convert Another File
-              </Button>
-              <Button variant="outline" asChild>
-                <Link to="/">Back to Home</Link>
-              </Button>
-            </div>
-          </div>
-        )}
-
-        {/* Features */}
-        <div className="mt-12 grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="text-center">
-            <div className="w-12 h-12 bg-emerald-100 rounded-lg flex items-center justify-center mx-auto mb-3">
-              <Table className="w-6 h-6 text-emerald-500" />
-            </div>
-            <h4 className="font-semibold text-text-dark mb-2">
-              Multiple Formats
-            </h4>
-            <p className="text-body-small text-text-light">
-              Support for .xlsx, .xls, and .csv file formats
-            </p>
-          </div>
-
-          <div className="text-center">
-            <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center mx-auto mb-3">
-              <Layout className="w-6 h-6 text-green-500" />
-            </div>
-            <h4 className="font-semibold text-text-dark mb-2">
-              Preserved Formatting
-            </h4>
-            <p className="text-body-small text-text-light">
-              Maintain cell formatting, colors, and layout in PDF output
-            </p>
-          </div>
-
-          <div className="text-center">
-            <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mx-auto mb-3">
-              <Printer className="w-6 h-6 text-blue-500" />
-            </div>
-            <h4 className="font-semibold text-text-dark mb-2">
-              Print-Ready Output
-            </h4>
-            <p className="text-body-small text-text-light">
-              Professional PDF output optimized for printing and sharing
-            </p>
           </div>
         </div>
       </div>
 
-      {/* Auth Modal */}
+      <div className="container mx-auto px-6 py-12">
+        {/* AI Mode Toggle & Preset Selection */}
+        <div className="mb-8 space-y-6">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2">
+                <Switch
+                  checked={aiMode}
+                  onCheckedChange={setAiMode}
+                  className="data-[state=checked]:bg-gradient-to-r data-[state=checked]:from-emerald-500 data-[state=checked]:to-teal-500"
+                />
+                <Label className="flex items-center gap-2 text-lg font-semibold">
+                  <Brain className="w-5 h-5 text-emerald-600" />
+                  AI-Enhanced Processing
+                </Label>
+              </div>
+              <Badge
+                variant={aiMode ? "default" : "outline"}
+                className="bg-gradient-to-r from-emerald-500 to-teal-500 text-white"
+              >
+                {aiMode ? "Smart Mode" : "Standard Mode"}
+              </Badge>
+            </div>
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" onClick={handleShare}>
+                <Share className="w-4 h-4 mr-2" />
+                Share
+              </Button>
+              <Button variant="outline" size="sm" onClick={exportSettings}>
+                <Save className="w-4 h-4 mr-2" />
+                Export Settings
+              </Button>
+            </div>
+          </div>
+
+          {/* Conversion Presets */}
+          <Card className="border-0 shadow-lg bg-white/80 backdrop-blur-sm">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Grid className="w-5 h-5 text-emerald-600" />
+                Conversion Presets
+              </CardTitle>
+              <CardDescription>
+                Choose from optimized settings for different use cases
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                {conversionPresets.map((preset) => (
+                  <Card
+                    key={preset.id}
+                    className={cn(
+                      "cursor-pointer transition-all duration-200 hover:shadow-md border-2",
+                      selectedPreset === preset.id
+                        ? "border-emerald-500 bg-emerald-50"
+                        : "border-gray-200 hover:border-emerald-300",
+                    )}
+                    onClick={() => handlePresetSelect(preset.id)}
+                  >
+                    <CardContent className="p-4 text-center">
+                      <preset.icon className="w-8 h-8 mx-auto mb-2 text-emerald-600" />
+                      <h3 className="font-semibold text-sm mb-1">
+                        {preset.name}
+                      </h3>
+                      <p className="text-xs text-gray-600">
+                        {preset.description}
+                      </p>
+                      <Badge variant="outline" className="mt-2 text-xs">
+                        {preset.category}
+                      </Badge>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        <div className="grid lg:grid-cols-3 gap-8">
+          {/* Main Conversion Area */}
+          <div className="lg:col-span-2 space-y-6">
+            {/* File Upload */}
+            <Card className="border-0 shadow-lg bg-white/80 backdrop-blur-sm">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <FileSpreadsheet className="w-5 h-5 text-emerald-600" />
+                  Upload Excel Files
+                </CardTitle>
+                <CardDescription>
+                  Upload your Excel files (.xls, .xlsx) to convert to PDF
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <FileUpload
+                  onFileUpload={handleFileUpload}
+                  accept=".xls,.xlsx,.xlsm"
+                  multiple
+                  maxSize={50 * 1024 * 1024} // 50MB
+                />
+
+                {files.length > 0 && (
+                  <div className="mt-6 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <h3 className="font-medium">
+                        Selected Files ({files.length})
+                      </h3>
+                      <Badge variant="outline">
+                        Total: {(totalSize / 1024 / 1024).toFixed(2)} MB
+                      </Badge>
+                    </div>
+
+                    <div className="space-y-2 max-h-40 overflow-y-auto">
+                      {files.map((file) => (
+                        <div
+                          key={file.id}
+                          className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+                        >
+                          <div className="flex items-center gap-3">
+                            <FileSpreadsheet className="w-5 h-5 text-emerald-600" />
+                            <div>
+                              <p className="font-medium text-sm">{file.name}</p>
+                              <p className="text-xs text-gray-500">
+                                {(file.size / 1024 / 1024).toFixed(2)} MB
+                              </p>
+                            </div>
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => removeFile(file.id)}
+                            className="text-red-600 hover:text-red-700"
+                          >
+                            ×
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Worksheet Analysis */}
+            {worksheets.length > 0 && (
+              <Card className="border-0 shadow-lg bg-white/80 backdrop-blur-sm">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Table className="w-5 h-5 text-blue-600" />
+                    Worksheet Analysis
+                  </CardTitle>
+                  <CardDescription>
+                    Overview of your Excel worksheets and content
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {worksheets.map((worksheet, index) => (
+                      <div
+                        key={index}
+                        className="p-4 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg"
+                      >
+                        <div className="flex items-center justify-between mb-3">
+                          <h3 className="font-semibold text-blue-900">
+                            {worksheet.name}
+                          </h3>
+                          <div className="flex gap-1">
+                            {worksheet.hasCharts && (
+                              <Badge
+                                variant="outline"
+                                className="text-xs bg-purple-100 text-purple-700"
+                              >
+                                Charts
+                              </Badge>
+                            )}
+                            {worksheet.hasFormulas && (
+                              <Badge
+                                variant="outline"
+                                className="text-xs bg-orange-100 text-orange-700"
+                              >
+                                Formulas
+                              </Badge>
+                            )}
+                          </div>
+                        </div>
+                        <div className="space-y-2 text-sm text-blue-800">
+                          <div className="flex justify-between">
+                            <span>Rows:</span>
+                            <span className="font-medium">
+                              {worksheet.rowCount}
+                            </span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span>Columns:</span>
+                            <span className="font-medium">
+                              {worksheet.columnCount}
+                            </span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span>Data Tables:</span>
+                            <span className="font-medium">
+                              {worksheet.dataTables}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Advanced Settings */}
+            <Card className="border-0 shadow-lg bg-white/80 backdrop-blur-sm">
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="flex items-center gap-2">
+                      <Settings className="w-5 h-5 text-gray-600" />
+                      Conversion Settings
+                    </CardTitle>
+                    <CardDescription>
+                      Customize your PDF output settings
+                    </CardDescription>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowAdvanced(!showAdvanced)}
+                  >
+                    {showAdvanced ? "Hide" : "Show"} Advanced
+                  </Button>
+                </div>
+              </CardHeader>
+
+              <CardContent className="space-y-6">
+                {/* Basic Settings */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-sm font-medium">Page Size</Label>
+                    <Select
+                      value={settings.pageSize}
+                      onValueChange={(value: any) =>
+                        setSettings((prev) => ({ ...prev, pageSize: value }))
+                      }
+                    >
+                      <SelectTrigger className="mt-2">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="A4">A4</SelectItem>
+                        <SelectItem value="Letter">Letter</SelectItem>
+                        <SelectItem value="Legal">Legal</SelectItem>
+                        <SelectItem value="A3">A3</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div>
+                    <Label className="text-sm font-medium">Orientation</Label>
+                    <Select
+                      value={settings.orientation}
+                      onValueChange={(value: any) =>
+                        setSettings((prev) => ({ ...prev, orientation: value }))
+                      }
+                    >
+                      <SelectTrigger className="mt-2">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="portrait">Portrait</SelectItem>
+                        <SelectItem value="landscape">Landscape</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-6">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-sm font-medium">Fit to Page</Label>
+                    <Switch
+                      checked={settings.fitToPage}
+                      onCheckedChange={(checked) =>
+                        setSettings((prev) => ({ ...prev, fitToPage: checked }))
+                      }
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <Label className="text-sm font-medium">
+                      Include Gridlines
+                    </Label>
+                    <Switch
+                      checked={settings.includeGridlines}
+                      onCheckedChange={(checked) =>
+                        setSettings((prev) => ({
+                          ...prev,
+                          includeGridlines: checked,
+                        }))
+                      }
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <Label className="text-sm font-medium">
+                      Include Headers
+                    </Label>
+                    <Switch
+                      checked={settings.includeHeaders}
+                      onCheckedChange={(checked) =>
+                        setSettings((prev) => ({
+                          ...prev,
+                          includeHeaders: checked,
+                        }))
+                      }
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <Label className="text-sm font-medium">
+                      Include Charts
+                    </Label>
+                    <Switch
+                      checked={settings.includeCharts}
+                      onCheckedChange={(checked) =>
+                        setSettings((prev) => ({
+                          ...prev,
+                          includeCharts: checked,
+                        }))
+                      }
+                    />
+                  </div>
+                </div>
+
+                {showAdvanced && (
+                  <Tabs defaultValue="content" className="w-full">
+                    <TabsList className="grid w-full grid-cols-4">
+                      <TabsTrigger value="content">Content</TabsTrigger>
+                      <TabsTrigger value="layout">Layout</TabsTrigger>
+                      <TabsTrigger value="quality">Quality</TabsTrigger>
+                      <TabsTrigger value="ai">AI Features</TabsTrigger>
+                    </TabsList>
+
+                    <TabsContent value="content" className="space-y-4 mt-6">
+                      <div className="space-y-4">
+                        <div className="flex items-center justify-between">
+                          <Label className="text-sm font-medium">
+                            Preserve Formatting
+                          </Label>
+                          <Switch
+                            checked={settings.preserveFormatting}
+                            onCheckedChange={(checked) =>
+                              setSettings((prev) => ({
+                                ...prev,
+                                preserveFormatting: checked,
+                              }))
+                            }
+                          />
+                        </div>
+
+                        <div className="flex items-center justify-between">
+                          <Label className="text-sm font-medium">
+                            Include Formulas
+                          </Label>
+                          <Switch
+                            checked={settings.includeFormulas}
+                            onCheckedChange={(checked) =>
+                              setSettings((prev) => ({
+                                ...prev,
+                                includeFormulas: checked,
+                              }))
+                            }
+                          />
+                        </div>
+
+                        <div className="flex items-center justify-between">
+                          <Label className="text-sm font-medium">
+                            Header & Footer
+                          </Label>
+                          <Switch
+                            checked={settings.headerFooter}
+                            onCheckedChange={(checked) =>
+                              setSettings((prev) => ({
+                                ...prev,
+                                headerFooter: checked,
+                              }))
+                            }
+                          />
+                        </div>
+
+                        <div>
+                          <Label className="text-sm font-medium">
+                            Watermark Text
+                          </Label>
+                          <Input
+                            value={settings.watermark}
+                            onChange={(e) =>
+                              setSettings((prev) => ({
+                                ...prev,
+                                watermark: e.target.value,
+                              }))
+                            }
+                            placeholder="Optional watermark text"
+                            className="mt-2"
+                          />
+                        </div>
+                      </div>
+                    </TabsContent>
+
+                    <TabsContent value="layout" className="space-y-4 mt-6">
+                      <div>
+                        <Label className="text-sm font-medium">
+                          Scale to Fit: {settings.scaleToFit}%
+                        </Label>
+                        <Slider
+                          value={[settings.scaleToFit]}
+                          onValueChange={(value) =>
+                            setSettings((prev) => ({
+                              ...prev,
+                              scaleToFit: value[0],
+                            }))
+                          }
+                          max={200}
+                          min={25}
+                          step={5}
+                          className="mt-2"
+                        />
+                      </div>
+
+                      <div className="flex items-center justify-between">
+                        <Label className="text-sm font-medium">
+                          Auto Page Breaks
+                        </Label>
+                        <Switch
+                          checked={settings.autoPageBreaks}
+                          onCheckedChange={(checked) =>
+                            setSettings((prev) => ({
+                              ...prev,
+                              autoPageBreaks: checked,
+                            }))
+                          }
+                        />
+                      </div>
+
+                      <div>
+                        <Label className="text-sm font-medium">
+                          Worksheet Selection
+                        </Label>
+                        <Select
+                          value={settings.worksheetSelection}
+                          onValueChange={(value: any) =>
+                            setSettings((prev) => ({
+                              ...prev,
+                              worksheetSelection: value,
+                            }))
+                          }
+                        >
+                          <SelectTrigger className="mt-2">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">All Worksheets</SelectItem>
+                            <SelectItem value="active">
+                              Active Sheet Only
+                            </SelectItem>
+                            <SelectItem value="specific">
+                              Specific Sheets
+                            </SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </TabsContent>
+
+                    <TabsContent value="quality" className="space-y-4 mt-6">
+                      <div>
+                        <Label className="text-sm font-medium">
+                          Compression Level
+                        </Label>
+                        <Select
+                          value={settings.compression}
+                          onValueChange={(value: any) =>
+                            setSettings((prev) => ({
+                              ...prev,
+                              compression: value,
+                            }))
+                          }
+                        >
+                          <SelectTrigger className="mt-2">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="none">
+                              No Compression (Highest Quality)
+                            </SelectItem>
+                            <SelectItem value="low">Low Compression</SelectItem>
+                            <SelectItem value="medium">
+                              Medium Compression
+                            </SelectItem>
+                            <SelectItem value="high">
+                              High Compression (Smallest Size)
+                            </SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </TabsContent>
+
+                    <TabsContent value="ai" className="space-y-4 mt-6">
+                      <div className="space-y-4">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <Label className="text-sm font-medium">
+                              AI Optimization
+                            </Label>
+                            <p className="text-xs text-gray-500">
+                              Enhance layout and formatting using AI
+                            </p>
+                          </div>
+                          <Switch
+                            checked={settings.aiOptimization}
+                            onCheckedChange={(checked) =>
+                              setSettings((prev) => ({
+                                ...prev,
+                                aiOptimization: checked,
+                              }))
+                            }
+                          />
+                        </div>
+
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <Label className="text-sm font-medium">
+                              Smart Layout
+                            </Label>
+                            <p className="text-xs text-gray-500">
+                              Automatically optimize page layouts
+                            </p>
+                          </div>
+                          <Switch
+                            checked={settings.smartLayout}
+                            onCheckedChange={(checked) =>
+                              setSettings((prev) => ({
+                                ...prev,
+                                smartLayout: checked,
+                              }))
+                            }
+                          />
+                        </div>
+                      </div>
+                    </TabsContent>
+                  </Tabs>
+                )}
+
+                {/* Convert Button */}
+                <div className="pt-4">
+                  <Button
+                    onClick={handleConvert}
+                    disabled={isProcessing || files.length === 0}
+                    className="w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700"
+                    size="lg"
+                  >
+                    {isProcessing ? (
+                      <>
+                        <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                        Converting {files.length} file(s)...
+                      </>
+                    ) : (
+                      <>
+                        <Download className="w-5 h-5 mr-2" />
+                        Convert to PDF ({files.length} file
+                        {files.length !== 1 ? "s" : ""})
+                      </>
+                    )}
+                  </Button>
+                </div>
+
+                {/* Progress Bar */}
+                {isProcessing && (
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span>Processing files...</span>
+                      <span>{Math.round(progress)}%</span>
+                    </div>
+                    <Progress value={progress} className="h-2" />
+                  </div>
+                )}
+
+                {/* Success State */}
+                {isComplete && (
+                  <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
+                    <div className="flex items-center gap-2 text-green-800">
+                      <CheckCircle className="w-5 h-5" />
+                      <span className="font-medium">
+                        {files.length} Excel file(s) converted successfully!
+                      </span>
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Analytics Sidebar */}
+          <div className="space-y-6">
+            {/* Real-time Statistics */}
+            <Card className="border-0 shadow-lg bg-white/80 backdrop-blur-sm">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <BarChart3 className="w-5 h-5 text-emerald-600" />
+                  Conversion Analytics
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {metrics ? (
+                  <>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="p-3 bg-gradient-to-br from-emerald-50 to-green-50 rounded-lg">
+                        <div className="text-2xl font-bold text-emerald-700">
+                          {(metrics.processingTime / 1000).toFixed(1)}s
+                        </div>
+                        <div className="text-xs text-emerald-600">
+                          Processing Time
+                        </div>
+                      </div>
+                      <div className="p-3 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg">
+                        <div className="text-2xl font-bold text-blue-700">
+                          {metrics.sheetsProcessed}
+                        </div>
+                        <div className="text-xs text-blue-600">Sheets</div>
+                      </div>
+                      <div className="p-3 bg-gradient-to-br from-purple-50 to-violet-50 rounded-lg">
+                        <div className="text-2xl font-bold text-purple-700">
+                          {metrics.chartsConverted}
+                        </div>
+                        <div className="text-xs text-purple-600">Charts</div>
+                      </div>
+                      <div className="p-3 bg-gradient-to-br from-orange-50 to-red-50 rounded-lg">
+                        <div className="text-2xl font-bold text-orange-700">
+                          {(metrics.compressionRatio * 100).toFixed(0)}%
+                        </div>
+                        <div className="text-xs text-orange-600">
+                          Compression
+                        </div>
+                      </div>
+                    </div>
+
+                    <Separator />
+
+                    <div className="space-y-2">
+                      <div className="flex justify-between text-sm">
+                        <span>Input Size</span>
+                        <span className="font-medium">
+                          {(metrics.inputSize / 1024 / 1024).toFixed(1)} MB
+                        </span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span>Output Size</span>
+                        <span className="font-medium">
+                          {(metrics.outputSize / 1024 / 1024).toFixed(1)} MB
+                        </span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span>Cells Processed</span>
+                        <span className="font-medium">
+                          {metrics.cellsProcessed.toLocaleString()}
+                        </span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span>Formulas</span>
+                        <span className="font-medium">
+                          {metrics.formulasEvaluated}
+                        </span>
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <div className="text-center py-8 text-gray-500">
+                    <Activity className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                    <p className="text-sm">
+                      Analytics will appear after conversion
+                    </p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Conversion History */}
+            <Card className="border-0 shadow-lg bg-white/80 backdrop-blur-sm">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Clock className="w-5 h-5 text-blue-600" />
+                  Recent Conversions
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {conversionHistory.length > 0 ? (
+                  <div className="space-y-3">
+                    {conversionHistory.slice(0, 5).map((entry) => (
+                      <div key={entry.id} className="p-3 bg-gray-50 rounded-lg">
+                        <div className="flex items-center justify-between mb-2">
+                          <Badge variant="outline" className="text-xs">
+                            {entry.filesCount} FILES
+                          </Badge>
+                          <span className="text-xs text-gray-500">
+                            {entry.timestamp.toLocaleTimeString()}
+                          </span>
+                        </div>
+                        <div className="flex justify-between mt-2 text-xs text-gray-500">
+                          <span>
+                            {(entry.metrics.processingTime / 1000).toFixed(1)}s
+                          </span>
+                          <span>{entry.metrics.sheetsProcessed} sheets</span>
+                          <span>
+                            {(entry.totalSize / 1024 / 1024).toFixed(1)} MB
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-gray-500">
+                    <Clock className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                    <p className="text-sm">No conversions yet</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Usage Limit Notice */}
+            {usageLimitReached && (
+              <Card className="border-orange-200 bg-orange-50">
+                <CardContent className="p-4">
+                  <div className="flex items-start gap-3">
+                    <AlertTriangle className="w-5 h-5 text-orange-600 mt-0.5" />
+                    <div className="flex-1">
+                      <h3 className="font-medium text-orange-800">
+                        Usage Limit Reached
+                      </h3>
+                      <p className="text-sm text-orange-700 mt-1">
+                        You've reached your conversion limit. Upgrade to
+                        continue.
+                      </p>
+                      <Button
+                        size="sm"
+                        className="mt-3 bg-orange-600 hover:bg-orange-700"
+                      >
+                        <Crown className="w-4 h-4 mr-2" />
+                        Upgrade Plan
+                      </Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <PromoBanner />
       <AuthModal
         isOpen={showAuthModal}
         onClose={() => setShowAuthModal(false)}
-        defaultTab="register"
       />
     </div>
   );

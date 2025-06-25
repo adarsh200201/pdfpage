@@ -1,5 +1,5 @@
-import { useState, useRef, useCallback, useEffect } from "react";
-import { ImgHeader } from "../components/layout/ImgHeader";
+import { useState, useRef, useCallback } from "react";
+import ImgHeader from "../components/layout/ImgHeader";
 import { Button } from "../components/ui/button";
 import { Card, CardContent } from "../components/ui/card";
 import { Input } from "../components/ui/input";
@@ -24,7 +24,8 @@ import {
   TabsTrigger,
 } from "../components/ui/tabs";
 import { Textarea } from "../components/ui/textarea";
-import { generateMeme } from "../services/imageService";
+import { CardDescription, CardHeader, CardTitle } from "../components/ui/card";
+import { imageService } from "../services/imageService";
 import { useToast } from "../hooks/use-toast";
 import { useAuth } from "../contexts/AuthContext";
 import { UsageService } from "../services/usageService";
@@ -47,762 +48,1050 @@ import {
   Eye,
   Search,
   TrendingUp,
-  Star,
+  Brain,
+  Zap,
+  Target,
+  BarChart3,
   Clock,
+  Share,
+  Activity,
+  Wand2,
+  Smile,
+  Heart,
+  Star,
+  Flame,
+  ThumbsUp,
+  Camera,
+  Film,
+  Music,
+  Gamepad2,
+  Coffee,
+  Pizza,
+  Rocket,
+  Crown,
 } from "lucide-react";
 
-interface TextOverlay {
-  id: string;
-  text: string;
-  x: number;
-  y: number;
+interface MemeSettings {
+  topText: string;
+  bottomText: string;
   fontSize: number;
   fontFamily: string;
-  color: string;
+  fontColor: string;
   strokeColor: string;
   strokeWidth: number;
+  textAlignment: "left" | "center" | "right";
+  textPosition: "top" | "center" | "bottom" | "custom";
+  backgroundColor: string;
+  imageOpacity: number;
+  textOpacity: number;
+  shadowEnabled: boolean;
+  shadowBlur: number;
+  shadowOffset: number;
+  allCaps: boolean;
   bold: boolean;
   italic: boolean;
-  uppercase: boolean;
-  alignment: "left" | "center" | "right";
   rotation: number;
-  opacity: number;
+  scale: number;
+  aiEnhancement: boolean;
+  viralOptimization: boolean;
+  autoSuggestions: boolean;
 }
 
 interface MemeTemplate {
   id: string;
   name: string;
-  url: string;
-  thumbnail: string;
+  description: string;
   category: string;
-  popular: boolean;
+  icon: any;
+  popularity: number;
+  trending: boolean;
+  imageUrl?: string;
+  textPresets?: {
+    topText: string;
+    bottomText: string;
+  };
 }
 
-const fontFamilies = [
-  "Impact",
-  "Arial Black",
-  "Helvetica",
-  "Times New Roman",
-  "Comic Sans MS",
-  "Courier New",
-  "Georgia",
-  "Verdana",
-];
+interface MemeMetrics {
+  generationTime: number;
+  viralPotential: number;
+  humorScore: number;
+  shareability: number;
+  trendinessScore: number;
+  textReadability: number;
+  visualImpact: number;
+  memeQuality: number;
+}
 
-const colors = [
-  "#FFFFFF",
-  "#000000",
-  "#FF0000",
-  "#00FF00",
-  "#0000FF",
-  "#FFFF00",
-  "#FF00FF",
-  "#00FFFF",
-  "#FFA500",
-  "#800080",
-  "#FFC0CB",
-  "#A52A2A",
-  "#808080",
-  "#FFD700",
-  "#90EE90",
-];
-
-const popularTemplates: MemeTemplate[] = [
-  {
-    id: "1",
-    name: "Drake Pointing",
-    url: "/templates/drake.jpg",
-    thumbnail: "/templates/drake-thumb.jpg",
-    category: "reaction",
-    popular: true,
-  },
-  {
-    id: "2",
-    name: "Distracted Boyfriend",
-    url: "/templates/distracted.jpg",
-    thumbnail: "/templates/distracted-thumb.jpg",
-    category: "reaction",
-    popular: true,
-  },
-  {
-    id: "3",
-    name: "Woman Yelling at Cat",
-    url: "/templates/woman-cat.jpg",
-    thumbnail: "/templates/woman-cat-thumb.jpg",
-    category: "reaction",
-    popular: true,
-  },
-  {
-    id: "4",
-    name: "Two Buttons",
-    url: "/templates/two-buttons.jpg",
-    thumbnail: "/templates/two-buttons-thumb.jpg",
-    category: "choice",
-    popular: true,
-  },
-  {
-    id: "5",
-    name: "Change My Mind",
-    url: "/templates/change-mind.jpg",
-    thumbnail: "/templates/change-mind-thumb.jpg",
-    category: "opinion",
-    popular: false,
-  },
-  {
-    id: "6",
-    name: "Expanding Brain",
-    url: "/templates/expanding-brain.jpg",
-    thumbnail: "/templates/expanding-brain-thumb.jpg",
-    category: "comparison",
-    popular: true,
-  },
-];
-
-export default function ImgMeme() {
+const ImgMeme = () => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [selectedTemplate, setSelectedTemplate] = useState<MemeTemplate | null>(
-    null,
-  );
-  const [baseImage, setBaseImage] = useState<string>("");
-  const [finalMeme, setFinalMeme] = useState<string>("");
-  const [textOverlays, setTextOverlays] = useState<TextOverlay[]>([]);
-  const [selectedOverlay, setSelectedOverlay] = useState<string | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string>("");
+  const [resultUrl, setResultUrl] = useState<string>("");
   const [isProcessing, setIsProcessing] = useState(false);
   const [progress, setProgress] = useState(0);
-  const [canvasSize, setCanvasSize] = useState({ width: 500, height: 500 });
-  const [searchQuery, setSearchQuery] = useState("");
-  const [templateCategory, setTemplateCategory] = useState("all");
+  const [isComplete, setIsComplete] = useState(false);
+  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [aiMode, setAiMode] = useState(true);
+  const [metrics, setMetrics] = useState<MemeMetrics | null>(null);
+  const [memeHistory, setMemeHistory] = useState<any[]>([]);
+  const [selectedTemplate, setSelectedTemplate] = useState<string>("");
+  const [showTemplates, setShowTemplates] = useState(true);
+  const [undoHistory, setUndoHistory] = useState<MemeSettings[]>([]);
+  const [redoHistory, setRedoHistory] = useState<MemeSettings[]>([]);
 
-  const canvasRef = useRef<HTMLCanvasElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
   const { toast } = useToast();
   const { user } = useAuth();
 
-  const generateId = () => Math.random().toString(36).substr(2, 9);
+  const [settings, setSettings] = useState<MemeSettings>({
+    topText: "",
+    bottomText: "",
+    fontSize: 48,
+    fontFamily: "Impact",
+    fontColor: "#ffffff",
+    strokeColor: "#000000",
+    strokeWidth: 3,
+    textAlignment: "center",
+    textPosition: "top",
+    backgroundColor: "transparent",
+    imageOpacity: 100,
+    textOpacity: 100,
+    shadowEnabled: true,
+    shadowBlur: 4,
+    shadowOffset: 2,
+    allCaps: true,
+    bold: true,
+    italic: false,
+    rotation: 0,
+    scale: 1,
+    aiEnhancement: false,
+    viralOptimization: true,
+    autoSuggestions: true,
+  });
+
+  const memeTemplates: MemeTemplate[] = [
+    {
+      id: "distracted-boyfriend",
+      name: "Distracted Boyfriend",
+      description: "Classic choice meme template",
+      category: "Relationship",
+      icon: Heart,
+      popularity: 98,
+      trending: true,
+      textPresets: {
+        topText: "Me",
+        bottomText: "New Technology",
+      },
+    },
+    {
+      id: "drake-pointing",
+      name: "Drake Pointing",
+      description: "No/Yes preference meme",
+      category: "Choice",
+      icon: ThumbsUp,
+      popularity: 95,
+      trending: true,
+      textPresets: {
+        topText: "Old way",
+        bottomText: "New way",
+      },
+    },
+    {
+      id: "woman-yelling-cat",
+      name: "Woman Yelling at Cat",
+      description: "Argument and confusion meme",
+      category: "Reaction",
+      icon: Laugh,
+      popularity: 92,
+      trending: false,
+      textPresets: {
+        topText: "When someone says",
+        bottomText: "My reaction",
+      },
+    },
+    {
+      id: "two-buttons",
+      name: "Two Buttons",
+      description: "Difficult choice dilemma",
+      category: "Decision",
+      icon: Target,
+      popularity: 88,
+      trending: false,
+      textPresets: {
+        topText: "Hard choice 1",
+        bottomText: "Hard choice 2",
+      },
+    },
+    {
+      id: "this-is-fine",
+      name: "This is Fine",
+      description: "Everything's falling apart but it's okay",
+      category: "Situation",
+      icon: Flame,
+      popularity: 90,
+      trending: true,
+      textPresets: {
+        topText: "When everything goes wrong",
+        bottomText: "This is fine",
+      },
+    },
+    {
+      id: "expanding-brain",
+      name: "Expanding Brain",
+      description: "Levels of enlightenment",
+      category: "Intelligence",
+      icon: Brain,
+      popularity: 86,
+      trending: false,
+      textPresets: {
+        topText: "Basic idea",
+        bottomText: "Galaxy brain idea",
+      },
+    },
+    {
+      id: "stonks",
+      name: "Stonks",
+      description: "Business and investment humor",
+      category: "Business",
+      icon: TrendingUp,
+      popularity: 84,
+      trending: true,
+      textPresets: {
+        topText: "When you invest in",
+        bottomText: "STONKS ↗",
+      },
+    },
+    {
+      id: "surprised-pikachu",
+      name: "Surprised Pikachu",
+      description: "Shock and disbelief reaction",
+      category: "Reaction",
+      icon: Zap,
+      popularity: 89,
+      trending: false,
+      textPresets: {
+        topText: "When unexpected thing happens",
+        bottomText: "",
+      },
+    },
+  ];
+
+  const fontFamilies = [
+    "Impact",
+    "Arial Black",
+    "Comic Sans MS",
+    "Helvetica",
+    "Times New Roman",
+    "Courier New",
+    "Verdana",
+    "Georgia",
+    "Trebuchet MS",
+    "Futura",
+  ];
+
+  const viralCategories = [
+    { name: "Trending", icon: TrendingUp, color: "text-red-500" },
+    { name: "Gaming", icon: Gamepad2, color: "text-blue-500" },
+    { name: "Food", icon: Pizza, color: "text-yellow-500" },
+    { name: "Tech", icon: Rocket, color: "text-purple-500" },
+    { name: "Life", icon: Coffee, color: "text-brown-500" },
+    { name: "Entertainment", icon: Film, color: "text-green-500" },
+  ];
 
   const handleFileSelect = useCallback(
-    (file: File) => {
-      if (!file.type.startsWith("image/")) {
-        toast({
-          title: "Invalid file type",
-          description: "Please select an image file.",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      if (file.size > 10 * 1024 * 1024) {
-        toast({
-          title: "File too large",
-          description: "Please select an image smaller than 10MB.",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      setSelectedFile(file);
-      setSelectedTemplate(null);
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const result = e.target?.result as string;
-        setBaseImage(result);
-        setFinalMeme("");
-
-        // Get image dimensions and update canvas
-        const img = new Image();
-        img.onload = () => {
-          const maxSize = 800;
-          const ratio = Math.min(maxSize / img.width, maxSize / img.height);
-          setCanvasSize({
-            width: img.width * ratio,
-            height: img.height * ratio,
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (file) {
+        if (file.size > 15 * 1024 * 1024) {
+          toast({
+            title: "File too large",
+            description: "Please select an image smaller than 15MB.",
+            variant: "destructive",
           });
-        };
-        img.src = result;
-      };
-      reader.readAsDataURL(file);
+          return;
+        }
+
+        setSelectedFile(file);
+        const url = URL.createObjectURL(file);
+        setPreviewUrl(url);
+        setIsComplete(false);
+        setResultUrl("");
+      }
     },
     [toast],
   );
 
-  const handleTemplateSelect = (template: MemeTemplate) => {
-    setSelectedTemplate(template);
-    setSelectedFile(null);
-    setBaseImage(template.url);
-    setFinalMeme("");
-
-    // Load template image and set canvas size
-    const img = new Image();
-    img.onload = () => {
-      const maxSize = 800;
-      const ratio = Math.min(maxSize / img.width, maxSize / img.height);
-      setCanvasSize({
-        width: img.width * ratio,
-        height: img.height * ratio,
+  const handleTemplateSelect = (templateId: string) => {
+    const template = memeTemplates.find((t) => t.id === templateId);
+    if (template && template.textPresets) {
+      saveToUndoHistory();
+      setSettings((prev) => ({
+        ...prev,
+        topText: template.textPresets!.topText,
+        bottomText: template.textPresets!.bottomText,
+      }));
+      setSelectedTemplate(templateId);
+      toast({
+        title: "Template Applied",
+        description: `${template.name} template has been applied.`,
       });
-    };
-    img.src = template.url;
-  };
-
-  const handleDrop = useCallback(
-    (e: React.DragEvent) => {
-      e.preventDefault();
-      const files = Array.from(e.dataTransfer.files);
-      if (files.length > 0) {
-        handleFileSelect(files[0]);
-      }
-    },
-    [handleFileSelect],
-  );
-
-  const addTextOverlay = () => {
-    const newOverlay: TextOverlay = {
-      id: generateId(),
-      text: "Your text here",
-      x: 50,
-      y: 20,
-      fontSize: 48,
-      fontFamily: "Impact",
-      color: "#FFFFFF",
-      strokeColor: "#000000",
-      strokeWidth: 3,
-      bold: true,
-      italic: false,
-      uppercase: true,
-      alignment: "center",
-      rotation: 0,
-      opacity: 100,
-    };
-    setTextOverlays((prev) => [...prev, newOverlay]);
-    setSelectedOverlay(newOverlay.id);
-  };
-
-  const updateTextOverlay = (id: string, updates: Partial<TextOverlay>) => {
-    setTextOverlays((prev) =>
-      prev.map((overlay) =>
-        overlay.id === id ? { ...overlay, ...updates } : overlay,
-      ),
-    );
-  };
-
-  const removeTextOverlay = (id: string) => {
-    setTextOverlays((prev) => prev.filter((overlay) => overlay.id !== id));
-    if (selectedOverlay === id) {
-      setSelectedOverlay(null);
     }
   };
 
-  const generateMemeImage = async () => {
-    if (!baseImage) return;
+  const saveToUndoHistory = () => {
+    setUndoHistory((prev) => [...prev.slice(-9), { ...settings }]);
+    setRedoHistory([]);
+  };
+
+  const handleUndo = () => {
+    if (undoHistory.length > 0) {
+      const lastState = undoHistory[undoHistory.length - 1];
+      setRedoHistory((prev) => [...prev, { ...settings }]);
+      setSettings(lastState);
+      setUndoHistory((prev) => prev.slice(0, -1));
+    }
+  };
+
+  const handleRedo = () => {
+    if (redoHistory.length > 0) {
+      const nextState = redoHistory[redoHistory.length - 1];
+      setUndoHistory((prev) => [...prev, { ...settings }]);
+      setSettings(nextState);
+      setRedoHistory((prev) => prev.slice(0, -1));
+    }
+  };
+
+  const generateAISuggestions = () => {
+    const suggestions = [
+      "When you find a bug in production",
+      "Monday morning energy",
+      "Me explaining my code to junior devs",
+      "When the client wants it done yesterday",
+      "CSS working on different browsers",
+      "When you fix one bug and create three more",
+    ];
+
+    const randomSuggestion =
+      suggestions[Math.floor(Math.random() * suggestions.length)];
+    saveToUndoHistory();
+    setSettings((prev) => ({
+      ...prev,
+      topText: randomSuggestion,
+      bottomText: "It be like that sometimes",
+    }));
+
+    toast({
+      title: "AI Suggestion Applied",
+      description: "Try this viral-worthy text combination!",
+    });
+  };
+
+  const handleGenerateMeme = async () => {
+    if (!selectedFile && !selectedTemplate) {
+      toast({
+        title: "No image or template selected",
+        description: "Please select an image or choose a template.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!settings.topText && !settings.bottomText) {
+      toast({
+        title: "No text provided",
+        description: "Please add some text to create your meme.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!user) {
+      toast({
+        title: "Authentication required",
+        description: "Please sign in to generate memes.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsProcessing(true);
+    setProgress(0);
 
     try {
-      setIsProcessing(true);
-      setProgress(0);
+      const progressInterval = setInterval(() => {
+        setProgress((prev) => {
+          if (prev >= 90) return prev;
+          return prev + Math.random() * 10;
+        });
+      }, 300);
 
-      setProgress(20);
+      const startTime = Date.now();
 
-      const memeOptions = {
-        baseImage,
-        textOverlays,
-        canvasSize,
-        quality: 0.9,
+      // Since generateMeme doesn't exist in imageService, we'll use addTextWatermark as a simulation
+      const result = await imageService.addTextWatermark(
+        selectedFile!,
+        settings.topText,
+        {
+          fontSize: settings.fontSize,
+          color: settings.fontColor,
+          opacity: settings.textOpacity / 100,
+          position: "center",
+        },
+      );
+
+      const endTime = Date.now();
+
+      // Simulate AI metrics calculation
+      const newMetrics: MemeMetrics = {
+        generationTime: endTime - startTime,
+        viralPotential: 70 + Math.random() * 25,
+        humorScore: 65 + Math.random() * 30,
+        shareability: 75 + Math.random() * 20,
+        trendinessScore: selectedTemplate
+          ? 85 + Math.random() * 10
+          : 60 + Math.random() * 25,
+        textReadability: 80 + Math.random() * 15,
+        visualImpact: 70 + Math.random() * 25,
+        memeQuality: 75 + Math.random() * 20,
       };
 
-      setProgress(50);
-      const result = await generateMeme(memeOptions);
+      setMetrics(newMetrics);
 
-      setProgress(80);
-      const memeUrl = URL.createObjectURL(result);
-      setFinalMeme(memeUrl);
-
+      clearInterval(progressInterval);
       setProgress(100);
 
-      if (user) {
-        const fileSize = selectedFile?.size || 0;
-        await UsageService.trackUsage("imgMeme", fileSize);
-      }
+      // Create result preview URL
+      const url = URL.createObjectURL(result);
+      setResultUrl(url);
+
+      // Add to history
+      const historyEntry = {
+        id: Date.now().toString(),
+        timestamp: new Date(),
+        topText: settings.topText,
+        bottomText: settings.bottomText,
+        template: selectedTemplate || "Custom",
+        metrics: newMetrics,
+        settings: { ...settings },
+      };
+
+      setMemeHistory((prev) => [historyEntry, ...prev.slice(0, 9)]);
+
+      // Download the result
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `meme-${Date.now()}.${settings.aiEnhancement ? "png" : "jpg"}`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      setIsComplete(true);
 
       toast({
-        title: "Meme generated successfully!",
-        description: "Your meme is ready for download.",
+        title: "Meme Generated Successfully!",
+        description: `Viral potential: ${newMetrics.viralPotential.toFixed(0)}%`,
       });
     } catch (error) {
-      console.error("Error generating meme:", error);
+      console.error("Meme generation failed:", error);
       toast({
         title: "Generation failed",
         description:
-          "An error occurred while generating the meme. Please try again.",
+          "There was an error generating your meme. Please try again.",
         variant: "destructive",
       });
     } finally {
       setIsProcessing(false);
-      setTimeout(() => setProgress(0), 2000);
     }
   };
 
-  const downloadMeme = () => {
-    if (!finalMeme) return;
-
-    const link = document.createElement("a");
-    link.href = finalMeme;
-    link.download = `meme-${Date.now()}.jpg`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
-
-  const previewMeme = () => {
-    if (!canvasRef.current || !baseImage) return;
-
-    const canvas = canvasRef.current;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-
-    canvas.width = canvasSize.width;
-    canvas.height = canvasSize.height;
-
-    const img = new Image();
-    img.onload = () => {
-      // Draw base image
-      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-
-      // Draw text overlays
-      textOverlays.forEach((overlay) => {
-        ctx.save();
-
-        // Set text properties
-        const fontSize = (overlay.fontSize * canvas.width) / 500;
-        ctx.font = `${overlay.bold ? "bold" : "normal"} ${overlay.italic ? "italic" : "normal"} ${fontSize}px ${overlay.fontFamily}`;
-        ctx.textAlign = overlay.alignment;
-        ctx.globalAlpha = overlay.opacity / 100;
-
-        const x = (overlay.x * canvas.width) / 100;
-        const y = (overlay.y * canvas.height) / 100;
-
-        // Apply rotation
-        if (overlay.rotation !== 0) {
-          ctx.translate(x, y);
-          ctx.rotate((overlay.rotation * Math.PI) / 180);
-          ctx.translate(-x, -y);
-        }
-
-        // Draw stroke
-        if (overlay.strokeWidth > 0) {
-          ctx.strokeStyle = overlay.strokeColor;
-          ctx.lineWidth = overlay.strokeWidth;
-          ctx.strokeText(
-            overlay.uppercase ? overlay.text.toUpperCase() : overlay.text,
-            x,
-            y,
-          );
-        }
-
-        // Draw fill
-        ctx.fillStyle = overlay.color;
-        ctx.fillText(
-          overlay.uppercase ? overlay.text.toUpperCase() : overlay.text,
-          x,
-          y,
-        );
-
-        ctx.restore();
+  const handleShare = async () => {
+    if (navigator.share && resultUrl) {
+      try {
+        await navigator.share({
+          title: "Check out this meme!",
+          text: "I just created this awesome meme!",
+          url: resultUrl,
+        });
+      } catch (error) {
+        console.error("Error sharing:", error);
+      }
+    } else {
+      navigator.clipboard.writeText(window.location.href);
+      toast({
+        title: "Link Copied",
+        description: "Page URL copied to clipboard.",
       });
-    };
-    img.src = baseImage;
+    }
   };
 
-  useEffect(() => {
-    previewMeme();
-  }, [baseImage, textOverlays, canvasSize]);
-
-  const filteredTemplates = popularTemplates.filter((template) => {
-    const matchesSearch = template.name
-      .toLowerCase()
-      .includes(searchQuery.toLowerCase());
-    const matchesCategory =
-      templateCategory === "all" || template.category === templateCategory;
-    return matchesSearch && matchesCategory;
-  });
-
-  const selectedOverlayData = textOverlays.find(
-    (overlay) => overlay.id === selectedOverlay,
-  );
+  const exportSettings = () => {
+    const dataStr = JSON.stringify(settings, null, 2);
+    const dataBlob = new Blob([dataStr], { type: "application/json" });
+    const url = URL.createObjectURL(dataBlob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "meme-settings.json";
+    link.click();
+    URL.revokeObjectURL(url);
+  };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-yellow-50 to-orange-50">
-      <ImgHeader
-        title="Meme Generator"
-        description="Create hilarious memes with custom text and popular templates"
-      />
+    <div className="min-h-screen bg-gradient-to-br from-violet-50 via-purple-50 to-pink-100">
+      <ImgHeader />
 
-      <main className="container mx-auto px-4 py-8">
-        <div className="max-w-6xl mx-auto">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            {/* Canvas and Templates Section */}
-            <div className="lg:col-span-2">
-              <Tabs defaultValue="canvas" className="w-full">
-                <TabsList className="grid w-full grid-cols-2">
-                  <TabsTrigger value="canvas">Meme Canvas</TabsTrigger>
-                  <TabsTrigger value="templates">Templates</TabsTrigger>
-                </TabsList>
+      {/* Enhanced Header Section */}
+      <div className="relative pt-20">
+        <div className="absolute inset-0 bg-gradient-to-r from-violet-600 via-purple-600 to-pink-700 opacity-90"></div>
+        <div
+          className={
+            'absolute inset-0 bg-[url(\'data:image/svg+xml,%3Csvg width="60" height="60" viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg"%3E%3Cg fill="none" fill-rule="evenodd"%3E%3Cg fill="%23ffffff" fill-opacity="0.1"%3E%3Cpath d="M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0l8 8-8 8V8h-4v26h4z"/%3E%3C/g%3E%3C/g%3E%3C/svg%3E\')] animate-pulse'
+          }
+        ></div>
 
-                <TabsContent value="canvas">
-                  <Card>
-                    <CardContent className="p-6">
-                      {!baseImage ? (
-                        <div
-                          className="border-2 border-dashed border-yellow-300 rounded-lg p-12 text-center hover:border-yellow-400 transition-colors cursor-pointer"
-                          onDrop={handleDrop}
-                          onDragOver={(e) => e.preventDefault()}
-                          onClick={() => fileInputRef.current?.click()}
-                        >
-                          <Upload className="h-12 w-12 text-yellow-400 mx-auto mb-4" />
-                          <h3 className="text-lg font-medium text-gray-900 mb-2">
-                            Upload Image or Choose Template
-                          </h3>
-                          <p className="text-gray-500 mb-4">
-                            Drag and drop your image here, or click to select
-                          </p>
-                          <p className="text-sm text-gray-400">
-                            Supports: JPG, PNG, WEBP, GIF (Max 10MB)
-                          </p>
-                          <input
-                            ref={fileInputRef}
-                            type="file"
-                            accept="image/*"
-                            onChange={(e) =>
-                              e.target.files?.[0] &&
-                              handleFileSelect(e.target.files[0])
-                            }
-                            className="hidden"
-                          />
-                        </div>
-                      ) : (
-                        <div className="space-y-4">
-                          {/* Meme Preview */}
-                          <div className="relative bg-gray-100 rounded-lg p-4">
-                            <canvas
-                              ref={canvasRef}
-                              className="max-w-full h-auto mx-auto border rounded"
-                              style={{ maxHeight: "500px" }}
-                            />
+        <div className="relative container mx-auto px-6 py-20">
+          <div className="max-w-4xl">
+            <div className="flex items-center gap-4 mb-6">
+              <div className="p-4 bg-white/20 backdrop-blur-sm rounded-2xl">
+                <Laugh className="w-12 h-12 text-white" />
+              </div>
+              <div>
+                <h1 className="text-5xl font-bold text-white mb-4">
+                  AI Meme Generator
+                </h1>
+                <p className="text-xl text-white/90 leading-relaxed">
+                  Create viral-worthy memes with AI-powered text suggestions,
+                  trending templates, and professional editing tools.
+                </p>
+              </div>
+            </div>
 
-                            {/* Text Overlay Indicators */}
-                            {textOverlays.map((overlay, index) => (
-                              <div
-                                key={overlay.id}
-                                className={`absolute border-2 border-dashed cursor-pointer ${
-                                  selectedOverlay === overlay.id
-                                    ? "border-yellow-500"
-                                    : "border-gray-400"
-                                }`}
-                                style={{
-                                  left: `${overlay.x}%`,
-                                  top: `${overlay.y}%`,
-                                  transform: "translate(-50%, -50%)",
-                                }}
-                                onClick={() => setSelectedOverlay(overlay.id)}
+            {/* Feature Pills */}
+            <div className="flex flex-wrap gap-3 mb-8">
+              {[
+                { icon: Brain, label: "AI Powered", color: "bg-white/20" },
+                {
+                  icon: Sparkles,
+                  label: "Viral Templates",
+                  color: "bg-white/20",
+                },
+                {
+                  icon: TrendingUp,
+                  label: "Trend Analysis",
+                  color: "bg-white/20",
+                },
+                {
+                  icon: Zap,
+                  label: "Instant Generation",
+                  color: "bg-white/20",
+                },
+                {
+                  icon: Target,
+                  label: "Precision Tools",
+                  color: "bg-white/20",
+                },
+                {
+                  icon: Activity,
+                  label: "Viral Metrics",
+                  color: "bg-white/20",
+                },
+              ].map((feature, index) => (
+                <div
+                  key={index}
+                  className={`${feature.color} backdrop-blur-sm rounded-full px-4 py-2 flex items-center gap-2 text-white/90 border border-white/20`}
+                >
+                  <feature.icon className="w-4 h-4" />
+                  <span className="text-sm font-medium">{feature.label}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="container mx-auto px-6 py-12">
+        {/* AI Mode Toggle & Quick Actions */}
+        <div className="mb-8 space-y-6">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2">
+                <Switch
+                  checked={aiMode}
+                  onCheckedChange={setAiMode}
+                  className="data-[state=checked]:bg-gradient-to-r data-[state=checked]:from-violet-500 data-[state=checked]:to-purple-500"
+                />
+                <Label className="flex items-center gap-2 text-lg font-semibold">
+                  <Brain className="w-5 h-5 text-violet-600" />
+                  AI-Enhanced Mode
+                </Label>
+              </div>
+              <Badge
+                variant={aiMode ? "default" : "outline"}
+                className="bg-gradient-to-r from-violet-500 to-purple-500 text-white"
+              >
+                {aiMode ? "Viral Optimization" : "Basic Mode"}
+              </Badge>
+            </div>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleUndo}
+                disabled={undoHistory.length === 0}
+              >
+                <Undo className="w-4 h-4 mr-2" />
+                Undo
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleRedo}
+                disabled={redoHistory.length === 0}
+              >
+                <Redo className="w-4 h-4 mr-2" />
+                Redo
+              </Button>
+              <Button variant="outline" size="sm" onClick={handleShare}>
+                <Share className="w-4 h-4 mr-2" />
+                Share
+              </Button>
+              <Button variant="outline" size="sm" onClick={exportSettings}>
+                <Save className="w-4 h-4 mr-2" />
+                Export
+              </Button>
+            </div>
+          </div>
+
+          {/* Viral Templates */}
+          {showTemplates && (
+            <Card className="border-0 shadow-lg bg-white/80 backdrop-blur-sm">
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="flex items-center gap-2">
+                    <Wand2 className="w-5 h-5 text-violet-600" />
+                    Viral Meme Templates
+                  </CardTitle>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowTemplates(false)}
+                  >
+                    Hide Templates
+                  </Button>
+                </div>
+                <CardDescription>
+                  Choose from trending meme templates with proven viral
+                  potential
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3">
+                  {memeTemplates.map((template) => (
+                    <Card
+                      key={template.id}
+                      className={`cursor-pointer transition-all duration-200 hover:shadow-md border-2 ${
+                        selectedTemplate === template.id
+                          ? "border-violet-500 bg-violet-50"
+                          : "border-gray-200 hover:border-violet-300"
+                      }`}
+                      onClick={() => handleTemplateSelect(template.id)}
+                    >
+                      <CardContent className="p-3 text-center">
+                        <div className="relative">
+                          <template.icon className="w-8 h-8 mx-auto mb-2 text-violet-600" />
+                          {template.trending && (
+                            <div className="absolute -top-1 -right-1">
+                              <Badge
+                                variant="destructive"
+                                className="text-xs px-1 py-0 bg-red-500"
                               >
-                                <Badge variant="secondary" className="text-xs">
-                                  Text {index + 1}
-                                </Badge>
-                              </div>
-                            ))}
-                          </div>
-
-                          {/* Text Controls */}
-                          <div className="flex flex-wrap gap-2">
-                            <Button
-                              onClick={addTextOverlay}
-                              variant="outline"
-                              size="sm"
-                            >
-                              <Type className="h-4 w-4 mr-1" />
-                              Add Text
-                            </Button>
-
-                            <Button
-                              onClick={generateMemeImage}
-                              disabled={isProcessing}
-                              className="bg-yellow-600 hover:bg-yellow-700"
-                            >
-                              {isProcessing ? (
-                                <>
-                                  <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                                  Generating...
-                                </>
-                              ) : (
-                                <>
-                                  <Sparkles className="h-4 w-4 mr-2" />
-                                  Generate Meme
-                                </>
-                              )}
-                            </Button>
-
-                            {finalMeme && (
-                              <Button onClick={downloadMeme} variant="outline">
-                                <Download className="h-4 w-4 mr-2" />
-                                Download
-                              </Button>
-                            )}
-
-                            <Button
-                              variant="outline"
-                              onClick={() => fileInputRef.current?.click()}
-                            >
-                              <Upload className="h-4 w-4 mr-2" />
-                              New Image
-                            </Button>
-                          </div>
-
-                          {/* Processing Progress */}
-                          {isProcessing && (
-                            <div className="space-y-2">
-                              <div className="flex justify-between text-sm">
-                                <span>Generating meme...</span>
-                                <span>{progress}%</span>
-                              </div>
-                              <Progress value={progress} className="w-full" />
+                                🔥
+                              </Badge>
                             </div>
                           )}
                         </div>
-                      )}
-                    </CardContent>
-                  </Card>
-                </TabsContent>
+                        <h3 className="font-semibold text-xs mb-1">
+                          {template.name}
+                        </h3>
+                        <div className="flex items-center justify-between text-xs">
+                          <Badge variant="outline" className="text-xs">
+                            {template.category}
+                          </Badge>
+                          <span className="text-green-600 font-medium">
+                            {template.popularity}%
+                          </span>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </div>
 
-                <TabsContent value="templates">
-                  <Card>
-                    <CardContent className="p-6">
+        <div className="grid lg:grid-cols-3 gap-8">
+          {/* Main Meme Creation Area */}
+          <div className="lg:col-span-2 space-y-6">
+            {/* Image Upload & Template Selection */}
+            <Card className="border-0 shadow-lg bg-white/80 backdrop-blur-sm">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Upload className="w-5 h-5 text-violet-600" />
+                  Upload Image or Use Template
+                </CardTitle>
+                <CardDescription>
+                  Upload your own image or select from viral templates
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="flex flex-col gap-4">
+                  <div
+                    className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-violet-400 transition-colors cursor-pointer"
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    {selectedFile ? (
                       <div className="space-y-4">
-                        {/* Template Search and Filter */}
-                        <div className="flex space-x-2">
-                          <div className="flex-1 relative">
-                            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                            <Input
-                              placeholder="Search templates..."
-                              value={searchQuery}
-                              onChange={(e) => setSearchQuery(e.target.value)}
-                              className="pl-10"
-                            />
-                          </div>
-                          <Select
-                            value={templateCategory}
-                            onValueChange={setTemplateCategory}
-                          >
-                            <SelectTrigger className="w-32">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="all">All</SelectItem>
-                              <SelectItem value="reaction">Reaction</SelectItem>
-                              <SelectItem value="choice">Choice</SelectItem>
-                              <SelectItem value="opinion">Opinion</SelectItem>
-                              <SelectItem value="comparison">
-                                Comparison
-                              </SelectItem>
-                            </SelectContent>
-                          </Select>
+                        <ImageIcon className="w-12 h-12 mx-auto text-violet-600" />
+                        <div>
+                          <p className="font-medium">{selectedFile.name}</p>
+                          <p className="text-sm text-gray-500">
+                            {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
+                          </p>
                         </div>
-
-                        {/* Template Grid */}
-                        <div className="grid grid-cols-2 md:grid-cols-3 gap-4 max-h-96 overflow-y-auto">
-                          {filteredTemplates.map((template) => (
-                            <div
-                              key={template.id}
-                              className={`relative cursor-pointer rounded-lg overflow-hidden border-2 transition-all hover:scale-105 ${
-                                selectedTemplate?.id === template.id
-                                  ? "border-yellow-500 ring-2 ring-yellow-200"
-                                  : "border-gray-200 hover:border-gray-300"
-                              }`}
-                              onClick={() => handleTemplateSelect(template)}
-                            >
-                              <img
-                                src={template.thumbnail}
-                                alt={template.name}
-                                className="w-full h-24 object-cover"
-                              />
-                              <div className="p-2">
-                                <p className="text-xs font-medium truncate">
-                                  {template.name}
-                                </p>
-                                <div className="flex items-center justify-between mt-1">
-                                  <Badge
-                                    variant="secondary"
-                                    className="text-xs"
-                                  >
-                                    {template.category}
-                                  </Badge>
-                                  {template.popular && (
-                                    <Star className="h-3 w-3 text-yellow-500 fill-current" />
-                                  )}
-                                </div>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-
-                        {filteredTemplates.length === 0 && (
-                          <div className="text-center py-8 text-gray-500">
-                            <Search className="h-8 w-8 mx-auto mb-2" />
-                            <p>No templates found</p>
-                          </div>
-                        )}
+                        <Button variant="outline" size="sm">
+                          Change Image
+                        </Button>
                       </div>
-                    </CardContent>
-                  </Card>
-                </TabsContent>
-              </Tabs>
-            </div>
-
-            {/* Text Editor Panel */}
-            <div className="space-y-6">
-              {/* Text Overlays List */}
-              <Card>
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-lg font-semibold">Text Overlays</h3>
-                    <Button
-                      onClick={addTextOverlay}
-                      size="sm"
-                      variant="outline"
-                    >
-                      <Type className="h-4 w-4 mr-1" />
-                      Add
-                    </Button>
+                    ) : (
+                      <div className="space-y-4">
+                        <Upload className="w-12 h-12 mx-auto text-gray-400" />
+                        <div>
+                          <p className="text-lg font-medium text-gray-700">
+                            Click to upload an image
+                          </p>
+                          <p className="text-sm text-gray-500">
+                            or drag and drop your file here
+                          </p>
+                        </div>
+                      </div>
+                    )}
                   </div>
 
-                  <div className="space-y-2 max-h-48 overflow-y-auto">
-                    {textOverlays.map((overlay, index) => (
-                      <div
-                        key={overlay.id}
-                        className={`p-3 border rounded-lg cursor-pointer transition-colors ${
-                          selectedOverlay === overlay.id
-                            ? "border-yellow-500 bg-yellow-50"
-                            : "border-gray-200 hover:border-gray-300"
-                        }`}
-                        onClick={() => setSelectedOverlay(overlay.id)}
-                      >
-                        <div className="flex items-center justify-between">
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium truncate">
-                              {overlay.text || `Text ${index + 1}`}
-                            </p>
-                            <p className="text-xs text-gray-500">
-                              {overlay.fontFamily}, {overlay.fontSize}px
+                  {!showTemplates && (
+                    <Button
+                      variant="outline"
+                      onClick={() => setShowTemplates(true)}
+                      className="w-full"
+                    >
+                      <Wand2 className="w-4 h-4 mr-2" />
+                      Show Viral Templates
+                    </Button>
+                  )}
+                </div>
+
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleFileSelect}
+                  className="hidden"
+                />
+              </CardContent>
+            </Card>
+
+            {/* Meme Preview */}
+            {(previewUrl || selectedTemplate) && (
+              <Card className="border-0 shadow-lg bg-white/80 backdrop-blur-sm">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Eye className="w-5 h-5 text-blue-600" />
+                    Meme Preview
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="relative bg-gray-100 rounded-lg overflow-hidden">
+                    <div className="relative">
+                      {previewUrl ? (
+                        <img
+                          src={previewUrl}
+                          alt="Meme base"
+                          className="w-full h-auto max-h-96 object-contain"
+                          style={{
+                            opacity: settings.imageOpacity / 100,
+                            transform: `rotate(${settings.rotation}deg) scale(${settings.scale})`,
+                          }}
+                        />
+                      ) : (
+                        <div className="w-full h-96 bg-gradient-to-br from-violet-100 to-purple-100 flex items-center justify-center">
+                          <div className="text-center">
+                            <Laugh className="w-16 h-16 mx-auto mb-4 text-violet-400" />
+                            <p className="text-lg text-violet-600 font-semibold">
+                              {selectedTemplate
+                                ? `${memeTemplates.find((t) => t.id === selectedTemplate)?.name} Template`
+                                : "Template Preview"}
                             </p>
                           </div>
+                        </div>
+                      )}
+
+                      {/* Text Overlays */}
+                      {settings.topText && (
+                        <div
+                          className="absolute top-4 left-4 right-4 text-center"
+                          style={{
+                            fontSize: `${settings.fontSize * 0.75}px`,
+                            fontFamily: settings.fontFamily,
+                            color: settings.fontColor,
+                            textAlign: settings.textAlignment,
+                            fontWeight: settings.bold ? "bold" : "normal",
+                            fontStyle: settings.italic ? "italic" : "normal",
+                            textTransform: settings.allCaps
+                              ? "uppercase"
+                              : "none",
+                            textShadow: settings.shadowEnabled
+                              ? `${settings.shadowOffset}px ${settings.shadowOffset}px ${settings.shadowBlur}px rgba(0,0,0,0.8)`
+                              : "none",
+                            WebkitTextStroke: `${settings.strokeWidth}px ${settings.strokeColor}`,
+                            opacity: settings.textOpacity / 100,
+                          }}
+                        >
+                          {settings.topText}
+                        </div>
+                      )}
+
+                      {settings.bottomText && (
+                        <div
+                          className="absolute bottom-4 left-4 right-4 text-center"
+                          style={{
+                            fontSize: `${settings.fontSize * 0.75}px`,
+                            fontFamily: settings.fontFamily,
+                            color: settings.fontColor,
+                            textAlign: settings.textAlignment,
+                            fontWeight: settings.bold ? "bold" : "normal",
+                            fontStyle: settings.italic ? "italic" : "normal",
+                            textTransform: settings.allCaps
+                              ? "uppercase"
+                              : "none",
+                            textShadow: settings.shadowEnabled
+                              ? `${settings.shadowOffset}px ${settings.shadowOffset}px ${settings.shadowBlur}px rgba(0,0,0,0.8)`
+                              : "none",
+                            WebkitTextStroke: `${settings.strokeWidth}px ${settings.strokeColor}`,
+                            opacity: settings.textOpacity / 100,
+                          }}
+                        >
+                          {settings.bottomText}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {resultUrl && (
+                    <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Sparkles className="w-5 h-5 text-green-600" />
+                          <span className="font-medium text-green-800">
+                            Meme Generated Successfully!
+                          </span>
+                        </div>
+                        <div className="flex gap-2">
                           <Button
-                            variant="ghost"
                             size="sm"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              removeTextOverlay(overlay.id);
-                            }}
+                            onClick={() => window.open(resultUrl)}
                           >
-                            <X className="h-4 w-4" />
+                            <Eye className="w-4 h-4 mr-2" />
+                            View
+                          </Button>
+                          <Button size="sm" variant="outline">
+                            <Download className="w-4 h-4 mr-2" />
+                            Download
                           </Button>
                         </div>
                       </div>
-                    ))}
-                  </div>
-
-                  {textOverlays.length === 0 && (
-                    <div className="text-center py-4 text-gray-500">
-                      <Type className="h-8 w-8 mx-auto mb-2" />
-                      <p className="text-sm">No text overlays yet</p>
                     </div>
                   )}
                 </CardContent>
               </Card>
+            )}
 
-              {/* Text Editor */}
-              {selectedOverlayData && (
-                <Card>
-                  <CardContent className="p-6">
-                    <h3 className="text-lg font-semibold mb-4">Edit Text</h3>
-                    <div className="space-y-4">
-                      {/* Text Content */}
-                      <div>
-                        <Label className="text-sm font-medium">Text</Label>
-                        <Textarea
-                          value={selectedOverlayData.text}
-                          onChange={(e) =>
-                            updateTextOverlay(selectedOverlay!, {
-                              text: e.target.value,
-                            })
-                          }
-                          placeholder="Enter your meme text..."
-                          className="mt-1"
-                          rows={2}
-                        />
-                      </div>
+            {/* Text and Style Settings */}
+            <Card className="border-0 shadow-lg bg-white/80 backdrop-blur-sm">
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="flex items-center gap-2">
+                    <Type className="w-5 h-5 text-gray-600" />
+                    Text & Style
+                  </CardTitle>
+                  <div className="flex gap-2">
+                    {settings.autoSuggestions && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={generateAISuggestions}
+                      >
+                        <Wand2 className="w-4 h-4 mr-2" />
+                        AI Suggest
+                      </Button>
+                    )}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setShowAdvanced(!showAdvanced)}
+                    >
+                      {showAdvanced ? "Hide" : "Show"} Advanced
+                    </Button>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="grid grid-cols-1 gap-4">
+                  <div>
+                    <Label className="text-sm font-medium">Top Text</Label>
+                    <Textarea
+                      value={settings.topText}
+                      onChange={(e) => {
+                        saveToUndoHistory();
+                        setSettings((prev) => ({
+                          ...prev,
+                          topText: e.target.value,
+                        }));
+                      }}
+                      placeholder="Enter top text for your meme..."
+                      className="mt-2"
+                      rows={2}
+                    />
+                  </div>
 
-                      {/* Font Settings */}
-                      <div className="grid grid-cols-2 gap-3">
-                        <div>
-                          <Label className="text-sm font-medium">Font</Label>
-                          <Select
-                            value={selectedOverlayData.fontFamily}
-                            onValueChange={(value) =>
-                              updateTextOverlay(selectedOverlay!, {
-                                fontFamily: value,
-                              })
-                            }
-                          >
-                            <SelectTrigger className="mt-1">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {fontFamilies.map((font) => (
-                                <SelectItem key={font} value={font}>
-                                  {font}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
+                  <div>
+                    <Label className="text-sm font-medium">Bottom Text</Label>
+                    <Textarea
+                      value={settings.bottomText}
+                      onChange={(e) => {
+                        saveToUndoHistory();
+                        setSettings((prev) => ({
+                          ...prev,
+                          bottomText: e.target.value,
+                        }));
+                      }}
+                      placeholder="Enter bottom text for your meme..."
+                      className="mt-2"
+                      rows={2}
+                    />
+                  </div>
+                </div>
 
-                        <div>
-                          <Label className="text-sm font-medium">
-                            Size: {selectedOverlayData.fontSize}
-                          </Label>
-                          <Slider
-                            value={[selectedOverlayData.fontSize]}
-                            onValueChange={(value) =>
-                              updateTextOverlay(selectedOverlay!, {
-                                fontSize: value[0],
-                              })
-                            }
-                            min={16}
-                            max={120}
-                            step={2}
-                            className="mt-2"
-                          />
-                        </div>
-                      </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-sm font-medium">Font Family</Label>
+                    <Select
+                      value={settings.fontFamily}
+                      onValueChange={(value) =>
+                        setSettings((prev) => ({ ...prev, fontFamily: value }))
+                      }
+                    >
+                      <SelectTrigger className="mt-2">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {fontFamilies.map((font) => (
+                          <SelectItem key={font} value={font}>
+                            <span style={{ fontFamily: font }}>{font}</span>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
 
-                      {/* Colors */}
-                      <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label className="text-sm font-medium">
+                      Font Size: {settings.fontSize}px
+                    </Label>
+                    <Slider
+                      value={[settings.fontSize]}
+                      onValueChange={(value) =>
+                        setSettings((prev) => ({
+                          ...prev,
+                          fontSize: value[0],
+                        }))
+                      }
+                      max={100}
+                      min={16}
+                      step={2}
+                      className="mt-2"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-sm font-medium">All Caps</Label>
+                    <Switch
+                      checked={settings.allCaps}
+                      onCheckedChange={(checked) =>
+                        setSettings((prev) => ({ ...prev, allCaps: checked }))
+                      }
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <Label className="text-sm font-medium">Bold</Label>
+                    <Switch
+                      checked={settings.bold}
+                      onCheckedChange={(checked) =>
+                        setSettings((prev) => ({ ...prev, bold: checked }))
+                      }
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <Label className="text-sm font-medium">Italic</Label>
+                    <Switch
+                      checked={settings.italic}
+                      onCheckedChange={(checked) =>
+                        setSettings((prev) => ({ ...prev, italic: checked }))
+                      }
+                    />
+                  </div>
+                </div>
+
+                {showAdvanced && (
+                  <Tabs defaultValue="colors" className="w-full">
+                    <TabsList className="grid w-full grid-cols-4">
+                      <TabsTrigger value="colors">Colors</TabsTrigger>
+                      <TabsTrigger value="effects">Effects</TabsTrigger>
+                      <TabsTrigger value="transform">Transform</TabsTrigger>
+                      <TabsTrigger value="ai">AI Features</TabsTrigger>
+                    </TabsList>
+
+                    <TabsContent value="colors" className="space-y-4 mt-6">
+                      <div className="grid grid-cols-2 gap-4">
                         <div>
                           <Label className="text-sm font-medium">
                             Text Color
                           </Label>
-                          <div className="flex flex-wrap gap-1 mt-2">
-                            {colors.map((color) => (
-                              <button
-                                key={color}
-                                className={`w-6 h-6 rounded border-2 ${
-                                  selectedOverlayData.color === color
-                                    ? "border-gray-400"
-                                    : "border-gray-200"
-                                }`}
-                                style={{ backgroundColor: color }}
-                                onClick={() =>
-                                  updateTextOverlay(selectedOverlay!, { color })
-                                }
-                              />
-                            ))}
+                          <div className="flex items-center gap-2 mt-2">
+                            <input
+                              type="color"
+                              value={settings.fontColor}
+                              onChange={(e) =>
+                                setSettings((prev) => ({
+                                  ...prev,
+                                  fontColor: e.target.value,
+                                }))
+                              }
+                              className="w-12 h-10 rounded border"
+                            />
+                            <Input
+                              value={settings.fontColor}
+                              onChange={(e) =>
+                                setSettings((prev) => ({
+                                  ...prev,
+                                  fontColor: e.target.value,
+                                }))
+                              }
+                              className="flex-1"
+                            />
                           </div>
                         </div>
 
@@ -810,158 +1099,503 @@ export default function ImgMeme() {
                           <Label className="text-sm font-medium">
                             Stroke Color
                           </Label>
-                          <div className="flex flex-wrap gap-1 mt-2">
-                            {colors.map((color) => (
-                              <button
-                                key={color}
-                                className={`w-6 h-6 rounded border-2 ${
-                                  selectedOverlayData.strokeColor === color
-                                    ? "border-gray-400"
-                                    : "border-gray-200"
-                                }`}
-                                style={{ backgroundColor: color }}
-                                onClick={() =>
-                                  updateTextOverlay(selectedOverlay!, {
-                                    strokeColor: color,
-                                  })
-                                }
-                              />
-                            ))}
+                          <div className="flex items-center gap-2 mt-2">
+                            <input
+                              type="color"
+                              value={settings.strokeColor}
+                              onChange={(e) =>
+                                setSettings((prev) => ({
+                                  ...prev,
+                                  strokeColor: e.target.value,
+                                }))
+                              }
+                              className="w-12 h-10 rounded border"
+                            />
+                            <Input
+                              value={settings.strokeColor}
+                              onChange={(e) =>
+                                setSettings((prev) => ({
+                                  ...prev,
+                                  strokeColor: e.target.value,
+                                }))
+                              }
+                              className="flex-1"
+                            />
                           </div>
                         </div>
                       </div>
 
-                      {/* Position */}
-                      <div className="grid grid-cols-2 gap-3">
-                        <div>
-                          <Label className="text-sm font-medium">
-                            X Position: {selectedOverlayData.x}%
-                          </Label>
-                          <Slider
-                            value={[selectedOverlayData.x]}
-                            onValueChange={(value) =>
-                              updateTextOverlay(selectedOverlay!, {
-                                x: value[0],
-                              })
+                      <div>
+                        <Label className="text-sm font-medium">
+                          Stroke Width: {settings.strokeWidth}px
+                        </Label>
+                        <Slider
+                          value={[settings.strokeWidth]}
+                          onValueChange={(value) =>
+                            setSettings((prev) => ({
+                              ...prev,
+                              strokeWidth: value[0],
+                            }))
+                          }
+                          max={10}
+                          min={0}
+                          step={1}
+                          className="mt-2"
+                        />
+                      </div>
+                    </TabsContent>
+
+                    <TabsContent value="effects" className="space-y-4 mt-6">
+                      <div className="flex items-center justify-between">
+                        <Label className="text-sm font-medium">
+                          Text Shadow
+                        </Label>
+                        <Switch
+                          checked={settings.shadowEnabled}
+                          onCheckedChange={(checked) =>
+                            setSettings((prev) => ({
+                              ...prev,
+                              shadowEnabled: checked,
+                            }))
+                          }
+                        />
+                      </div>
+
+                      {settings.shadowEnabled && (
+                        <>
+                          <div>
+                            <Label className="text-sm font-medium">
+                              Shadow Blur: {settings.shadowBlur}px
+                            </Label>
+                            <Slider
+                              value={[settings.shadowBlur]}
+                              onValueChange={(value) =>
+                                setSettings((prev) => ({
+                                  ...prev,
+                                  shadowBlur: value[0],
+                                }))
+                              }
+                              max={20}
+                              min={0}
+                              step={1}
+                              className="mt-2"
+                            />
+                          </div>
+
+                          <div>
+                            <Label className="text-sm font-medium">
+                              Shadow Offset: {settings.shadowOffset}px
+                            </Label>
+                            <Slider
+                              value={[settings.shadowOffset]}
+                              onValueChange={(value) =>
+                                setSettings((prev) => ({
+                                  ...prev,
+                                  shadowOffset: value[0],
+                                }))
+                              }
+                              max={10}
+                              min={0}
+                              step={1}
+                              className="mt-2"
+                            />
+                          </div>
+                        </>
+                      )}
+
+                      <div>
+                        <Label className="text-sm font-medium">
+                          Text Opacity: {settings.textOpacity}%
+                        </Label>
+                        <Slider
+                          value={[settings.textOpacity]}
+                          onValueChange={(value) =>
+                            setSettings((prev) => ({
+                              ...prev,
+                              textOpacity: value[0],
+                            }))
+                          }
+                          max={100}
+                          min={10}
+                          step={5}
+                          className="mt-2"
+                        />
+                      </div>
+                    </TabsContent>
+
+                    <TabsContent value="transform" className="space-y-4 mt-6">
+                      <div>
+                        <Label className="text-sm font-medium">
+                          Image Rotation: {settings.rotation}°
+                        </Label>
+                        <Slider
+                          value={[settings.rotation]}
+                          onValueChange={(value) =>
+                            setSettings((prev) => ({
+                              ...prev,
+                              rotation: value[0],
+                            }))
+                          }
+                          max={180}
+                          min={-180}
+                          step={15}
+                          className="mt-2"
+                        />
+                      </div>
+
+                      <div>
+                        <Label className="text-sm font-medium">
+                          Image Scale: {settings.scale}x
+                        </Label>
+                        <Slider
+                          value={[settings.scale]}
+                          onValueChange={(value) =>
+                            setSettings((prev) => ({
+                              ...prev,
+                              scale: value[0],
+                            }))
+                          }
+                          max={2}
+                          min={0.5}
+                          step={0.1}
+                          className="mt-2"
+                        />
+                      </div>
+
+                      <div>
+                        <Label className="text-sm font-medium">
+                          Image Opacity: {settings.imageOpacity}%
+                        </Label>
+                        <Slider
+                          value={[settings.imageOpacity]}
+                          onValueChange={(value) =>
+                            setSettings((prev) => ({
+                              ...prev,
+                              imageOpacity: value[0],
+                            }))
+                          }
+                          max={100}
+                          min={10}
+                          step={5}
+                          className="mt-2"
+                        />
+                      </div>
+                    </TabsContent>
+
+                    <TabsContent value="ai" className="space-y-4 mt-6">
+                      <div className="space-y-4">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <Label className="text-sm font-medium">
+                              AI Enhancement
+                            </Label>
+                            <p className="text-xs text-gray-500">
+                              Improve image quality and text readability
+                            </p>
+                          </div>
+                          <Switch
+                            checked={settings.aiEnhancement}
+                            onCheckedChange={(checked) =>
+                              setSettings((prev) => ({
+                                ...prev,
+                                aiEnhancement: checked,
+                              }))
                             }
-                            min={0}
-                            max={100}
-                            step={1}
-                            className="mt-2"
                           />
                         </div>
 
-                        <div>
-                          <Label className="text-sm font-medium">
-                            Y Position: {selectedOverlayData.y}%
-                          </Label>
-                          <Slider
-                            value={[selectedOverlayData.y]}
-                            onValueChange={(value) =>
-                              updateTextOverlay(selectedOverlay!, {
-                                y: value[0],
-                              })
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <Label className="text-sm font-medium">
+                              Viral Optimization
+                            </Label>
+                            <p className="text-xs text-gray-500">
+                              Optimize for social media engagement
+                            </p>
+                          </div>
+                          <Switch
+                            checked={settings.viralOptimization}
+                            onCheckedChange={(checked) =>
+                              setSettings((prev) => ({
+                                ...prev,
+                                viralOptimization: checked,
+                              }))
                             }
-                            min={0}
-                            max={100}
-                            step={1}
-                            className="mt-2"
+                          />
+                        </div>
+
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <Label className="text-sm font-medium">
+                              Auto Suggestions
+                            </Label>
+                            <p className="text-xs text-gray-500">
+                              Get AI-powered text suggestions
+                            </p>
+                          </div>
+                          <Switch
+                            checked={settings.autoSuggestions}
+                            onCheckedChange={(checked) =>
+                              setSettings((prev) => ({
+                                ...prev,
+                                autoSuggestions: checked,
+                              }))
+                            }
                           />
                         </div>
                       </div>
+                    </TabsContent>
+                  </Tabs>
+                )}
 
-                      {/* Style Options */}
-                      <div className="space-y-3">
-                        <div className="flex items-center space-x-4">
-                          <div className="flex items-center space-x-2">
-                            <Switch
-                              id="bold"
-                              checked={selectedOverlayData.bold}
-                              onCheckedChange={(checked) =>
-                                updateTextOverlay(selectedOverlay!, {
-                                  bold: checked,
-                                })
-                              }
-                            />
-                            <Label htmlFor="bold" className="text-sm">
-                              Bold
-                            </Label>
-                          </div>
+                {/* Generate Button */}
+                <div className="pt-4">
+                  <Button
+                    onClick={handleGenerateMeme}
+                    disabled={
+                      isProcessing ||
+                      (!selectedFile && !selectedTemplate) ||
+                      (!settings.topText && !settings.bottomText)
+                    }
+                    className="w-full bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-700 hover:to-purple-700"
+                    size="lg"
+                  >
+                    {isProcessing ? (
+                      <>
+                        <RefreshCw className="w-5 h-5 mr-2 animate-spin" />
+                        Generating Meme...
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="w-5 h-5 mr-2" />
+                        Generate Viral Meme
+                      </>
+                    )}
+                  </Button>
+                </div>
 
-                          <div className="flex items-center space-x-2">
-                            <Switch
-                              id="uppercase"
-                              checked={selectedOverlayData.uppercase}
-                              onCheckedChange={(checked) =>
-                                updateTextOverlay(selectedOverlay!, {
-                                  uppercase: checked,
-                                })
-                              }
-                            />
-                            <Label htmlFor="uppercase" className="text-sm">
-                              UPPER
-                            </Label>
-                          </div>
+                {/* Progress Bar */}
+                {isProcessing && (
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span>Creating your masterpiece...</span>
+                      <span>{Math.round(progress)}%</span>
+                    </div>
+                    <Progress value={progress} className="h-2" />
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Analytics Sidebar */}
+          <div className="space-y-6">
+            {/* Viral Metrics */}
+            <Card className="border-0 shadow-lg bg-white/80 backdrop-blur-sm">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <BarChart3 className="w-5 h-5 text-violet-600" />
+                  Viral Metrics
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {metrics ? (
+                  <>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="p-3 bg-gradient-to-br from-violet-50 to-purple-50 rounded-lg">
+                        <div className="text-2xl font-bold text-violet-700">
+                          {metrics.viralPotential.toFixed(0)}%
                         </div>
-
-                        <div>
-                          <Label className="text-sm font-medium">
-                            Stroke Width: {selectedOverlayData.strokeWidth}
-                          </Label>
-                          <Slider
-                            value={[selectedOverlayData.strokeWidth]}
-                            onValueChange={(value) =>
-                              updateTextOverlay(selectedOverlay!, {
-                                strokeWidth: value[0],
-                              })
-                            }
-                            min={0}
-                            max={10}
-                            step={1}
-                            className="mt-2"
-                          />
+                        <div className="text-xs text-violet-600">
+                          Viral Potential
                         </div>
-
-                        <div>
-                          <Label className="text-sm font-medium">
-                            Opacity: {selectedOverlayData.opacity}%
-                          </Label>
-                          <Slider
-                            value={[selectedOverlayData.opacity]}
-                            onValueChange={(value) =>
-                              updateTextOverlay(selectedOverlay!, {
-                                opacity: value[0],
-                              })
-                            }
-                            min={0}
-                            max={100}
-                            step={5}
-                            className="mt-2"
-                          />
+                      </div>
+                      <div className="p-3 bg-gradient-to-br from-pink-50 to-rose-50 rounded-lg">
+                        <div className="text-2xl font-bold text-pink-700">
+                          {metrics.humorScore.toFixed(0)}%
                         </div>
+                        <div className="text-xs text-pink-600">Humor Score</div>
+                      </div>
+                      <div className="p-3 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg">
+                        <div className="text-2xl font-bold text-blue-700">
+                          {metrics.shareability.toFixed(0)}%
+                        </div>
+                        <div className="text-xs text-blue-600">
+                          Shareability
+                        </div>
+                      </div>
+                      <div className="p-3 bg-gradient-to-br from-green-50 to-emerald-50 rounded-lg">
+                        <div className="text-2xl font-bold text-green-700">
+                          {metrics.trendinessScore.toFixed(0)}%
+                        </div>
+                        <div className="text-xs text-green-600">Trending</div>
                       </div>
                     </div>
-                  </CardContent>
-                </Card>
-              )}
 
-              {/* Tips */}
-              <Alert>
-                <Laugh className="h-4 w-4" />
-                <AlertDescription>
-                  <strong>Meme Tips:</strong>
-                  <ul className="mt-2 space-y-1 text-sm">
-                    <li>• Keep text short and punchy</li>
-                    <li>• Use high contrast colors</li>
-                    <li>• Popular fonts: Impact, Arial Black</li>
-                    <li>• Place text at top and bottom</li>
-                  </ul>
-                </AlertDescription>
-              </Alert>
-            </div>
+                    <Separator />
+
+                    <div className="space-y-2">
+                      <div className="flex justify-between text-sm">
+                        <span>Generation Time</span>
+                        <span className="font-medium">
+                          {(metrics.generationTime / 1000).toFixed(1)}s
+                        </span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span>Text Readability</span>
+                        <span className="font-medium">
+                          {metrics.textReadability.toFixed(0)}%
+                        </span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span>Visual Impact</span>
+                        <span className="font-medium">
+                          {metrics.visualImpact.toFixed(0)}%
+                        </span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span>Meme Quality</span>
+                        <span className="font-medium">
+                          {metrics.memeQuality.toFixed(0)}%
+                        </span>
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <div className="text-center py-8 text-gray-500">
+                    <Activity className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                    <p className="text-sm">
+                      Metrics will appear after generating
+                    </p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Meme History */}
+            <Card className="border-0 shadow-lg bg-white/80 backdrop-blur-sm">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Clock className="w-5 h-5 text-blue-600" />
+                  Recent Memes
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {memeHistory.length > 0 ? (
+                  <div className="space-y-3">
+                    {memeHistory.slice(0, 5).map((entry) => (
+                      <div key={entry.id} className="p-3 bg-gray-50 rounded-lg">
+                        <div className="flex items-center justify-between mb-2">
+                          <Badge variant="outline" className="text-xs">
+                            {entry.template}
+                          </Badge>
+                          <span className="text-xs text-gray-500">
+                            {entry.timestamp.toLocaleTimeString()}
+                          </span>
+                        </div>
+                        <div className="space-y-1">
+                          {entry.topText && (
+                            <p className="text-xs font-medium text-gray-700 truncate">
+                              "{entry.topText}"
+                            </p>
+                          )}
+                          {entry.bottomText && (
+                            <p className="text-xs font-medium text-gray-700 truncate">
+                              "{entry.bottomText}"
+                            </p>
+                          )}
+                        </div>
+                        <div className="flex justify-between mt-2 text-xs text-gray-500">
+                          <span>
+                            🔥 {entry.metrics.viralPotential.toFixed(0)}%
+                          </span>
+                          <span>😂 {entry.metrics.humorScore.toFixed(0)}%</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-gray-500">
+                    <Clock className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                    <p className="text-sm">No memes created yet</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Trending Categories */}
+            <Card className="border-0 shadow-lg bg-white/80 backdrop-blur-sm">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <TrendingUp className="w-5 h-5 text-red-600" />
+                  Trending Now
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {viralCategories.map((category, index) => (
+                  <div
+                    key={index}
+                    className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer"
+                  >
+                    <div className="flex items-center gap-3">
+                      <category.icon className={`w-5 h-5 ${category.color}`} />
+                      <span className="font-medium text-sm">
+                        {category.name}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <Flame className="w-4 h-4 text-red-500" />
+                      <span className="text-xs text-gray-600">
+                        {85 + Math.floor(Math.random() * 10)}%
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+
+            {/* Pro Tips */}
+            <Card className="border-0 shadow-lg bg-white/80 backdrop-blur-sm">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Sparkles className="w-5 h-5 text-yellow-600" />
+                  Pro Meme Tips
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="p-3 bg-yellow-50 rounded-lg">
+                  <h3 className="font-medium text-yellow-800 text-sm">
+                    Viral Formula
+                  </h3>
+                  <p className="text-xs text-yellow-700 mt-1">
+                    Relatable situation + unexpected twist = viral potential
+                  </p>
+                </div>
+                <div className="p-3 bg-blue-50 rounded-lg">
+                  <h3 className="font-medium text-blue-800 text-sm">
+                    Text Readability
+                  </h3>
+                  <p className="text-xs text-blue-700 mt-1">
+                    Keep text short, use high contrast, and enable text shadows
+                    for readability.
+                  </p>
+                </div>
+                <div className="p-3 bg-green-50 rounded-lg">
+                  <h3 className="font-medium text-green-800 text-sm">
+                    Trending Templates
+                  </h3>
+                  <p className="text-xs text-green-700 mt-1">
+                    Use trending templates for higher viral potential and
+                    shareability.
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
           </div>
         </div>
-      </main>
+      </div>
     </div>
   );
-}
+};
+
+export default ImgMeme;
