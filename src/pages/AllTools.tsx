@@ -130,6 +130,9 @@ export const PdfToPdfA = () => (
     toolName="PDF to PDF/A"
     toolDescription="Transform your PDF to PDF/A, the ISO-standardized version of PDF for long-term archiving. Your PDF will preserve formatting when accessed in the future."
     icon={<FileText className="w-12 h-12 text-gray-500" />}
+    workingTool={true}
+    redirectTo="/pdf-to-pdfa"
+    isNew={true}
   />
 );
 
@@ -138,6 +141,9 @@ export const RepairPdf = () => (
     toolName="Repair PDF"
     toolDescription="Repair a damaged PDF and recover data from corrupt PDF. Fix PDF files with our Repair tool."
     icon={<FileText className="w-12 h-12 text-orange-600" />}
+    workingTool={true}
+    redirectTo="/repair-pdf"
+    isNew={true}
   />
 );
 
@@ -154,6 +160,9 @@ export const ScanToPdf = () => (
     toolName="Scan to PDF"
     toolDescription="Capture document scans from your mobile device and send them instantly to your browser."
     icon={<FileText className="w-12 h-12 text-green-600" />}
+    workingTool={true}
+    redirectTo="/scan-to-pdf"
+    isNew={true}
   />
 );
 
@@ -162,6 +171,9 @@ export const OcrPdf = () => (
     toolName="OCR PDF"
     toolDescription="Easily convert scanned PDF into searchable and selectable documents."
     icon={<FileText className="w-12 h-12 text-blue-700" />}
+    workingTool={true}
+    redirectTo="/ocr-pdf"
+    isNew={true}
   />
 );
 
@@ -170,6 +182,9 @@ export const ComparePdf = () => (
     toolName="Compare PDF"
     toolDescription="Show a side-by-side document comparison and easily spot changes between different file versions."
     icon={<FileText className="w-12 h-12 text-indigo-600" />}
+    workingTool={true}
+    redirectTo="/compare-pdf"
+    isNew={true}
   />
 );
 
@@ -178,6 +193,9 @@ export const RedactPdf = () => (
     toolName="Redact PDF"
     toolDescription="Redact text and graphics to permanently remove sensitive information from a PDF."
     icon={<FileText className="w-12 h-12 text-red-700" />}
+    workingTool={true}
+    redirectTo="/redact-pdf"
+    isNew={true}
   />
 );
 

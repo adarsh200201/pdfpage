@@ -1,7 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
-import * as pdfjsLib from "pdfjs-dist";
-
-// PDF.js worker will be configured inside the component
+import { useToast } from "@/hooks/use-toast";
 
 interface SignaturePosition {
   x: number;
@@ -15,7 +13,7 @@ interface PDFViewerProps {
   file: File;
   signaturePosition: SignaturePosition;
   onPositionChange: (position: SignaturePosition) => void;
-  signaturePreview: string | null; // Base64 image or text
+  signaturePreview: string | null;
   signatureType: "draw" | "type" | "upload";
   signatureText?: string;
 }
@@ -28,154 +26,59 @@ const PDFViewer: React.FC<PDFViewerProps> = ({
   signatureType,
   signatureText,
 }) => {
-  const [numPages, setNumPages] = useState<number>(0);
+  const [numPages, setNumPages] = useState<number>(1);
   const [pageNumber, setPageNumber] = useState<number>(1);
   const [pageScale, setPageScale] = useState<number>(1.0);
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [pdfDoc, setPdfDoc] = useState<any>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const pageRef = useRef<HTMLDivElement>(null);
+  const [pdfUrl, setPdfUrl] = useState<string>("");
 
-  // Load PDF using direct PDF.js approach
+  const iframeRef = useRef<HTMLIFrameElement>(null);
+  const pageRef = useRef<HTMLDivElement>(null);
+  const { toast } = useToast();
+
+  // Simple PDF loading using iframe
   useEffect(() => {
     const loadPDF = async () => {
       setIsLoading(true);
       setError(null);
 
       try {
-        console.log("🔄 Loading PDF with direct PDF.js:", file.name);
+        console.log("🔄 Loading PDF with iframe approach:", file.name);
 
-        // Using document-level configuration instead of global worker options
-        console.log("⚙️ Preparing to load PDF with worker disabled...");
+        // Create a blob URL for the PDF
+        const url = URL.createObjectURL(file);
+        setPdfUrl(url);
+        setNumPages(1); // Default to 1 page for iframe
+        setPageNumber(1);
 
-        // Convert file to ArrayBuffer
-        console.log("📁 Converting file to ArrayBuffer...");
-        const arrayBuffer = await file.arrayBuffer();
-        console.log("✅ ArrayBuffer created:", {
-          size: arrayBuffer.byteLength,
+        console.log("✅ PDF URL created successfully");
+
+        toast({
+          title: "PDF loaded successfully",
+          description: "PDF is ready for signature placement",
         });
-
-        // Load PDF document with timeout
-        console.log("📄 Loading PDF document...");
-        const loadingTask = pdfjsLib.getDocument({
-          data: arrayBuffer,
-          disableStream: true,
-          disableAutoFetch: true,
-          disableWorker: true, // Force disable worker
-        });
-
-        // Add progress tracking
-        loadingTask.onProgress = (progress) => {
-          console.log("📊 PDF Loading progress:", progress);
-        };
-
-        // Add timeout to prevent hanging
-        const timeoutPromise = new Promise((_, reject) => {
-          setTimeout(
-            () => reject(new Error("PDF loading timeout after 10 seconds")),
-            10000,
-          );
-        });
-
-        console.log("⏳ Waiting for PDF to load...");
-        const pdf = await Promise.race([loadingTask.promise, timeoutPromise]);
-        console.log("🎉 PDF document loaded!", { numPages: pdf.numPages });
-
-        console.log("✅ PDF loaded successfully:", {
-          numPages: pdf.numPages,
-          fileName: file.name,
-        });
-
-        setPdfDoc(pdf);
-        setNumPages(pdf.numPages);
-        setPageNumber(signaturePosition.page || 1);
       } catch (err) {
         console.error("❌ PDF loading error:", err);
-        setError(`Failed to load PDF: ${err.message}`);
+        setError(
+          `Failed to load PDF: ${err instanceof Error ? err.message : String(err)}`,
+        );
       } finally {
         setIsLoading(false);
       }
     };
 
     loadPDF();
-  }, [file, signaturePosition.page]);
 
-  // Render PDF page to canvas
-  const renderPage = async (pageNum: number) => {
-    console.log("🎨 renderPage called:", {
-      pageNum,
-      hasPdfDoc: !!pdfDoc,
-      hasCanvas: !!canvasRef.current,
-    });
-
-    if (!pdfDoc || !canvasRef.current) {
-      console.warn("⚠️ Cannot render: missing pdfDoc or canvas", {
-        pdfDoc: !!pdfDoc,
-        canvas: !!canvasRef.current,
-      });
-      return;
-    }
-
-    try {
-      console.log("🎨 Starting page render for page:", pageNum);
-
-      console.log("📄 Getting page from PDF...");
-      const page = await pdfDoc.getPage(pageNum);
-      console.log("✅ Page object retrieved:", { pageNum });
-
-      const canvas = canvasRef.current;
-      const context = canvas.getContext("2d");
-      console.log("🖼️ Canvas context obtained");
-
-      // Calculate scale to fit container nicely
-      console.log("📐 Calculating viewport...");
-      const viewport = page.getViewport({ scale: pageScale });
-      console.log("✅ Viewport calculated:", {
-        width: viewport.width,
-        height: viewport.height,
-        scale: pageScale,
-      });
-
-      // Set canvas dimensions
-      canvas.width = viewport.width;
-      canvas.height = viewport.height;
-      canvas.style.maxWidth = "100%";
-      canvas.style.height = "auto";
-      console.log("📏 Canvas dimensions set:", {
-        width: canvas.width,
-        height: canvas.height,
-      });
-
-      // Render PDF page to canvas
-      console.log("🎨 Starting canvas render...");
-      const renderContext = {
-        canvasContext: context,
-        viewport: viewport,
-      };
-
-      await page.render(renderContext).promise;
-
-      console.log("🎉 Page rendered successfully!:", {
-        pageNum,
-        width: viewport.width,
-        height: viewport.height,
-        scale: pageScale,
-      });
-    } catch (err) {
-      console.error("❌ Page rendering error:", err);
-      setError(`Failed to render page ${pageNum}: ${err.message}`);
-    }
-  };
-
-  // Render page when PDF doc, page number, or scale changes
-  useEffect(() => {
-    if (pdfDoc && pageNumber) {
-      renderPage(pageNumber);
-    }
-  }, [pdfDoc, pageNumber, pageScale]);
+    // Cleanup
+    return () => {
+      if (pdfUrl) {
+        URL.revokeObjectURL(pdfUrl);
+      }
+    };
+  }, [file]);
 
   const handlePageClick = (event: React.MouseEvent<HTMLDivElement>) => {
     if (isDragging) return;
@@ -254,8 +157,6 @@ const PDFViewer: React.FC<PDFViewerProps> = ({
   ]);
 
   const renderSignatureOverlay = () => {
-    if (pageNumber !== signaturePosition.page) return null;
-
     const style = {
       position: "absolute" as const,
       left: signaturePosition.x * pageScale,
@@ -270,6 +171,7 @@ const PDFViewer: React.FC<PDFViewerProps> = ({
       justifyContent: "center",
       borderRadius: "4px",
       userSelect: "none" as const,
+      zIndex: 10,
     };
 
     return (
@@ -332,23 +234,7 @@ const PDFViewer: React.FC<PDFViewerProps> = ({
       {/* PDF Controls */}
       <div className="flex items-center justify-between mb-4 p-4 bg-gray-50 rounded-lg">
         <div className="flex items-center space-x-4">
-          <button
-            onClick={() => setPageNumber(Math.max(1, pageNumber - 1))}
-            disabled={pageNumber <= 1}
-            className="px-3 py-2 bg-blue-500 text-white rounded disabled:bg-gray-300 disabled:cursor-not-allowed"
-          >
-            ← Previous
-          </button>
-          <span className="text-sm font-medium">
-            Page {pageNumber} of {numPages}
-          </span>
-          <button
-            onClick={() => setPageNumber(Math.min(numPages, pageNumber + 1))}
-            disabled={pageNumber >= numPages}
-            className="px-3 py-2 bg-blue-500 text-white rounded disabled:bg-gray-300 disabled:cursor-not-allowed"
-          >
-            Next →
-          </button>
+          <span className="text-sm font-medium">PDF Viewer - {file.name}</span>
         </div>
 
         <div className="flex items-center space-x-4">
@@ -376,18 +262,18 @@ const PDFViewer: React.FC<PDFViewerProps> = ({
           style={{
             minWidth: "100%",
             minHeight: "400px",
-            display: "flex",
-            justifyContent: "center",
-            alignItems: "center",
+            transform: `scale(${pageScale})`,
+            transformOrigin: "top left",
           }}
         >
           {isLoading && (
             <div className="flex items-center justify-center h-64">
               <div className="text-center">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-2"></div>
-                <span className="text-sm">
-                  Loading PDF... (Direct rendering mode)
-                </span>
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
+                <span className="text-lg font-medium">Loading PDF...</span>
+                <p className="text-sm text-gray-500 mt-2">
+                  Processing: {file.name}
+                </p>
               </div>
             </div>
           )}
@@ -395,26 +281,25 @@ const PDFViewer: React.FC<PDFViewerProps> = ({
           {error && (
             <div className="flex items-center justify-center h-64 text-red-500">
               <div className="text-center">
-                <p className="mb-2">Failed to load PDF preview:</p>
+                <p className="mb-2">Failed to load PDF:</p>
                 <p className="text-sm">{error}</p>
-                <p className="text-xs mt-2 text-gray-500">
-                  You can still use the manual controls below to position your
-                  signature.
-                </p>
               </div>
             </div>
           )}
 
-          {!isLoading && !error && pdfDoc && (
-            <>
-              <canvas
-                ref={canvasRef}
-                className="max-w-full h-auto border border-gray-200 rounded shadow-sm"
-                style={{ display: "block" }}
+          {!isLoading && !error && pdfUrl && (
+            <div className="relative">
+              <iframe
+                ref={iframeRef}
+                src={pdfUrl}
+                className="w-full h-96 border border-gray-200 rounded"
+                style={{ minHeight: "600px" }}
+                title="PDF Preview"
               />
+
               {/* Signature Overlay */}
               {renderSignatureOverlay()}
-            </>
+            </div>
           )}
         </div>
       </div>
@@ -453,11 +338,9 @@ const PDFViewer: React.FC<PDFViewerProps> = ({
           💡 Click anywhere on the PDF to position your signature, or drag the
           blue box to adjust
         </p>
-        {import.meta.env.DEV && (
-          <p className="text-xs text-blue-500 mt-1 italic">
-            ⚡ Development mode: Worker disabled for better reliability
-          </p>
-        )}
+        <p className="text-xs text-blue-500 mt-1 italic">
+          ⚡ Simple iframe approach for reliable PDF display
+        </p>
       </div>
     </div>
   );
