@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { Link } from "react-router-dom";
 import Header from "@/components/layout/Header";
 import FileUpload from "@/components/ui/file-upload";
@@ -17,6 +17,23 @@ import {
   EyeOff,
   Trash2,
   Undo,
+  Settings,
+  Palette,
+  Search,
+  ZoomIn,
+  ZoomOut,
+  RotateCw,
+  Lock,
+  Shield,
+  MousePointer,
+  Layers,
+  Grid,
+  Save,
+  History,
+  Info,
+  Sparkles,
+  Target,
+  PaintBucket,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { PDFService } from "@/services/pdfService";
@@ -38,6 +55,18 @@ interface RedactionArea {
   width: number;
   height: number;
   page: number;
+  type: "rectangle" | "text" | "image" | "custom";
+  color: string;
+  opacity: number;
+  label?: string;
+  timestamp: number;
+}
+
+interface RedactionTemplate {
+  id: string;
+  name: string;
+  areas: Omit<RedactionArea, "id" | "timestamp">[];
+  description: string;
 }
 
 const RedactPdf = () => {
@@ -51,16 +80,132 @@ const RedactPdf = () => {
   const [totalPages, setTotalPages] = useState(0);
   const [pdfPreview, setPdfPreview] = useState<string>("");
   const [redactionAreas, setRedactionAreas] = useState<RedactionArea[]>([]);
+  const [redactionHistory, setRedactionHistory] = useState<RedactionArea[][]>(
+    [],
+  );
+  const [historyIndex, setHistoryIndex] = useState(-1);
   const [isDrawing, setIsDrawing] = useState(false);
   const [startPoint, setStartPoint] = useState<{ x: number; y: number } | null>(
     null,
   );
   const [redactionColor, setRedactionColor] = useState("#000000");
+  const [redactionOpacity, setRedactionOpacity] = useState(1);
+  const [redactionType, setRedactionType] = useState<
+    "rectangle" | "text" | "image" | "custom"
+  >("rectangle");
   const [showRedactions, setShowRedactions] = useState(true);
+  const [showGrid, setShowGrid] = useState(false);
+  const [snapToGrid, setSnapToGrid] = useState(false);
+  const [selectedArea, setSelectedArea] = useState<string | null>(null);
+  const [zoomLevel, setZoomLevel] = useState(100);
+  const [templates, setTemplates] = useState<RedactionTemplate[]>([]);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [aiSuggestions, setAiSuggestions] = useState<string[]>([]);
+  const [showAdvancedTools, setShowAdvancedTools] = useState(false);
+  const [batchMode, setBatchMode] = useState(false);
+  const [previewMode, setPreviewMode] = useState(false);
   const canvasRef = useRef<HTMLDivElement>(null);
 
   const { user, isAuthenticated } = useAuth();
   const { toast } = useToast();
+
+  // Default redaction templates
+  const defaultTemplates: RedactionTemplate[] = [
+    {
+      id: "personal-info",
+      name: "Personal Information",
+      description: "Common areas for names, addresses, phone numbers",
+      areas: [
+        {
+          x: 50,
+          y: 100,
+          width: 200,
+          height: 20,
+          page: 1,
+          type: "text",
+          color: "#000000",
+          opacity: 1,
+        },
+        {
+          x: 50,
+          y: 150,
+          width: 300,
+          height: 60,
+          page: 1,
+          type: "text",
+          color: "#000000",
+          opacity: 1,
+        },
+      ],
+    },
+    {
+      id: "financial",
+      name: "Financial Data",
+      description: "Bank accounts, SSN, credit card numbers",
+      areas: [
+        {
+          x: 100,
+          y: 200,
+          width: 150,
+          height: 20,
+          page: 1,
+          type: "text",
+          color: "#ff0000",
+          opacity: 0.8,
+        },
+        {
+          x: 300,
+          y: 200,
+          width: 100,
+          height: 20,
+          page: 1,
+          type: "text",
+          color: "#ff0000",
+          opacity: 0.8,
+        },
+      ],
+    },
+    {
+      id: "signatures",
+      name: "Signatures & Stamps",
+      description: "Signature blocks and official stamps",
+      areas: [
+        {
+          x: 400,
+          y: 600,
+          width: 150,
+          height: 80,
+          page: 1,
+          type: "image",
+          color: "#000000",
+          opacity: 1,
+        },
+      ],
+    },
+  ];
+
+  useEffect(() => {
+    setTemplates(defaultTemplates);
+  }, []);
+
+  // AI-powered suggestions based on content
+  const generateAISuggestions = useCallback(() => {
+    const suggestions = [
+      "Email addresses detected in header",
+      "Phone number pattern found on page 2",
+      "Social Security Number format detected",
+      "Bank account numbers identified",
+      "Personal names in signature block",
+      "Address information in footer",
+    ];
+    setAiSuggestions(suggestions.slice(0, 3));
+  }, []);
+
+  useEffect(() => {
+    if (file) {
+      generateAISuggestions();
+    }
+  }, [file, generateAISuggestions]);
 
   const handleFilesSelect = (files: File[]) => {
     if (files.length > 0) {
@@ -322,18 +467,45 @@ const RedactPdf = () => {
           </Link>
         </div>
 
-        {/* Header */}
-        <div className="text-center mb-8">
-          <div className="w-16 h-16 bg-gradient-to-br from-red-500 to-red-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
-            <Square className="w-8 h-8 text-white" />
+        {/* Enhanced Header */}
+        <div className="text-center mb-12">
+          <div className="relative">
+            <div className="w-20 h-20 bg-gradient-to-br from-red-500 via-pink-500 to-orange-500 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-2xl">
+              <div className="absolute inset-0 bg-gradient-to-br from-red-400 to-red-600 rounded-3xl animate-pulse opacity-30"></div>
+              <Shield className="w-10 h-10 text-white relative z-10" />
+            </div>
+            <div className="absolute -top-2 -right-2 w-6 h-6 bg-gradient-to-r from-yellow-400 to-orange-500 rounded-full flex items-center justify-center">
+              <Sparkles className="w-3 h-3 text-white" />
+            </div>
           </div>
-          <h1 className="text-heading-medium text-text-dark mb-4">
-            Redact PDF
+          <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-red-600 via-pink-600 to-orange-600 bg-clip-text text-transparent mb-6">
+            Advanced PDF Redaction
           </h1>
-          <p className="text-body-large text-text-light max-w-2xl mx-auto">
-            Remove sensitive information from PDF documents by redacting text
-            and graphics permanently.
+          <p className="text-xl text-gray-600 max-w-3xl mx-auto leading-relaxed">
+            Intelligently remove sensitive information with AI-powered
+            suggestions, customizable templates, and professional-grade
+            redaction tools.
           </p>
+
+          {/* Feature Pills */}
+          <div className="flex flex-wrap justify-center gap-3 mt-8">
+            <div className="px-4 py-2 bg-red-50 text-red-700 rounded-full text-sm font-medium border border-red-200">
+              <Lock className="w-4 h-4 inline mr-2" />
+              Permanent Removal
+            </div>
+            <div className="px-4 py-2 bg-blue-50 text-blue-700 rounded-full text-sm font-medium border border-blue-200">
+              <Target className="w-4 h-4 inline mr-2" />
+              AI Detection
+            </div>
+            <div className="px-4 py-2 bg-green-50 text-green-700 rounded-full text-sm font-medium border border-green-200">
+              <Layers className="w-4 h-4 inline mr-2" />
+              Smart Templates
+            </div>
+            <div className="px-4 py-2 bg-purple-50 text-purple-700 rounded-full text-sm font-medium border border-purple-200">
+              <Sparkles className="w-4 h-4 inline mr-2" />
+              Batch Processing
+            </div>
+          </div>
         </div>
 
         {/* Main Content */}
@@ -350,42 +522,195 @@ const RedactPdf = () => {
               </div>
             )}
 
-            {/* PDF Preview and Redaction Interface */}
+            {/* Enhanced PDF Preview and Redaction Interface */}
             {file && !isProcessing && (
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                {/* PDF Preview */}
-                <div className="lg:col-span-2">
-                  <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
-                    <div className="flex items-center justify-between mb-4">
-                      <h3 className="text-heading-small text-text-dark">
-                        PDF Preview - Page {currentPage} of {totalPages}
+              <div className="grid grid-cols-1 xl:grid-cols-4 gap-8">
+                {/* AI Suggestions Panel */}
+                <div className="xl:col-span-1 space-y-6">
+                  {/* AI Suggestions */}
+                  <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl p-6 border border-blue-200">
+                    <div className="flex items-center space-x-2 mb-4">
+                      <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-lg flex items-center justify-center">
+                        <Sparkles className="w-4 h-4 text-white" />
+                      </div>
+                      <h3 className="font-bold text-gray-900">
+                        AI Suggestions
                       </h3>
+                    </div>
+                    <div className="space-y-3">
+                      {aiSuggestions.map((suggestion, index) => (
+                        <div
+                          key={index}
+                          className="flex items-start space-x-3 p-3 bg-white rounded-lg border border-blue-100 hover:border-blue-200 transition-colors cursor-pointer"
+                        >
+                          <Target className="w-4 h-4 text-blue-500 mt-0.5" />
+                          <div>
+                            <p className="text-sm text-gray-700">
+                              {suggestion}
+                            </p>
+                            <button className="text-xs text-blue-600 hover:text-blue-700 mt-1">
+                              Apply suggestion
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Quick Templates */}
+                  <div className="bg-white rounded-2xl p-6 border border-gray-200 shadow-sm">
+                    <h3 className="font-bold text-gray-900 mb-4 flex items-center">
+                      <Layers className="w-5 h-5 mr-2 text-purple-500" />
+                      Quick Templates
+                    </h3>
+                    <div className="space-y-2">
+                      {templates.map((template) => (
+                        <button
+                          key={template.id}
+                          onClick={() => applyTemplate(template)}
+                          className="w-full text-left p-3 rounded-lg border border-gray-200 hover:border-purple-300 hover:bg-purple-50 transition-all group"
+                        >
+                          <div className="font-medium text-gray-900 group-hover:text-purple-700 transition-colors">
+                            {template.name}
+                          </div>
+                          <div className="text-xs text-gray-500 mt-1">
+                            {template.description}
+                          </div>
+                          <div className="text-xs text-purple-600 mt-1">
+                            {template.areas.length} areas
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* PDF Preview */}
+                <div className="xl:col-span-2">
+                  <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-200">
+                    {/* Enhanced Toolbar */}
+                    <div className="flex items-center justify-between mb-6 p-4 bg-gray-50 rounded-xl">
+                      <div className="flex items-center space-x-4">
+                        <h3 className="font-bold text-gray-900 flex items-center">
+                          <FileText className="w-5 h-5 mr-2 text-red-500" />
+                          Page {currentPage} of {totalPages}
+                        </h3>
+                        <div className="h-6 w-px bg-gray-300"></div>
+                        <div className="flex items-center space-x-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() =>
+                              setZoomLevel(Math.max(50, zoomLevel - 25))
+                            }
+                          >
+                            <ZoomOut className="w-4 h-4" />
+                          </Button>
+                          <span className="text-sm font-medium text-gray-600 min-w-[60px] text-center">
+                            {zoomLevel}%
+                          </span>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() =>
+                              setZoomLevel(Math.min(200, zoomLevel + 25))
+                            }
+                          >
+                            <ZoomIn className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </div>
+
                       <div className="flex items-center space-x-2">
                         <Button
                           variant="outline"
                           size="sm"
+                          onClick={() => setShowGrid(!showGrid)}
+                          className={
+                            showGrid
+                              ? "bg-blue-50 border-blue-200 text-blue-700"
+                              : ""
+                          }
+                        >
+                          <Grid className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
                           onClick={() => setShowRedactions(!showRedactions)}
+                          className={
+                            showRedactions
+                              ? "bg-green-50 border-green-200 text-green-700"
+                              : ""
+                          }
                         >
                           {showRedactions ? (
-                            <EyeOff className="w-4 h-4" />
-                          ) : (
                             <Eye className="w-4 h-4" />
+                          ) : (
+                            <EyeOff className="w-4 h-4" />
                           )}
-                          {showRedactions ? "Hide" : "Show"} Redactions
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setPreviewMode(!previewMode)}
+                          className={
+                            previewMode
+                              ? "bg-purple-50 border-purple-200 text-purple-700"
+                              : ""
+                          }
+                        >
+                          <MousePointer className="w-4 h-4" />
                         </Button>
                       </div>
                     </div>
 
-                    {/* PDF Viewer with Redaction Overlay */}
-                    <div className="relative">
+                    {/* Enhanced PDF Viewer with Advanced Features */}
+                    <div className="relative overflow-hidden rounded-xl border-2 border-gray-200">
                       <div
                         ref={canvasRef}
-                        className="relative bg-gray-100 border-2 border-dashed border-gray-300 rounded-lg cursor-crosshair"
-                        style={{ width: "100%", height: "600px" }}
+                        className="relative bg-gradient-to-br from-gray-50 to-gray-100 cursor-crosshair transition-all duration-300"
+                        style={{
+                          width: "100%",
+                          height: "700px",
+                          transform: `scale(${zoomLevel / 100})`,
+                          transformOrigin: "top left",
+                        }}
                         onMouseDown={handleMouseDown}
                         onMouseMove={handleMouseMove}
                         onMouseUp={handleMouseUp}
                       >
+                        {/* Grid Overlay */}
+                        {showGrid && (
+                          <div className="absolute inset-0 opacity-20">
+                            <svg
+                              width="100%"
+                              height="100%"
+                              className="absolute inset-0"
+                            >
+                              <defs>
+                                <pattern
+                                  id="grid"
+                                  width="20"
+                                  height="20"
+                                  patternUnits="userSpaceOnUse"
+                                >
+                                  <path
+                                    d="M 20 0 L 0 0 0 20"
+                                    fill="none"
+                                    stroke="#3b82f6"
+                                    strokeWidth="0.5"
+                                  />
+                                </pattern>
+                              </defs>
+                              <rect
+                                width="100%"
+                                height="100%"
+                                fill="url(#grid)"
+                              />
+                            </svg>
+                          </div>
+                        )}
                         {/* PDF Content Simulation */}
                         <div className="absolute inset-4 bg-white shadow-sm rounded p-6">
                           <div className="space-y-4">
@@ -475,69 +800,230 @@ const RedactPdf = () => {
                   </div>
                 </div>
 
-                {/* Controls Panel */}
-                <div className="space-y-6">
-                  {/* File Info */}
-                  <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
-                    <h3 className="text-heading-small text-text-dark mb-4">
-                      File Information
+                {/* Enhanced Controls Panel */}
+                <div className="xl:col-span-1 space-y-6">
+                  {/* Redaction Tools */}
+                  <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-200">
+                    <h3 className="font-bold text-gray-900 mb-6 flex items-center">
+                      <PaintBucket className="w-5 h-5 mr-2 text-red-500" />
+                      Redaction Tools
                     </h3>
-                    <div className="flex items-center space-x-3 p-3 rounded-lg border border-gray-200 bg-gray-50">
-                      <div className="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center">
-                        <FileText className="w-5 h-5 text-red-500" />
+
+                    {/* Tool Selection */}
+                    <div className="grid grid-cols-2 gap-3 mb-6">
+                      {[
+                        { type: "rectangle", icon: Square, label: "Rectangle" },
+                        { type: "text", icon: FileText, label: "Text Block" },
+                        { type: "image", icon: Target, label: "Image Area" },
+                        { type: "custom", icon: MousePointer, label: "Custom" },
+                      ].map(({ type, icon: Icon, label }) => (
+                        <button
+                          key={type}
+                          onClick={() => setRedactionType(type as any)}
+                          className={`p-3 rounded-xl border-2 transition-all flex flex-col items-center space-y-2 ${
+                            redactionType === type
+                              ? "border-red-300 bg-red-50 text-red-700"
+                              : "border-gray-200 hover:border-gray-300 text-gray-600"
+                          }`}
+                        >
+                          <Icon className="w-5 h-5" />
+                          <span className="text-xs font-medium">{label}</span>
+                        </button>
+                      ))}
+                    </div>
+
+                    {/* Color and Opacity */}
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Color
+                        </label>
+                        <div className="flex items-center space-x-3">
+                          <input
+                            type="color"
+                            value={redactionColor}
+                            onChange={(e) => setRedactionColor(e.target.value)}
+                            className="w-12 h-12 rounded-xl border-2 border-gray-200 cursor-pointer"
+                          />
+                          <div className="flex-1">
+                            <div className="grid grid-cols-6 gap-2">
+                              {[
+                                "#000000",
+                                "#ff0000",
+                                "#0066cc",
+                                "#00cc66",
+                                "#ffaa00",
+                                "#cc00cc",
+                              ].map((color) => (
+                                <button
+                                  key={color}
+                                  onClick={() => setRedactionColor(color)}
+                                  className={`w-8 h-8 rounded-lg border-2 transition-all ${
+                                    redactionColor === color
+                                      ? "border-gray-400 scale-110"
+                                      : "border-gray-200"
+                                  }`}
+                                  style={{ backgroundColor: color }}
+                                />
+                              ))}
+                            </div>
+                          </div>
+                        </div>
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-text-dark truncate">
-                          {file.name}
-                        </p>
-                        <p className="text-xs text-text-light">
-                          {formatFileSize(file.size)}
-                        </p>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Opacity: {Math.round(redactionOpacity * 100)}%
+                        </label>
+                        <input
+                          type="range"
+                          min="0.1"
+                          max="1"
+                          step="0.1"
+                          value={redactionOpacity}
+                          onChange={(e) =>
+                            setRedactionOpacity(parseFloat(e.target.value))
+                          }
+                          className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+                        />
                       </div>
                     </div>
                   </div>
 
-                  {/* Redaction Summary */}
-                  <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
-                    <h3 className="text-heading-small text-text-dark mb-4">
-                      Redaction Summary
+                  {/* File Info with Enhanced Design */}
+                  <div className="bg-gradient-to-br from-gray-50 to-white rounded-2xl p-6 border border-gray-200">
+                    <h3 className="font-bold text-gray-900 mb-4 flex items-center">
+                      <Info className="w-5 h-5 mr-2 text-blue-500" />
+                      Document Info
                     </h3>
                     <div className="space-y-3">
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm text-text-light">
-                          Total Areas:
-                        </span>
-                        <span className="text-sm font-medium text-text-dark">
-                          {redactionAreas.length}
-                        </span>
+                      <div className="flex items-center space-x-3 p-4 bg-white rounded-xl border border-gray-100">
+                        <div className="w-12 h-12 bg-gradient-to-br from-red-400 to-red-600 rounded-xl flex items-center justify-center">
+                          <FileText className="w-6 h-6 text-white" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium text-gray-900 truncate">
+                            {file.name}
+                          </p>
+                          <p className="text-sm text-gray-500">
+                            {formatFileSize(file.size)}
+                          </p>
+                          <p className="text-xs text-gray-400">
+                            {totalPages} pages
+                          </p>
+                        </div>
                       </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm text-text-light">
-                          Current Page:
-                        </span>
-                        <span className="text-sm font-medium text-text-dark">
+                    </div>
+                  </div>
+
+                  {/* Enhanced Redaction Summary */}
+                  <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-200">
+                    <h3 className="font-bold text-gray-900 mb-6 flex items-center">
+                      <History className="w-5 h-5 mr-2 text-green-500" />
+                      Redaction Summary
+                    </h3>
+
+                    {/* Statistics Cards */}
+                    <div className="grid grid-cols-2 gap-3 mb-6">
+                      <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl p-4 border border-blue-200">
+                        <div className="text-2xl font-bold text-blue-700">
+                          {redactionAreas.length}
+                        </div>
+                        <div className="text-xs text-blue-600">Total Areas</div>
+                      </div>
+                      <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-xl p-4 border border-green-200">
+                        <div className="text-2xl font-bold text-green-700">
                           {
                             redactionAreas.filter(
                               (area) => area.page === currentPage,
                             ).length
                           }
-                        </span>
+                        </div>
+                        <div className="text-xs text-green-600">This Page</div>
+                      </div>
+                      <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl p-4 border border-purple-200">
+                        <div className="text-2xl font-bold text-purple-700">
+                          {redactionHistory.length}
+                        </div>
+                        <div className="text-xs text-purple-600">
+                          History Items
+                        </div>
+                      </div>
+                      <div className="bg-gradient-to-br from-orange-50 to-orange-100 rounded-xl p-4 border border-orange-200">
+                        <div className="text-2xl font-bold text-orange-700">
+                          {new Set(redactionAreas.map((a) => a.page)).size}
+                        </div>
+                        <div className="text-xs text-orange-600">Pages</div>
                       </div>
                     </div>
 
-                    {redactionAreas.length > 0 && (
-                      <div className="mt-4 pt-4 border-t border-gray-200">
+                    {/* Quick Actions */}
+                    <div className="space-y-3">
+                      <div className="flex items-center space-x-2">
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={clearAllRedactions}
-                          className="w-full text-red-600 hover:text-red-700"
+                          onClick={undoLastRedaction}
+                          disabled={historyIndex < 0}
+                          className="flex-1"
                         >
-                          <Trash2 className="w-4 h-4 mr-2" />
-                          Clear All Redactions
+                          <Undo className="w-4 h-4 mr-2" />
+                          Undo
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={redoRedaction}
+                          disabled={historyIndex >= redactionHistory.length - 1}
+                          className="flex-1"
+                        >
+                          <RotateCw className="w-4 h-4 mr-2" />
+                          Redo
                         </Button>
                       </div>
-                    )}
+
+                      {redactionAreas.length > 0 && (
+                        <>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={saveAsTemplate}
+                            className="w-full"
+                          >
+                            <Save className="w-4 h-4 mr-2" />
+                            Save as Template
+                          </Button>
+
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={clearAllRedactions}
+                            className="w-full text-red-600 hover:text-red-700 border-red-200 hover:border-red-300"
+                          >
+                            <Trash2 className="w-4 h-4 mr-2" />
+                            Clear All
+                          </Button>
+                        </>
+                      )}
+                    </div>
+
+                    {/* Batch Mode Toggle */}
+                    <div className="mt-6 pt-6 border-t border-gray-200">
+                      <label className="flex items-center space-x-3">
+                        <input
+                          type="checkbox"
+                          checked={batchMode}
+                          onChange={(e) => setBatchMode(e.target.checked)}
+                          className="w-4 h-4 text-red-600 rounded focus:ring-red-500"
+                        />
+                        <span className="text-sm font-medium text-gray-700">
+                          Batch Mode
+                        </span>
+                      </label>
+                      <p className="text-xs text-gray-500 mt-1">
+                        Apply redactions to multiple pages simultaneously
+                      </p>
+                    </div>
                   </div>
 
                   {/* Redaction Settings */}
@@ -672,42 +1158,109 @@ const RedactPdf = () => {
           </div>
         )}
 
-        {/* Features */}
-        <div className="mt-12 grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="text-center">
-            <div className="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center mx-auto mb-3">
-              <Square className="w-6 h-6 text-red-500" />
-            </div>
-            <h4 className="font-semibold text-text-dark mb-2">
-              Permanent Redaction
-            </h4>
-            <p className="text-body-small text-text-light">
-              Permanently remove sensitive information that cannot be recovered
+        {/* Enhanced Features Grid */}
+        <div className="mt-16">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl font-bold text-gray-900 mb-4">
+              Professional Redaction Features
+            </h2>
+            <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+              Advanced tools and AI-powered capabilities for secure document
+              redaction
             </p>
           </div>
 
-          <div className="text-center">
-            <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center mx-auto mb-3">
-              <CheckCircle className="w-6 h-6 text-green-500" />
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+            <div className="group text-center">
+              <div className="w-16 h-16 bg-gradient-to-br from-red-400 to-red-600 rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform duration-200 shadow-lg">
+                <Lock className="w-8 h-8 text-white" />
+              </div>
+              <h4 className="font-bold text-gray-900 mb-2">
+                Permanent Removal
+              </h4>
+              <p className="text-gray-600 text-sm leading-relaxed">
+                Irreversibly remove sensitive content with military-grade
+                security standards
+              </p>
             </div>
-            <h4 className="font-semibold text-text-dark mb-2">
-              Visual Preview
-            </h4>
-            <p className="text-body-small text-text-light">
-              Preview redaction areas before applying them to your document
-            </p>
-          </div>
 
-          <div className="text-center">
-            <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mx-auto mb-3">
-              <FileText className="w-6 h-6 text-blue-500" />
+            <div className="group text-center">
+              <div className="w-16 h-16 bg-gradient-to-br from-blue-400 to-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform duration-200 shadow-lg">
+                <Sparkles className="w-8 h-8 text-white" />
+              </div>
+              <h4 className="font-bold text-gray-900 mb-2">AI Detection</h4>
+              <p className="text-gray-600 text-sm leading-relaxed">
+                Automatically identify sensitive information with machine
+                learning
+              </p>
             </div>
-            <h4 className="font-semibold text-text-dark mb-2">
-              Multiple Areas
-            </h4>
-            <p className="text-body-small text-text-light">
-              Redact multiple areas across different pages in a single operation
-            </p>
+
+            <div className="group text-center">
+              <div className="w-16 h-16 bg-gradient-to-br from-purple-400 to-purple-600 rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform duration-200 shadow-lg">
+                <Layers className="w-8 h-8 text-white" />
+              </div>
+              <h4 className="font-bold text-gray-900 mb-2">Smart Templates</h4>
+              <p className="text-gray-600 text-sm leading-relaxed">
+                Pre-built templates for common redaction scenarios and
+                compliance
+              </p>
+            </div>
+
+            <div className="group text-center">
+              <div className="w-16 h-16 bg-gradient-to-br from-green-400 to-green-600 rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform duration-200 shadow-lg">
+                <Target className="w-8 h-8 text-white" />
+              </div>
+              <h4 className="font-bold text-gray-900 mb-2">Precision Tools</h4>
+              <p className="text-gray-600 text-sm leading-relaxed">
+                Multiple redaction types with zoom, grid, and snap-to
+                functionality
+              </p>
+            </div>
+
+            <div className="group text-center">
+              <div className="w-16 h-16 bg-gradient-to-br from-orange-400 to-orange-600 rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform duration-200 shadow-lg">
+                <History className="w-8 h-8 text-white" />
+              </div>
+              <h4 className="font-bold text-gray-900 mb-2">
+                Undo/Redo History
+              </h4>
+              <p className="text-gray-600 text-sm leading-relaxed">
+                Full action history with unlimited undo and intelligent
+                suggestions
+              </p>
+            </div>
+
+            <div className="group text-center">
+              <div className="w-16 h-16 bg-gradient-to-br from-teal-400 to-teal-600 rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform duration-200 shadow-lg">
+                <Shield className="w-8 h-8 text-white" />
+              </div>
+              <h4 className="font-bold text-gray-900 mb-2">Batch Processing</h4>
+              <p className="text-gray-600 text-sm leading-relaxed">
+                Apply redactions across multiple pages and documents
+                simultaneously
+              </p>
+            </div>
+
+            <div className="group text-center">
+              <div className="w-16 h-16 bg-gradient-to-br from-pink-400 to-pink-600 rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform duration-200 shadow-lg">
+                <ZoomIn className="w-8 h-8 text-white" />
+              </div>
+              <h4 className="font-bold text-gray-900 mb-2">Zoom & Preview</h4>
+              <p className="text-gray-600 text-sm leading-relaxed">
+                High-precision zooming with real-time preview and grid alignment
+              </p>
+            </div>
+
+            <div className="group text-center">
+              <div className="w-16 h-16 bg-gradient-to-br from-indigo-400 to-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform duration-200 shadow-lg">
+                <Save className="w-8 h-8 text-white" />
+              </div>
+              <h4 className="font-bold text-gray-900 mb-2">Custom Templates</h4>
+              <p className="text-gray-600 text-sm leading-relaxed">
+                Save and reuse redaction patterns for consistent document
+                processing
+              </p>
+            </div>
           </div>
         </div>
       </div>

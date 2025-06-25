@@ -367,18 +367,45 @@ const PdfToPdfa = () => {
           </Link>
         </div>
 
-        {/* Header */}
-        <div className="text-center mb-8">
-          <div className="w-16 h-16 bg-gradient-to-br from-gray-500 to-gray-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
-            <Archive className="w-8 h-8 text-white" />
+        {/* Enhanced Header */}
+        <div className="text-center mb-12">
+          <div className="relative">
+            <div className="w-20 h-20 bg-gradient-to-br from-gray-500 via-slate-600 to-zinc-700 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-2xl">
+              <div className="absolute inset-0 bg-gradient-to-br from-gray-400 to-zinc-700 rounded-3xl animate-pulse opacity-30"></div>
+              <Archive className="w-10 h-10 text-white relative z-10" />
+            </div>
+            <div className="absolute -top-2 -right-2 w-6 h-6 bg-gradient-to-r from-blue-400 to-green-500 rounded-full flex items-center justify-center">
+              <Award className="w-3 h-3 text-white" />
+            </div>
           </div>
-          <h1 className="text-heading-medium text-text-dark mb-4">
-            Convert to PDF/A
+          <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-gray-700 via-slate-700 to-zinc-700 bg-clip-text text-transparent mb-6">
+            Professional PDF/A Conversion
           </h1>
-          <p className="text-body-large text-text-light max-w-2xl mx-auto">
-            Transform your PDF to PDF/A format for long-term archival storage
-            and compliance with international standards.
+          <p className="text-xl text-gray-600 max-w-3xl mx-auto leading-relaxed">
+            Enterprise-grade archival conversion with ISO 19005 compliance
+            validation, long-term preservation standards, and comprehensive
+            quality assurance.
           </p>
+
+          {/* Feature Pills */}
+          <div className="flex flex-wrap justify-center gap-3 mt-8">
+            <div className="px-4 py-2 bg-gray-50 text-gray-700 rounded-full text-sm font-medium border border-gray-200">
+              <Archive className="w-4 h-4 inline mr-2" />
+              ISO 19005
+            </div>
+            <div className="px-4 py-2 bg-slate-50 text-slate-700 rounded-full text-sm font-medium border border-slate-200">
+              <Shield className="w-4 h-4 inline mr-2" />
+              Long-term Storage
+            </div>
+            <div className="px-4 py-2 bg-zinc-50 text-zinc-700 rounded-full text-sm font-medium border border-zinc-200">
+              <Award className="w-4 h-4 inline mr-2" />
+              Compliance Check
+            </div>
+            <div className="px-4 py-2 bg-blue-50 text-blue-700 rounded-full text-sm font-medium border border-blue-200">
+              <FileCheck className="w-4 h-4 inline mr-2" />
+              Quality Validation
+            </div>
+          </div>
         </div>
 
         {/* Main Content */}
@@ -957,42 +984,114 @@ const PdfToPdfa = () => {
           </div>
         ) : null}
 
-        {/* Features */}
-        <div className="mt-12 grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="text-center">
-            <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center mx-auto mb-3">
-              <Archive className="w-6 h-6 text-gray-500" />
-            </div>
-            <h4 className="font-semibold text-text-dark mb-2">
-              Long-term Preservation
-            </h4>
-            <p className="text-body-small text-text-light">
-              Ensure your documents remain accessible for decades to come
+        {/* Enhanced Features Grid */}
+        <div className="mt-16">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl font-bold text-gray-900 mb-4">
+              Archival-Grade PDF/A Conversion
+            </h2>
+            <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+              Professional compliance tools with international standards
+              validation and enterprise-grade quality assurance
             </p>
           </div>
 
-          <div className="text-center">
-            <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center mx-auto mb-3">
-              <Shield className="w-6 h-6 text-green-500" />
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+            <div className="group text-center">
+              <div className="w-16 h-16 bg-gradient-to-br from-gray-400 to-gray-600 rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform duration-200 shadow-lg">
+                <Archive className="w-8 h-8 text-white" />
+              </div>
+              <h4 className="font-bold text-gray-900 mb-2">
+                Long-term Storage
+              </h4>
+              <p className="text-gray-600 text-sm leading-relaxed">
+                Ensure document accessibility and readability for decades with
+                archival standards
+              </p>
             </div>
-            <h4 className="font-semibold text-text-dark mb-2">
-              ISO 19005 Compliance
-            </h4>
-            <p className="text-body-small text-text-light">
-              Meet international standards for electronic document preservation
-            </p>
-          </div>
 
-          <div className="text-center">
-            <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mx-auto mb-3">
-              <FileCheck className="w-6 h-6 text-blue-500" />
+            <div className="group text-center">
+              <div className="w-16 h-16 bg-gradient-to-br from-slate-400 to-slate-600 rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform duration-200 shadow-lg">
+                <Shield className="w-8 h-8 text-white" />
+              </div>
+              <h4 className="font-bold text-gray-900 mb-2">
+                ISO 19005 Compliance
+              </h4>
+              <p className="text-gray-600 text-sm leading-relaxed">
+                Full compliance with international archival standards and
+                regulations
+              </p>
             </div>
-            <h4 className="font-semibold text-text-dark mb-2">
-              Validation & Verification
-            </h4>
-            <p className="text-body-small text-text-light">
-              Comprehensive compliance checking and validation reporting
-            </p>
+
+            <div className="group text-center">
+              <div className="w-16 h-16 bg-gradient-to-br from-zinc-400 to-zinc-600 rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform duration-200 shadow-lg">
+                <Award className="w-8 h-8 text-white" />
+              </div>
+              <h4 className="font-bold text-gray-900 mb-2">
+                Quality Certification
+              </h4>
+              <p className="text-gray-600 text-sm leading-relaxed">
+                Comprehensive validation with detailed compliance scoring and
+                certification
+              </p>
+            </div>
+
+            <div className="group text-center">
+              <div className="w-16 h-16 bg-gradient-to-br from-blue-400 to-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform duration-200 shadow-lg">
+                <FileCheck className="w-8 h-8 text-white" />
+              </div>
+              <h4 className="font-bold text-gray-900 mb-2">
+                Validation Reports
+              </h4>
+              <p className="text-gray-600 text-sm leading-relaxed">
+                Detailed compliance reports with validation scores and
+                improvement suggestions
+              </p>
+            </div>
+
+            <div className="group text-center">
+              <div className="w-16 h-16 bg-gradient-to-br from-green-400 to-green-600 rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform duration-200 shadow-lg">
+                <Zap className="w-8 h-8 text-white" />
+              </div>
+              <h4 className="font-bold text-gray-900 mb-2">Auto-Enhancement</h4>
+              <p className="text-gray-600 text-sm leading-relaxed">
+                Automatic font embedding, metadata preservation, and structure
+                optimization
+              </p>
+            </div>
+
+            <div className="group text-center">
+              <div className="w-16 h-16 bg-gradient-to-br from-purple-400 to-purple-600 rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform duration-200 shadow-lg">
+                <Settings className="w-8 h-8 text-white" />
+              </div>
+              <h4 className="font-bold text-gray-900 mb-2">Flexible Options</h4>
+              <p className="text-gray-600 text-sm leading-relaxed">
+                Multiple PDF/A levels with customizable conversion settings and
+                preferences
+              </p>
+            </div>
+
+            <div className="group text-center">
+              <div className="w-16 h-16 bg-gradient-to-br from-orange-400 to-orange-600 rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform duration-200 shadow-lg">
+                <Clock className="w-8 h-8 text-white" />
+              </div>
+              <h4 className="font-bold text-gray-900 mb-2">Future-Proof</h4>
+              <p className="text-gray-600 text-sm leading-relaxed">
+                Self-contained documents with embedded resources for unlimited
+                compatibility
+              </p>
+            </div>
+
+            <div className="group text-center">
+              <div className="w-16 h-16 bg-gradient-to-br from-teal-400 to-teal-600 rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform duration-200 shadow-lg">
+                <TrendingUp className="w-8 h-8 text-white" />
+              </div>
+              <h4 className="font-bold text-gray-900 mb-2">Enterprise Ready</h4>
+              <p className="text-gray-600 text-sm leading-relaxed">
+                Batch processing, API integration, and enterprise compliance
+                workflows
+              </p>
+            </div>
           </div>
         </div>
       </div>

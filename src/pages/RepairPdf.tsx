@@ -393,18 +393,44 @@ const RepairPdf = () => {
           </Link>
         </div>
 
-        {/* Header */}
-        <div className="text-center mb-8">
-          <div className="w-16 h-16 bg-gradient-to-br from-orange-500 to-orange-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
-            <Wrench className="w-8 h-8 text-white" />
+        {/* Enhanced Header */}
+        <div className="text-center mb-12">
+          <div className="relative">
+            <div className="w-20 h-20 bg-gradient-to-br from-orange-500 via-red-500 to-pink-600 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-2xl">
+              <div className="absolute inset-0 bg-gradient-to-br from-orange-400 to-pink-600 rounded-3xl animate-pulse opacity-30"></div>
+              <Activity className="w-10 h-10 text-white relative z-10" />
+            </div>
+            <div className="absolute -top-2 -right-2 w-6 h-6 bg-gradient-to-r from-green-400 to-blue-500 rounded-full flex items-center justify-center">
+              <Zap className="w-3 h-3 text-white" />
+            </div>
           </div>
-          <h1 className="text-heading-medium text-text-dark mb-4">
-            Repair PDF
+          <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-orange-600 via-red-600 to-pink-600 bg-clip-text text-transparent mb-6">
+            Advanced PDF Recovery
           </h1>
-          <p className="text-body-large text-text-light max-w-2xl mx-auto">
-            Fix corrupted PDF files and recover damaged documents with advanced
-            repair algorithms.
+          <p className="text-xl text-gray-600 max-w-3xl mx-auto leading-relaxed">
+            Intelligent document repair with deep analysis, automated recovery,
+            and comprehensive diagnostic reporting for corrupted PDF files.
           </p>
+
+          {/* Feature Pills */}
+          <div className="flex flex-wrap justify-center gap-3 mt-8">
+            <div className="px-4 py-2 bg-orange-50 text-orange-700 rounded-full text-sm font-medium border border-orange-200">
+              <Activity className="w-4 h-4 inline mr-2" />
+              Deep Analysis
+            </div>
+            <div className="px-4 py-2 bg-red-50 text-red-700 rounded-full text-sm font-medium border border-red-200">
+              <Wrench className="w-4 h-4 inline mr-2" />
+              Auto Repair
+            </div>
+            <div className="px-4 py-2 bg-pink-50 text-pink-700 rounded-full text-sm font-medium border border-pink-200">
+              <Shield className="w-4 h-4 inline mr-2" />
+              Data Recovery
+            </div>
+            <div className="px-4 py-2 bg-purple-50 text-purple-700 rounded-full text-sm font-medium border border-purple-200">
+              <RefreshCw className="w-4 h-4 inline mr-2" />
+              Structure Rebuild
+            </div>
+          </div>
         </div>
 
         {/* Progress Steps */}
@@ -955,42 +981,107 @@ const RepairPdf = () => {
           </div>
         )}
 
-        {/* Features */}
-        <div className="mt-12 grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="text-center">
-            <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center mx-auto mb-3">
-              <Activity className="w-6 h-6 text-orange-500" />
-            </div>
-            <h4 className="font-semibold text-text-dark mb-2">
-              Advanced Diagnostics
-            </h4>
-            <p className="text-body-small text-text-light">
-              Comprehensive analysis of PDF structure and content integrity
+        {/* Enhanced Features Grid */}
+        <div className="mt-16">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl font-bold text-gray-900 mb-4">
+              Professional PDF Recovery Tools
+            </h2>
+            <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+              Enterprise-grade repair algorithms with intelligent analysis and
+              automated recovery processes
             </p>
           </div>
 
-          <div className="text-center">
-            <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center mx-auto mb-3">
-              <Wrench className="w-6 h-6 text-green-500" />
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+            <div className="group text-center">
+              <div className="w-16 h-16 bg-gradient-to-br from-orange-400 to-orange-600 rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform duration-200 shadow-lg">
+                <Activity className="w-8 h-8 text-white" />
+              </div>
+              <h4 className="font-bold text-gray-900 mb-2">Deep Diagnostics</h4>
+              <p className="text-gray-600 text-sm leading-relaxed">
+                Comprehensive analysis of PDF structure, metadata, and content
+                integrity
+              </p>
             </div>
-            <h4 className="font-semibold text-text-dark mb-2">
-              Intelligent Repair
-            </h4>
-            <p className="text-body-small text-text-light">
-              Automatically fix common PDF corruption and structure issues
-            </p>
-          </div>
 
-          <div className="text-center">
-            <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mx-auto mb-3">
-              <FileCheck className="w-6 h-6 text-blue-500" />
+            <div className="group text-center">
+              <div className="w-16 h-16 bg-gradient-to-br from-red-400 to-red-600 rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform duration-200 shadow-lg">
+                <Wrench className="w-8 h-8 text-white" />
+              </div>
+              <h4 className="font-bold text-gray-900 mb-2">Smart Repair</h4>
+              <p className="text-gray-600 text-sm leading-relaxed">
+                Intelligent algorithms to fix corruption, rebuild structures,
+                and restore content
+              </p>
             </div>
-            <h4 className="font-semibold text-text-dark mb-2">
-              Quality Assurance
-            </h4>
-            <p className="text-body-small text-text-light">
-              Verify repairs and ensure PDF compliance with industry standards
-            </p>
+
+            <div className="group text-center">
+              <div className="w-16 h-16 bg-gradient-to-br from-pink-400 to-pink-600 rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform duration-200 shadow-lg">
+                <Shield className="w-8 h-8 text-white" />
+              </div>
+              <h4 className="font-bold text-gray-900 mb-2">Data Recovery</h4>
+              <p className="text-gray-600 text-sm leading-relaxed">
+                Salvage and restore damaged content with maximum data
+                preservation
+              </p>
+            </div>
+
+            <div className="group text-center">
+              <div className="w-16 h-16 bg-gradient-to-br from-purple-400 to-purple-600 rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform duration-200 shadow-lg">
+                <RefreshCw className="w-8 h-8 text-white" />
+              </div>
+              <h4 className="font-bold text-gray-900 mb-2">
+                Structure Rebuild
+              </h4>
+              <p className="text-gray-600 text-sm leading-relaxed">
+                Reconstruct damaged document structures and cross-reference
+                tables
+              </p>
+            </div>
+
+            <div className="group text-center">
+              <div className="w-16 h-16 bg-gradient-to-br from-blue-400 to-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform duration-200 shadow-lg">
+                <FileCheck className="w-8 h-8 text-white" />
+              </div>
+              <h4 className="font-bold text-gray-900 mb-2">
+                Quality Validation
+              </h4>
+              <p className="text-gray-600 text-sm leading-relaxed">
+                Comprehensive testing and validation of repaired documents
+              </p>
+            </div>
+
+            <div className="group text-center">
+              <div className="w-16 h-16 bg-gradient-to-br from-green-400 to-green-600 rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform duration-200 shadow-lg">
+                <Zap className="w-8 h-8 text-white" />
+              </div>
+              <h4 className="font-bold text-gray-900 mb-2">Fast Processing</h4>
+              <p className="text-gray-600 text-sm leading-relaxed">
+                High-speed repair with real-time progress tracking and status
+                updates
+              </p>
+            </div>
+
+            <div className="group text-center">
+              <div className="w-16 h-16 bg-gradient-to-br from-teal-400 to-teal-600 rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform duration-200 shadow-lg">
+                <Settings className="w-8 h-8 text-white" />
+              </div>
+              <h4 className="font-bold text-gray-900 mb-2">Custom Options</h4>
+              <p className="text-gray-600 text-sm leading-relaxed">
+                Configurable repair settings for different types of corruption
+              </p>
+            </div>
+
+            <div className="group text-center">
+              <div className="w-16 h-16 bg-gradient-to-br from-indigo-400 to-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform duration-200 shadow-lg">
+                <Info className="w-8 h-8 text-white" />
+              </div>
+              <h4 className="font-bold text-gray-900 mb-2">Detailed Reports</h4>
+              <p className="text-gray-600 text-sm leading-relaxed">
+                Comprehensive repair reports with before/after analysis
+              </p>
+            </div>
           </div>
         </div>
       </div>

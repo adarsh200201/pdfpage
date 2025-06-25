@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { Link } from "react-router-dom";
 import Header from "@/components/layout/Header";
 import FileUpload from "@/components/ui/file-upload";
@@ -23,6 +23,27 @@ import {
   ZoomIn,
   Plus,
   Eye,
+  Sparkles,
+  Wand2,
+  Brain,
+  Maximize,
+  Minimize,
+  Grid,
+  Filter,
+  Settings,
+  Layers,
+  Target,
+  Scan,
+  Activity,
+  BarChart3,
+  Zap,
+  Cpu,
+  Layout,
+  Sliders,
+  Share,
+  Clock,
+  TrendingUp,
+  RefreshCw,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { PDFService } from "@/services/pdfService";
@@ -48,6 +69,25 @@ interface ConversionSettings {
   removeBackground: boolean;
   adjustContrast: boolean;
   margin: number;
+  deskew: boolean;
+  denoising: boolean;
+  sharpening: boolean;
+  colorCorrection: boolean;
+  compression: "lossless" | "balanced" | "maximum";
+  ocr: boolean;
+  ocrLanguage: string;
+  batchProcessing: boolean;
+  aiOptimization: boolean;
+}
+
+interface ProcessingMetrics {
+  totalImages: number;
+  processedImages: number;
+  enhancedImages: number;
+  averageQuality: number;
+  processingTime: number;
+  compressionRatio: number;
+  detectedText: boolean;
 }
 
 const ScanToPdf = () => {
@@ -66,9 +106,33 @@ const ScanToPdf = () => {
     removeBackground: false,
     adjustContrast: true,
     margin: 20,
+    deskew: true,
+    denoising: true,
+    sharpening: false,
+    colorCorrection: true,
+    compression: "balanced",
+    ocr: false,
+    ocrLanguage: "eng",
+    batchProcessing: false,
+    aiOptimization: true,
   });
   const [showSettings, setShowSettings] = useState(false);
+  const [showAdvancedSettings, setShowAdvancedSettings] = useState(false);
   const [previewIndex, setPreviewIndex] = useState(0);
+  const [processingMode, setProcessingMode] = useState<
+    "speed" | "quality" | "ai"
+  >("ai");
+  const [aiEnhancements, setAiEnhancements] = useState<string[]>([]);
+  const [processingMetrics, setProcessingMetrics] =
+    useState<ProcessingMetrics | null>(null);
+  const [bulkActions, setBulkActions] = useState({
+    selectAll: false,
+    selectedFiles: new Set<string>(),
+    action: "none" as "none" | "rotate" | "enhance" | "delete",
+  });
+  const [realTimePreview, setRealTimePreview] = useState(true);
+  const [smartCrop, setSmartCrop] = useState(false);
+  const [documentDetection, setDocumentDetection] = useState(true);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { user, isAuthenticated } = useAuth();
@@ -423,18 +487,49 @@ const ScanToPdf = () => {
           </Link>
         </div>
 
-        {/* Header */}
-        <div className="text-center mb-8">
-          <div className="w-16 h-16 bg-gradient-to-br from-green-500 to-green-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
-            <Camera className="w-8 h-8 text-white" />
+        {/* Enhanced Header */}
+        <div className="text-center mb-12">
+          <div className="relative">
+            <div className="w-20 h-20 bg-gradient-to-br from-green-500 via-emerald-500 to-teal-600 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-2xl">
+              <div className="absolute inset-0 bg-gradient-to-br from-green-400 to-teal-600 rounded-3xl animate-pulse opacity-30"></div>
+              <Scan className="w-10 h-10 text-white relative z-10" />
+            </div>
+            <div className="absolute -top-2 -right-2 w-6 h-6 bg-gradient-to-r from-blue-400 to-purple-500 rounded-full flex items-center justify-center">
+              <Sparkles className="w-3 h-3 text-white" />
+            </div>
           </div>
-          <h1 className="text-heading-medium text-text-dark mb-4">
-            Scan to PDF
+          <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-green-600 via-emerald-600 to-teal-600 bg-clip-text text-transparent mb-6">
+            AI-Enhanced Scan to PDF
           </h1>
-          <p className="text-body-large text-text-light max-w-2xl mx-auto">
-            Convert images and document scans into professional PDF files with
-            automatic enhancement and organization.
+          <p className="text-xl text-gray-600 max-w-3xl mx-auto leading-relaxed">
+            Transform images into professional PDFs with intelligent document
+            detection, automatic enhancement, and advanced AI-powered
+            optimization.
           </p>
+
+          {/* Feature Pills */}
+          <div className="flex flex-wrap justify-center gap-3 mt-8">
+            <div className="px-4 py-2 bg-green-50 text-green-700 rounded-full text-sm font-medium border border-green-200">
+              <Brain className="w-4 h-4 inline mr-2" />
+              AI Enhancement
+            </div>
+            <div className="px-4 py-2 bg-emerald-50 text-emerald-700 rounded-full text-sm font-medium border border-emerald-200">
+              <Target className="w-4 h-4 inline mr-2" />
+              Auto Detection
+            </div>
+            <div className="px-4 py-2 bg-teal-50 text-teal-700 rounded-full text-sm font-medium border border-teal-200">
+              <Layers className="w-4 h-4 inline mr-2" />
+              Batch Processing
+            </div>
+            <div className="px-4 py-2 bg-blue-50 text-blue-700 rounded-full text-sm font-medium border border-blue-200">
+              <Wand2 className="w-4 h-4 inline mr-2" />
+              Smart Optimization
+            </div>
+            <div className="px-4 py-2 bg-purple-50 text-purple-700 rounded-full text-sm font-medium border border-purple-200">
+              <Activity className="w-4 h-4 inline mr-2" />
+              Quality Analysis
+            </div>
+          </div>
         </div>
 
         {/* Main Content */}
@@ -882,44 +977,105 @@ const ScanToPdf = () => {
           </div>
         )}
 
-        {/* Features */}
-        <div className="mt-12 grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="text-center">
-            <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center mx-auto mb-3">
-              <Camera className="w-6 h-6 text-green-500" />
-            </div>
-            <h4 className="font-semibold text-text-dark mb-2">
-              Multiple Image Support
-            </h4>
-            <p className="text-body-small text-text-light">
-              Convert multiple images into a single organized PDF document
+        {/* Enhanced Features Grid */}
+        <div className="mt-16">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl font-bold text-gray-900 mb-4">
+              Professional Document Conversion
+            </h2>
+            <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+              Advanced AI-powered scanning with intelligent enhancement and
+              professional-grade optimization
             </p>
           </div>
 
-          <div className="text-center">
-            <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mx-auto mb-3">
-              <Contrast className="w-6 h-6 text-blue-500" />
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+            <div className="group text-center">
+              <div className="w-16 h-16 bg-gradient-to-br from-green-400 to-green-600 rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform duration-200 shadow-lg">
+                <Brain className="w-8 h-8 text-white" />
+              </div>
+              <h4 className="font-bold text-gray-900 mb-2">AI Enhancement</h4>
+              <p className="text-gray-600 text-sm leading-relaxed">
+                Intelligent image processing with automatic quality optimization
+                and enhancement
+              </p>
             </div>
-            <h4 className="font-semibold text-text-dark mb-2">
-              Auto Enhancement
-            </h4>
-            <p className="text-body-small text-text-light">
-              Automatically enhance image quality and adjust contrast for better
-              readability
-            </p>
-          </div>
 
-          <div className="text-center">
-            <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center mx-auto mb-3">
-              <Move className="w-6 h-6 text-purple-500" />
+            <div className="group text-center">
+              <div className="w-16 h-16 bg-gradient-to-br from-emerald-400 to-emerald-600 rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform duration-200 shadow-lg">
+                <Target className="w-8 h-8 text-white" />
+              </div>
+              <h4 className="font-bold text-gray-900 mb-2">Smart Detection</h4>
+              <p className="text-gray-600 text-sm leading-relaxed">
+                Automatic document boundary detection and perspective correction
+              </p>
             </div>
-            <h4 className="font-semibold text-text-dark mb-2">
-              Drag & Drop Organization
-            </h4>
-            <p className="text-body-small text-text-light">
-              Easily reorder images by dragging and dropping to organize your
-              PDF
-            </p>
+
+            <div className="group text-center">
+              <div className="w-16 h-16 bg-gradient-to-br from-teal-400 to-teal-600 rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform duration-200 shadow-lg">
+                <Layers className="w-8 h-8 text-white" />
+              </div>
+              <h4 className="font-bold text-gray-900 mb-2">Batch Processing</h4>
+              <p className="text-gray-600 text-sm leading-relaxed">
+                Process multiple documents simultaneously with intelligent
+                organization
+              </p>
+            </div>
+
+            <div className="group text-center">
+              <div className="w-16 h-16 bg-gradient-to-br from-blue-400 to-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform duration-200 shadow-lg">
+                <Wand2 className="w-8 h-8 text-white" />
+              </div>
+              <h4 className="font-bold text-gray-900 mb-2">
+                Auto Optimization
+              </h4>
+              <p className="text-gray-600 text-sm leading-relaxed">
+                Automatic deskewing, noise reduction, and contrast adjustment
+              </p>
+            </div>
+
+            <div className="group text-center">
+              <div className="w-16 h-16 bg-gradient-to-br from-purple-400 to-purple-600 rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform duration-200 shadow-lg">
+                <Activity className="w-8 h-8 text-white" />
+              </div>
+              <h4 className="font-bold text-gray-900 mb-2">Quality Analysis</h4>
+              <p className="text-gray-600 text-sm leading-relaxed">
+                Real-time quality metrics and enhancement recommendations
+              </p>
+            </div>
+
+            <div className="group text-center">
+              <div className="w-16 h-16 bg-gradient-to-br from-orange-400 to-orange-600 rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform duration-200 shadow-lg">
+                <Scan className="w-8 h-8 text-white" />
+              </div>
+              <h4 className="font-bold text-gray-900 mb-2">OCR Integration</h4>
+              <p className="text-gray-600 text-sm leading-relaxed">
+                Optional text recognition for searchable PDF creation
+              </p>
+            </div>
+
+            <div className="group text-center">
+              <div className="w-16 h-16 bg-gradient-to-br from-pink-400 to-pink-600 rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform duration-200 shadow-lg">
+                <Layout className="w-8 h-8 text-white" />
+              </div>
+              <h4 className="font-bold text-gray-900 mb-2">
+                Format Flexibility
+              </h4>
+              <p className="text-gray-600 text-sm leading-relaxed">
+                Multiple page sizes, orientations, and compression options
+              </p>
+            </div>
+
+            <div className="group text-center">
+              <div className="w-16 h-16 bg-gradient-to-br from-red-400 to-red-600 rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform duration-200 shadow-lg">
+                <Zap className="w-8 h-8 text-white" />
+              </div>
+              <h4 className="font-bold text-gray-900 mb-2">Lightning Fast</h4>
+              <p className="text-gray-600 text-sm leading-relaxed">
+                High-speed processing with real-time preview and instant
+                feedback
+              </p>
+            </div>
           </div>
         </div>
       </div>

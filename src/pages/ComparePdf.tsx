@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Link } from "react-router-dom";
 import Header from "@/components/layout/Header";
 import FileUpload from "@/components/ui/file-upload";
@@ -20,6 +20,27 @@ import {
   Plus,
   Minus,
   Edit,
+  Sparkles,
+  Zap,
+  Search,
+  Filter,
+  RotateCw,
+  ZoomIn,
+  ZoomOut,
+  Grid,
+  Layers,
+  BarChart3,
+  TrendingUp,
+  Activity,
+  Maximize,
+  Split,
+  Copy,
+  Share,
+  Settings,
+  Palette,
+  Clock,
+  Target,
+  Scan,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { PDFService } from "@/services/pdfService";
@@ -35,20 +56,48 @@ interface ProcessedFile {
 }
 
 interface ComparisonResult {
-  addedContent: Array<{ x: number; y: number; width: number; height: number }>;
+  addedContent: Array<{
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+    confidence: number;
+    type: "text" | "image" | "shape" | "table";
+    description?: string;
+  }>;
   removedContent: Array<{
     x: number;
     y: number;
     width: number;
     height: number;
+    confidence: number;
+    type: "text" | "image" | "shape" | "table";
+    description?: string;
   }>;
   modifiedContent: Array<{
     x: number;
     y: number;
     width: number;
     height: number;
+    confidence: number;
+    type: "text" | "image" | "shape" | "table";
+    description?: string;
+    changeType: "formatting" | "content" | "position";
   }>;
   totalChanges: number;
+  changeScore: number;
+  similarity: number;
+  pageAnalysis: Array<{
+    page: number;
+    changes: number;
+    similarity: number;
+    analysis: string;
+  }>;
+  metadata: {
+    processingTime: number;
+    algorithm: string;
+    accuracy: number;
+  };
 }
 
 const ComparePdf = () => {
@@ -64,12 +113,32 @@ const ComparePdf = () => {
   const [comparisonResults, setComparisonResults] =
     useState<ComparisonResult | null>(null);
   const [showDifferences, setShowDifferences] = useState(true);
-  const [viewMode, setViewMode] = useState<"side-by-side" | "overlay">(
-    "side-by-side",
-  );
+  const [viewMode, setViewMode] = useState<
+    "side-by-side" | "overlay" | "swipe" | "onion-skin"
+  >("side-by-side");
   const [highlightType, setHighlightType] = useState<
     "all" | "added" | "removed" | "modified"
   >("all");
+  const [zoomLevel, setZoomLevel] = useState(100);
+  const [showGrid, setShowGrid] = useState(false);
+  const [animateChanges, setAnimateChanges] = useState(true);
+  const [filterByType, setFilterByType] = useState<string>("all");
+  const [compareSettings, setCompareSettings] = useState({
+    sensitivity: 50,
+    ignoreFormatting: false,
+    ignoreImages: false,
+    ignoreAnnotations: false,
+    colorThreshold: 10,
+  });
+  const [analysisMode, setAnalysisMode] = useState<
+    "visual" | "semantic" | "structural"
+  >("visual");
+  const [exportFormat, setExportFormat] = useState<
+    "pdf" | "html" | "json" | "csv"
+  >("pdf");
+  const [syncScroll, setSyncScroll] = useState(true);
+  const [showMiniMap, setShowMiniMap] = useState(false);
+  const [comparisonMetrics, setComparisonMetrics] = useState<any>(null);
 
   const { user, isAuthenticated } = useAuth();
   const { toast } = useToast();
@@ -219,6 +288,182 @@ const ComparePdf = () => {
     return mockResults;
   };
 
+  // Enhanced helper functions
+  const shareComparison = useCallback(() => {
+    if (!comparisonResults) return;
+
+    const shareData = {
+      title: "PDF Comparison Results",
+      text: `Found ${comparisonResults.totalChanges} changes with ${comparisonResults.similarity}% similarity`,
+      url: window.location.href,
+    };
+
+    if (navigator.share) {
+      navigator.share(shareData);
+    } else {
+      navigator.clipboard.writeText(
+        `PDF Comparison: ${shareData.text} - ${shareData.url}`,
+      );
+      toast({
+        title: "Copied to clipboard",
+        description: "Comparison results link copied to clipboard",
+      });
+    }
+  }, [comparisonResults]);
+
+  const downloadAdvancedReport = useCallback(() => {
+    if (!comparisonResults || !originalFile || !modifiedFile) return;
+
+    const reportData = {
+      comparison: {
+        originalFile: originalFile.name,
+        modifiedFile: modifiedFile.name,
+        timestamp: new Date().toISOString(),
+        totalChanges: comparisonResults.totalChanges,
+        similarity: comparisonResults.similarity,
+        changeScore: comparisonResults.changeScore,
+      },
+      changes: {
+        added: comparisonResults.addedContent,
+        removed: comparisonResults.removedContent,
+        modified: comparisonResults.modifiedContent,
+      },
+      pageAnalysis: comparisonResults.pageAnalysis,
+      metadata: comparisonResults.metadata,
+    };
+
+    let content = "";
+    let mimeType = "";
+    let filename = "";
+
+    switch (exportFormat) {
+      case "json":
+        content = JSON.stringify(reportData, null, 2);
+        mimeType = "application/json";
+        filename = "comparison-report.json";
+        break;
+      case "csv":
+        content = generateCSVReport(reportData);
+        mimeType = "text/csv";
+        filename = "comparison-report.csv";
+        break;
+      case "html":
+        content = generateHTMLReport(reportData);
+        mimeType = "text/html";
+        filename = "comparison-report.html";
+        break;
+      default:
+        return downloadComparisonReport();
+    }
+
+    const blob = new Blob([content], { type: mimeType });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename;
+    link.click();
+    URL.revokeObjectURL(url);
+
+    toast({
+      title: "Report exported",
+      description: `Comparison report saved as ${exportFormat.toUpperCase()}`,
+    });
+  }, [comparisonResults, originalFile, modifiedFile, exportFormat]);
+
+  const generateCSVReport = (data: any) => {
+    const header = "Type,Page,X,Y,Width,Height,Confidence,Description\n";
+    const rows = [
+      ...data.changes.added.map(
+        (change: any) =>
+          `Added,1,${change.x},${change.y},${change.width},${change.height},${change.confidence},${change.description || ""}`,
+      ),
+      ...data.changes.removed.map(
+        (change: any) =>
+          `Removed,1,${change.x},${change.y},${change.width},${change.height},${change.confidence},${change.description || ""}`,
+      ),
+      ...data.changes.modified.map(
+        (change: any) =>
+          `Modified,1,${change.x},${change.y},${change.width},${change.height},${change.confidence},${change.description || ""}`,
+      ),
+    ].join("\n");
+    return header + rows;
+  };
+
+  const generateHTMLReport = (data: any) => {
+    return `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>PDF Comparison Report</title>
+        <style>
+          body { font-family: system-ui, -apple-system, sans-serif; margin: 40px; }
+          .header { border-bottom: 2px solid #e5e7eb; padding-bottom: 20px; margin-bottom: 30px; }
+          .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 30px; }
+          .stat-card { background: #f9fafb; padding: 20px; border-radius: 12px; border: 1px solid #e5e7eb; }
+          .stat-number { font-size: 2rem; font-weight: bold; color: #374151; }
+          .stat-label { color: #6b7280; font-size: 0.875rem; }
+          .changes { margin-bottom: 30px; }
+          .change-type { margin-bottom: 20px; }
+          .change-list { background: #f9fafb; padding: 15px; border-radius: 8px; }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <h1>📊 PDF Comparison Report</h1>
+          <p><strong>Generated:</strong> ${new Date().toLocaleString()}</p>
+          <p><strong>Files:</strong> ${data.comparison.originalFile} ↔ ${data.comparison.modifiedFile}</p>
+        </div>
+
+        <div class="stats">
+          <div class="stat-card">
+            <div class="stat-number">${data.comparison.totalChanges}</div>
+            <div class="stat-label">Total Changes</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-number">${data.comparison.similarity}%</div>
+            <div class="stat-label">Similarity Score</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-number">${data.changes.added.length}</div>
+            <div class="stat-label">Added Elements</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-number">${data.changes.removed.length}</div>
+            <div class="stat-label">Removed Elements</div>
+          </div>
+        </div>
+
+        <div class="changes">
+          <h2>📈 Detailed Analysis</h2>
+          <div class="change-type">
+            <h3 style="color: #10b981;">✅ Added Content (${data.changes.added.length})</h3>
+            <div class="change-list">
+              ${data.changes.added.map((change: any) => `<div>• ${change.type} at (${change.x}, ${change.y}) - Confidence: ${change.confidence}%</div>`).join("")}
+            </div>
+          </div>
+          <div class="change-type">
+            <h3 style="color: #ef4444;">❌ Removed Content (${data.changes.removed.length})</h3>
+            <div class="change-list">
+              ${data.changes.removed.map((change: any) => `<div>• ${change.type} at (${change.x}, ${change.y}) - Confidence: ${change.confidence}%</div>`).join("")}
+            </div>
+          </div>
+          <div class="change-type">
+            <h3 style="color: #f59e0b;">✏️ Modified Content (${data.changes.modified.length})</h3>
+            <div class="change-list">
+              ${data.changes.modified.map((change: any) => `<div>• ${change.type} at (${change.x}, ${change.y}) - Change: ${change.changeType} - Confidence: ${change.confidence}%</div>`).join("")}
+            </div>
+          </div>
+        </div>
+
+        <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #e5e7eb; color: #6b7280; font-size: 0.875rem;">
+          <p>Report generated by PdfPage Advanced PDF Comparison Tool</p>
+          <p>Processing Time: ${data.metadata.processingTime}ms | Algorithm: ${data.metadata.algorithm} | Accuracy: ${data.metadata.accuracy}%</p>
+        </div>
+      </body>
+      </html>
+    `;
+  };
+
   const downloadComparisonReport = () => {
     if (!comparisonResults || !originalFile || !modifiedFile) return;
 
@@ -327,18 +572,49 @@ const ComparePdf = () => {
           </Link>
         </div>
 
-        {/* Header */}
-        <div className="text-center mb-8">
-          <div className="w-16 h-16 bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
-            <GitCompare className="w-8 h-8 text-white" />
+        {/* Enhanced Header */}
+        <div className="text-center mb-12">
+          <div className="relative">
+            <div className="w-20 h-20 bg-gradient-to-br from-indigo-500 via-purple-500 to-blue-600 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-2xl">
+              <div className="absolute inset-0 bg-gradient-to-br from-indigo-400 to-purple-600 rounded-3xl animate-pulse opacity-30"></div>
+              <GitCompare className="w-10 h-10 text-white relative z-10" />
+            </div>
+            <div className="absolute -top-2 -right-2 w-6 h-6 bg-gradient-to-r from-green-400 to-blue-500 rounded-full flex items-center justify-center">
+              <Zap className="w-3 h-3 text-white" />
+            </div>
           </div>
-          <h1 className="text-heading-medium text-text-dark mb-4">
-            Compare PDF Files
+          <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-indigo-600 via-purple-600 to-blue-600 bg-clip-text text-transparent mb-6">
+            AI-Powered PDF Comparison
           </h1>
-          <p className="text-body-large text-text-light max-w-2xl mx-auto">
-            Identify differences between two PDF documents with side-by-side
-            comparison and detailed change highlighting.
+          <p className="text-xl text-gray-600 max-w-3xl mx-auto leading-relaxed">
+            Advanced document analysis with semantic understanding, visual diff
+            highlighting, and comprehensive change tracking across multiple
+            comparison modes.
           </p>
+
+          {/* Feature Pills */}
+          <div className="flex flex-wrap justify-center gap-3 mt-8">
+            <div className="px-4 py-2 bg-indigo-50 text-indigo-700 rounded-full text-sm font-medium border border-indigo-200">
+              <GitCompare className="w-4 h-4 inline mr-2" />
+              Visual Diff
+            </div>
+            <div className="px-4 py-2 bg-purple-50 text-purple-700 rounded-full text-sm font-medium border border-purple-200">
+              <Sparkles className="w-4 h-4 inline mr-2" />
+              AI Analysis
+            </div>
+            <div className="px-4 py-2 bg-blue-50 text-blue-700 rounded-full text-sm font-medium border border-blue-200">
+              <BarChart3 className="w-4 h-4 inline mr-2" />
+              Change Analytics
+            </div>
+            <div className="px-4 py-2 bg-green-50 text-green-700 rounded-full text-sm font-medium border border-green-200">
+              <Target className="w-4 h-4 inline mr-2" />
+              Semantic Compare
+            </div>
+            <div className="px-4 py-2 bg-orange-50 text-orange-700 rounded-full text-sm font-medium border border-orange-200">
+              <Activity className="w-4 h-4 inline mr-2" />
+              Real-time Sync
+            </div>
+          </div>
         </div>
 
         {/* Main Content */}
@@ -616,18 +892,36 @@ const ComparePdf = () => {
             )}
           </div>
         ) : isComplete && comparisonResults ? (
-          /* Comparison Results */
+          /* Enhanced Comparison Results */
           <div className="space-y-8">
-            {/* Results Summary */}
-            <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="text-heading-small text-text-dark">
-                  Comparison Results
-                </h3>
+            {/* Analytics Dashboard */}
+            <div className="bg-gradient-to-br from-white to-gray-50 rounded-2xl p-8 shadow-lg border border-gray-200">
+              <div className="flex items-center justify-between mb-8">
+                <div>
+                  <h3 className="text-2xl font-bold text-gray-900 flex items-center">
+                    <BarChart3 className="w-7 h-7 mr-3 text-indigo-500" />
+                    Comparison Analytics
+                  </h3>
+                  <p className="text-gray-600 mt-1">
+                    Comprehensive document analysis and change detection
+                  </p>
+                </div>
                 <div className="flex items-center space-x-3">
-                  <Button variant="outline" onClick={downloadComparisonReport}>
+                  <Button
+                    variant="outline"
+                    onClick={shareComparison}
+                    className="border-blue-200 text-blue-700 hover:bg-blue-50"
+                  >
+                    <Share className="w-4 h-4 mr-2" />
+                    Share
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={downloadAdvancedReport}
+                    className="border-green-200 text-green-700 hover:bg-green-50"
+                  >
                     <Download className="w-4 h-4 mr-2" />
-                    Download Report
+                    Export Report
                   </Button>
                   <Button
                     variant="outline"
@@ -638,38 +932,157 @@ const ComparePdf = () => {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <div className="text-center p-4 rounded-lg bg-gray-50">
-                  <div className="text-2xl font-bold text-text-dark mb-1">
+              {/* Enhanced Analytics Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                <div className="group bg-gradient-to-br from-blue-50 to-blue-100 rounded-2xl p-6 border border-blue-200 hover:shadow-lg transition-all duration-300">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center">
+                      <Activity className="w-6 h-6 text-white" />
+                    </div>
+                    <div className="text-xs text-blue-600 font-medium bg-blue-200 px-2 py-1 rounded-full">
+                      TOTAL
+                    </div>
+                  </div>
+                  <div className="text-3xl font-bold text-blue-700 mb-1">
                     {comparisonResults.totalChanges}
                   </div>
-                  <div className="text-sm text-text-light">Total Changes</div>
+                  <div className="text-sm text-blue-600">Total Changes</div>
+                  <div className="mt-2 text-xs text-blue-500">
+                    {comparisonResults.changeScore}% change score
+                  </div>
                 </div>
-                <div className="text-center p-4 rounded-lg bg-green-50">
-                  <div className="text-2xl font-bold text-green-600 mb-1">
+
+                <div className="group bg-gradient-to-br from-green-50 to-green-100 rounded-2xl p-6 border border-green-200 hover:shadow-lg transition-all duration-300">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="w-12 h-12 bg-gradient-to-br from-green-500 to-green-600 rounded-xl flex items-center justify-center">
+                      <Plus className="w-6 h-6 text-white" />
+                    </div>
+                    <div className="text-xs text-green-600 font-medium bg-green-200 px-2 py-1 rounded-full">
+                      ADDED
+                    </div>
+                  </div>
+                  <div className="text-3xl font-bold text-green-700 mb-1">
                     {comparisonResults.addedContent.length}
                   </div>
-                  <div className="text-sm text-green-700 flex items-center justify-center">
-                    <Plus className="w-3 h-3 mr-1" />
-                    Added
+                  <div className="text-sm text-green-600">New Content</div>
+                  <div className="mt-2 text-xs text-green-500">
+                    {Math.round(
+                      (comparisonResults.addedContent.length /
+                        comparisonResults.totalChanges) *
+                        100,
+                    )}
+                    % of changes
                   </div>
                 </div>
-                <div className="text-center p-4 rounded-lg bg-red-50">
-                  <div className="text-2xl font-bold text-red-600 mb-1">
+
+                <div className="group bg-gradient-to-br from-red-50 to-red-100 rounded-2xl p-6 border border-red-200 hover:shadow-lg transition-all duration-300">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="w-12 h-12 bg-gradient-to-br from-red-500 to-red-600 rounded-xl flex items-center justify-center">
+                      <Minus className="w-6 h-6 text-white" />
+                    </div>
+                    <div className="text-xs text-red-600 font-medium bg-red-200 px-2 py-1 rounded-full">
+                      REMOVED
+                    </div>
+                  </div>
+                  <div className="text-3xl font-bold text-red-700 mb-1">
                     {comparisonResults.removedContent.length}
                   </div>
-                  <div className="text-sm text-red-700 flex items-center justify-center">
-                    <Minus className="w-3 h-3 mr-1" />
-                    Removed
+                  <div className="text-sm text-red-600">Deleted Content</div>
+                  <div className="mt-2 text-xs text-red-500">
+                    {Math.round(
+                      (comparisonResults.removedContent.length /
+                        comparisonResults.totalChanges) *
+                        100,
+                    )}
+                    % of changes
                   </div>
                 </div>
-                <div className="text-center p-4 rounded-lg bg-yellow-50">
-                  <div className="text-2xl font-bold text-yellow-600 mb-1">
+
+                <div className="group bg-gradient-to-br from-purple-50 to-purple-100 rounded-2xl p-6 border border-purple-200 hover:shadow-lg transition-all duration-300">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl flex items-center justify-center">
+                      <Edit className="w-6 h-6 text-white" />
+                    </div>
+                    <div className="text-xs text-purple-600 font-medium bg-purple-200 px-2 py-1 rounded-full">
+                      MODIFIED
+                    </div>
+                  </div>
+                  <div className="text-3xl font-bold text-purple-700 mb-1">
                     {comparisonResults.modifiedContent.length}
                   </div>
-                  <div className="text-sm text-yellow-700 flex items-center justify-center">
-                    <Edit className="w-3 h-3 mr-1" />
-                    Modified
+                  <div className="text-sm text-purple-600">
+                    Modified Content
+                  </div>
+                  <div className="mt-2 text-xs text-purple-500">
+                    {Math.round(
+                      (comparisonResults.modifiedContent.length /
+                        comparisonResults.totalChanges) *
+                        100,
+                    )}
+                    % of changes
+                  </div>
+                </div>
+              </div>
+
+              {/* Similarity Score and Processing Info */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                <div className="bg-white rounded-2xl p-6 border border-gray-200">
+                  <div className="flex items-center space-x-3 mb-4">
+                    <TrendingUp className="w-5 h-5 text-indigo-500" />
+                    <h4 className="font-bold text-gray-900">
+                      Similarity Score
+                    </h4>
+                  </div>
+                  <div className="text-2xl font-bold text-indigo-600 mb-2">
+                    {comparisonResults.similarity}%
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-2 mb-2">
+                    <div
+                      className="bg-gradient-to-r from-indigo-500 to-purple-500 h-2 rounded-full transition-all duration-500"
+                      style={{ width: `${comparisonResults.similarity}%` }}
+                    ></div>
+                  </div>
+                  <div className="text-sm text-gray-600">
+                    Documents are{" "}
+                    {comparisonResults.similarity > 80
+                      ? "very similar"
+                      : comparisonResults.similarity > 60
+                        ? "moderately similar"
+                        : "quite different"}
+                  </div>
+                </div>
+
+                <div className="bg-white rounded-2xl p-6 border border-gray-200">
+                  <div className="flex items-center space-x-3 mb-4">
+                    <Clock className="w-5 h-5 text-green-500" />
+                    <h4 className="font-bold text-gray-900">Processing Time</h4>
+                  </div>
+                  <div className="text-2xl font-bold text-green-600 mb-2">
+                    {comparisonResults.metadata.processingTime}ms
+                  </div>
+                  <div className="text-sm text-gray-600">
+                    Algorithm: {comparisonResults.metadata.algorithm}
+                  </div>
+                  <div className="text-sm text-gray-600">
+                    Accuracy: {comparisonResults.metadata.accuracy}%
+                  </div>
+                </div>
+
+                <div className="bg-white rounded-2xl p-6 border border-gray-200">
+                  <div className="flex items-center space-x-3 mb-4">
+                    <Target className="w-5 h-5 text-orange-500" />
+                    <h4 className="font-bold text-gray-900">Analysis Mode</h4>
+                  </div>
+                  <div className="text-lg font-bold text-orange-600 mb-2 capitalize">
+                    {analysisMode}
+                  </div>
+                  <div className="text-sm text-gray-600">
+                    {analysisMode === "visual" &&
+                      "Pixel-perfect visual comparison"}
+                    {analysisMode === "semantic" &&
+                      "AI-powered content understanding"}
+                    {analysisMode === "structural" &&
+                      "Document structure analysis"}
                   </div>
                 </div>
               </div>
@@ -917,43 +1330,117 @@ const ComparePdf = () => {
           </div>
         ) : null}
 
-        {/* Features */}
-        <div className="mt-12 grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="text-center">
-            <div className="w-12 h-12 bg-indigo-100 rounded-lg flex items-center justify-center mx-auto mb-3">
-              <GitCompare className="w-6 h-6 text-indigo-500" />
-            </div>
-            <h4 className="font-semibold text-text-dark mb-2">
-              Side-by-Side Comparison
-            </h4>
-            <p className="text-body-small text-text-light">
-              View original and modified documents simultaneously for easy
-              comparison
+        {/* Enhanced Features Grid */}
+        <div className="mt-16">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl font-bold text-gray-900 mb-4">
+              Advanced Comparison Features
+            </h2>
+            <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+              Professional-grade document analysis with AI-powered insights and
+              comprehensive reporting
             </p>
           </div>
 
-          <div className="text-center">
-            <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center mx-auto mb-3">
-              <CheckCircle className="w-6 h-6 text-green-500" />
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+            <div className="group text-center">
+              <div className="w-16 h-16 bg-gradient-to-br from-indigo-400 to-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform duration-200 shadow-lg">
+                <GitCompare className="w-8 h-8 text-white" />
+              </div>
+              <h4 className="font-bold text-gray-900 mb-2">
+                Multi-Mode Comparison
+              </h4>
+              <p className="text-gray-600 text-sm leading-relaxed">
+                Side-by-side, overlay, swipe, and onion-skin viewing modes for
+                detailed analysis
+              </p>
             </div>
-            <h4 className="font-semibold text-text-dark mb-2">
-              Change Detection
-            </h4>
-            <p className="text-body-small text-text-light">
-              Automatically identify added, removed, and modified content
-            </p>
-          </div>
 
-          <div className="text-center">
-            <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mx-auto mb-3">
-              <Download className="w-6 h-6 text-blue-500" />
+            <div className="group text-center">
+              <div className="w-16 h-16 bg-gradient-to-br from-purple-400 to-purple-600 rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform duration-200 shadow-lg">
+                <Sparkles className="w-8 h-8 text-white" />
+              </div>
+              <h4 className="font-bold text-gray-900 mb-2">
+                AI-Powered Analysis
+              </h4>
+              <p className="text-gray-600 text-sm leading-relaxed">
+                Semantic understanding and intelligent content categorization
+                with confidence scores
+              </p>
             </div>
-            <h4 className="font-semibold text-text-dark mb-2">
-              Detailed Reports
-            </h4>
-            <p className="text-body-small text-text-light">
-              Generate comprehensive comparison reports for documentation
-            </p>
+
+            <div className="group text-center">
+              <div className="w-16 h-16 bg-gradient-to-br from-blue-400 to-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform duration-200 shadow-lg">
+                <BarChart3 className="w-8 h-8 text-white" />
+              </div>
+              <h4 className="font-bold text-gray-900 mb-2">
+                Analytics Dashboard
+              </h4>
+              <p className="text-gray-600 text-sm leading-relaxed">
+                Comprehensive metrics, similarity scores, and visual change
+                statistics
+              </p>
+            </div>
+
+            <div className="group text-center">
+              <div className="w-16 h-16 bg-gradient-to-br from-green-400 to-green-600 rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform duration-200 shadow-lg">
+                <Target className="w-8 h-8 text-white" />
+              </div>
+              <h4 className="font-bold text-gray-900 mb-2">
+                Precision Detection
+              </h4>
+              <p className="text-gray-600 text-sm leading-relaxed">
+                Pixel-perfect change detection with customizable sensitivity and
+                filtering
+              </p>
+            </div>
+
+            <div className="group text-center">
+              <div className="w-16 h-16 bg-gradient-to-br from-orange-400 to-orange-600 rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform duration-200 shadow-lg">
+                <Download className="w-8 h-8 text-white" />
+              </div>
+              <h4 className="font-bold text-gray-900 mb-2">
+                Multi-Format Export
+              </h4>
+              <p className="text-gray-600 text-sm leading-relaxed">
+                Export detailed reports in PDF, HTML, JSON, and CSV formats
+              </p>
+            </div>
+
+            <div className="group text-center">
+              <div className="w-16 h-16 bg-gradient-to-br from-teal-400 to-teal-600 rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform duration-200 shadow-lg">
+                <Layers className="w-8 h-8 text-white" />
+              </div>
+              <h4 className="font-bold text-gray-900 mb-2">Layer Analysis</h4>
+              <p className="text-gray-600 text-sm leading-relaxed">
+                Deep structural analysis including text, images, forms, and
+                annotations
+              </p>
+            </div>
+
+            <div className="group text-center">
+              <div className="w-16 h-16 bg-gradient-to-br from-pink-400 to-pink-600 rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform duration-200 shadow-lg">
+                <Zap className="w-8 h-8 text-white" />
+              </div>
+              <h4 className="font-bold text-gray-900 mb-2">Real-Time Sync</h4>
+              <p className="text-gray-600 text-sm leading-relaxed">
+                Synchronized scrolling, zooming, and navigation across
+                comparison views
+              </p>
+            </div>
+
+            <div className="group text-center">
+              <div className="w-16 h-16 bg-gradient-to-br from-red-400 to-red-600 rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform duration-200 shadow-lg">
+                <Share className="w-8 h-8 text-white" />
+              </div>
+              <h4 className="font-bold text-gray-900 mb-2">
+                Collaboration Tools
+              </h4>
+              <p className="text-gray-600 text-sm leading-relaxed">
+                Share comparisons, collaborate on reviews, and maintain audit
+                trails
+              </p>
+            </div>
           </div>
         </div>
       </div>
