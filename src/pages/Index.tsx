@@ -582,8 +582,106 @@ const Index = () => {
         </div>
       </section>
 
-      {/* Ad Section */}
-      <section className="py-12">
+      {/* Favicon Tools Promotion Section */}
+      <section className="py-20 bg-gradient-to-br from-purple-50 to-pink-100">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-12">
+            <Badge className="mb-6 bg-purple-600/10 text-purple-600 border-purple-600/20 text-sm px-4 py-2">
+              🌟 NEW: Professional Favicon Generator
+            </Badge>
+            <h2 className="text-4xl lg:text-5xl font-bold text-gray-900 mb-6">
+              Create Perfect Favicons
+            </h2>
+            <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+              Generate professional favicon files from images, text, emojis, or
+              logos. Get all sizes for web, iOS, and Android with one click.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+            <div className="relative">
+              <div className="bg-white p-8 rounded-2xl shadow-xl">
+                <div className="flex items-center justify-center mb-6">
+                  <div className="bg-gradient-to-r from-purple-600 to-blue-600 p-4 rounded-2xl">
+                    <Globe className="w-12 h-12 text-white" />
+                  </div>
+                </div>
+                <h3 className="text-2xl font-bold text-gray-900 text-center mb-4">
+                  Complete Favicon Package
+                </h3>
+                <div className="space-y-3">
+                  {[
+                    "Image to favicon conversion",
+                    "Text to favicon generator",
+                    "Emoji to favicon creator",
+                    "Logo optimization",
+                    "All platform sizes (8 formats)",
+                    "PWA manifest generation",
+                    "HTML code included",
+                    "Instant batch download",
+                  ].map((feature, index) => (
+                    <div key={index} className="flex items-center">
+                      <CheckCircle className="w-5 h-5 text-green-500 mr-3 flex-shrink-0" />
+                      <span className="text-gray-700">{feature}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <div className="grid grid-cols-2 gap-4 mb-8">
+                {[
+                  { icon: "🖼️", title: "From Image", desc: "Upload any image" },
+                  {
+                    icon: "✍️",
+                    title: "From Text",
+                    desc: "Custom fonts & colors",
+                  },
+                  { icon: "😀", title: "From Emoji", desc: "Fun & creative" },
+                  { icon: "⭐", title: "From Logo", desc: "Professional look" },
+                ].map((tool, index) => (
+                  <div
+                    key={index}
+                    className="bg-white p-4 rounded-xl shadow-sm text-center"
+                  >
+                    <div className="text-2xl mb-2">{tool.icon}</div>
+                    <h3 className="font-semibold text-gray-900">
+                      {tool.title}
+                    </h3>
+                    <p className="text-sm text-gray-600">{tool.desc}</p>
+                  </div>
+                ))}
+              </div>
+
+              <div className="flex flex-col sm:flex-row gap-3">
+                <Link to="/favicon">
+                  <Button
+                    size="lg"
+                    className="bg-purple-600 hover:bg-purple-700 text-white"
+                  >
+                    <Globe className="w-5 h-5 mr-2" />
+                    Explore Favicon Tools
+                  </Button>
+                </Link>
+                <Link to="/img/favicon">
+                  <Button
+                    size="lg"
+                    variant="outline"
+                    className="border-purple-600 text-purple-600 hover:bg-purple-50"
+                  >
+                    <Sparkles className="w-5 h-5 mr-2" />
+                    Start Creating
+                  </Button>
+                </Link>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* CTA Section */}
+      <section className="py-12 bg-gray-100">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <AdSense
             adSlot="1234567890"

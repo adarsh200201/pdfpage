@@ -26,7 +26,7 @@ import {
 import { convertImageFormat } from "../services/imageService";
 import { useToast } from "../hooks/use-toast";
 import { useAuth } from "../contexts/AuthContext";
-import { trackUsage } from "../services/usageService";
+import { UsageService } from "../services/usageService";
 import {
   Upload,
   Download,
@@ -332,7 +332,11 @@ export default function ImgConvert() {
       }
 
       if (user) {
-        await trackUsage(user.uid, "imgConvert", pendingJobs.length);
+        const totalSize = pendingJobs.reduce(
+          (sum, job) => sum + job.file.size,
+          0,
+        );
+        await UsageService.trackUsage("imgConvert", totalSize);
       }
 
       toast({

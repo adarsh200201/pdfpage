@@ -150,12 +150,12 @@ const ImgHeader = () => {
               {t("img.backToPdfPage")}
             </Link>
 
-            {/* Get Premium */}
+            {/* Favicon Generator */}
             <Link
-              to="/pricing"
-              className="text-body-medium text-text-medium hover:text-blue-600 transition-colors duration-200"
+              to="/favicon"
+              className="text-body-medium text-text-medium hover:text-purple-600 transition-colors duration-200"
             >
-              {t("nav.getPremium")}
+              Favicon Generator
             </Link>
           </nav>
 

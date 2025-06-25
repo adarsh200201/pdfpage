@@ -27,7 +27,7 @@ import { Textarea } from "../components/ui/textarea";
 import { generateMeme } from "../services/imageService";
 import { useToast } from "../hooks/use-toast";
 import { useAuth } from "../contexts/AuthContext";
-import { trackUsage } from "../services/usageService";
+import { UsageService } from "../services/usageService";
 import {
   Upload,
   Download,
@@ -318,7 +318,8 @@ export default function ImgMeme() {
       setProgress(100);
 
       if (user) {
-        await trackUsage(user.uid, "imgMeme", 1);
+        const fileSize = selectedFile?.size || 0;
+        await UsageService.trackUsage("imgMeme", fileSize);
       }
 
       toast({

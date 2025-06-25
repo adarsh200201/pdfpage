@@ -26,7 +26,7 @@ import {
 import { cropImage } from "../services/imageService";
 import { useToast } from "../hooks/use-toast";
 import { useAuth } from "../contexts/AuthContext";
-import { trackUsage } from "../services/usageService";
+import { UsageService } from "../services/usageService";
 import {
   Upload,
   Download,
@@ -198,7 +198,7 @@ export default function ImgCrop() {
       setProgress(100);
 
       if (user) {
-        await trackUsage(user.uid, "imgCrop", 1);
+        await UsageService.trackUsage("imgCrop", selectedFile.size);
       }
 
       toast({

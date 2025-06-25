@@ -26,7 +26,7 @@ import {
 import { upscaleImage } from "../services/imageService";
 import { useToast } from "../hooks/use-toast";
 import { useAuth } from "../contexts/AuthContext";
-import { trackUsage } from "../services/usageService";
+import { UsageService } from "../services/usageService";
 import {
   Upload,
   Download,
@@ -263,7 +263,7 @@ export default function ImgUpscale() {
       setProcessingTime(Math.round((endTime - startTime) / 1000));
 
       if (user) {
-        await trackUsage(user.uid, "imgUpscale", 1);
+        await UsageService.trackUsage("imgUpscale", selectedFile.size);
       }
 
       toast({

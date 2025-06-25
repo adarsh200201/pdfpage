@@ -26,7 +26,7 @@ import {
 import { convertImagesToPDF } from "../services/imageService";
 import { useToast } from "../hooks/use-toast";
 import { useAuth } from "../contexts/AuthContext";
-import { trackUsage } from "../services/usageService";
+import { UsageService } from "../services/usageService";
 import {
   Upload,
   Download,
@@ -253,7 +253,8 @@ export default function ImgToPdf() {
       URL.revokeObjectURL(url);
 
       if (user) {
-        await trackUsage(user.uid, "imgToPdf", images.length);
+        const totalSize = images.reduce((sum, img) => sum + img.file.size, 0);
+        await UsageService.trackUsage("imgToPdf", totalSize);
       }
 
       toast({

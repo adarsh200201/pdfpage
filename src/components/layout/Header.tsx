@@ -330,12 +330,12 @@ const Header = () => {
               <ChevronDown className="w-4 h-4 ml-1" />
             </button>
 
-            {/* Get Premium */}
+            {/* Favicon Generator */}
             <Link
-              to="/pricing"
-              className="text-body-medium text-text-medium hover:text-brand-red transition-colors duration-200"
+              to="/favicon"
+              className="text-body-medium text-text-medium hover:text-purple-600 transition-colors duration-200"
             >
-              Get Premium
+              Favicon Generator
             </Link>
           </nav>
 

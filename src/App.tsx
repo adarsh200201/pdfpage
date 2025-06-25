@@ -16,6 +16,8 @@ import ImgJpgToPng from "./pages/ImgJpgToPng";
 import ImgPngToJpg from "./pages/ImgPngToJpg";
 import ImgWatermark from "./pages/ImgWatermark";
 import ImgRotate from "./pages/ImgRotate";
+import FaviconConverter from "./pages/FaviconConverter";
+import FaviconPage from "./pages/FaviconPage";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import ForgotPassword from "./pages/ForgotPassword";
@@ -126,6 +128,8 @@ const App = () => {
                 <Route path="/img/png-to-jpg" element={<ImgPngToJpg />} />
                 <Route path="/img/watermark" element={<ImgWatermark />} />
                 <Route path="/img/rotate" element={<ImgRotate />} />
+                <Route path="/img/favicon" element={<FaviconConverter />} />
+                <Route path="/favicon" element={<FaviconPage />} />
                 <Route path="/login" element={<Login />} />
                 <Route path="/register" element={<Register />} />
                 <Route path="/forgot-password" element={<ForgotPassword />} />

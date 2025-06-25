@@ -419,6 +419,175 @@ export class ImageService {
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
   }
+
+  // Generate favicon of specific size
+  async generateFavicon(
+    file: File,
+    size: number,
+    format: "png" | "ico" = "png",
+  ): Promise<Blob> {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        const ctx = canvas.getContext("2d");
+
+        if (!ctx) {
+          reject(new Error("Could not get canvas context"));
+          return;
+        }
+
+        canvas.width = size;
+        canvas.height = size;
+
+        // Use high-quality image scaling
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = "high";
+
+        // Clear canvas with transparent background
+        ctx.clearRect(0, 0, size, size);
+
+        // Calculate aspect ratio and positioning for centered, contained image
+        const aspectRatio = img.width / img.height;
+        let drawWidth = size;
+        let drawHeight = size;
+        let offsetX = 0;
+        let offsetY = 0;
+
+        if (aspectRatio > 1) {
+          drawHeight = size / aspectRatio;
+          offsetY = (size - drawHeight) / 2;
+        } else {
+          drawWidth = size * aspectRatio;
+          offsetX = (size - drawWidth) / 2;
+        }
+
+        // Draw the image
+        ctx.drawImage(img, offsetX, offsetY, drawWidth, drawHeight);
+
+        // Convert to blob
+        canvas.toBlob(
+          (blob) => {
+            if (blob) {
+              resolve(blob);
+            } else {
+              reject(new Error("Failed to generate favicon blob"));
+            }
+          },
+          format === "ico" ? "image/png" : "image/png", // ICO will be handled as PNG
+          1,
+        );
+      };
+
+      img.onerror = () => reject(new Error("Failed to load image"));
+      img.src = URL.createObjectURL(file);
+    });
+  }
+
+  // Generate multiple favicon sizes
+  async generateFaviconSet(
+    file: File,
+    sizes: { size: number; name: string; format: "png" | "ico" }[],
+    onProgress?: (progress: number) => void,
+  ): Promise<
+    Array<{
+      size: number;
+      name: string;
+      format: "png" | "ico";
+      blob: Blob;
+      url: string;
+    }>
+  > {
+    const results = [];
+
+    for (let i = 0; i < sizes.length; i++) {
+      const { size, name, format } = sizes[i];
+
+      try {
+        const blob = await this.generateFavicon(file, size, format);
+        const url = URL.createObjectURL(blob);
+
+        results.push({
+          size,
+          name,
+          format,
+          blob,
+          url,
+        });
+
+        if (onProgress) {
+          onProgress(((i + 1) / sizes.length) * 100);
+        }
+      } catch (error) {
+        console.error(`Failed to generate ${name}:`, error);
+        throw error;
+      }
+    }
+
+    return results;
+  }
+
+  // Create ICO file from PNG blob (simplified implementation)
+  async createIcoFile(pngBlob: Blob): Promise<Blob> {
+    // For now, we'll return the PNG blob as-is
+    // In a full implementation, you'd convert to proper ICO format
+    return pngBlob;
+  }
+
+  // Generate web manifest JSON for PWA
+  generateWebManifest(
+    siteName: string,
+    siteDescription: string,
+    themeColor: string = "#000000",
+    backgroundColor: string = "#ffffff",
+  ): string {
+    const manifest = {
+      name: siteName,
+      short_name: siteName,
+      description: siteDescription,
+      theme_color: themeColor,
+      background_color: backgroundColor,
+      display: "standalone",
+      start_url: "/",
+      icons: [
+        {
+          src: "/android-chrome-192x192.png",
+          sizes: "192x192",
+          type: "image/png",
+        },
+        {
+          src: "/android-chrome-512x512.png",
+          sizes: "512x512",
+          type: "image/png",
+        },
+      ],
+    };
+
+    return JSON.stringify(manifest, null, 2);
+  }
+
+  // Generate HTML meta tags for favicons
+  generateFaviconHTML(): string {
+    return `<!-- Favicon -->
+<link rel="icon" type="image/x-icon" href="/favicon.ico">
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+
+<!-- Apple Touch Icon -->
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+
+<!-- Android Chrome -->
+<link rel="icon" type="image/png" sizes="192x192" href="/android-chrome-192x192.png">
+<link rel="icon" type="image/png" sizes="512x512" href="/android-chrome-512x512.png">
+
+<!-- Web App Manifest -->
+<link rel="manifest" href="/site.webmanifest">
+
+<!-- Theme Color -->
+<meta name="theme-color" content="#000000">`;
+  }
 }
 
 export const imageService = ImageService.getInstance();

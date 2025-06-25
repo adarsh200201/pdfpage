@@ -33,6 +33,7 @@ import {
   Globe,
   Heart,
   Layers,
+  Type,
 } from "lucide-react";
 
 // Floating Animation Component
@@ -211,6 +212,15 @@ const ImgPage = () => {
       bgColor: "bg-teal-50",
       category: "convert",
     },
+    {
+      title: "Favicon Generator",
+      description: "Convert images to favicon files for web and mobile",
+      icon: Globe,
+      path: "/img/favicon",
+      color: "text-blue-600",
+      bgColor: "bg-blue-50",
+      category: "convert",
+    },
   ];
 
   const features = [
@@ -386,6 +396,71 @@ const ImgPage = () => {
             style={{ display: "block", textAlign: "center" }}
             responsive={true}
           />
+        </div>
+
+        {/* Favicon Tools Promotion */}
+        <div className="mb-16">
+          <Card className="bg-gradient-to-r from-blue-50 to-purple-50 border-0 shadow-xl overflow-hidden">
+            <CardContent className="p-8">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
+                <div>
+                  <div className="flex items-center gap-2 mb-4">
+                    <Globe className="w-6 h-6 text-blue-600" />
+                    <Badge className="bg-blue-100 text-blue-800">
+                      New Feature
+                    </Badge>
+                  </div>
+                  <h3 className="text-3xl font-bold text-gray-900 mb-4">
+                    Professional Favicon Generator
+                  </h3>
+                  <p className="text-lg text-gray-600 mb-6 leading-relaxed">
+                    Create perfect favicons from images, text, emojis, or logos.
+                    Generate all sizes for web, iOS, and Android with one click.
+                  </p>
+                  <div className="flex flex-col sm:flex-row gap-3">
+                    <Link to="/favicon">
+                      <Button className="bg-blue-600 hover:bg-blue-700">
+                        <Globe className="w-4 h-4 mr-2" />
+                        Explore Favicon Tools
+                      </Button>
+                    </Link>
+                    <Link to="/img/favicon">
+                      <Button variant="outline">
+                        <Sparkles className="w-4 h-4 mr-2" />
+                        Start Creating
+                      </Button>
+                    </Link>
+                  </div>
+                </div>
+                <div className="grid grid-cols-4 gap-4">
+                  <div className="text-center">
+                    <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mb-2 mx-auto">
+                      <ImageIcon className="w-6 h-6 text-blue-600" />
+                    </div>
+                    <span className="text-xs text-gray-600">Image</span>
+                  </div>
+                  <div className="text-center">
+                    <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center mb-2 mx-auto">
+                      <Type className="w-6 h-6 text-green-600" />
+                    </div>
+                    <span className="text-xs text-gray-600">Text</span>
+                  </div>
+                  <div className="text-center">
+                    <div className="w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center mb-2 mx-auto">
+                      <Sparkles className="w-6 h-6 text-yellow-600" />
+                    </div>
+                    <span className="text-xs text-gray-600">Emoji</span>
+                  </div>
+                  <div className="text-center">
+                    <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center mb-2 mx-auto">
+                      <Star className="w-6 h-6 text-purple-600" />
+                    </div>
+                    <span className="text-xs text-gray-600">Logo</span>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </div>
 
         {/* Tools Grid */}

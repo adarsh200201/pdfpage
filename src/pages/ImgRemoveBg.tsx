@@ -26,7 +26,7 @@ import {
 import { removeBackground } from "../services/imageService";
 import { useToast } from "../hooks/use-toast";
 import { useAuth } from "../contexts/AuthContext";
-import { trackUsage } from "../services/usageService";
+import { UsageService } from "../services/usageService";
 import {
   Upload,
   Download,
@@ -233,7 +233,7 @@ export default function ImgRemoveBg() {
       setProgress(100);
 
       if (user) {
-        await trackUsage(user.uid, "imgRemoveBg", 1);
+        await UsageService.trackUsage("imgRemoveBg", selectedFile.size);
       }
 
       toast({
@@ -369,9 +369,9 @@ export default function ImgRemoveBg() {
                               className="absolute inset-0 opacity-20 rounded-lg"
                               style={{
                                 backgroundImage: `
-                                  linear-gradient(45deg, #ccc 25%, transparent 25%), 
-                                  linear-gradient(-45deg, #ccc 25%, transparent 25%), 
-                                  linear-gradient(45deg, transparent 75%, #ccc 75%), 
+                                  linear-gradient(45deg, #ccc 25%, transparent 25%),
+                                  linear-gradient(-45deg, #ccc 25%, transparent 25%),
+                                  linear-gradient(45deg, transparent 75%, #ccc 75%),
                                   linear-gradient(-45deg, transparent 75%, #ccc 75%)
                                 `,
                                 backgroundSize: "20px 20px",
