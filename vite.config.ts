@@ -46,8 +46,14 @@ export default defineConfig(({ mode }) => ({
     },
     rollupOptions: {
       external: (id) => {
-        // Don't bundle PDF.js worker - let it be loaded externally
-        return id.includes("pdf.worker");
+        // Don't bundle PDF.js worker files
+        return id.includes("pdf.worker") || id.includes("pdf.worker.min");
+      },
+      output: {
+        manualChunks: {
+          // Separate chunk for PDF libraries to avoid conflicts
+          "pdf-libs": ["pdfjs-dist", "react-pdf", "pdf-lib"],
+        },
       },
     },
   },
@@ -60,11 +66,17 @@ export default defineConfig(({ mode }) => ({
       "@pdf-lib/upng",
       "react-pdf",
     ],
-    exclude: ["pdfjs-dist/build/pdf.worker.js"],
+    exclude: [
+      "pdfjs-dist/build/pdf.worker.js",
+      "pdfjs-dist/build/pdf.worker.min.js",
+      "pdfjs-dist/build/pdf.worker.mjs",
+      "pdfjs-dist/build/pdf.worker.min.mjs",
+    ],
     esbuildOptions: {
       define: {
         global: "globalThis",
       },
+      target: "es2020",
     },
   },
   worker: {
@@ -74,6 +86,8 @@ export default defineConfig(({ mode }) => ({
   define: {
     // Help PDF.js work better in Vite
     global: "globalThis",
+    // Prevent PDF.js from trying to access undefined properties
+    "process.env.NODE_ENV": JSON.stringify(mode),
   },
   assetsInclude: ["**/*.woff", "**/*.woff2"],
 }));
