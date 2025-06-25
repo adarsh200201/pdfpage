@@ -24,18 +24,74 @@ interface UploadedFile {
 
 const FileUpload: React.FC<FileUploadProps> = ({
   onFilesSelect,
-  accept = ".pdf",
+  accept,
   multiple = true,
   maxSize = 10,
   maxFiles,
   className,
   allowedTypes = ["pdf"],
   acceptedFileTypes,
-  uploadText = "Select PDF files or drop PDF files here",
-  supportText = "Supports PDF format",
+  uploadText,
+  supportText,
 }) => {
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
   const [isDragOver, setIsDragOver] = useState(false);
+
+  // Determine the correct accept attribute based on acceptedFileTypes or allowedTypes
+  const getAcceptAttribute = () => {
+    if (accept) return accept;
+
+    if (acceptedFileTypes) {
+      const mimeTypes = Object.keys(acceptedFileTypes);
+      const extensions = Object.values(acceptedFileTypes).flat();
+      return [...mimeTypes, ...extensions].join(",");
+    }
+
+    if (allowedTypes.includes("image")) {
+      return "image/*,.jpg,.jpeg,.png,.gif,.bmp,.webp";
+    }
+
+    return ".pdf";
+  };
+
+  // Determine the correct upload text
+  const getUploadText = () => {
+    if (uploadText) return uploadText;
+
+    if (acceptedFileTypes) {
+      if (
+        Object.keys(acceptedFileTypes).some((key) => key.startsWith("image"))
+      ) {
+        return "Select image files or drop image files here";
+      }
+    }
+
+    if (allowedTypes.includes("image")) {
+      return "Select image files or drop image files here";
+    }
+
+    return "Select PDF files or drop PDF files here";
+  };
+
+  // Determine the correct support text
+  const getSupportText = () => {
+    if (supportText) return supportText;
+
+    if (acceptedFileTypes) {
+      const extensions = Object.values(acceptedFileTypes).flat();
+      return `Supports ${extensions.join(", ")} formats`;
+    }
+
+    if (allowedTypes.includes("image")) {
+      return "Supports JPG, PNG, GIF, WebP formats";
+    }
+
+    return "Supports PDF format";
+  };
+
+  const finalAccept = getAcceptAttribute();
+  const finalUploadText = getUploadText();
+  const finalSupportText = getSupportText();
 
   const validateFile = useCallback(
     (file: File): string | null => {
@@ -191,7 +247,7 @@ const FileUpload: React.FC<FileUploadProps> = ({
       >
         <input
           type="file"
-          accept={accept}
+          accept={finalAccept}
           multiple={multiple}
           onChange={handleFileInput}
           className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
@@ -211,14 +267,14 @@ const FileUpload: React.FC<FileUploadProps> = ({
 
           <div>
             <h3 className="text-heading-small text-text-dark mb-2">
-              {uploadText.includes(" or ")
-                ? uploadText.split(" or ")[0]
-                : uploadText}
+              {finalUploadText.includes(" or ")
+                ? finalUploadText.split(" or ")[0]
+                : finalUploadText}
             </h3>
             <p className="text-body-small text-text-light mb-4">
-              {uploadText.includes(" or ")
-                ? uploadText.split(" or ")[1]
-                : supportText}
+              {finalUploadText.includes(" or ")
+                ? finalUploadText.split(" or ")[1]
+                : finalSupportText}
             </p>
 
             <Button
@@ -228,13 +284,13 @@ const FileUpload: React.FC<FileUploadProps> = ({
                 document.querySelector('input[type="file"]')?.click()
               }
             >
-              {uploadText.includes(" or ")
-                ? uploadText.split(" or ")[0]
-                : uploadText}
+              {finalUploadText.includes(" or ")
+                ? finalUploadText.split(" or ")[0]
+                : finalUploadText}
             </Button>
 
             <p className="text-xs text-text-light mt-2">
-              {supportText} • Max file size: {maxSize}MB
+              {finalSupportText} • Max file size: {maxSize}MB
             </p>
           </div>
         </div>
