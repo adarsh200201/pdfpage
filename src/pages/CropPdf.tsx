@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { Link } from "react-router-dom";
 import Header from "@/components/layout/Header";
 import FileUpload from "@/components/ui/file-upload";
@@ -17,6 +17,11 @@ import {
   Info,
   Move,
   Square,
+  ZoomIn,
+  ZoomOut,
+  RotateCw,
+  Eye,
+  Crop,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { PDFService } from "@/services/pdfService";
@@ -38,6 +43,11 @@ interface CropArea {
   height: number;
 }
 
+interface PDFPage {
+  width: number;
+  height: number;
+}
+
 const CropPdf = () => {
   const [file, setFile] = useState<ProcessedFile | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -53,12 +63,31 @@ const CropPdf = () => {
   const [cropArea, setCropArea] = useState<CropArea>({
     x: 50,
     y: 50,
-    width: 500,
-    height: 700,
+    width: 400,
+    height: 500,
   });
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [usageLimitReached, setUsageLimitReached] = useState(false);
   const [progress, setProgress] = useState(0);
+
+  // Enhanced preview state
+  const [pdfDocument, setPdfDocument] = useState<any>(null);
+  const [currentPage, setCurrentPage] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
+  const [zoom, setZoom] = useState(1);
+  const [isLoadingPDF, setIsLoadingPDF] = useState(false);
+  const [pdfError, setPdfError] = useState<string | null>(null);
+  const [pageData, setPageData] = useState<PDFPage>({ width: 0, height: 0 });
+  const [showPreview, setShowPreview] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  const [isResizing, setIsResizing] = useState(false);
+  const [resizeHandle, setResizeHandle] = useState<string>("");
+
+  // Refs
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const previewCanvasRef = useRef<HTMLCanvasElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   const { user, isAuthenticated } = useAuth();
   const { toast } = useToast();
@@ -73,6 +102,172 @@ const CropPdf = () => {
         size: selectedFile.size,
       });
       setIsComplete(false);
+      loadPDFForPreview(selectedFile);
+    }
+  };
+
+  // Load PDF for preview
+  const loadPDFForPreview = async (pdfFile: File) => {
+    setIsLoadingPDF(true);
+    setPdfError(null);
+
+    try {
+      // Import and configure PDF.js
+      const pdfjsLib = await import("pdfjs-dist");
+
+      if (!pdfjsLib.GlobalWorkerOptions.workerSrc) {
+        pdfjsLib.GlobalWorkerOptions.workerSrc = `/pdf.worker.min.mjs`;
+      }
+
+      const arrayBuffer = await pdfFile.arrayBuffer();
+      const loadingTask = pdfjsLib.getDocument({
+        data: arrayBuffer,
+        cMapUrl: "https://cdn.jsdelivr.net/npm/pdfjs-dist@4.8.69/cmaps/",
+        cMapPacked: true,
+        standardFontDataUrl:
+          "https://cdn.jsdelivr.net/npm/pdfjs-dist@4.8.69/standard_fonts/",
+        verbosity: 0,
+      });
+
+      const pdf = await loadingTask.promise;
+      setPdfDocument(pdf);
+      setTotalPages(pdf.numPages);
+      setCurrentPage(0);
+
+      toast({
+        title: "PDF loaded successfully",
+        description: `Document has ${pdf.numPages} pages`,
+      });
+
+      // Render first page
+      renderPage(pdf, 0);
+    } catch (err) {
+      console.error("PDF loading error:", err);
+      let errorMessage = "Unable to load the PDF file";
+      if (err instanceof Error) {
+        if (err.message.includes("Invalid PDF")) {
+          errorMessage = "Invalid PDF file format";
+        } else if (err.message.includes("password")) {
+          errorMessage = "Password-protected PDFs are not supported";
+        } else if (err.message.includes("corrupt")) {
+          errorMessage = "The PDF file appears to be corrupted";
+        }
+      }
+      setPdfError(errorMessage);
+      toast({
+        title: "PDF loading failed",
+        description: errorMessage,
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoadingPDF(false);
+    }
+  };
+
+  // Render PDF page
+  const renderPage = async (pdf: any, pageIndex: number) => {
+    if (!canvasRef.current) return;
+
+    try {
+      const page = await pdf.getPage(pageIndex + 1);
+      const canvas = canvasRef.current;
+      const context = canvas.getContext("2d");
+      if (!context) return;
+
+      const viewport = page.getViewport({ scale: zoom });
+
+      canvas.width = viewport.width;
+      canvas.height = viewport.height;
+      canvas.style.width = `${viewport.width}px`;
+      canvas.style.height = `${viewport.height}px`;
+
+      setPageData({
+        width: viewport.width,
+        height: viewport.height,
+      });
+
+      context.clearRect(0, 0, canvas.width, canvas.height);
+
+      const renderContext = {
+        canvasContext: context,
+        viewport: viewport,
+      };
+
+      await page.render(renderContext).promise;
+
+      // Initialize crop area based on page size if not set
+      if (cropArea.width === 400 && cropArea.height === 500) {
+        const initialCropArea = {
+          x: viewport.width * 0.1,
+          y: viewport.height * 0.1,
+          width: viewport.width * 0.8,
+          height: viewport.height * 0.8,
+        };
+        setCropArea(initialCropArea);
+      }
+
+      // Render preview if enabled
+      if (showPreview) {
+        renderCroppedPreview();
+      }
+    } catch (err) {
+      console.error("Error rendering page:", err);
+      setPdfError(
+        `Failed to render page: ${err instanceof Error ? err.message : String(err)}`,
+      );
+    }
+  };
+
+  // Render cropped preview
+  const renderCroppedPreview = async () => {
+    if (!previewCanvasRef.current || !pdfDocument || !canvasRef.current) return;
+
+    try {
+      const page = await pdfDocument.getPage(currentPage + 1);
+      const previewCanvas = previewCanvasRef.current;
+      const previewContext = previewCanvas.getContext("2d");
+      if (!previewContext) return;
+
+      const viewport = page.getViewport({ scale: zoom });
+
+      // Calculate cropped dimensions
+      const croppedWidth = cropArea.width;
+      const croppedHeight = cropArea.height;
+
+      previewCanvas.width = croppedWidth;
+      previewCanvas.height = croppedHeight;
+      previewCanvas.style.width = `${croppedWidth}px`;
+      previewCanvas.style.height = `${croppedHeight}px`;
+
+      // Render the full page first
+      const tempCanvas = document.createElement("canvas");
+      const tempContext = tempCanvas.getContext("2d");
+      if (!tempContext) return;
+
+      tempCanvas.width = viewport.width;
+      tempCanvas.height = viewport.height;
+
+      const renderContext = {
+        canvasContext: tempContext,
+        viewport: viewport,
+      };
+
+      await page.render(renderContext).promise;
+
+      // Copy the cropped area to preview canvas
+      previewContext.drawImage(
+        tempCanvas,
+        cropArea.x,
+        cropArea.y,
+        cropArea.width,
+        cropArea.height,
+        0,
+        0,
+        croppedWidth,
+        croppedHeight,
+      );
+    } catch (err) {
+      console.error("Error rendering preview:", err);
     }
   };
 
@@ -83,6 +278,209 @@ const CropPdf = () => {
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
   };
+
+  // Mouse event handlers for crop area interaction
+  const getMousePosition = useCallback((e: React.MouseEvent) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return { x: 0, y: 0 };
+
+    const rect = canvas.getBoundingClientRect();
+    return {
+      x: e.clientX - rect.left,
+      y: e.clientY - rect.top,
+    };
+  }, []);
+
+  const handleMouseDown = useCallback(
+    (e: React.MouseEvent) => {
+      const pos = getMousePosition(e);
+
+      // Check if clicking on resize handles
+      const handleSize = 8;
+      const handles = [
+        {
+          name: "nw",
+          x: cropArea.x - handleSize / 2,
+          y: cropArea.y - handleSize / 2,
+        },
+        {
+          name: "ne",
+          x: cropArea.x + cropArea.width - handleSize / 2,
+          y: cropArea.y - handleSize / 2,
+        },
+        {
+          name: "sw",
+          x: cropArea.x - handleSize / 2,
+          y: cropArea.y + cropArea.height - handleSize / 2,
+        },
+        {
+          name: "se",
+          x: cropArea.x + cropArea.width - handleSize / 2,
+          y: cropArea.y + cropArea.height - handleSize / 2,
+        },
+        {
+          name: "n",
+          x: cropArea.x + cropArea.width / 2 - handleSize / 2,
+          y: cropArea.y - handleSize / 2,
+        },
+        {
+          name: "s",
+          x: cropArea.x + cropArea.width / 2 - handleSize / 2,
+          y: cropArea.y + cropArea.height - handleSize / 2,
+        },
+        {
+          name: "w",
+          x: cropArea.x - handleSize / 2,
+          y: cropArea.y + cropArea.height / 2 - handleSize / 2,
+        },
+        {
+          name: "e",
+          x: cropArea.x + cropArea.width - handleSize / 2,
+          y: cropArea.y + cropArea.height / 2 - handleSize / 2,
+        },
+      ];
+
+      for (const handle of handles) {
+        if (
+          pos.x >= handle.x &&
+          pos.x <= handle.x + handleSize &&
+          pos.y >= handle.y &&
+          pos.y <= handle.y + handleSize
+        ) {
+          setIsResizing(true);
+          setResizeHandle(handle.name);
+          setDragStart(pos);
+          return;
+        }
+      }
+
+      // Check if clicking inside crop area for dragging
+      if (
+        pos.x >= cropArea.x &&
+        pos.x <= cropArea.x + cropArea.width &&
+        pos.y >= cropArea.y &&
+        pos.y <= cropArea.y + cropArea.height
+      ) {
+        setIsDragging(true);
+        setDragStart({ x: pos.x - cropArea.x, y: pos.y - cropArea.y });
+      }
+    },
+    [cropArea, getMousePosition],
+  );
+
+  const handleMouseMove = useCallback(
+    (e: React.MouseEvent) => {
+      const pos = getMousePosition(e);
+
+      if (isResizing && resizeHandle) {
+        const deltaX = pos.x - dragStart.x;
+        const deltaY = pos.y - dragStart.y;
+
+        let newCropArea = { ...cropArea };
+
+        switch (resizeHandle) {
+          case "nw":
+            newCropArea.x += deltaX;
+            newCropArea.y += deltaY;
+            newCropArea.width -= deltaX;
+            newCropArea.height -= deltaY;
+            break;
+          case "ne":
+            newCropArea.y += deltaY;
+            newCropArea.width += deltaX;
+            newCropArea.height -= deltaY;
+            break;
+          case "sw":
+            newCropArea.x += deltaX;
+            newCropArea.width -= deltaX;
+            newCropArea.height += deltaY;
+            break;
+          case "se":
+            newCropArea.width += deltaX;
+            newCropArea.height += deltaY;
+            break;
+          case "n":
+            newCropArea.y += deltaY;
+            newCropArea.height -= deltaY;
+            break;
+          case "s":
+            newCropArea.height += deltaY;
+            break;
+          case "w":
+            newCropArea.x += deltaX;
+            newCropArea.width -= deltaX;
+            break;
+          case "e":
+            newCropArea.width += deltaX;
+            break;
+        }
+
+        // Ensure minimum size and bounds
+        newCropArea.width = Math.max(50, newCropArea.width);
+        newCropArea.height = Math.max(50, newCropArea.height);
+        newCropArea.x = Math.max(
+          0,
+          Math.min(newCropArea.x, pageData.width - newCropArea.width),
+        );
+        newCropArea.y = Math.max(
+          0,
+          Math.min(newCropArea.y, pageData.height - newCropArea.height),
+        );
+
+        setCropArea(newCropArea);
+        setDragStart(pos);
+      } else if (isDragging) {
+        const newX = Math.max(
+          0,
+          Math.min(pos.x - dragStart.x, pageData.width - cropArea.width),
+        );
+        const newY = Math.max(
+          0,
+          Math.min(pos.y - dragStart.y, pageData.height - cropArea.height),
+        );
+
+        setCropArea({
+          ...cropArea,
+          x: newX,
+          y: newY,
+        });
+      }
+    },
+    [
+      isResizing,
+      isDragging,
+      resizeHandle,
+      dragStart,
+      cropArea,
+      pageData,
+      getMousePosition,
+    ],
+  );
+
+  const handleMouseUp = useCallback(() => {
+    setIsDragging(false);
+    setIsResizing(false);
+    setResizeHandle("");
+
+    // Update preview after crop area change
+    if (showPreview) {
+      renderCroppedPreview();
+    }
+  }, [showPreview]);
+
+  // Update preview when crop area changes
+  useEffect(() => {
+    if (showPreview && pdfDocument) {
+      renderCroppedPreview();
+    }
+  }, [cropArea, showPreview]);
+
+  // Re-render page when zoom changes
+  useEffect(() => {
+    if (pdfDocument) {
+      renderPage(pdfDocument, currentPage);
+    }
+  }, [zoom, currentPage]);
 
   const presetCropSettings = {
     custom: "Custom Crop Area",
@@ -95,8 +493,19 @@ const CropPdf = () => {
   const applyPreset = (preset: string) => {
     setCropSettings((prev) => ({ ...prev, preset }));
 
+    if (!pageData.width || !pageData.height) return;
+
+    let newCropArea = { ...cropArea };
+
     switch (preset) {
       case "remove_margins":
+        const marginSize = Math.min(pageData.width, pageData.height) * 0.05; // 5% margin
+        newCropArea = {
+          x: marginSize,
+          y: marginSize,
+          width: pageData.width - marginSize * 2,
+          height: pageData.height - marginSize * 2,
+        };
         setCropSettings((prev) => ({
           ...prev,
           marginTop: 20,
@@ -106,6 +515,13 @@ const CropPdf = () => {
         }));
         break;
       case "letterhead":
+        const headerHeight = pageData.height * 0.15; // Remove top 15%
+        newCropArea = {
+          x: 0,
+          y: headerHeight,
+          width: pageData.width,
+          height: pageData.height - headerHeight,
+        };
         setCropSettings((prev) => ({
           ...prev,
           marginTop: 100,
@@ -115,6 +531,13 @@ const CropPdf = () => {
         }));
         break;
       case "footer":
+        const footerHeight = pageData.height * 0.1; // Remove bottom 10%
+        newCropArea = {
+          x: 0,
+          y: 0,
+          width: pageData.width,
+          height: pageData.height - footerHeight,
+        };
         setCropSettings((prev) => ({
           ...prev,
           marginTop: 0,
@@ -124,6 +547,13 @@ const CropPdf = () => {
         }));
         break;
       case "sides":
+        const sideMargin = pageData.width * 0.1; // Remove 10% from each side
+        newCropArea = {
+          x: sideMargin,
+          y: 0,
+          width: pageData.width - sideMargin * 2,
+          height: pageData.height,
+        };
         setCropSettings((prev) => ({
           ...prev,
           marginTop: 0,
@@ -133,13 +563,20 @@ const CropPdf = () => {
         }));
         break;
       default:
-        // Custom - don't change margins
-        break;
+        // Custom - keep current crop area
+        return;
+    }
+
+    setCropArea(newCropArea);
+
+    // Update preview if enabled
+    if (showPreview) {
+      setTimeout(() => renderCroppedPreview(), 100);
     }
   };
 
   const handleCrop = async () => {
-    if (!file) return;
+    if (!file || !pdfDocument) return;
 
     // Check usage limits
     const usageCheck = await PDFService.checkUsageLimit();
@@ -168,17 +605,10 @@ const CropPdf = () => {
         );
       }
 
-      setProgress(30);
+      setProgress(20);
 
-      // For now, we'll use the compression service as a placeholder
-      // In a real implementation, this would crop the PDF based on the settings
-      const croppedPdfBytes = await PDFService.compressPDF(
-        file.file,
-        0.9,
-        (progressPercent) => {
-          setProgress(30 + progressPercent * 0.6);
-        },
-      );
+      // Perform actual PDF cropping
+      const croppedPdfBytes = await cropPDFWithSettings();
 
       setProgress(95);
 
@@ -208,11 +638,118 @@ const CropPdf = () => {
     }
   };
 
+  // Actual PDF cropping implementation
+  const cropPDFWithSettings = async (): Promise<Uint8Array> => {
+    if (!pdfDocument || !file) {
+      throw new Error("PDF document not loaded");
+    }
+
+    try {
+      const { loadPDFDocument, createPDFDocument } = await import(
+        "@/lib/pdf-utils"
+      );
+
+      setProgress(30);
+
+      // Load the original PDF
+      const arrayBuffer = await file.file.arrayBuffer();
+      const originalPdf = await loadPDFDocument(arrayBuffer);
+      const croppedPdf = await createPDFDocument();
+
+      setProgress(40);
+
+      const totalPagesToProcess = cropSettings.applyToAllPages
+        ? originalPdf.getPageCount()
+        : 1;
+      const pagesToProcess = cropSettings.applyToAllPages
+        ? Array.from({ length: totalPagesToProcess }, (_, i) => i)
+        : [currentPage];
+
+      // Process each page
+      for (let i = 0; i < pagesToProcess.length; i++) {
+        const pageIndex = pagesToProcess[i];
+        setProgress(40 + (i / pagesToProcess.length) * 50);
+
+        // Get the page from original PDF
+        const originalPage = originalPdf.getPage(pageIndex);
+        const { width: originalWidth, height: originalHeight } =
+          originalPage.getSize();
+
+        // Calculate crop box based on current crop area and page dimensions
+        let cropBox;
+        if (cropSettings.preset === "custom") {
+          // Use the interactive crop area (scaled to actual page dimensions)
+          const scaleX = originalWidth / pageData.width;
+          const scaleY = originalHeight / pageData.height;
+
+          cropBox = {
+            x: cropArea.x * scaleX,
+            y: (pageData.height - cropArea.y - cropArea.height) * scaleY, // PDF coordinates are bottom-up
+            width: cropArea.width * scaleX,
+            height: cropArea.height * scaleY,
+          };
+        } else {
+          // Use margin-based cropping
+          cropBox = {
+            x: cropSettings.marginLeft,
+            y: cropSettings.marginBottom,
+            width:
+              originalWidth -
+              cropSettings.marginLeft -
+              cropSettings.marginRight,
+            height:
+              originalHeight -
+              cropSettings.marginTop -
+              cropSettings.marginBottom,
+          };
+        }
+
+        // Ensure crop box is within page bounds
+        cropBox.x = Math.max(0, cropBox.x);
+        cropBox.y = Math.max(0, cropBox.y);
+        cropBox.width = Math.min(cropBox.width, originalWidth - cropBox.x);
+        cropBox.height = Math.min(cropBox.height, originalHeight - cropBox.y);
+
+        // Create new page with cropped dimensions
+        const newPage = croppedPdf.addPage([cropBox.width, cropBox.height]);
+
+        // Copy the cropped content
+        const [copiedPage] = await croppedPdf.copyPages(originalPdf, [
+          pageIndex,
+        ]);
+
+        // Set the crop box on the copied page
+        copiedPage.setCropBox(
+          cropBox.x,
+          cropBox.y,
+          cropBox.x + cropBox.width,
+          cropBox.y + cropBox.height,
+        );
+
+        // Scale and position the content
+        newPage.drawPage(copiedPage, {
+          x: -cropBox.x,
+          y: -cropBox.y,
+        });
+      }
+
+      setProgress(90);
+
+      // Save the cropped PDF
+      const pdfBytes = await croppedPdf.save();
+
+      return pdfBytes;
+    } catch (error) {
+      console.error("Error in PDF cropping:", error);
+      throw new Error("Failed to crop PDF pages");
+    }
+  };
+
   return (
     <div className="min-h-screen bg-bg-light">
       <Header />
 
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <PromoBanner className="mb-8" />
 
         {/* Navigation */}
@@ -234,7 +771,7 @@ const CropPdf = () => {
           <h1 className="text-heading-medium text-text-dark mb-4">Crop PDF</h1>
           <p className="text-body-large text-text-light max-w-2xl mx-auto">
             Remove unwanted areas from your PDF pages with precision cropping
-            tools.
+            tools and live preview.
           </p>
         </div>
 
@@ -253,195 +790,344 @@ const CropPdf = () => {
               </div>
             )}
 
-            {/* File Display with Crop Settings */}
+            {/* PDF Preview and Crop Settings */}
             {file && (
-              <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
-                <div className="flex items-center justify-between mb-6">
-                  <h3 className="text-heading-small text-text-dark">
-                    PDF File & Crop Settings
-                  </h3>
-                  <Button variant="outline" onClick={() => setFile(null)}>
-                    Choose Different File
-                  </Button>
-                </div>
-
-                {/* File Info */}
-                <div className="flex items-center space-x-4 p-4 rounded-lg border border-gray-200 bg-gray-50 mb-6">
-                  <div className="w-10 h-10 bg-emerald-100 rounded-lg flex items-center justify-center">
-                    <FileText className="w-5 h-5 text-emerald-500" />
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-sm font-medium text-text-dark truncate">
-                      {file.name}
-                    </p>
-                    <p className="text-xs text-text-light">
-                      {formatFileSize(file.size)}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Crop Presets */}
-                <div className="space-y-4 mb-6">
-                  <div className="flex items-center space-x-2">
-                    <Square className="w-4 h-4 text-emerald-500" />
-                    <span className="text-sm font-medium text-text-dark">
-                      Crop Presets
-                    </span>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    {Object.entries(presetCropSettings).map(([key, label]) => (
-                      <button
-                        key={key}
-                        onClick={() => applyPreset(key)}
-                        className={cn(
-                          "p-3 text-left border rounded-lg transition-all",
-                          cropSettings.preset === key
-                            ? "border-emerald-500 bg-emerald-50 text-emerald-700"
-                            : "border-gray-200 bg-white text-gray-700 hover:border-emerald-300",
-                        )}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                {/* Left Panel - PDF Preview */}
+                <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-heading-small text-text-dark">
+                      PDF Preview & Crop Area
+                    </h3>
+                    <div className="flex items-center space-x-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setZoom(Math.max(0.5, zoom - 0.25))}
+                        disabled={zoom <= 0.5}
                       >
-                        <div className="font-medium text-sm">{label}</div>
-                        <div className="text-xs text-gray-500 mt-1">
-                          {key === "custom" && "Define your own crop area"}
-                          {key === "remove_margins" &&
-                            "Remove white space around content"}
-                          {key === "letterhead" && "Remove header/letterhead"}
-                          {key === "footer" && "Remove footer area"}
-                          {key === "sides" && "Remove left and right margins"}
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Manual Margin Settings */}
-                {cropSettings.preset === "custom" && (
-                  <div className="space-y-4 mb-6">
-                    <h4 className="text-sm font-medium text-text-dark flex items-center gap-2">
-                      <Move className="w-4 h-4" />
-                      Custom Margins (pixels)
-                    </h4>
-
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-xs text-gray-600 mb-1">
-                          Top Margin
-                        </label>
-                        <Slider
-                          value={[cropSettings.marginTop]}
-                          onValueChange={(value) =>
-                            setCropSettings((prev) => ({
-                              ...prev,
-                              marginTop: value[0],
-                            }))
-                          }
-                          max={200}
-                          step={5}
-                          className="w-full"
-                        />
-                        <span className="text-xs text-gray-500">
-                          {cropSettings.marginTop}px
-                        </span>
-                      </div>
-
-                      <div>
-                        <label className="block text-xs text-gray-600 mb-1">
-                          Bottom Margin
-                        </label>
-                        <Slider
-                          value={[cropSettings.marginBottom]}
-                          onValueChange={(value) =>
-                            setCropSettings((prev) => ({
-                              ...prev,
-                              marginBottom: value[0],
-                            }))
-                          }
-                          max={200}
-                          step={5}
-                          className="w-full"
-                        />
-                        <span className="text-xs text-gray-500">
-                          {cropSettings.marginBottom}px
-                        </span>
-                      </div>
-
-                      <div>
-                        <label className="block text-xs text-gray-600 mb-1">
-                          Left Margin
-                        </label>
-                        <Slider
-                          value={[cropSettings.marginLeft]}
-                          onValueChange={(value) =>
-                            setCropSettings((prev) => ({
-                              ...prev,
-                              marginLeft: value[0],
-                            }))
-                          }
-                          max={200}
-                          step={5}
-                          className="w-full"
-                        />
-                        <span className="text-xs text-gray-500">
-                          {cropSettings.marginLeft}px
-                        </span>
-                      </div>
-
-                      <div>
-                        <label className="block text-xs text-gray-600 mb-1">
-                          Right Margin
-                        </label>
-                        <Slider
-                          value={[cropSettings.marginRight]}
-                          onValueChange={(value) =>
-                            setCropSettings((prev) => ({
-                              ...prev,
-                              marginRight: value[0],
-                            }))
-                          }
-                          max={200}
-                          step={5}
-                          className="w-full"
-                        />
-                        <span className="text-xs text-gray-500">
-                          {cropSettings.marginRight}px
-                        </span>
-                      </div>
+                        <ZoomOut className="w-4 h-4" />
+                      </Button>
+                      <span className="text-sm text-gray-600">
+                        {Math.round(zoom * 100)}%
+                      </span>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setZoom(Math.min(2, zoom + 0.25))}
+                        disabled={zoom >= 2}
+                      >
+                        <ZoomIn className="w-4 h-4" />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setShowPreview(!showPreview)}
+                        className={
+                          showPreview ? "bg-blue-50 text-blue-600" : ""
+                        }
+                      >
+                        <Eye className="w-4 h-4" />
+                      </Button>
                     </div>
                   </div>
-                )}
 
-                {/* Apply to All Pages Option */}
-                <div className="flex items-center space-x-2 mb-4">
-                  <input
-                    type="checkbox"
-                    id="applyToAll"
-                    checked={cropSettings.applyToAllPages}
-                    onChange={(e) =>
-                      setCropSettings((prev) => ({
-                        ...prev,
-                        applyToAllPages: e.target.checked,
-                      }))
-                    }
-                    className="rounded"
-                  />
-                  <label htmlFor="applyToAll" className="text-sm text-gray-700">
-                    Apply cropping to all pages
-                  </label>
+                  {/* PDF Canvas Container */}
+                  <div
+                    ref={containerRef}
+                    className="relative border border-gray-300 rounded-lg overflow-auto bg-gray-50"
+                    style={{ maxHeight: "600px" }}
+                  >
+                    {isLoadingPDF && (
+                      <div className="flex items-center justify-center h-96">
+                        <div className="text-center">
+                          <Loader2 className="w-8 h-8 animate-spin mx-auto mb-2 text-blue-500" />
+                          <span className="text-sm text-gray-600">
+                            Loading PDF...
+                          </span>
+                        </div>
+                      </div>
+                    )}
+
+                    {pdfError && (
+                      <div className="flex items-center justify-center h-96">
+                        <div className="text-center text-red-600">
+                          <p className="font-medium">Failed to load PDF</p>
+                          <p className="text-sm">{pdfError}</p>
+                        </div>
+                      </div>
+                    )}
+
+                    {pdfDocument && !isLoadingPDF && !pdfError && (
+                      <div className="relative inline-block">
+                        <canvas
+                          ref={canvasRef}
+                          className="block shadow-sm"
+                          onMouseDown={handleMouseDown}
+                          onMouseMove={handleMouseMove}
+                          onMouseUp={handleMouseUp}
+                          style={{
+                            cursor:
+                              isDragging || isResizing
+                                ? "grabbing"
+                                : "crosshair",
+                          }}
+                        />
+
+                        {/* Crop Area Overlay */}
+                        <div
+                          className="absolute border-2 border-blue-500 bg-blue-500 bg-opacity-10"
+                          style={{
+                            left: cropArea.x,
+                            top: cropArea.y,
+                            width: cropArea.width,
+                            height: cropArea.height,
+                            pointerEvents: "none",
+                          }}
+                        >
+                          {/* Resize Handles */}
+                          {["nw", "ne", "sw", "se", "n", "s", "w", "e"].map(
+                            (handle) => {
+                              let style: React.CSSProperties = {
+                                position: "absolute",
+                                width: "8px",
+                                height: "8px",
+                                backgroundColor: "#3b82f6",
+                                border: "2px solid white",
+                                pointerEvents: "all",
+                                cursor: `${handle}-resize`,
+                              };
+
+                              switch (handle) {
+                                case "nw":
+                                  style = { ...style, top: -4, left: -4 };
+                                  break;
+                                case "ne":
+                                  style = { ...style, top: -4, right: -4 };
+                                  break;
+                                case "sw":
+                                  style = { ...style, bottom: -4, left: -4 };
+                                  break;
+                                case "se":
+                                  style = { ...style, bottom: -4, right: -4 };
+                                  break;
+                                case "n":
+                                  style = {
+                                    ...style,
+                                    top: -4,
+                                    left: "50%",
+                                    transform: "translateX(-50%)",
+                                  };
+                                  break;
+                                case "s":
+                                  style = {
+                                    ...style,
+                                    bottom: -4,
+                                    left: "50%",
+                                    transform: "translateX(-50%)",
+                                  };
+                                  break;
+                                case "w":
+                                  style = {
+                                    ...style,
+                                    left: -4,
+                                    top: "50%",
+                                    transform: "translateY(-50%)",
+                                  };
+                                  break;
+                                case "e":
+                                  style = {
+                                    ...style,
+                                    right: -4,
+                                    top: "50%",
+                                    transform: "translateY(-50%)",
+                                  };
+                                  break;
+                              }
+
+                              return <div key={handle} style={style} />;
+                            },
+                          )}
+
+                          {/* Crop Area Info */}
+                          <div className="absolute -top-8 left-0 bg-blue-600 text-white text-xs px-2 py-1 rounded">
+                            {Math.round(cropArea.width)} ×{" "}
+                            {Math.round(cropArea.height)}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Page Navigation */}
+                  {totalPages > 1 && (
+                    <div className="flex items-center justify-between mt-4">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          const newPage = Math.max(0, currentPage - 1);
+                          setCurrentPage(newPage);
+                          renderPage(pdfDocument, newPage);
+                        }}
+                        disabled={currentPage === 0}
+                      >
+                        Previous
+                      </Button>
+                      <span className="text-sm text-gray-600">
+                        Page {currentPage + 1} of {totalPages}
+                      </span>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          const newPage = Math.min(
+                            totalPages - 1,
+                            currentPage + 1,
+                          );
+                          setCurrentPage(newPage);
+                          renderPage(pdfDocument, newPage);
+                        }}
+                        disabled={currentPage === totalPages - 1}
+                      >
+                        Next
+                      </Button>
+                    </div>
+                  )}
+
+                  {/* Live Preview */}
+                  {showPreview && (
+                    <div className="mt-6 p-4 bg-gray-50 rounded-lg">
+                      <h4 className="text-sm font-medium text-gray-700 mb-3 flex items-center">
+                        <Crop className="w-4 h-4 mr-2" />
+                        Cropped Preview
+                      </h4>
+                      <div className="border border-gray-300 rounded bg-white p-2 max-h-64 overflow-auto">
+                        <canvas
+                          ref={previewCanvasRef}
+                          className="block mx-auto shadow-sm"
+                          style={{ maxWidth: "100%" }}
+                        />
+                      </div>
+                    </div>
+                  )}
                 </div>
 
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                  <div className="flex items-start space-x-2">
-                    <Info className="w-5 h-5 text-blue-500 mt-0.5 flex-shrink-0" />
-                    <div>
-                      <p className="text-sm text-blue-800 font-medium mb-1">
-                        Crop Preview
+                {/* Right Panel - Crop Settings */}
+                <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
+                  <div className="flex items-center justify-between mb-6">
+                    <h3 className="text-heading-small text-text-dark">
+                      Crop Settings
+                    </h3>
+                    <Button variant="outline" onClick={() => setFile(null)}>
+                      Choose Different File
+                    </Button>
+                  </div>
+
+                  {/* File Info */}
+                  <div className="flex items-center space-x-4 p-4 rounded-lg border border-gray-200 bg-gray-50 mb-6">
+                    <div className="w-10 h-10 bg-emerald-100 rounded-lg flex items-center justify-center">
+                      <FileText className="w-5 h-5 text-emerald-500" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-text-dark truncate">
+                        {file.name}
                       </p>
-                      <p className="text-sm text-blue-700">
-                        Your PDF will be cropped according to the selected
-                        settings. The cropped areas will be permanently removed
-                        from the document.
+                      <p className="text-xs text-text-light">
+                        {formatFileSize(file.size)}
                       </p>
+                    </div>
+                  </div>
+
+                  {/* Crop Presets */}
+                  <div className="space-y-4 mb-6">
+                    <div className="flex items-center space-x-2">
+                      <Square className="w-4 h-4 text-emerald-500" />
+                      <span className="text-sm font-medium text-text-dark">
+                        Crop Presets
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 gap-3">
+                      {Object.entries(presetCropSettings).map(
+                        ([key, label]) => (
+                          <button
+                            key={key}
+                            onClick={() => applyPreset(key)}
+                            className={cn(
+                              "p-3 text-left border rounded-lg transition-all",
+                              cropSettings.preset === key
+                                ? "border-emerald-500 bg-emerald-50 text-emerald-700"
+                                : "border-gray-200 bg-white text-gray-700 hover:border-emerald-300",
+                            )}
+                          >
+                            <div className="font-medium text-sm">{label}</div>
+                            <div className="text-xs text-gray-500 mt-1">
+                              {key === "custom" && "Define your own crop area"}
+                              {key === "remove_margins" &&
+                                "Remove white space around content"}
+                              {key === "letterhead" &&
+                                "Remove header/letterhead"}
+                              {key === "footer" && "Remove footer area"}
+                              {key === "sides" &&
+                                "Remove left and right margins"}
+                            </div>
+                          </button>
+                        ),
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Manual Margin Settings */}
+                  {cropSettings.preset === "custom" && (
+                    <div className="space-y-4 mb-6">
+                      <h4 className="text-sm font-medium text-text-dark flex items-center gap-2">
+                        <Move className="w-4 h-4" />
+                        Manual Crop Area
+                      </h4>
+                      <div className="text-sm text-gray-600">
+                        Use the interactive overlay on the PDF preview to adjust
+                        the crop area, or use the preset options above for
+                        common cropping scenarios.
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Apply to All Pages Option */}
+                  <div className="flex items-center space-x-2 mb-4">
+                    <input
+                      type="checkbox"
+                      id="applyToAll"
+                      checked={cropSettings.applyToAllPages}
+                      onChange={(e) =>
+                        setCropSettings((prev) => ({
+                          ...prev,
+                          applyToAllPages: e.target.checked,
+                        }))
+                      }
+                      className="rounded"
+                    />
+                    <label
+                      htmlFor="applyToAll"
+                      className="text-sm text-gray-700"
+                    >
+                      Apply cropping to all pages
+                    </label>
+                  </div>
+
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <div className="flex items-start space-x-2">
+                      <Info className="w-5 h-5 text-blue-500 mt-0.5 flex-shrink-0" />
+                      <div>
+                        <p className="text-sm text-blue-800 font-medium mb-1">
+                          Live Crop Preview
+                        </p>
+                        <p className="text-sm text-blue-700">
+                          Use the eye icon to toggle the live preview. Drag the
+                          blue overlay to reposition and use the handles to
+                          resize the crop area.
+                        </p>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -560,6 +1246,8 @@ const CropPdf = () => {
                   setFile(null);
                   setIsComplete(false);
                   setProgress(0);
+                  setPdfDocument(null);
+                  setShowPreview(false);
                 }}
                 className="bg-emerald-500 hover:bg-emerald-600"
               >
@@ -579,20 +1267,20 @@ const CropPdf = () => {
               <Target className="w-6 h-6 text-emerald-500" />
             </div>
             <h4 className="font-semibold text-text-dark mb-2">
-              Precision Cropping
+              Interactive Cropping
             </h4>
             <p className="text-body-small text-text-light">
-              Remove exact areas with pixel-perfect precision controls
+              Drag and resize crop areas with real-time visual feedback
             </p>
           </div>
 
           <div className="text-center">
             <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mx-auto mb-3">
-              <Square className="w-6 h-6 text-blue-500" />
+              <Eye className="w-6 h-6 text-blue-500" />
             </div>
-            <h4 className="font-semibold text-text-dark mb-2">Smart Presets</h4>
+            <h4 className="font-semibold text-text-dark mb-2">Live Preview</h4>
             <p className="text-body-small text-text-light">
-              Quick presets for common cropping tasks like removing margins
+              See exactly how your cropped PDF will look before processing
             </p>
           </div>
 
@@ -600,11 +1288,9 @@ const CropPdf = () => {
             <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center mx-auto mb-3">
               <CheckCircle className="w-6 h-6 text-purple-500" />
             </div>
-            <h4 className="font-semibold text-text-dark mb-2">
-              Batch Processing
-            </h4>
+            <h4 className="font-semibold text-text-dark mb-2">Smart Presets</h4>
             <p className="text-body-small text-text-light">
-              Apply the same crop settings to all pages at once
+              Quick presets for common tasks like removing margins and headers
             </p>
           </div>
         </div>
