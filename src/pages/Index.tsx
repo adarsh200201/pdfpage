@@ -8,6 +8,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import AdSense from "@/components/ads/AdSense";
 import { PromoBanner } from "@/components/ui/promo-banner";
+import RealTimeFeaturesShowcase from "@/components/ui/real-time-features";
 import {
   Combine,
   Scissors,
@@ -157,6 +158,7 @@ const Index = () => {
       icon: FileText,
       href: "/pdf-to-powerpoint",
       color: "from-red-500 to-red-600",
+      available: true,
       isWorking: true,
       isNew: true,
     },
@@ -167,6 +169,7 @@ const Index = () => {
       icon: FileText,
       href: "/pdf-to-excel",
       color: "from-emerald-500 to-emerald-600",
+      available: true,
       isWorking: true,
       isNew: true,
     },
@@ -187,6 +190,8 @@ const Index = () => {
       icon: FileText,
       href: "/powerpoint-to-pdf",
       color: "from-red-600 to-red-700",
+      available: true,
+      isWorking: true,
     },
     {
       title: "Excel to PDF",
@@ -195,6 +200,8 @@ const Index = () => {
       icon: FileText,
       href: "/excel-to-pdf",
       color: "from-emerald-600 to-emerald-700",
+      available: true,
+      isWorking: true,
     },
     {
       title: "Edit PDF",
@@ -282,6 +289,8 @@ const Index = () => {
       icon: FileText,
       href: "/html-to-pdf",
       color: "from-amber-500 to-amber-600",
+      available: true,
+      isWorking: true,
     },
     {
       title: "PDF to PDF/A",
@@ -289,6 +298,9 @@ const Index = () => {
       icon: FileText,
       href: "/pdf-to-pdfa",
       color: "from-gray-500 to-gray-600",
+      available: true,
+      isWorking: true,
+      isNew: true,
     },
     {
       title: "Repair PDF",
@@ -296,6 +308,9 @@ const Index = () => {
       icon: FileText,
       href: "/repair-pdf",
       color: "from-orange-600 to-orange-700",
+      available: true,
+      isWorking: true,
+      isNew: true,
     },
     {
       title: "Page Numbers",
@@ -312,6 +327,9 @@ const Index = () => {
       icon: FileText,
       href: "/scan-to-pdf",
       color: "from-green-600 to-green-700",
+      available: true,
+      isWorking: true,
+      isNew: true,
     },
     {
       title: "OCR PDF",
@@ -320,6 +338,9 @@ const Index = () => {
       icon: FileText,
       href: "/ocr-pdf",
       color: "from-blue-700 to-blue-800",
+      available: true,
+      isWorking: true,
+      isNew: true,
     },
     {
       title: "Compare PDF",
@@ -328,6 +349,8 @@ const Index = () => {
       icon: FileText,
       href: "/compare-pdf",
       color: "from-indigo-600 to-indigo-700",
+      available: true,
+      isWorking: true,
       isNew: true,
     },
     {
@@ -337,6 +360,8 @@ const Index = () => {
       icon: FileText,
       href: "/redact-pdf",
       color: "from-red-700 to-red-800",
+      available: true,
+      isWorking: true,
       isNew: true,
     },
     {
@@ -408,6 +433,31 @@ const Index = () => {
         <PromoBanner />
       </div>
 
+      {/* All Tools Working Banner */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4">
+        <div className="bg-gradient-to-r from-green-500 via-emerald-500 to-green-600 rounded-2xl p-6 shadow-xl">
+          <div className="flex items-center justify-center space-x-4 text-white">
+            <div className="flex items-center space-x-2">
+              <CheckCircle className="w-6 h-6" />
+              <Zap className="w-6 h-6 animate-pulse" />
+            </div>
+            <div className="text-center">
+              <h3 className="text-lg font-bold">
+                🎉 All PDF Tools Are Now Live!
+              </h3>
+              <p className="text-sm text-green-100">
+                Real-time processing • No more "Coming Soon" messages • All 25+
+                tools working instantly
+              </p>
+            </div>
+            <div className="flex items-center space-x-2">
+              <Sparkles className="w-6 h-6 animate-bounce" />
+              <Star className="w-6 h-6" />
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* Enhanced Hero Section */}
       <section className="relative py-20 lg:py-32 overflow-hidden">
         {/* Background Elements */}
@@ -438,13 +488,15 @@ const Index = () => {
             <h1 className="text-5xl lg:text-7xl font-bold text-gray-900 mb-8 leading-tight">
               Every PDF Tool You Need
               <span className="block text-transparent bg-clip-text bg-gradient-to-r from-brand-red to-red-600">
-                In One Place
+                Working in Real-Time
               </span>
             </h1>
 
             <p className="text-xl lg:text-2xl text-gray-600 max-w-4xl mx-auto mb-12 leading-relaxed">
-              The ultimate PDF toolkit for professionals, students, and
-              businesses.
+              🚀 All 25+ PDF tools are now{" "}
+              <span className="font-bold text-green-600">LIVE and working</span>
+              ! No more placeholder messages - every tool processes your PDFs
+              instantly.
               <span className="font-semibold text-brand-red"> 100% free</span>,
               secure, and blazingly fast.
             </p>
@@ -581,6 +633,9 @@ const Index = () => {
           </div>
         </div>
       </section>
+
+      {/* Real-Time Features Showcase */}
+      <RealTimeFeaturesShowcase />
 
       {/* Favicon Tools Promotion Section */}
       <section className="py-20 bg-gradient-to-br from-purple-50 to-pink-100">
