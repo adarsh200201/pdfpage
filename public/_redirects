@@ -1,0 +1,12 @@
+# Serve static assets directly
+/assets/*  /assets/:splat  200
+/favicon.ico  /favicon.ico  200
+/robots.txt  /robots.txt  200
+/pdf.worker.config.js  /pdf.worker.config.js  200
+/pdf.worker.min.mjs  /pdf.worker.min.mjs  200
+/placeholder.svg  /placeholder.svg  200
+/csp-test.html  /csp-test.html  200
+/deployment-test.json  /deployment-test.json  200
+
+# Handle SPA routing - only for non-asset requests
+/*  /index.html  200

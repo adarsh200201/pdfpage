@@ -54,17 +54,22 @@ export default defineConfig(({ mode }) => ({
           // Separate chunk for PDF libraries to avoid conflicts
           "pdf-libs": ["pdfjs-dist", "react-pdf", "pdf-lib"],
         },
-        // Ensure workers are treated as assets
+        // Ensure proper file names for assets
         assetFileNames: (assetInfo) => {
           if (assetInfo.name && assetInfo.name.includes("pdf.worker")) {
             return "assets/[name]-[hash][extname]";
           }
           return "assets/[name]-[hash][extname]";
         },
+        // Ensure proper file names for entry chunks
+        entryFileNames: "assets/[name]-[hash].js",
+        chunkFileNames: "assets/[name]-[hash].js",
       },
     },
     // Increase chunk size warning limit for PDF libraries
     chunkSizeWarningLimit: 1000,
+    // Ensure static assets are copied correctly
+    assetsDir: "assets",
   },
   optimizeDeps: {
     include: [
