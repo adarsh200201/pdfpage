@@ -321,14 +321,38 @@ const Header = () => {
               </div>
             </div>
 
-            {/* All Tools Button */}
-            <button
-              onClick={() => setShowMegaMenu(!showMegaMenu)}
-              className="text-body-medium text-text-medium hover:text-brand-red transition-colors duration-200 flex items-center"
-            >
-              All Tools
-              <ChevronDown className="w-4 h-4 ml-1" />
-            </button>
+            {/* All Tools Dropdown */}
+            <div className="relative group">
+              <button className="text-body-medium text-text-medium hover:text-brand-red transition-colors duration-200 flex items-center">
+                All Tools
+                <ChevronDown className="w-4 h-4 ml-1" />
+              </button>
+              <div className="absolute left-1/2 transform -translate-x-1/2 mt-2 w-[1050px] bg-white rounded-xl shadow-2xl border border-gray-100 z-50 p-3 opacity-0 group-hover:opacity-100 pointer-events-none group-hover:pointer-events-auto transition-opacity duration-200">
+                <div className="grid grid-cols-7 gap-1">
+                  {allPdfTools.map((tool) => (
+                    <Link
+                      key={tool.href}
+                      to={tool.href}
+                      className="group flex flex-col items-center p-1 rounded hover:bg-gray-50 transition-all duration-200 border border-transparent hover:border-gray-200 h-full aspect-square justify-center"
+                    >
+                      <div className={`w-10 h-10 rounded-lg bg-gradient-to-br ${tool.color} flex items-center justify-center mb-0.5 group-hover:scale-110 transition-transform duration-200`}>
+                        <tool.icon className="w-5 h-5 text-white" />
+                      </div>
+                      <div className="text-center px-0.5">
+                        <div className="text-[11px] font-medium text-text-dark group-hover:text-brand-red transition-colors duration-200 leading-tight">
+                          {tool.title}
+                        </div>
+                        {tool.isNew && (
+                          <span className="inline-block mt-0.5 text-[9px] bg-brand-red text-white px-1 py-0.5 rounded-full">
+                            New
+                          </span>
+                        )}
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            </div>
 
             {/* Favicon Generator */}
             <Link
