@@ -304,7 +304,7 @@ const JpgToPdf = () => {
                   multiple={true}
                   maxSize={25}
                   allowedTypes={["image"]}
-                  uploadText="Select images or drop image files here"
+                  uploadText="Select image files to convert"
                   supportText="Supports JPG, PNG, GIF, BMP, WebP formats"
                 />
               </div>

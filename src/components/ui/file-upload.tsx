@@ -39,7 +39,9 @@ const FileUpload: React.FC<FileUploadProps> = ({
 
   // Determine the correct accept attribute based on acceptedFileTypes or allowedTypes
   const getAcceptAttribute = () => {
-    if (accept) return accept;
+    if (accept) {
+      return accept;
+    }
 
     if (acceptedFileTypes) {
       const mimeTypes = Object.keys(acceptedFileTypes);
@@ -83,7 +85,7 @@ const FileUpload: React.FC<FileUploadProps> = ({
     }
 
     if (allowedTypes.includes("image")) {
-      return "Supports JPG, PNG, GIF, WebP formats";
+      return "Supports JPG, PNG, GIF, BMP, WebP formats";
     }
 
     return "Supports PDF format";
@@ -112,10 +114,11 @@ const FileUpload: React.FC<FileUploadProps> = ({
           return `Only ${extensions.join(", ")} files are allowed`;
         }
       } else {
-        // Check file type based on allowedTypes (original logic)
+        // Check file type based on allowedTypes
         const isValidType = allowedTypes.some((type) => {
           if (type === "pdf") {
             return (
+              file.type === "application/pdf" ||
               file.type.includes("pdf") ||
               file.name.toLowerCase().endsWith(".pdf")
             );
@@ -142,6 +145,7 @@ const FileUpload: React.FC<FileUploadProps> = ({
       if (file.size > maxSize * 1024 * 1024) {
         return `File size must be less than ${maxSize}MB`;
       }
+
       return null;
     },
     [maxSize, allowedTypes, acceptedFileTypes],
@@ -183,14 +187,7 @@ const FileUpload: React.FC<FileUploadProps> = ({
         onFilesSelect(validFiles);
       }
     },
-    [
-      multiple,
-      maxFiles,
-      maxSize,
-      onFilesSelect,
-      allowedTypes,
-      acceptedFileTypes,
-    ],
+    [multiple, maxFiles, validateFile, onFilesSelect],
   );
 
   const handleDrop = useCallback(
@@ -215,6 +212,8 @@ const FileUpload: React.FC<FileUploadProps> = ({
   const handleFileInput = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
       handleFiles(e.target.files);
+      // Reset the input value to allow re-selecting the same file
+      e.target.value = "";
     },
     [handleFiles],
   );
@@ -267,26 +266,37 @@ const FileUpload: React.FC<FileUploadProps> = ({
 
           <div>
             <h3 className="text-heading-small text-text-dark mb-2">
-              {finalUploadText.includes(" or ")
-                ? finalUploadText.split(" or ")[0]
-                : finalUploadText}
+              {uploadText
+                ? uploadText
+                : finalUploadText.includes(" or ")
+                  ? finalUploadText.split(" or ")[0]
+                  : finalUploadText}
             </h3>
             <p className="text-body-small text-text-light mb-4">
-              {finalUploadText.includes(" or ")
-                ? finalUploadText.split(" or ")[1]
-                : finalSupportText}
+              {uploadText
+                ? "Drag and drop files here"
+                : finalUploadText.includes(" or ")
+                  ? finalUploadText.split(" or ")[1]
+                  : finalSupportText}
             </p>
 
             <Button
               type="button"
               className="bg-brand-red hover:bg-red-600"
-              onClick={() =>
-                document.querySelector('input[type="file"]')?.click()
-              }
+              onClick={(e) => {
+                e.preventDefault();
+                const fileInput =
+                  e.currentTarget.parentElement?.parentElement?.parentElement?.querySelector(
+                    'input[type="file"]',
+                  ) as HTMLInputElement;
+                fileInput?.click();
+              }}
             >
-              {finalUploadText.includes(" or ")
-                ? finalUploadText.split(" or ")[0]
-                : finalUploadText}
+              {uploadText
+                ? uploadText
+                : finalUploadText.includes(" or ")
+                  ? finalUploadText.split(" or ")[0]
+                  : finalUploadText}
             </Button>
 
             <p className="text-xs text-text-light mt-2">
