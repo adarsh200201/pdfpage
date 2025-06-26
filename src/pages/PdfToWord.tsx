@@ -71,28 +71,44 @@ const PdfToWord = () => {
     try {
       const convertedDocs: { name: string; url: string; size: string }[] = [];
 
+      let successCount = 0;
+      let errorCount = 0;
+
       for (const file of files) {
         try {
-          // Convert PDF to Word using text extraction and formatting
-          const docBlob = await convertPdfToWord(file, conversionMode);
-          const docUrl = URL.createObjectURL(docBlob);
-          const docSize = (docBlob.size / 1024).toFixed(2) + " KB";
+          console.log(`Converting ${file.name}...`);
+          setProgress((prev) => Math.min(prev + 70 / files.length, 85));
 
-          convertedDocs.push({
-            name: file.name.replace(".pdf", ".docx"),
-            url: docUrl,
-            size: docSize,
-          });
+          const convertedDoc = await convertPdfToWord(file.file, mode);
+
+          if (convertedDoc && convertedDoc.size > 0) {
+            const docSize = convertedDoc.size;
+            const docUrl = URL.createObjectURL(convertedDoc);
+
+            convertedDocs.push({
+              name: file.name.replace(".pdf", ".docx"),
+              url: docUrl,
+              size: docSize,
+            });
+            successCount++;
+          } else {
+            throw new Error("Generated document is empty");
+          }
         } catch (error) {
+          errorCount++;
           console.error(`Error converting ${file.name}:`, error);
           toast({
             title: `Error converting ${file.name}`,
             description:
-              "This PDF file could not be converted. Please try another file.",
+              error instanceof Error
+                ? error.message
+                : "This PDF file could not be converted. Please try another file.",
             variant: "destructive",
           });
         }
       }
+
+      setProgress(95);
 
       if (convertedDocs.length > 0) {
         setConvertedFiles(convertedDocs);
@@ -105,13 +121,35 @@ const PdfToWord = () => {
           files.reduce((sum, file) => sum + file.size, 0),
         );
 
+        const message =
+          errorCount > 0
+            ? `Successfully converted ${successCount} of ${files.length} PDF(s). ${errorCount} file(s) failed.`
+            : `Successfully converted all ${successCount} PDF(s) to Word document(s).`;
+
         toast({
           title: "Conversion completed!",
-          description: `Successfully converted ${files.length} PDF(s) to Word document(s).`,
+          description: message,
         });
       } else {
-        throw new Error("No documents were generated");
+        // Provide specific guidance instead of generic error
+        const errorMessage =
+          files.length === 1
+            ? "The PDF file could not be processed. It might be corrupted, password-protected, or contain only images."
+            : `None of the ${files.length} PDF files could be converted. They might be corrupted, password-protected, or contain only images.`;
+
+        toast({
+          title: "Conversion failed",
+          description: errorMessage,
+          variant: "destructive",
+        });
+
+        // Don't throw error, just reset the state
+        setProgress(0);
+        setIsProcessing(false);
+        return;
       }
+
+      setProgress(100);
     } catch (error) {
       console.error("Error converting PDF to Word:", error);
       toast({
@@ -129,31 +167,57 @@ const PdfToWord = () => {
     file: File,
     mode: "editable" | "layout",
   ): Promise<Blob> => {
-    const { getDocument } = await import("pdfjs-dist");
+    const pdfjsLib = await import("pdfjs-dist");
+
+    // Ensure worker is configured
+    if (!pdfjsLib.GlobalWorkerOptions.workerSrc) {
+      pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdn.jsdelivr.net/npm/pdfjs-dist@4.8.69/build/pdf.worker.min.mjs`;
+    }
 
     const arrayBuffer = await file.arrayBuffer();
-    const pdf = await getDocument({
+    const pdf = await pdfjsLib.getDocument({
       data: arrayBuffer,
-      disableWorker: true,
+      disableWorker: false, // Enable worker
       disableStream: true,
       disableAutoFetch: true,
     }).promise;
 
     let extractedText = "";
+    let totalTextLength = 0;
 
     // Extract text from all pages
     for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber++) {
-      const page = await pdf.getPage(pageNumber);
-      const textContent = await page.getTextContent();
+      try {
+        const page = await pdf.getPage(pageNumber);
+        const textContent = await page.getTextContent();
 
-      let pageText = "";
-      textContent.items.forEach((item: any) => {
-        if (item.str) {
-          pageText += item.str + " ";
+        let pageText = "";
+        if (textContent && textContent.items) {
+          textContent.items.forEach((item: any) => {
+            if (item.str && typeof item.str === "string") {
+              pageText += item.str + " ";
+            }
+          });
         }
-      });
 
-      extractedText += `\n\n--- Page ${pageNumber} ---\n\n${pageText.trim()}`;
+        const cleanPageText = pageText.trim();
+        if (cleanPageText.length > 0) {
+          extractedText += `\n\n--- Page ${pageNumber} ---\n\n${cleanPageText}`;
+          totalTextLength += cleanPageText.length;
+        } else {
+          extractedText += `\n\n--- Page ${pageNumber} ---\n\n[This page appears to be empty or contains only images]`;
+        }
+      } catch (pageError) {
+        console.warn(`Error processing page ${pageNumber}:`, pageError);
+        extractedText += `\n\n--- Page ${pageNumber} ---\n\n[Error reading this page]`;
+      }
+    }
+
+    // Check if we extracted any meaningful text
+    if (totalTextLength < 10) {
+      throw new Error(
+        "PDF contains no readable text - it may be an image-based PDF that requires OCR",
+      );
     }
 
     // Create a simple HTML document that can be opened as Word

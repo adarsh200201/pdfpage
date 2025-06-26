@@ -690,6 +690,95 @@ export class PDFService {
     }
   }
 
+  // Convert image to PDF
+  static async convertImageToPdf(file: File): Promise<Uint8Array> {
+    try {
+      const { PDFDocument } = await import("pdf-lib");
+
+      const pdfDoc = await PDFDocument.create();
+      const imageBytes = await file.arrayBuffer();
+
+      let image;
+      if (file.type === "image/jpeg" || file.type === "image/jpg") {
+        image = await pdfDoc.embedJpg(imageBytes);
+      } else if (file.type === "image/png") {
+        image = await pdfDoc.embedPng(imageBytes);
+      } else {
+        throw new Error("Unsupported image format. Please use JPG or PNG.");
+      }
+
+      const page = pdfDoc.addPage([image.width, image.height]);
+      page.drawImage(image, {
+        x: 0,
+        y: 0,
+        width: image.width,
+        height: image.height,
+      });
+
+      return await pdfDoc.save();
+    } catch (error) {
+      console.error("Error converting image to PDF:", error);
+      throw new Error("Failed to convert image to PDF");
+    }
+  }
+
+  // Merge mixed files (PDFs and images) into a single PDF
+  static async mergeMixedFiles(
+    files: { file: File; type: "pdf" | "image" }[],
+    onProgress?: (progress: number) => void,
+  ): Promise<Uint8Array> {
+    try {
+      const { PDFDocument } = await import("pdf-lib");
+
+      const mergedPdf = await PDFDocument.create();
+
+      for (let i = 0; i < files.length; i++) {
+        const { file, type } = files[i];
+        onProgress?.((i / files.length) * 90);
+
+        if (type === "pdf") {
+          // Handle PDF files
+          const arrayBuffer = await file.arrayBuffer();
+          const pdf = await PDFDocument.load(arrayBuffer);
+          const pages = await mergedPdf.copyPages(pdf, pdf.getPageIndices());
+          pages.forEach((page) => mergedPdf.addPage(page));
+        } else if (type === "image") {
+          // Handle image files
+          const imageBytes = await file.arrayBuffer();
+
+          let image;
+          if (file.type === "image/jpeg" || file.type === "image/jpg") {
+            image = await mergedPdf.embedJpg(imageBytes);
+          } else if (file.type === "image/png") {
+            image = await mergedPdf.embedPng(imageBytes);
+          } else {
+            console.warn(
+              `Unsupported image format: ${file.type}, skipping ${file.name}`,
+            );
+            continue;
+          }
+
+          const page = mergedPdf.addPage([image.width, image.height]);
+          page.drawImage(image, {
+            x: 0,
+            y: 0,
+            width: image.width,
+            height: image.height,
+          });
+        }
+      }
+
+      onProgress?.(95);
+      const pdfBytes = await mergedPdf.save();
+      onProgress?.(100);
+
+      return pdfBytes;
+    } catch (error) {
+      console.error("Error merging mixed files:", error);
+      throw new Error("Failed to merge files");
+    }
+  }
+
   // Convert PDF to Word (DOCX format)
   static async convertPdfToWord(file: File): Promise<Uint8Array> {
     try {

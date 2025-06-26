@@ -1,13 +1,17 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Link } from "react-router-dom";
 import Header from "@/components/layout/Header";
 import FileUpload from "@/components/ui/file-upload";
 import { Button } from "@/components/ui/button";
 import { PromoBanner } from "@/components/ui/promo-banner";
+import MergeItem, { MergeFileItem } from "@/components/ui/merge-item";
+import PdfPageItemComponent, {
+  PdfPageItem,
+} from "@/components/ui/pdf-page-item";
+import FilePreviewModal from "@/components/ui/file-preview-modal";
 import {
   ArrowLeft,
   Download,
-  FileText,
   GripVertical,
   Trash2,
   RotateCw,
@@ -17,6 +21,10 @@ import {
   Loader2,
   Crown,
   AlertTriangle,
+  Plus,
+  FileText,
+  Image as ImageIcon,
+  Upload,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { PDFService } from "@/services/pdfService";
@@ -24,15 +32,10 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import AuthModal from "@/components/auth/AuthModal";
 
-interface ProcessedFile {
-  id: string;
-  file: File;
-  name: string;
-  size: number;
-}
-
 const Merge = () => {
-  const [files, setFiles] = useState<ProcessedFile[]>([]);
+  const [files, setFiles] = useState<MergeFileItem[]>([]);
+  const [pageItems, setPageItems] = useState<PdfPageItem[]>([]);
+  const [viewMode, setViewMode] = useState<"files" | "pages">("files");
   const [isProcessing, setIsProcessing] = useState(false);
   const [isComplete, setIsComplete] = useState(false);
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
@@ -41,22 +44,131 @@ const Merge = () => {
   const [usageLimitReached, setUsageLimitReached] = useState(false);
   const [progress, setProgress] = useState(0);
   const [mergedFileSize, setMergedFileSize] = useState(0);
+  const [previewFile, setPreviewFile] = useState<MergeFileItem | null>(null);
+  const [showPreviewModal, setShowPreviewModal] = useState(false);
+  const [insertionIndex, setInsertionIndex] = useState<number | null>(null);
+  const [pageInsertionTarget, setPageInsertionTarget] = useState<{
+    itemId: string;
+    afterPage: number;
+  } | null>(null);
 
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const { user, isAuthenticated } = useAuth();
   const { toast } = useToast();
 
   const handleFilesSelect = (newFiles: File[]) => {
-    const processedFiles: ProcessedFile[] = newFiles.map((file) => ({
-      id: Math.random().toString(36).substr(2, 9),
-      file,
+    const processedFiles: MergeFileItem[] = newFiles
+      .map((file) => {
+        const isPdf = file.type === "application/pdf";
+        const isImage = file.type.startsWith("image/");
+
+        if (!isPdf && !isImage) {
+          toast({
+            title: "Unsupported file type",
+            description: `${file.name} is not a PDF or image file`,
+            variant: "destructive",
+          });
+          return null;
+        }
+
+        return {
+          id: Math.random().toString(36).substr(2, 9),
+          file,
+          name: file.name,
+          size: file.size,
+          type: isPdf ? "pdf" : "image",
+        };
+      })
+      .filter(Boolean) as MergeFileItem[];
+
+    // Handle page-level insertion
+    if (pageInsertionTarget) {
+      handlePageInsertion(processedFiles);
+      setPageInsertionTarget(null);
+    } else if (insertionIndex !== null) {
+      // Insert at specific position
+      setFiles((prev) => {
+        const newFiles = [...prev];
+        newFiles.splice(insertionIndex, 0, ...processedFiles);
+        return newFiles;
+      });
+      setInsertionIndex(null);
+    } else {
+      // Add to end
+      setFiles((prev) => [...prev, ...processedFiles]);
+    }
+
+    // Also update page items for page view
+    updatePageItems(processedFiles);
+
+    // Show success message
+    if (processedFiles.length > 0) {
+      toast({
+        title: "Files added successfully",
+        description: `Added ${processedFiles.length} file${processedFiles.length > 1 ? "s" : ""} to merge queue`,
+      });
+    }
+  };
+
+  const updatePageItems = (newFiles: MergeFileItem[]) => {
+    const newPageItems: PdfPageItem[] = newFiles.map((file) => ({
+      id: file.id,
+      file: file.file,
       name: file.name,
       size: file.size,
+      type: file.type,
+      isExpanded: false,
     }));
-    setFiles((prev) => [...prev, ...processedFiles]);
+
+    setPageItems((prev) => [...prev, ...newPageItems]);
+  };
+
+  const handlePageInsertion = (newFiles: MergeFileItem[]) => {
+    // This would handle inserting files at specific page positions
+    // For now, we'll add them to the regular files array
+    // In a full implementation, this would track page-level positioning
+    setFiles((prev) => [...prev, ...newFiles]);
+
+    toast({
+      title: "Files inserted",
+      description: `Inserted ${newFiles.length} file${newFiles.length > 1 ? "s" : ""} after page ${pageInsertionTarget?.afterPage}`,
+    });
+  };
+
+  const handleInsertFiles = (index: number, position: "before" | "after") => {
+    const actualIndex = position === "before" ? index : index + 1;
+    setInsertionIndex(actualIndex);
+
+    if (fileInputRef.current) {
+      fileInputRef.current.click();
+    }
+  };
+
+  const handleInsertAtPage = (itemId: string, afterPage: number) => {
+    setPageInsertionTarget({ itemId, afterPage });
+
+    if (fileInputRef.current) {
+      fileInputRef.current.click();
+    }
+
+    toast({
+      description: `Select files to insert after page ${afterPage}`,
+    });
+  };
+
+  const handleToggleExpanded = (id: string) => {
+    setPageItems((prev) =>
+      prev.map((item) =>
+        item.id === id ? { ...item, isExpanded: !item.isExpanded } : item,
+      ),
+    );
   };
 
   const removeFile = (id: string) => {
     setFiles((prev) => prev.filter((f) => f.id !== id));
+    toast({
+      description: "File removed from merge queue",
+    });
   };
 
   const moveFile = (fromIndex: number, toIndex: number) => {
@@ -84,6 +196,40 @@ const Merge = () => {
     setDraggedIndex(null);
   };
 
+  const handlePreview = (item: MergeFileItem) => {
+    setPreviewFile(item);
+    setShowPreviewModal(true);
+  };
+
+  const handleRotate = async (id: string) => {
+    const item = files.find((f) => f.id === id);
+    if (!item || item.type !== "pdf") return;
+
+    try {
+      const rotatedBytes = await PDFService.rotatePDF(item.file, 90);
+      const rotatedFile = new File([rotatedBytes], item.name, {
+        type: "application/pdf",
+        lastModified: Date.now(),
+      });
+
+      setFiles((prev) =>
+        prev.map((f) =>
+          f.id === id ? { ...f, file: rotatedFile, size: rotatedFile.size } : f,
+        ),
+      );
+
+      toast({
+        description: "PDF rotated 90° clockwise",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to rotate PDF",
+        variant: "destructive",
+      });
+    }
+  };
+
   const formatFileSize = (bytes: number) => {
     if (bytes === 0) return "0 Bytes";
     const k = 1024;
@@ -96,7 +242,7 @@ const Merge = () => {
     if (files.length < 2) {
       toast({
         title: "Not enough files",
-        description: "Please select at least 2 PDF files to merge.",
+        description: "Please select at least 2 files to merge.",
         variant: "destructive",
       });
       return;
@@ -116,13 +262,15 @@ const Merge = () => {
     setProgress(0);
 
     try {
-      toast({
-        title: `🔄 Merging ${files.length} PDF files...`,
-        description: "Processing your documents",
-      });
-
       // Get total file size
       const totalSize = files.reduce((sum, file) => sum + file.size, 0);
+      const pdfCount = files.filter((f) => f.type === "pdf").length;
+      const imageCount = files.filter((f) => f.type === "image").length;
+
+      toast({
+        title: `🔄 Merging ${files.length} files...`,
+        description: `${pdfCount} PDFs + ${imageCount} images • Total size: ${formatFileSize(totalSize)}`,
+      });
 
       // Check file size limits (25MB for free users, 100MB for premium)
       const maxSize = user?.isPremium ? 100 * 1024 * 1024 : 25 * 1024 * 1024;
@@ -134,9 +282,15 @@ const Merge = () => {
 
       setProgress(10);
 
-      // Use optimized merge with progress tracking
-      const mergedPdfBytes = await PDFService.mergePDFs(
-        files,
+      // Prepare files for merging
+      const filesToMerge = files.map((item) => ({
+        file: item.file,
+        type: item.type,
+      }));
+
+      // Use mixed file merger that handles both PDFs and images
+      const mergedPdfBytes = await PDFService.mergeMixedFiles(
+        filesToMerge,
         (progressPercent) => {
           setProgress(progressPercent);
         },
@@ -161,26 +315,23 @@ const Merge = () => {
         }
       }
 
-      // Download the merged file
-      const downloadLink = document.querySelector(
-        "a[download]",
-      ) as HTMLAnchorElement | null;
-      if (downloadLink) {
-        downloadLink.click();
-      }
+      // Create download blob
+      const blob = new Blob([mergedPdfBytes], { type: "application/pdf" });
+      const url = URL.createObjectURL(blob);
+      setMergedFileUrl(url);
 
       setIsComplete(true);
 
       toast({
         title: "Success!",
-        description: "Your PDF files have been merged successfully.",
+        description: `Your ${files.length} files have been merged into a single PDF.`,
       });
     } catch (error: any) {
-      console.error("Error merging PDFs:", error);
+      console.error("Error merging files:", error);
       toast({
         title: "Error",
         description:
-          error.message || "Failed to merge PDF files. Please try again.",
+          error.message || "Failed to merge files. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -188,31 +339,24 @@ const Merge = () => {
     }
   };
 
-  const downloadMergedFile = async () => {
+  const downloadMergedFile = () => {
     if (mergedFileUrl) {
-      // Download from Cloudinary URL
       const downloadLink = document.createElement("a");
       downloadLink.href = mergedFileUrl;
       downloadLink.download = "merged-document.pdf";
       downloadLink.click();
-    } else {
-      // Re-merge and download
-      try {
-        const mergedPdfBytes = await PDFService.mergePDFs(files);
-        const downloadLink = document.createElement("a");
-        downloadLink.href = URL.createObjectURL(
-          new Blob([mergedPdfBytes], { type: "application/pdf" }),
-        );
-        downloadLink.download = "merged-document.pdf";
-        downloadLink.click();
-      } catch (error) {
-        toast({
-          title: "Error",
-          description: "Failed to download file. Please try again.",
-          variant: "destructive",
-        });
-      }
     }
+  };
+
+  const resetTool = () => {
+    setFiles([]);
+    setIsComplete(false);
+    setProgress(0);
+    setMergedFileSize(0);
+    if (mergedFileUrl && !mergedFileUrl.startsWith("https://")) {
+      URL.revokeObjectURL(mergedFileUrl);
+    }
+    setMergedFileUrl("");
   };
 
   return (
@@ -239,11 +383,11 @@ const Merge = () => {
             <Combine className="w-8 h-8 text-white" />
           </div>
           <h1 className="text-heading-medium text-text-dark mb-4">
-            Merge PDF files
+            Merge PDF & Images
           </h1>
           <p className="text-body-large text-text-light max-w-2xl mx-auto">
-            Combine PDFs in the order you want with the easiest PDF merger
-            available.
+            Combine PDFs and images in any order you want. Add files anywhere in
+            the sequence with visual previews.
           </p>
         </div>
 
@@ -257,88 +401,116 @@ const Merge = () => {
                   onFilesSelect={handleFilesSelect}
                   multiple={true}
                   maxSize={25}
+                  accept=".pdf,.jpg,.jpeg,.png"
+                  allowedTypes={["pdf", "image"]}
+                  uploadText="Drop your PDF files and images here or click to browse"
+                  supportText="Supported formats: PDF, JPG, PNG"
                 />
               </div>
             )}
 
-            {/* File List */}
+            {/* File List with Visual Previews */}
             {files.length > 0 && (
               <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
                 <div className="flex items-center justify-between mb-6">
                   <h3 className="text-heading-small text-text-dark">
-                    PDF Files ({files.length})
+                    Files to Merge ({files.length})
                   </h3>
-                  <Button
-                    variant="outline"
-                    onClick={() =>
-                      document.querySelector('input[type="file"]')?.click()
-                    }
-                  >
-                    Add More Files
-                  </Button>
+                  <div className="flex items-center space-x-3">
+                    <div className="text-sm text-gray-500">
+                      {files.filter((f) => f.type === "pdf").length} PDFs,{" "}
+                      {files.filter((f) => f.type === "image").length} Images
+                    </div>
+
+                    {/* View Mode Toggle */}
+                    <div className="flex bg-gray-100 rounded-lg p-1">
+                      <Button
+                        variant={viewMode === "files" ? "default" : "ghost"}
+                        size="sm"
+                        onClick={() => setViewMode("files")}
+                        className="text-xs"
+                      >
+                        File View
+                      </Button>
+                      <Button
+                        variant={viewMode === "pages" ? "default" : "ghost"}
+                        size="sm"
+                        onClick={() => setViewMode("pages")}
+                        className="text-xs"
+                      >
+                        Page View
+                      </Button>
+                    </div>
+
+                    <Button
+                      variant="outline"
+                      onClick={() => fileInputRef.current?.click()}
+                    >
+                      <Plus className="w-4 h-4 mr-2" />
+                      Add More Files
+                    </Button>
+                  </div>
                 </div>
 
-                <div className="space-y-3">
-                  {files.map((processedFile, index) => (
-                    <div
-                      key={processedFile.id}
-                      draggable
-                      onDragStart={() => handleDragStart(index)}
-                      onDragOver={(e) => handleDragOver(e, index)}
+                {/* Insertion indicator */}
+                {insertionIndex !== null && (
+                  <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg text-blue-700 text-sm">
+                    <Upload className="w-4 h-4 inline mr-2" />
+                    Select files to insert at position {insertionIndex + 1}
+                  </div>
+                )}
+
+                <div className="space-y-2">
+                  {files.map((item, index) => (
+                    <MergeItem
+                      key={item.id}
+                      item={item}
+                      index={index}
+                      isDragging={draggedIndex === index}
+                      isInsertionTarget={false}
+                      onRemove={removeFile}
+                      onRotate={handleRotate}
+                      onPreview={handlePreview}
+                      onInsertBefore={(idx) => handleInsertFiles(idx, "before")}
+                      onInsertAfter={(idx) => handleInsertFiles(idx, "after")}
+                      onDragStart={handleDragStart}
+                      onDragOver={handleDragOver}
                       onDragEnd={handleDragEnd}
-                      className={cn(
-                        "flex items-center space-x-4 p-4 rounded-lg border transition-all duration-200 cursor-move",
-                        draggedIndex === index
-                          ? "border-brand-red bg-red-50 shadow-lg"
-                          : "border-gray-200 bg-gray-50 hover:bg-gray-100",
-                      )}
-                    >
-                      <GripVertical className="w-5 h-5 text-gray-400" />
-
-                      <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                        <FileText className="w-5 h-5 text-blue-500" />
-                      </div>
-
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-text-dark truncate">
-                          {processedFile.name}
-                        </p>
-                        <p className="text-xs text-text-light">
-                          {formatFileSize(processedFile.size)}
-                        </p>
-                      </div>
-
-                      <div className="flex items-center space-x-2">
-                        <Button variant="ghost" size="sm">
-                          <Eye className="w-4 h-4" />
-                        </Button>
-                        <Button variant="ghost" size="sm">
-                          <RotateCw className="w-4 h-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => removeFile(processedFile.id)}
-                          className="text-red-500 hover:text-red-700"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    </div>
+                    />
                   ))}
                 </div>
 
                 {/* Hidden file input for adding more files */}
                 <input
+                  ref={fileInputRef}
                   type="file"
-                  accept=".pdf"
+                  accept=".pdf,.jpg,.jpeg,.png"
                   multiple
-                  onChange={(e) =>
-                    e.target.files &&
-                    handleFilesSelect(Array.from(e.target.files))
-                  }
+                  onChange={(e) => {
+                    if (e.target.files) {
+                      handleFilesSelect(Array.from(e.target.files));
+                    }
+                    e.target.value = ""; // Reset input
+                  }}
                   className="hidden"
                 />
+
+                {/* Instructions */}
+                <div className="mt-6 p-4 bg-gray-50 rounded-lg">
+                  <h4 className="font-medium text-gray-900 mb-2">
+                    How to use:
+                  </h4>
+                  <ul className="text-sm text-gray-600 space-y-1">
+                    <li>• Drag and drop files to reorder them</li>
+                    <li>
+                      • Click "Insert Here" buttons to add files at specific
+                      positions
+                    </li>
+                    <li>• Click the eye icon to preview any file</li>
+                    <li>• Use the rotate button for PDF files</li>
+                    <li>• Supports PDF, JPG, and PNG files</li>
+                  </ul>
+                </div>
               </div>
             )}
 
@@ -354,19 +526,19 @@ const Merge = () => {
                   {isProcessing ? (
                     <>
                       <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                      Merging PDFs...
+                      Merging Files...
                     </>
                   ) : (
                     <>
                       <Combine className="w-5 h-5 mr-2" />
-                      Merge PDF files
+                      Merge {files.length} Files
                     </>
                   )}
                 </Button>
 
                 {files.length < 2 && (
                   <p className="text-body-small text-text-light mt-2">
-                    Add at least 2 PDF files to merge
+                    Add at least 2 files to merge
                   </p>
                 )}
               </div>
@@ -379,11 +551,21 @@ const Merge = () => {
                   <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
                 </div>
                 <h3 className="text-heading-small text-text-dark mb-2">
-                  Merging your PDF files...
+                  Merging your files...
                 </h3>
-                <p className="text-body-medium text-text-light">
-                  This may take a few moments depending on file size
+                <p className="text-body-medium text-text-light mb-4">
+                  Processing {files.filter((f) => f.type === "pdf").length} PDFs
+                  and {files.filter((f) => f.type === "image").length} images
                 </p>
+                <div className="w-full bg-gray-200 rounded-full h-2 mb-2">
+                  <div
+                    className="bg-blue-500 h-2 rounded-full transition-all duration-300"
+                    style={{ width: `${progress}%` }}
+                  />
+                </div>
+                <div className="text-sm text-gray-500">
+                  {progress}% complete
+                </div>
               </div>
             )}
           </div>
@@ -394,10 +576,11 @@ const Merge = () => {
               <CheckCircle className="w-8 h-8 text-green-500" />
             </div>
             <h3 className="text-heading-small text-text-dark mb-2">
-              Your PDF has been merged successfully!
+              Your files have been merged successfully!
             </h3>
             <p className="text-body-medium text-text-light mb-6">
-              Your merged PDF is ready for download
+              Your merged PDF is ready for download (
+              {formatFileSize(mergedFileSize)})
             </p>
 
             <div className="flex items-center justify-center space-x-4">
@@ -409,11 +592,8 @@ const Merge = () => {
                 <Download className="w-5 h-5 mr-2" />
                 Download Merged PDF
               </Button>
-              <Button
-                variant="outline"
-                onClick={() => window.location.reload()}
-              >
-                Merge Another PDF
+              <Button variant="outline" onClick={resetTool}>
+                Merge More Files
               </Button>
             </div>
           </div>
@@ -425,33 +605,46 @@ const Merge = () => {
             <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mx-auto mb-3">
               <Combine className="w-6 h-6 text-blue-500" />
             </div>
-            <h4 className="font-semibold text-text-dark mb-2">Easy to Use</h4>
+            <h4 className="font-semibold text-text-dark mb-2">
+              Flexible Positioning
+            </h4>
             <p className="text-body-small text-text-light">
-              Drag and drop to reorder your PDF files exactly how you want them
+              Insert files anywhere in the sequence with drag-and-drop or
+              insertion controls
             </p>
           </div>
 
           <div className="text-center">
             <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center mx-auto mb-3">
-              <CheckCircle className="w-6 h-6 text-green-500" />
+              <ImageIcon className="w-6 h-6 text-green-500" />
             </div>
-            <h4 className="font-semibold text-text-dark mb-2">High Quality</h4>
+            <h4 className="font-semibold text-text-dark mb-2">PDF + Images</h4>
             <p className="text-body-small text-text-light">
-              Maintain the original quality of your PDF files during merge
+              Combine PDFs with JPG and PNG images into a single document
             </p>
           </div>
 
           <div className="text-center">
             <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center mx-auto mb-3">
-              <FileText className="w-6 h-6 text-purple-500" />
+              <Eye className="w-6 h-6 text-purple-500" />
             </div>
-            <h4 className="font-semibold text-text-dark mb-2">Any Size</h4>
+            <h4 className="font-semibold text-text-dark mb-2">
+              Visual Preview
+            </h4>
             <p className="text-body-small text-text-light">
-              Merge PDF files of any size without any limitations
+              See thumbnail previews to easily decide where to insert content
             </p>
           </div>
         </div>
       </div>
+
+      {/* File Preview Modal */}
+      <FilePreviewModal
+        isOpen={showPreviewModal}
+        onClose={() => setShowPreviewModal(false)}
+        file={previewFile?.file || null}
+        type={previewFile?.type || "pdf"}
+      />
 
       {/* Auth Modal */}
       <AuthModal

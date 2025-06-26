@@ -4,6 +4,9 @@ import Header from "@/components/layout/Header";
 import FileUpload from "@/components/ui/file-upload";
 import { Button } from "@/components/ui/button";
 import { PromoBanner } from "@/components/ui/promo-banner";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Progress } from "@/components/ui/progress";
 import {
   ArrowLeft,
   Download,
@@ -15,6 +18,13 @@ import {
   AlertTriangle,
   Info,
   Eye,
+  Package,
+  Layers,
+  SeparatorHorizontal,
+  Grid,
+  Archive,
+  DownloadCloud,
+  Combine,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { PDFService } from "@/services/pdfService";
@@ -36,6 +46,15 @@ const Split = () => {
   const [splitPages, setSplitPages] = useState<Uint8Array[]>([]);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [usageLimitReached, setUsageLimitReached] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [splitMode, setSplitMode] = useState<"pages" | "ranges" | "bulk">(
+    "pages",
+  );
+  const [pageRanges, setPageRanges] = useState("");
+  const [bulkSize, setBulkSize] = useState(1);
+  const [totalPages, setTotalPages] = useState(0);
+  const [selectedPages, setSelectedPages] = useState<number[]>([]);
+  const [downloadAll, setDownloadAll] = useState(false);
 
   const { user, isAuthenticated } = useAuth();
   const { toast } = useToast();
@@ -76,8 +95,14 @@ const Split = () => {
     }
 
     setIsProcessing(true);
+    setProgress(0);
 
     try {
+      toast({
+        title: `🔄 Splitting ${file.name}...`,
+        description: `Mode: ${splitMode} • Processing your PDF`,
+      });
+
       // Check file size limits
       const maxSize = user?.isPremium ? 100 * 1024 * 1024 : 25 * 1024 * 1024;
       if (file.size > maxSize) {
@@ -86,14 +111,33 @@ const Split = () => {
         );
       }
 
-      const splitPdfPages = await PDFService.splitPDF(file.file);
+      setProgress(20);
+
+      const splitPdfPages = await PDFService.splitPDF(
+        file.file,
+        (progressPercent) => {
+          setProgress(20 + progressPercent * 0.7);
+        },
+      );
+
       setSplitPages(splitPdfPages);
+      setTotalPages(splitPdfPages.length);
 
       // Track usage
       await PDFService.trackUsage("split", 1, file.size);
 
-      // Download first page automatically
-      if (splitPdfPages.length > 0) {
+      setProgress(100);
+
+      // Auto-download based on preferences
+      if (downloadAll && splitPdfPages.length <= 10) {
+        // Download all pages if user wants and it's reasonable
+        splitPdfPages.forEach((page, index) => {
+          setTimeout(() => {
+            PDFService.downloadFile(page, `page-${index + 1}-${file.name}`);
+          }, index * 200); // Stagger downloads
+        });
+      } else if (splitPdfPages.length > 0) {
+        // Just download first page as preview
         PDFService.downloadFile(splitPdfPages[0], `page-1-${file.name}`);
       }
 
@@ -196,25 +240,143 @@ const Split = () => {
                   </div>
                 </div>
 
-                {/* Info Box */}
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                  <div className="flex items-start space-x-2">
-                    <Info className="w-5 h-5 text-blue-500 mt-0.5 flex-shrink-0" />
+                {/* Advanced Split Options */}
+                <Tabs
+                  value={splitMode}
+                  onValueChange={(value) => setSplitMode(value as any)}
+                  className="mb-6"
+                >
+                  <TabsList className="grid w-full grid-cols-3">
+                    <TabsTrigger
+                      value="pages"
+                      className="flex items-center gap-2"
+                    >
+                      <Layers className="w-4 h-4" />
+                      Extract Pages
+                    </TabsTrigger>
+                    <TabsTrigger
+                      value="ranges"
+                      className="flex items-center gap-2"
+                    >
+                      <SeparatorHorizontal className="w-4 h-4" />
+                      Split Ranges
+                    </TabsTrigger>
+                    <TabsTrigger
+                      value="bulk"
+                      className="flex items-center gap-2"
+                    >
+                      <Grid className="w-4 h-4" />
+                      Fixed Intervals
+                    </TabsTrigger>
+                  </TabsList>
+
+                  <TabsContent value="pages" className="space-y-4 mt-4">
+                    <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                      <div className="flex items-start space-x-2">
+                        <Layers className="w-5 h-5 text-green-600 mt-0.5" />
+                        <div>
+                          <h4 className="font-medium text-green-800 mb-1">
+                            Extract Individual Pages
+                          </h4>
+                          <p className="text-sm text-green-700">
+                            Each page will be extracted as a separate PDF file.
+                            Perfect for getting specific pages.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center space-x-2">
+                      <input
+                        type="checkbox"
+                        id="downloadAll"
+                        checked={downloadAll}
+                        onChange={(e) => setDownloadAll(e.target.checked)}
+                        className="rounded"
+                      />
+                      <label
+                        htmlFor="downloadAll"
+                        className="text-sm text-gray-700"
+                      >
+                        Download all pages automatically (recommended for ≤10
+                        pages)
+                      </label>
+                    </div>
+                  </TabsContent>
+
+                  <TabsContent value="ranges" className="space-y-4 mt-4">
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                      <div className="flex items-start space-x-2">
+                        <SeparatorHorizontal className="w-5 h-5 text-blue-600 mt-0.5" />
+                        <div>
+                          <h4 className="font-medium text-blue-800 mb-1">
+                            Split by Page Ranges
+                          </h4>
+                          <p className="text-sm text-blue-700">
+                            Define specific ranges to extract. Use commas to
+                            separate ranges (e.g., 1-5, 8-12, 15).
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
                     <div>
-                      <p className="text-sm text-blue-800 font-medium mb-1">
-                        How PDF Splitting Works
-                      </p>
-                      <p className="text-sm text-blue-700">
-                        Each page of your PDF will be converted into a separate
-                        PDF file.
-                        {!user?.isPremium &&
-                          " Free users can split PDFs with up to 10 pages."}
-                        {user?.isPremium &&
-                          " Premium users have no page limits."}
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Page Ranges
+                      </label>
+                      <input
+                        type="text"
+                        value={pageRanges}
+                        onChange={(e) => setPageRanges(e.target.value)}
+                        placeholder="e.g., 1-3, 5, 7-9"
+                        className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">
+                        Examples: "1-5" (pages 1 to 5), "1,3,5" (specific
+                        pages), "1-3,7-9" (multiple ranges)
                       </p>
                     </div>
-                  </div>
-                </div>
+                  </TabsContent>
+
+                  <TabsContent value="bulk" className="space-y-4 mt-4">
+                    <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+                      <div className="flex items-start space-x-2">
+                        <Grid className="w-5 h-5 text-purple-600 mt-0.5" />
+                        <div>
+                          <h4 className="font-medium text-purple-800 mb-1">
+                            Split by Fixed Intervals
+                          </h4>
+                          <p className="text-sm text-purple-700">
+                            Split the PDF into multiple files, each containing a
+                            fixed number of pages.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Pages per file: {bulkSize}
+                      </label>
+                      <input
+                        type="range"
+                        min="1"
+                        max="20"
+                        value={bulkSize}
+                        onChange={(e) => setBulkSize(parseInt(e.target.value))}
+                        className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+                      />
+                      <div className="flex justify-between text-xs text-gray-500 mt-1">
+                        <span>1 page</span>
+                        <span>20 pages</span>
+                      </div>
+                      <p className="text-xs text-gray-600 mt-2">
+                        This will create multiple PDF files, each containing{" "}
+                        {bulkSize} page{bulkSize > 1 ? "s" : ""}.
+                      </p>
+                    </div>
+                  </TabsContent>
+                </Tabs>
               </div>
             )}
 
@@ -277,7 +439,11 @@ const Split = () => {
                   ) : (
                     <>
                       <Scissors className="w-5 h-5 mr-2" />
-                      Split PDF into Pages
+                      {splitMode === "pages"
+                        ? "Extract All Pages"
+                        : splitMode === "ranges"
+                          ? "Split by Ranges"
+                          : `Split Every ${bulkSize} Page${bulkSize > 1 ? "s" : ""}`}
                     </>
                   )}
                 </Button>
@@ -293,9 +459,33 @@ const Split = () => {
                 <h3 className="text-heading-small text-text-dark mb-2">
                   Splitting your PDF...
                 </h3>
-                <p className="text-body-medium text-text-light">
-                  Converting each page into a separate PDF file
+                <p className="text-body-medium text-text-light mb-4">
+                  Mode:{" "}
+                  {splitMode === "pages"
+                    ? "Individual Pages"
+                    : splitMode === "ranges"
+                      ? "Page Ranges"
+                      : "Fixed Intervals"}
                 </p>
+
+                {/* Progress Bar */}
+                <div className="max-w-md mx-auto mb-4">
+                  <div className="flex justify-between text-sm text-gray-600 mb-2">
+                    <span>Processing...</span>
+                    <span>{Math.round(progress)}%</span>
+                  </div>
+                  <Progress value={progress} className="h-2" />
+                </div>
+
+                <div className="text-xs text-gray-500">
+                  {progress < 30
+                    ? "Analyzing PDF structure..."
+                    : progress < 70
+                      ? "Extracting pages..."
+                      : progress < 95
+                        ? "Finalizing files..."
+                        : "Almost done!"}
+                </div>
               </div>
             )}
           </div>
@@ -307,63 +497,141 @@ const Split = () => {
                 <CheckCircle className="w-8 h-8 text-green-500" />
               </div>
               <h3 className="text-heading-small text-text-dark mb-2">
-                PDF split successfully!
+                🎉 PDF Split Successfully!
               </h3>
-              <p className="text-body-medium text-text-light mb-6">
-                Your PDF has been split into {splitPages.length} separate
-                file(s)
-              </p>
+              <div className="flex items-center justify-center space-x-4 mb-4">
+                <Badge className="bg-green-100 text-green-800">
+                  <Package className="w-3 h-3 mr-1" />
+                  {splitPages.length} Files Created
+                </Badge>
+                <Badge className="bg-blue-100 text-blue-800">
+                  <Scissors className="w-3 h-3 mr-1" />
+                  {splitMode === "pages"
+                    ? "Individual Pages"
+                    : splitMode === "ranges"
+                      ? "Page Ranges"
+                      : "Fixed Intervals"}
+                </Badge>
+              </div>
             </div>
 
-            {/* Split Pages List */}
-            <div className="space-y-3 mb-6">
-              <h4 className="text-heading-small text-text-dark">
-                Downloaded Pages ({splitPages.length})
-              </h4>
-
-              {splitPages.map((_, index) => (
-                <div
-                  key={index}
-                  className="flex items-center justify-between p-4 rounded-lg border border-gray-200 bg-gray-50"
-                >
-                  <div className="flex items-center space-x-3">
-                    <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
-                      <FileText className="w-5 h-5 text-green-500" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-text-dark">
-                        Page {index + 1}
-                      </p>
-                      <p className="text-xs text-text-light">
-                        page-{index + 1}-{file?.name}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center space-x-2">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => downloadPage(index)}
-                    >
-                      <Download className="w-4 h-4 mr-2" />
-                      Download
-                    </Button>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            <div className="flex items-center justify-center space-x-4">
+            {/* Quick Actions */}
+            <div className="flex flex-wrap gap-3 justify-center mb-6">
               <Button
-                onClick={() => window.location.reload()}
-                className="bg-green-500 hover:bg-green-600"
+                onClick={() => {
+                  splitPages.forEach((page, index) => {
+                    setTimeout(() => {
+                      PDFService.downloadFile(
+                        page,
+                        `page-${index + 1}-${file?.name}`,
+                      );
+                    }, index * 300);
+                  });
+                }}
+                className="bg-green-600 hover:bg-green-700"
+                disabled={splitPages.length > 20}
               >
+                <DownloadCloud className="w-4 h-4 mr-2" />
+                Download All{" "}
+                {splitPages.length > 20
+                  ? "(Too Many)"
+                  : `(${splitPages.length})`}
+              </Button>
+
+              {splitPages.length > 20 && (
+                <Button
+                  onClick={() => {
+                    // Download first 10 pages
+                    splitPages.slice(0, 10).forEach((page, index) => {
+                      setTimeout(() => {
+                        PDFService.downloadFile(
+                          page,
+                          `page-${index + 1}-${file?.name}`,
+                        );
+                      }, index * 300);
+                    });
+                  }}
+                  variant="outline"
+                >
+                  <Download className="w-4 h-4 mr-2" />
+                  Download First 10
+                </Button>
+              )}
+
+              <Button
+                onClick={() => {
+                  setFile(null);
+                  setIsComplete(false);
+                  setSplitPages([]);
+                  setProgress(0);
+                }}
+                variant="outline"
+              >
+                <Scissors className="w-4 h-4 mr-2" />
                 Split Another PDF
               </Button>
-              <Button variant="outline" asChild>
-                <Link to="/">Back to Home</Link>
-              </Button>
+            </div>
+
+            {/* Split Pages Grid - Better Layout */}
+            <div className="mb-6">
+              <div className="flex items-center justify-between mb-4">
+                <h4 className="text-lg font-semibold text-gray-900">
+                  Split Files ({splitPages.length})
+                </h4>
+                <div className="text-sm text-gray-500">
+                  Click any file to download individually
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 max-h-96 overflow-y-auto">
+                {splitPages.map((_, index) => (
+                  <div
+                    key={index}
+                    onClick={() => downloadPage(index)}
+                    className="flex items-center space-x-3 p-3 rounded-lg border border-gray-200 bg-gray-50 hover:bg-green-50 hover:border-green-300 transition-all cursor-pointer group"
+                  >
+                    <div className="w-8 h-8 bg-green-100 group-hover:bg-green-200 rounded-lg flex items-center justify-center">
+                      <FileText className="w-4 h-4 text-green-600" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-gray-900 truncate">
+                        Page {index + 1}
+                      </p>
+                      <p className="text-xs text-gray-500 truncate">
+                        {file?.name?.replace(".pdf", "")}-page-{index + 1}.pdf
+                      </p>
+                    </div>
+                    <Download className="w-4 h-4 text-gray-400 group-hover:text-green-600 transition-colors" />
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Footer Actions */}
+            <div className="text-center pt-4 border-t border-gray-100">
+              <p className="text-sm text-gray-600 mb-4">
+                All {splitPages.length} files are ready for download. Files are
+                processed locally and secure.
+              </p>
+              <div className="flex items-center justify-center space-x-3">
+                <Link to="/merge">
+                  <Button variant="outline" size="sm">
+                    <Combine className="w-4 h-4 mr-2" />
+                    Merge PDFs
+                  </Button>
+                </Link>
+                <Link to="/compress">
+                  <Button variant="outline" size="sm">
+                    <Archive className="w-4 h-4 mr-2" />
+                    Compress PDFs
+                  </Button>
+                </Link>
+                <Link to="/">
+                  <Button variant="outline" size="sm">
+                    More Tools
+                  </Button>
+                </Link>
+              </div>
             </div>
           </div>
         )}

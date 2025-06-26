@@ -94,13 +94,12 @@ export const configurePDFjs = async (force = false): Promise<void> => {
 
   try {
     const isDev = import.meta.env.DEV;
-    const workerSrc = isDev
-      ? "" // Disable worker in development
-      : `https://cdn.jsdelivr.net/npm/pdfjs-dist@4.8.69/build/pdf.worker.min.mjs`; // Use specific version
+    // Always use worker, even in development, to avoid errors
+    const workerSrc = `https://cdn.jsdelivr.net/npm/pdfjs-dist@4.8.69/build/pdf.worker.min.mjs`;
 
     const configOptions: PDFConfigOptions = {
       workerSrc,
-      disableWorker: isDev,
+      disableWorker: false, // Always enable worker
     };
 
     // Configure both react-pdf and pdfjs-dist
