@@ -29,6 +29,7 @@ import {
   Info,
   Star,
   RotateCw,
+  Grid3X3,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -43,6 +44,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 const Header = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [showMegaMenu, setShowMegaMenu] = useState(false);
+  const [showAllToolsMenu, setShowAllToolsMenu] = useState(false);
   const location = useLocation();
 
   const { user, isAuthenticated, logout } = useAuth();
@@ -1028,6 +1030,17 @@ const Header = () => {
               </div>
             )}
 
+            {/* All Tools Menu Icon */}
+            <div className="relative">
+              <button
+                onClick={() => setShowAllToolsMenu(!showAllToolsMenu)}
+                className="hidden md:flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-br from-blue-50 to-indigo-50 hover:from-blue-100 hover:to-indigo-100 border border-blue-200/50 hover:border-blue-300/70 transition-all duration-300 ml-4 group shadow-sm hover:shadow-md"
+                aria-label="All Tools Menu"
+              >
+                <Grid3X3 className="w-5 h-5 text-blue-600 group-hover:text-blue-700 transition-colors duration-200" />
+              </button>
+            </div>
+
             {/* Mobile Menu Button */}
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
@@ -1418,6 +1431,416 @@ const Header = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Simplified Navigation Menu */}
+      {showAllToolsMenu && (
+        <>
+          {/* Backdrop */}
+          <div
+            className="fixed inset-0 bg-black bg-opacity-20 backdrop-blur-sm z-40 transition-opacity duration-300"
+            onClick={() => setShowAllToolsMenu(false)}
+          />
+
+          {/* Menu Content */}
+          <div className="absolute top-full left-0 right-0 bg-white shadow-2xl border-t-0 z-50 animate-in slide-in-from-top-2 duration-300">
+            {/* Header */}
+            <div className="bg-gradient-to-r from-slate-50 to-gray-50 border-b border-gray-200">
+              <div className="max-w-6xl mx-auto px-6 py-3">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-lg font-bold text-gray-900 flex items-center">
+                    <Grid3X3 className="w-5 h-5 mr-2 text-blue-600" />
+                    Quick Navigation
+                  </h2>
+                  <button
+                    onClick={() => setShowAllToolsMenu(false)}
+                    className="p-1.5 rounded-lg hover:bg-gray-200/50 transition-colors duration-200"
+                  >
+                    <X className="w-4 h-4 text-gray-500" />
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Main Content */}
+            <div className="max-w-6xl mx-auto px-6 py-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-6">
+                {/* Main Categories */}
+                <div>
+                  <h3 className="text-sm font-bold text-gray-900 mb-4 uppercase tracking-wide">
+                    Main Categories
+                  </h3>
+                  <div className="space-y-2">
+                    <Link
+                      to="/merge"
+                      onClick={() => setShowAllToolsMenu(false)}
+                      className="flex items-center space-x-3 p-3 rounded-xl hover:bg-blue-50 transition-all duration-200 group border border-transparent hover:border-blue-200"
+                    >
+                      <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center flex-shrink-0">
+                        <FileText className="w-5 h-5 text-white" />
+                      </div>
+                      <div>
+                        <span className="text-sm font-semibold text-gray-900 group-hover:text-blue-700">
+                          PDF Page
+                        </span>
+                        <p className="text-xs text-gray-500">
+                          All PDF tools & converters
+                        </p>
+                      </div>
+                    </Link>
+
+                    <Link
+                      to="/img"
+                      onClick={() => setShowAllToolsMenu(false)}
+                      className="flex items-center space-x-3 p-3 rounded-xl hover:bg-purple-50 transition-all duration-200 group border border-transparent hover:border-purple-200"
+                    >
+                      <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl flex items-center justify-center flex-shrink-0">
+                        <Image className="w-5 h-5 text-white" />
+                      </div>
+                      <div>
+                        <span className="text-sm font-semibold text-gray-900 group-hover:text-purple-700">
+                          Image Page
+                        </span>
+                        <p className="text-xs text-gray-500">
+                          Photo editing & optimization
+                        </p>
+                      </div>
+                    </Link>
+
+                    <Link
+                      to="/favicon"
+                      onClick={() => setShowAllToolsMenu(false)}
+                      className="flex items-center space-x-3 p-3 rounded-xl hover:bg-green-50 transition-all duration-200 group border border-transparent hover:border-green-200"
+                    >
+                      <div className="w-10 h-10 bg-gradient-to-br from-green-500 to-green-600 rounded-xl flex items-center justify-center flex-shrink-0">
+                        <Globe className="w-5 h-5 text-white" />
+                      </div>
+                      <div>
+                        <span className="text-sm font-semibold text-gray-900 group-hover:text-green-700">
+                          Favicon Page
+                        </span>
+                        <p className="text-xs text-gray-500">
+                          Website icon generator
+                        </p>
+                      </div>
+                    </Link>
+                  </div>
+                </div>
+
+                {/* Popular PDF Tools */}
+                <div>
+                  <h3 className="text-sm font-bold text-gray-900 mb-4 uppercase tracking-wide">
+                    Popular PDF Tools
+                  </h3>
+                  <div className="space-y-2">
+                    {[
+                      {
+                        title: "Merge PDF",
+                        href: "/merge",
+                        icon: Combine,
+                        color: "from-blue-500 to-blue-600",
+                      },
+                      {
+                        title: "Split PDF",
+                        href: "/split",
+                        icon: Scissors,
+                        color: "from-green-500 to-green-600",
+                      },
+                      {
+                        title: "Compress PDF",
+                        href: "/compress",
+                        icon: Minimize,
+                        color: "from-purple-500 to-purple-600",
+                      },
+                      {
+                        title: "PDF to Word",
+                        href: "/pdf-to-word",
+                        icon: FileText,
+                        color: "from-blue-500 to-blue-600",
+                      },
+                    ].map((tool) => (
+                      <Link
+                        key={tool.href}
+                        to={tool.href}
+                        onClick={() => setShowAllToolsMenu(false)}
+                        className="flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-50 transition-all duration-200 group"
+                      >
+                        <div
+                          className={`w-8 h-8 rounded-lg bg-gradient-to-br ${tool.color} flex items-center justify-center flex-shrink-0`}
+                        >
+                          <tool.icon className="w-4 h-4 text-white" />
+                        </div>
+                        <span className="text-sm font-medium text-gray-700 group-hover:text-gray-900">
+                          {tool.title}
+                        </span>
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Popular Image Tools */}
+                <div>
+                  <h3 className="text-sm font-bold text-gray-900 mb-4 uppercase tracking-wide">
+                    Popular Image Tools
+                  </h3>
+                  <div className="space-y-2">
+                    {[
+                      {
+                        title: "Remove Background",
+                        href: "/img/remove-bg",
+                        icon: Scissors,
+                        color: "from-red-500 to-red-600",
+                        badge: "Hot",
+                      },
+                      {
+                        title: "Compress Image",
+                        href: "/img/compress",
+                        icon: Minimize,
+                        color: "from-green-500 to-green-600",
+                      },
+                      {
+                        title: "Resize Image",
+                        href: "/img/resize",
+                        icon: Image,
+                        color: "from-blue-500 to-blue-600",
+                      },
+                      {
+                        title: "JPG to PNG",
+                        href: "/img/jpg-to-png",
+                        icon: FileImage,
+                        color: "from-emerald-500 to-emerald-600",
+                      },
+                    ].map((tool) => (
+                      <Link
+                        key={tool.href}
+                        to={tool.href}
+                        onClick={() => setShowAllToolsMenu(false)}
+                        className="flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-50 transition-all duration-200 group"
+                      >
+                        <div
+                          className={`w-8 h-8 rounded-lg bg-gradient-to-br ${tool.color} flex items-center justify-center flex-shrink-0`}
+                        >
+                          <tool.icon className="w-4 h-4 text-white" />
+                        </div>
+                        <div className="flex-1">
+                          <span className="text-sm font-medium text-gray-700 group-hover:text-gray-900">
+                            {tool.title}
+                          </span>
+                        </div>
+                        {tool.badge && (
+                          <span className="text-xs bg-orange-500 text-white px-2 py-0.5 rounded-full font-medium">
+                            {tool.badge}
+                          </span>
+                        )}
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Language Selection */}
+                <div>
+                  <h3 className="text-sm font-bold text-gray-900 mb-4 uppercase tracking-wide">
+                    Language
+                  </h3>
+                  <div className="space-y-2">
+                    <div className="relative">
+                      <button
+                        onClick={() => setShowAllToolsMenu(false)}
+                        className="flex items-center space-x-3 p-3 rounded-lg hover:bg-blue-50 transition-all duration-200 group w-full text-left border border-transparent hover:border-blue-200"
+                      >
+                        <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center flex-shrink-0">
+                          <Globe className="w-4 h-4 text-white" />
+                        </div>
+                        <div>
+                          <span className="text-sm font-semibold text-gray-900 group-hover:text-blue-700">
+                            Languages
+                          </span>
+                          <p className="text-xs text-gray-500">
+                            Choose your language
+                          </p>
+                        </div>
+                      </button>
+                    </div>
+
+                    <Link
+                      to="/settings"
+                      onClick={() => setShowAllToolsMenu(false)}
+                      className="flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-50 transition-all duration-200 group"
+                    >
+                      <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-indigo-600 flex items-center justify-center flex-shrink-0">
+                        <Settings className="w-4 h-4 text-white" />
+                      </div>
+                      <span className="text-sm font-medium text-gray-700 group-hover:text-gray-900">
+                        Settings
+                      </span>
+                    </Link>
+                  </div>
+                </div>
+
+                {/* Security & Privacy */}
+                <div>
+                  <h3 className="text-sm font-bold text-gray-900 mb-4 uppercase tracking-wide">
+                    Security & Privacy
+                  </h3>
+                  <div className="space-y-2">
+                    <Link
+                      to="/security"
+                      onClick={() => setShowAllToolsMenu(false)}
+                      className="flex items-center space-x-3 p-2 rounded-lg hover:bg-red-50 transition-all duration-200 group"
+                    >
+                      <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-red-500 to-red-600 flex items-center justify-center flex-shrink-0">
+                        <Shield className="w-4 h-4 text-white" />
+                      </div>
+                      <div>
+                        <span className="text-sm font-medium text-gray-700 group-hover:text-red-700">
+                          Security Policy
+                        </span>
+                        <p className="text-xs text-gray-500">
+                          How we protect you
+                        </p>
+                      </div>
+                    </Link>
+
+                    <Link
+                      to="/privacy"
+                      onClick={() => setShowAllToolsMenu(false)}
+                      className="flex items-center space-x-3 p-2 rounded-lg hover:bg-green-50 transition-all duration-200 group"
+                    >
+                      <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-green-500 to-green-600 flex items-center justify-center flex-shrink-0">
+                        <User className="w-4 h-4 text-white" />
+                      </div>
+                      <div>
+                        <span className="text-sm font-medium text-gray-700 group-hover:text-green-700">
+                          Privacy Policy
+                        </span>
+                        <p className="text-xs text-gray-500">
+                          Your data protection
+                        </p>
+                      </div>
+                    </Link>
+
+                    <Link
+                      to="/protect-pdf"
+                      onClick={() => setShowAllToolsMenu(false)}
+                      className="flex items-center space-x-3 p-2 rounded-lg hover:bg-orange-50 transition-all duration-200 group"
+                    >
+                      <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-orange-500 to-orange-600 flex items-center justify-center flex-shrink-0">
+                        <Shield className="w-4 h-4 text-white" />
+                      </div>
+                      <div>
+                        <span className="text-sm font-medium text-gray-700 group-hover:text-orange-700">
+                          Protect PDF
+                        </span>
+                        <p className="text-xs text-gray-500">
+                          Password protection
+                        </p>
+                      </div>
+                    </Link>
+
+                    <Link
+                      to="/unlock-pdf"
+                      onClick={() => setShowAllToolsMenu(false)}
+                      className="flex items-center space-x-3 p-2 rounded-lg hover:bg-blue-50 transition-all duration-200 group"
+                    >
+                      <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center flex-shrink-0">
+                        <Shield className="w-4 h-4 text-white" />
+                      </div>
+                      <div>
+                        <span className="text-sm font-medium text-gray-700 group-hover:text-blue-700">
+                          Unlock PDF
+                        </span>
+                        <p className="text-xs text-gray-500">Remove password</p>
+                      </div>
+                    </Link>
+
+                    <Link
+                      to="/terms"
+                      onClick={() => setShowAllToolsMenu(false)}
+                      className="flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-50 transition-all duration-200 group"
+                    >
+                      <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-gray-500 to-gray-600 flex items-center justify-center flex-shrink-0">
+                        <FileText className="w-4 h-4 text-white" />
+                      </div>
+                      <span className="text-sm font-medium text-gray-700 group-hover:text-gray-900">
+                        Terms of Service
+                      </span>
+                    </Link>
+                  </div>
+                </div>
+
+                {/* Quick Links & More */}
+                <div>
+                  <h3 className="text-sm font-bold text-gray-900 mb-4 uppercase tracking-wide">
+                    More
+                  </h3>
+                  <div className="space-y-2">
+                    <Link
+                      to="/tools"
+                      onClick={() => setShowAllToolsMenu(false)}
+                      className="flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-50 transition-all duration-200 group"
+                    >
+                      <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-gray-500 to-gray-600 flex items-center justify-center flex-shrink-0">
+                        <Grid3X3 className="w-4 h-4 text-white" />
+                      </div>
+                      <div>
+                        <span className="text-sm font-semibold text-gray-900">
+                          All Tools
+                        </span>
+                        <p className="text-xs text-gray-500">
+                          Complete toolkit
+                        </p>
+                      </div>
+                    </Link>
+
+                    <Link
+                      to="/pricing"
+                      onClick={() => setShowAllToolsMenu(false)}
+                      className="flex items-center space-x-3 p-3 rounded-lg hover:bg-yellow-50 transition-all duration-200 group border border-transparent hover:border-yellow-200"
+                    >
+                      <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-yellow-500 to-orange-500 flex items-center justify-center flex-shrink-0">
+                        <Crown className="w-4 h-4 text-white" />
+                      </div>
+                      <div>
+                        <span className="text-sm font-semibold text-gray-900 group-hover:text-orange-700">
+                          Premium
+                        </span>
+                        <p className="text-xs text-gray-500">
+                          Unlimited access
+                        </p>
+                      </div>
+                    </Link>
+
+                    <Link
+                      to="/help"
+                      onClick={() => setShowAllToolsMenu(false)}
+                      className="flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-50 transition-all duration-200 group"
+                    >
+                      <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center flex-shrink-0">
+                        <HelpCircle className="w-4 h-4 text-white" />
+                      </div>
+                      <span className="text-sm font-medium text-gray-700 group-hover:text-gray-900">
+                        Help & Support
+                      </span>
+                    </Link>
+
+                    <Link
+                      to="/about"
+                      onClick={() => setShowAllToolsMenu(false)}
+                      className="flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-50 transition-all duration-200 group"
+                    >
+                      <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-indigo-600 flex items-center justify-center flex-shrink-0">
+                        <Info className="w-4 h-4 text-white" />
+                      </div>
+                      <span className="text-sm font-medium text-gray-700 group-hover:text-gray-900">
+                        About Us
+                      </span>
+                    </Link>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </>
       )}
     </header>
   );
