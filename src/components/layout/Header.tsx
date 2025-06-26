@@ -1040,211 +1040,255 @@ const Header = () => {
                 <Grid3X3 className="w-5 h-5 text-blue-600 group-hover:text-blue-700 transition-colors duration-200" />
               </button>
             </div>
-
-            {/* Mobile Menu Button */}
-            <button
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="md:hidden"
-            >
-              {mobileMenuOpen ? (
-                <X className="w-6 h-6 text-text-dark" />
-              ) : (
-                <Menu className="w-6 h-6 text-text-dark" />
-              )}
-            </button>
           </div>
+
+          {/* Mobile Menu Button */}
+          <button
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            className="md:hidden p-2 rounded-lg hover:bg-gray-100 transition-colors duration-200"
+          >
+            {mobileMenuOpen ? (
+              <X className="w-6 h-6 text-text-dark" />
+            ) : (
+              <Menu className="w-6 h-6 text-text-dark" />
+            )}
+          </button>
         </div>
 
-        {/* Mobile Menu */}
+        {/* Mobile Menu Overlay */}
         {mobileMenuOpen && (
-          <div className="md:hidden border-t border-gray-100 py-4">
-            {/* Quick Access Tools */}
-            <div className="grid grid-cols-2 gap-2 mb-4">
-              <Link
-                to="/merge"
-                className="flex items-center space-x-2 p-3 rounded-lg bg-blue-50 hover:bg-blue-100 transition-colors duration-200"
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                <Combine className="w-4 h-4 text-blue-600" />
-                <span className="text-sm font-medium text-blue-700">
-                  Merge PDF
-                </span>
-              </Link>
-              <Link
-                to="/split"
-                className="flex items-center space-x-2 p-3 rounded-lg bg-green-50 hover:bg-green-100 transition-colors duration-200"
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                <Scissors className="w-4 h-4 text-green-600" />
-                <span className="text-sm font-medium text-green-700">
-                  Split PDF
-                </span>
-              </Link>
-              <Link
-                to="/compress"
-                className="flex items-center space-x-2 p-3 rounded-lg bg-purple-50 hover:bg-purple-100 transition-colors duration-200"
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                <Minimize className="w-4 h-4 text-purple-600" />
-                <span className="text-sm font-medium text-purple-700">
-                  Compress PDF
-                </span>
-              </Link>
-              <Link
-                to="/img/remove-bg"
-                className="flex items-center space-x-2 p-3 rounded-lg bg-red-50 hover:bg-red-100 transition-colors duration-200"
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                <Scissors className="w-4 h-4 text-red-600" />
-                <span className="text-sm font-medium text-red-700">
-                  Remove BG
-                </span>
-              </Link>
-            </div>
+          <div className="fixed inset-0 z-50 md:hidden">
+            {/* Backdrop */}
+            <div
+              className="fixed inset-0 bg-black bg-opacity-50 transition-opacity duration-300"
+              onClick={() => setMobileMenuOpen(false)}
+            />
 
-            {/* Category Links */}
-            <div className="space-y-2 border-t border-gray-100 pt-4">
-              <Link
-                to="/tools?category=pdf"
-                className="flex items-center justify-between p-3 rounded-lg hover:bg-gray-50 transition-colors duration-200"
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                <div className="flex items-center space-x-3">
-                  <FileText className="w-5 h-5 text-red-500" />
-                  <span className="text-sm font-medium text-text-dark">
-                    PDF Tools
+            {/* Slide-in Menu */}
+            <div
+              className={`fixed top-0 right-0 h-full w-80 max-w-[85vw] bg-white shadow-2xl transform transition-transform duration-300 ease-in-out ${
+                mobileMenuOpen ? "translate-x-0" : "translate-x-full"
+              }`}
+            >
+              {/* Header */}
+              <div className="flex items-center justify-between p-4 border-b border-gray-100">
+                <div className="flex items-center space-x-2">
+                  <div className="w-6 h-6 bg-gradient-to-br from-brand-red to-red-600 rounded-lg flex items-center justify-center">
+                    <span className="text-white font-bold text-xs">PP</span>
+                  </div>
+                  <span className="font-bold text-lg text-text-dark">
+                    Pdf<span className="text-brand-red">Page</span>
                   </span>
                 </div>
-                <ChevronDown className="w-4 h-4 text-gray-400 rotate-[-90deg]" />
-              </Link>
+                <button
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                >
+                  <X className="w-5 h-5 text-text-dark" />
+                </button>
+              </div>
 
-              <Link
-                to="/img"
-                className="flex items-center justify-between p-3 rounded-lg hover:bg-gray-50 transition-colors duration-200"
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                <div className="flex items-center space-x-3">
-                  <Image className="w-5 h-5 text-green-500" />
-                  <span className="text-sm font-medium text-text-dark">
-                    Image Tools
-                  </span>
-                </div>
-                <ChevronDown className="w-4 h-4 text-gray-400 rotate-[-90deg]" />
-              </Link>
-
-              <Link
-                to="/favicon"
-                className="flex items-center justify-between p-3 rounded-lg hover:bg-gray-50 transition-colors duration-200"
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                <div className="flex items-center space-x-3">
-                  <Globe className="w-5 h-5 text-purple-500" />
-                  <span className="text-sm font-medium text-text-dark">
-                    Favicon Tools
-                  </span>
-                </div>
-                <ChevronDown className="w-4 h-4 text-gray-400 rotate-[-90deg]" />
-              </Link>
-
-              <Link
-                to="/tools"
-                className="flex items-center justify-between p-3 rounded-lg hover:bg-gray-50 transition-colors duration-200"
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                <div className="flex items-center space-x-3">
-                  <Star className="w-5 h-5 text-orange-500" />
-                  <span className="text-sm font-medium text-text-dark">
-                    All Tools
-                  </span>
-                </div>
-                <ChevronDown className="w-4 h-4 text-gray-400 rotate-[-90deg]" />
-              </Link>
-            </div>
-
-            <div className="flex flex-col space-y-2 pt-4 border-t border-gray-100 mt-4">
-              {!isAuthenticated ? (
-                <>
-                  <Link to="/login" onClick={() => setMobileMenuOpen(false)}>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="w-full justify-start"
+              {/* Scrollable Content */}
+              <div className="overflow-y-auto h-full pb-20">
+                {/* Quick Access Tools */}
+                <div className="p-4 border-b border-gray-100">
+                  <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-3">
+                    Quick Tools
+                  </h3>
+                  <div className="grid grid-cols-1 gap-2">
+                    <Link
+                      to="/merge"
+                      className="flex items-center space-x-3 p-3 rounded-lg bg-blue-50 hover:bg-blue-100 transition-colors duration-200"
+                      onClick={() => setMobileMenuOpen(false)}
                     >
-                      <User className="w-4 h-4 mr-2" />
-                      Login
-                    </Button>
-                  </Link>
-                  <Link to="/register" onClick={() => setMobileMenuOpen(false)}>
-                    <Button
-                      size="sm"
-                      className="w-full justify-start bg-brand-red hover:bg-red-600"
-                    >
-                      <User className="w-4 h-4 mr-2" />
-                      Sign Up
-                    </Button>
-                  </Link>
-                </>
-              ) : (
-                <>
-                  <Link
-                    to="/dashboard"
-                    onClick={() => setMobileMenuOpen(false)}
-                  >
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="w-full justify-start"
-                    >
-                      <User className="w-4 h-4 mr-2" />
-                      Dashboard
-                    </Button>
-                  </Link>
-                  <Button
-                    onClick={() => {
-                      logout();
-                      setMobileMenuOpen(false);
-                    }}
-                    variant="outline"
-                    size="sm"
-                    className="w-full justify-start text-red-600"
-                  >
-                    <LogOut className="w-4 h-4 mr-2" />
-                    Logout
-                  </Button>
-                </>
-              )}
-
-              {/* Mobile Language Selector */}
-              <div className="pt-4 border-t border-gray-100 mt-4">
-                <div className="flex items-center mb-2">
-                  <Globe className="w-4 h-4 mr-2 text-text-medium" />
-                  <span className="text-sm font-medium text-text-dark">
-                    Language
-                  </span>
-                </div>
-                <div className="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto">
-                  {languages.map((language) => (
-                    <button
-                      key={language.code}
-                      onClick={() => {
-                        setLanguage(language);
-                        setMobileMenuOpen(false);
-                      }}
-                      className={`flex items-center p-2 rounded-lg text-left transition-colors duration-200 ${
-                        currentLanguage.code === language.code
-                          ? "bg-blue-50 text-blue-600"
-                          : "hover:bg-gray-50"
-                      }`}
-                    >
-                      <span className="mr-2 text-sm">{language.flag}</span>
-                      <span className="text-xs truncate flex-1">
-                        {language.nativeName}
+                      <Combine className="w-5 h-5 text-blue-600" />
+                      <span className="text-sm font-medium text-blue-700">
+                        Merge PDF
                       </span>
-                      {currentLanguage.code === language.code && (
-                        <span className="text-blue-600 text-xs ml-1">✓</span>
-                      )}
-                    </button>
-                  ))}
+                    </Link>
+                    <Link
+                      to="/split"
+                      className="flex items-center space-x-3 p-3 rounded-lg bg-green-50 hover:bg-green-100 transition-colors duration-200"
+                      onClick={() => setMobileMenuOpen(false)}
+                    >
+                      <Scissors className="w-5 h-5 text-green-600" />
+                      <span className="text-sm font-medium text-green-700">
+                        Split PDF
+                      </span>
+                    </Link>
+                    <Link
+                      to="/compress"
+                      className="flex items-center space-x-3 p-3 rounded-lg bg-purple-50 hover:bg-purple-100 transition-colors duration-200"
+                      onClick={() => setMobileMenuOpen(false)}
+                    >
+                      <Minimize className="w-5 h-5 text-purple-600" />
+                      <span className="text-sm font-medium text-purple-700">
+                        Compress PDF
+                      </span>
+                    </Link>
+                    <Link
+                      to="/img/remove-bg"
+                      className="flex items-center space-x-3 p-3 rounded-lg bg-red-50 hover:bg-red-100 transition-colors duration-200"
+                      onClick={() => setMobileMenuOpen(false)}
+                    >
+                      <Scissors className="w-5 h-5 text-red-600" />
+                      <span className="text-sm font-medium text-red-700">
+                        Remove Background
+                      </span>
+                    </Link>
+                  </div>
+                </div>
+
+                {/* Category Links */}
+                <div className="p-4 border-b border-gray-100">
+                  <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-3">
+                    All Categories
+                  </h3>
+                  <div className="space-y-2">
+                    <Link
+                      to="/tools?category=pdf"
+                      className="flex items-center justify-between p-3 rounded-lg hover:bg-gray-50 transition-colors duration-200"
+                      onClick={() => setMobileMenuOpen(false)}
+                    >
+                      <div className="flex items-center space-x-3">
+                        <FileText className="w-5 h-5 text-red-500" />
+                        <span className="text-sm font-medium text-text-dark">
+                          PDF Tools
+                        </span>
+                      </div>
+                      <ChevronDown className="w-4 h-4 text-gray-400 rotate-[-90deg]" />
+                    </Link>
+
+                    <Link
+                      to="/tools?category=image"
+                      className="flex items-center justify-between p-3 rounded-lg hover:bg-gray-50 transition-colors duration-200"
+                      onClick={() => setMobileMenuOpen(false)}
+                    >
+                      <div className="flex items-center space-x-3">
+                        <Image className="w-5 h-5 text-green-500" />
+                        <span className="text-sm font-medium text-text-dark">
+                          Image Tools
+                        </span>
+                      </div>
+                      <ChevronDown className="w-4 h-4 text-gray-400 rotate-[-90deg]" />
+                    </Link>
+
+                    <Link
+                      to="/tools?category=favicon"
+                      className="flex items-center justify-between p-3 rounded-lg hover:bg-gray-50 transition-colors duration-200"
+                      onClick={() => setMobileMenuOpen(false)}
+                    >
+                      <div className="flex items-center space-x-3">
+                        <Globe className="w-5 h-5 text-purple-500" />
+                        <span className="text-sm font-medium text-text-dark">
+                          Favicon Tools
+                        </span>
+                      </div>
+                      <ChevronDown className="w-4 h-4 text-gray-400 rotate-[-90deg]" />
+                    </Link>
+
+                    <Link
+                      to="/tools"
+                      className="flex items-center justify-between p-3 rounded-lg hover:bg-gray-50 transition-colors duration-200"
+                      onClick={() => setMobileMenuOpen(false)}
+                    >
+                      <div className="flex items-center space-x-3">
+                        <Grid3X3 className="w-5 h-5 text-blue-500" />
+                        <span className="text-sm font-medium text-text-dark">
+                          All Tools
+                        </span>
+                      </div>
+                      <ChevronDown className="w-4 h-4 text-gray-400 rotate-[-90deg]" />
+                    </Link>
+                  </div>
+                </div>
+
+                {/* Auth Section */}
+                <div className="p-4 border-b border-gray-100">
+                  <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-3">
+                    Account
+                  </h3>
+                  {!isAuthenticated ? (
+                    <div className="space-y-2">
+                      <Link
+                        to="/login"
+                        onClick={() => setMobileMenuOpen(false)}
+                      >
+                        <Button
+                          variant="outline"
+                          className="w-full text-sm font-medium border-gray-200 text-text-dark hover:bg-gray-50"
+                        >
+                          <User className="w-4 h-4 mr-2" />
+                          Login
+                        </Button>
+                      </Link>
+                      <Link
+                        to="/register"
+                        onClick={() => setMobileMenuOpen(false)}
+                      >
+                        <Button
+                          variant="default"
+                          className="w-full text-sm font-medium bg-brand-red hover:bg-red-600"
+                        >
+                          Get Started
+                        </Button>
+                      </Link>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <Link
+                        to="/dashboard"
+                        onClick={() => setMobileMenuOpen(false)}
+                      >
+                        <Button
+                          variant="outline"
+                          className="w-full text-sm font-medium border-gray-200 text-text-dark hover:bg-gray-50"
+                        >
+                          <User className="w-4 h-4 mr-2" />
+                          Dashboard
+                        </Button>
+                      </Link>
+                      <Button
+                        variant="ghost"
+                        onClick={() => {
+                          logout();
+                          setMobileMenuOpen(false);
+                        }}
+                        className="w-full text-sm font-medium text-red-600 hover:bg-red-50"
+                      >
+                        <LogOut className="w-4 h-4 mr-2" />
+                        Logout
+                      </Button>
+                    </div>
+                  )}
+                </div>
+
+                {/* Language Switcher */}
+                <div className="p-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">
+                      Language
+                    </h3>
+                    <Globe className="w-4 h-4 text-gray-400" />
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    {languages.map((language) => (
+                      <button
+                        key={language.code}
+                        onClick={() => {
+                          setLanguage(language);
+                          setMobileMenuOpen(false);
+                        }}
+                        className={`p-2 rounded-lg text-sm font-medium transition-colors duration-200 ${
+                          currentLanguage.code === language.code
+                            ? "bg-brand-red text-white"
+                            : "bg-gray-100 text-text-dark hover:bg-gray-200"
+                        }`}
+                      >
+                        {language.name}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </div>
             </div>
@@ -1433,7 +1477,7 @@ const Header = () => {
         </div>
       )}
 
-      {/* Simplified Navigation Menu */}
+      {/* All Tools Dropdown Menu */}
       {showAllToolsMenu && (
         <>
           {/* Backdrop */}
@@ -1442,15 +1486,19 @@ const Header = () => {
             onClick={() => setShowAllToolsMenu(false)}
           />
 
-          {/* Menu Content */}
-          <div className="absolute top-full left-0 right-0 bg-white shadow-2xl border-t-0 z-50 animate-in slide-in-from-top-2 duration-300">
+          {/* Menu Content - Slide from Right */}
+          <div
+            className={`fixed top-16 right-0 h-[calc(100vh-4rem)] w-96 max-w-[90vw] bg-white shadow-2xl border-l border-gray-200 z-50 transform transition-transform duration-300 ease-in-out ${
+              showAllToolsMenu ? "translate-x-0" : "translate-x-full"
+            } overflow-y-auto`}
+          >
             {/* Header */}
-            <div className="bg-gradient-to-r from-slate-50 to-gray-50 border-b border-gray-200">
-              <div className="max-w-6xl mx-auto px-6 py-3">
+            <div className="bg-gradient-to-r from-slate-50 to-gray-50 border-b border-gray-200 sticky top-0 z-10">
+              <div className="px-4 py-3">
                 <div className="flex items-center justify-between">
                   <h2 className="text-lg font-bold text-gray-900 flex items-center">
                     <Grid3X3 className="w-5 h-5 mr-2 text-blue-600" />
-                    Quick Navigation
+                    All Tools
                   </h2>
                   <button
                     onClick={() => setShowAllToolsMenu(false)}
@@ -1462,381 +1510,195 @@ const Header = () => {
               </div>
             </div>
 
-            {/* Main Content */}
-            <div className="max-w-6xl mx-auto px-6 py-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-6">
+            {/* Main Content - Unified Layout */}
+            <div className="px-4 py-4">
+              <div className="space-y-2">
+                {/* All tools in one flowing list */}
+
                 {/* Main Categories */}
-                <div>
-                  <h3 className="text-sm font-bold text-gray-900 mb-4 uppercase tracking-wide">
-                    Main Categories
-                  </h3>
-                  <div className="space-y-2">
-                    <Link
-                      to="/merge"
-                      onClick={() => setShowAllToolsMenu(false)}
-                      className="flex items-center space-x-3 p-3 rounded-xl hover:bg-blue-50 transition-all duration-200 group border border-transparent hover:border-blue-200"
-                    >
-                      <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center flex-shrink-0">
-                        <FileText className="w-5 h-5 text-white" />
-                      </div>
-                      <div>
-                        <span className="text-sm font-semibold text-gray-900 group-hover:text-blue-700">
-                          PDF Page
-                        </span>
-                        <p className="text-xs text-gray-500">
-                          All PDF tools & converters
-                        </p>
-                      </div>
-                    </Link>
-
-                    <Link
-                      to="/img"
-                      onClick={() => setShowAllToolsMenu(false)}
-                      className="flex items-center space-x-3 p-3 rounded-xl hover:bg-purple-50 transition-all duration-200 group border border-transparent hover:border-purple-200"
-                    >
-                      <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl flex items-center justify-center flex-shrink-0">
-                        <Image className="w-5 h-5 text-white" />
-                      </div>
-                      <div>
-                        <span className="text-sm font-semibold text-gray-900 group-hover:text-purple-700">
-                          Image Page
-                        </span>
-                        <p className="text-xs text-gray-500">
-                          Photo editing & optimization
-                        </p>
-                      </div>
-                    </Link>
-
-                    <Link
-                      to="/favicon"
-                      onClick={() => setShowAllToolsMenu(false)}
-                      className="flex items-center space-x-3 p-3 rounded-xl hover:bg-green-50 transition-all duration-200 group border border-transparent hover:border-green-200"
-                    >
-                      <div className="w-10 h-10 bg-gradient-to-br from-green-500 to-green-600 rounded-xl flex items-center justify-center flex-shrink-0">
-                        <Globe className="w-5 h-5 text-white" />
-                      </div>
-                      <div>
-                        <span className="text-sm font-semibold text-gray-900 group-hover:text-green-700">
-                          Favicon Page
-                        </span>
-                        <p className="text-xs text-gray-500">
-                          Website icon generator
-                        </p>
-                      </div>
-                    </Link>
+                <Link
+                  to="/tools?category=pdf"
+                  onClick={() => setShowAllToolsMenu(false)}
+                  className="flex items-center space-x-3 p-3 rounded-lg hover:bg-blue-50 transition-all duration-200 group border border-transparent hover:border-blue-200"
+                >
+                  <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center flex-shrink-0">
+                    <FileText className="w-4 h-4 text-white" />
                   </div>
-                </div>
-
-                {/* Popular PDF Tools */}
-                <div>
-                  <h3 className="text-sm font-bold text-gray-900 mb-4 uppercase tracking-wide">
-                    Popular PDF Tools
-                  </h3>
-                  <div className="space-y-2">
-                    {[
-                      {
-                        title: "Merge PDF",
-                        href: "/merge",
-                        icon: Combine,
-                        color: "from-blue-500 to-blue-600",
-                      },
-                      {
-                        title: "Split PDF",
-                        href: "/split",
-                        icon: Scissors,
-                        color: "from-green-500 to-green-600",
-                      },
-                      {
-                        title: "Compress PDF",
-                        href: "/compress",
-                        icon: Minimize,
-                        color: "from-purple-500 to-purple-600",
-                      },
-                      {
-                        title: "PDF to Word",
-                        href: "/pdf-to-word",
-                        icon: FileText,
-                        color: "from-blue-500 to-blue-600",
-                      },
-                    ].map((tool) => (
-                      <Link
-                        key={tool.href}
-                        to={tool.href}
-                        onClick={() => setShowAllToolsMenu(false)}
-                        className="flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-50 transition-all duration-200 group"
-                      >
-                        <div
-                          className={`w-8 h-8 rounded-lg bg-gradient-to-br ${tool.color} flex items-center justify-center flex-shrink-0`}
-                        >
-                          <tool.icon className="w-4 h-4 text-white" />
-                        </div>
-                        <span className="text-sm font-medium text-gray-700 group-hover:text-gray-900">
-                          {tool.title}
-                        </span>
-                      </Link>
-                    ))}
+                  <div>
+                    <span className="text-sm font-semibold text-gray-900 group-hover:text-blue-700">
+                      PDF Tools
+                    </span>
+                    <p className="text-xs text-gray-500">
+                      Merge, split, compress & more
+                    </p>
                   </div>
-                </div>
+                </Link>
 
-                {/* Popular Image Tools */}
-                <div>
-                  <h3 className="text-sm font-bold text-gray-900 mb-4 uppercase tracking-wide">
-                    Popular Image Tools
-                  </h3>
-                  <div className="space-y-2">
-                    {[
-                      {
-                        title: "Remove Background",
-                        href: "/img/remove-bg",
-                        icon: Scissors,
-                        color: "from-red-500 to-red-600",
-                        badge: "Hot",
-                      },
-                      {
-                        title: "Compress Image",
-                        href: "/img/compress",
-                        icon: Minimize,
-                        color: "from-green-500 to-green-600",
-                      },
-                      {
-                        title: "Resize Image",
-                        href: "/img/resize",
-                        icon: Image,
-                        color: "from-blue-500 to-blue-600",
-                      },
-                      {
-                        title: "JPG to PNG",
-                        href: "/img/jpg-to-png",
-                        icon: FileImage,
-                        color: "from-emerald-500 to-emerald-600",
-                      },
-                    ].map((tool) => (
-                      <Link
-                        key={tool.href}
-                        to={tool.href}
-                        onClick={() => setShowAllToolsMenu(false)}
-                        className="flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-50 transition-all duration-200 group"
-                      >
-                        <div
-                          className={`w-8 h-8 rounded-lg bg-gradient-to-br ${tool.color} flex items-center justify-center flex-shrink-0`}
-                        >
-                          <tool.icon className="w-4 h-4 text-white" />
-                        </div>
-                        <div className="flex-1">
-                          <span className="text-sm font-medium text-gray-700 group-hover:text-gray-900">
-                            {tool.title}
-                          </span>
-                        </div>
-                        {tool.badge && (
-                          <span className="text-xs bg-orange-500 text-white px-2 py-0.5 rounded-full font-medium">
-                            {tool.badge}
-                          </span>
-                        )}
-                      </Link>
-                    ))}
+                <Link
+                  to="/tools?category=image"
+                  onClick={() => setShowAllToolsMenu(false)}
+                  className="flex items-center space-x-3 p-3 rounded-lg hover:bg-green-50 transition-all duration-200 group border border-transparent hover:border-green-200"
+                >
+                  <div className="w-8 h-8 bg-gradient-to-br from-green-500 to-green-600 rounded-lg flex items-center justify-center flex-shrink-0">
+                    <Image className="w-4 h-4 text-white" />
                   </div>
-                </div>
-
-                {/* Language Selection */}
-                <div>
-                  <h3 className="text-sm font-bold text-gray-900 mb-4 uppercase tracking-wide">
-                    Language
-                  </h3>
-                  <div className="space-y-2">
-                    <div className="relative">
-                      <button
-                        onClick={() => setShowAllToolsMenu(false)}
-                        className="flex items-center space-x-3 p-3 rounded-lg hover:bg-blue-50 transition-all duration-200 group w-full text-left border border-transparent hover:border-blue-200"
-                      >
-                        <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center flex-shrink-0">
-                          <Globe className="w-4 h-4 text-white" />
-                        </div>
-                        <div>
-                          <span className="text-sm font-semibold text-gray-900 group-hover:text-blue-700">
-                            Languages
-                          </span>
-                          <p className="text-xs text-gray-500">
-                            Choose your language
-                          </p>
-                        </div>
-                      </button>
-                    </div>
-
-                    <Link
-                      to="/settings"
-                      onClick={() => setShowAllToolsMenu(false)}
-                      className="flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-50 transition-all duration-200 group"
-                    >
-                      <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-indigo-600 flex items-center justify-center flex-shrink-0">
-                        <Settings className="w-4 h-4 text-white" />
-                      </div>
-                      <span className="text-sm font-medium text-gray-700 group-hover:text-gray-900">
-                        Settings
-                      </span>
-                    </Link>
+                  <div>
+                    <span className="text-sm font-semibold text-gray-900 group-hover:text-green-700">
+                      Image Tools
+                    </span>
+                    <p className="text-xs text-gray-500">
+                      Edit, resize, compress images
+                    </p>
                   </div>
-                </div>
+                </Link>
 
-                {/* Security & Privacy */}
-                <div>
-                  <h3 className="text-sm font-bold text-gray-900 mb-4 uppercase tracking-wide">
-                    Security & Privacy
-                  </h3>
-                  <div className="space-y-2">
-                    <Link
-                      to="/security"
-                      onClick={() => setShowAllToolsMenu(false)}
-                      className="flex items-center space-x-3 p-2 rounded-lg hover:bg-red-50 transition-all duration-200 group"
-                    >
-                      <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-red-500 to-red-600 flex items-center justify-center flex-shrink-0">
-                        <Shield className="w-4 h-4 text-white" />
-                      </div>
-                      <div>
-                        <span className="text-sm font-medium text-gray-700 group-hover:text-red-700">
-                          Security Policy
-                        </span>
-                        <p className="text-xs text-gray-500">
-                          How we protect you
-                        </p>
-                      </div>
-                    </Link>
-
-                    <Link
-                      to="/privacy"
-                      onClick={() => setShowAllToolsMenu(false)}
-                      className="flex items-center space-x-3 p-2 rounded-lg hover:bg-green-50 transition-all duration-200 group"
-                    >
-                      <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-green-500 to-green-600 flex items-center justify-center flex-shrink-0">
-                        <User className="w-4 h-4 text-white" />
-                      </div>
-                      <div>
-                        <span className="text-sm font-medium text-gray-700 group-hover:text-green-700">
-                          Privacy Policy
-                        </span>
-                        <p className="text-xs text-gray-500">
-                          Your data protection
-                        </p>
-                      </div>
-                    </Link>
-
-                    <Link
-                      to="/protect-pdf"
-                      onClick={() => setShowAllToolsMenu(false)}
-                      className="flex items-center space-x-3 p-2 rounded-lg hover:bg-orange-50 transition-all duration-200 group"
-                    >
-                      <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-orange-500 to-orange-600 flex items-center justify-center flex-shrink-0">
-                        <Shield className="w-4 h-4 text-white" />
-                      </div>
-                      <div>
-                        <span className="text-sm font-medium text-gray-700 group-hover:text-orange-700">
-                          Protect PDF
-                        </span>
-                        <p className="text-xs text-gray-500">
-                          Password protection
-                        </p>
-                      </div>
-                    </Link>
-
-                    <Link
-                      to="/unlock-pdf"
-                      onClick={() => setShowAllToolsMenu(false)}
-                      className="flex items-center space-x-3 p-2 rounded-lg hover:bg-blue-50 transition-all duration-200 group"
-                    >
-                      <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center flex-shrink-0">
-                        <Shield className="w-4 h-4 text-white" />
-                      </div>
-                      <div>
-                        <span className="text-sm font-medium text-gray-700 group-hover:text-blue-700">
-                          Unlock PDF
-                        </span>
-                        <p className="text-xs text-gray-500">Remove password</p>
-                      </div>
-                    </Link>
-
-                    <Link
-                      to="/terms"
-                      onClick={() => setShowAllToolsMenu(false)}
-                      className="flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-50 transition-all duration-200 group"
-                    >
-                      <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-gray-500 to-gray-600 flex items-center justify-center flex-shrink-0">
-                        <FileText className="w-4 h-4 text-white" />
-                      </div>
-                      <span className="text-sm font-medium text-gray-700 group-hover:text-gray-900">
-                        Terms of Service
-                      </span>
-                    </Link>
+                <Link
+                  to="/tools?category=favicon"
+                  onClick={() => setShowAllToolsMenu(false)}
+                  className="flex items-center space-x-3 p-3 rounded-lg hover:bg-purple-50 transition-all duration-200 group border border-transparent hover:border-purple-200"
+                >
+                  <div className="w-8 h-8 bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg flex items-center justify-center flex-shrink-0">
+                    <Globe className="w-4 h-4 text-white" />
                   </div>
-                </div>
-
-                {/* Quick Links & More */}
-                <div>
-                  <h3 className="text-sm font-bold text-gray-900 mb-4 uppercase tracking-wide">
-                    More
-                  </h3>
-                  <div className="space-y-2">
-                    <Link
-                      to="/tools"
-                      onClick={() => setShowAllToolsMenu(false)}
-                      className="flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-50 transition-all duration-200 group"
-                    >
-                      <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-gray-500 to-gray-600 flex items-center justify-center flex-shrink-0">
-                        <Grid3X3 className="w-4 h-4 text-white" />
-                      </div>
-                      <div>
-                        <span className="text-sm font-semibold text-gray-900">
-                          All Tools
-                        </span>
-                        <p className="text-xs text-gray-500">
-                          Complete toolkit
-                        </p>
-                      </div>
-                    </Link>
-
-                    <Link
-                      to="/pricing"
-                      onClick={() => setShowAllToolsMenu(false)}
-                      className="flex items-center space-x-3 p-3 rounded-lg hover:bg-yellow-50 transition-all duration-200 group border border-transparent hover:border-yellow-200"
-                    >
-                      <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-yellow-500 to-orange-500 flex items-center justify-center flex-shrink-0">
-                        <Crown className="w-4 h-4 text-white" />
-                      </div>
-                      <div>
-                        <span className="text-sm font-semibold text-gray-900 group-hover:text-orange-700">
-                          Premium
-                        </span>
-                        <p className="text-xs text-gray-500">
-                          Unlimited access
-                        </p>
-                      </div>
-                    </Link>
-
-                    <Link
-                      to="/help"
-                      onClick={() => setShowAllToolsMenu(false)}
-                      className="flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-50 transition-all duration-200 group"
-                    >
-                      <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center flex-shrink-0">
-                        <HelpCircle className="w-4 h-4 text-white" />
-                      </div>
-                      <span className="text-sm font-medium text-gray-700 group-hover:text-gray-900">
-                        Help & Support
-                      </span>
-                    </Link>
-
-                    <Link
-                      to="/about"
-                      onClick={() => setShowAllToolsMenu(false)}
-                      className="flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-50 transition-all duration-200 group"
-                    >
-                      <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-indigo-600 flex items-center justify-center flex-shrink-0">
-                        <Info className="w-4 h-4 text-white" />
-                      </div>
-                      <span className="text-sm font-medium text-gray-700 group-hover:text-gray-900">
-                        About Us
-                      </span>
-                    </Link>
+                  <div>
+                    <span className="text-sm font-semibold text-gray-900 group-hover:text-purple-700">
+                      Favicon Tools
+                    </span>
+                    <p className="text-xs text-gray-500">
+                      Generate & convert favicons
+                    </p>
                   </div>
-                </div>
+                </Link>
+
+                {/* Separator */}
+                <hr className="my-3 border-gray-200" />
+
+                {/* Popular Tools */}
+                <Link
+                  to="/merge"
+                  onClick={() => setShowAllToolsMenu(false)}
+                  className="flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-50 transition-all duration-200 group"
+                >
+                  <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center flex-shrink-0">
+                    <Combine className="w-3 h-3 text-white" />
+                  </div>
+                  <span className="text-sm font-medium text-gray-700 group-hover:text-gray-900">
+                    Merge PDF
+                  </span>
+                </Link>
+
+                <Link
+                  to="/split"
+                  onClick={() => setShowAllToolsMenu(false)}
+                  className="flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-50 transition-all duration-200 group"
+                >
+                  <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-green-500 to-green-600 flex items-center justify-center flex-shrink-0">
+                    <Scissors className="w-3 h-3 text-white" />
+                  </div>
+                  <span className="text-sm font-medium text-gray-700 group-hover:text-gray-900">
+                    Split PDF
+                  </span>
+                </Link>
+
+                <Link
+                  to="/compress"
+                  onClick={() => setShowAllToolsMenu(false)}
+                  className="flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-50 transition-all duration-200 group"
+                >
+                  <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-purple-500 to-purple-600 flex items-center justify-center flex-shrink-0">
+                    <Minimize className="w-3 h-3 text-white" />
+                  </div>
+                  <span className="text-sm font-medium text-gray-700 group-hover:text-gray-900">
+                    Compress PDF
+                  </span>
+                </Link>
+
+                <Link
+                  to="/img/remove-bg"
+                  onClick={() => setShowAllToolsMenu(false)}
+                  className="flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-50 transition-all duration-200 group"
+                >
+                  <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-red-500 to-red-600 flex items-center justify-center flex-shrink-0">
+                    <Scissors className="w-3 h-3 text-white" />
+                  </div>
+                  <div className="flex-1">
+                    <span className="text-sm font-medium text-gray-700 group-hover:text-gray-900">
+                      Remove Background
+                    </span>
+                  </div>
+                  <span className="text-xs bg-orange-500 text-white px-1.5 py-0.5 rounded-full font-medium">
+                    Hot
+                  </span>
+                </Link>
+
+                <Link
+                  to="/img/compress"
+                  onClick={() => setShowAllToolsMenu(false)}
+                  className="flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-50 transition-all duration-200 group"
+                >
+                  <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-green-500 to-green-600 flex items-center justify-center flex-shrink-0">
+                    <Minimize className="w-3 h-3 text-white" />
+                  </div>
+                  <span className="text-sm font-medium text-gray-700 group-hover:text-gray-900">
+                    Compress Image
+                  </span>
+                </Link>
+
+                <Link
+                  to="/img/resize"
+                  onClick={() => setShowAllToolsMenu(false)}
+                  className="flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-50 transition-all duration-200 group"
+                >
+                  <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center flex-shrink-0">
+                    <Image className="w-3 h-3 text-white" />
+                  </div>
+                  <span className="text-sm font-medium text-gray-700 group-hover:text-gray-900">
+                    Resize Image
+                  </span>
+                </Link>
+
+                <Link
+                  to="/pdf-to-word"
+                  onClick={() => setShowAllToolsMenu(false)}
+                  className="flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-50 transition-all duration-200 group"
+                >
+                  <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-orange-500 to-orange-600 flex items-center justify-center flex-shrink-0">
+                    <FileText className="w-3 h-3 text-white" />
+                  </div>
+                  <span className="text-sm font-medium text-gray-700 group-hover:text-gray-900">
+                    PDF to Word
+                  </span>
+                </Link>
+
+                {/* Separator */}
+                <hr className="my-3 border-gray-200" />
+
+                {/* Quick Actions */}
+                <Link
+                  to="/tools"
+                  onClick={() => setShowAllToolsMenu(false)}
+                  className="flex items-center space-x-3 p-2 rounded-lg hover:bg-blue-50 transition-all duration-200 group"
+                >
+                  <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center flex-shrink-0">
+                    <Grid3X3 className="w-3 h-3 text-white" />
+                  </div>
+                  <span className="text-sm font-medium text-gray-700 group-hover:text-gray-900">
+                    View All Tools
+                  </span>
+                </Link>
+
+                <Link
+                  to="/pricing"
+                  onClick={() => setShowAllToolsMenu(false)}
+                  className="flex items-center space-x-3 p-2 rounded-lg hover:bg-yellow-50 transition-all duration-200 group"
+                >
+                  <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-yellow-500 to-orange-500 flex items-center justify-center flex-shrink-0">
+                    <Crown className="w-3 h-3 text-white" />
+                  </div>
+                  <span className="text-sm font-medium text-gray-700 group-hover:text-gray-900">
+                    Upgrade to Pro
+                  </span>
+                </Link>
               </div>
             </div>
           </div>
