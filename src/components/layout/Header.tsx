@@ -17,6 +17,17 @@ import {
   LogOut,
   Settings,
   CreditCard,
+  Image,
+  PenTool,
+  Code,
+  Zap,
+  Building,
+  Monitor,
+  Smartphone,
+  DollarSign,
+  HelpCircle,
+  Info,
+  Star,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -335,7 +346,9 @@ const Header = () => {
                       to={tool.href}
                       className="group flex flex-col items-center p-1 rounded hover:bg-gray-50 transition-all duration-200 border border-transparent hover:border-gray-200 h-full aspect-square justify-center"
                     >
-                      <div className={`w-10 h-10 rounded-lg bg-gradient-to-br ${tool.color} flex items-center justify-center mb-0.5 group-hover:scale-110 transition-transform duration-200`}>
+                      <div
+                        className={`w-10 h-10 rounded-lg bg-gradient-to-br ${tool.color} flex items-center justify-center mb-0.5 group-hover:scale-110 transition-transform duration-200`}
+                      >
                         <tool.icon className="w-5 h-5 text-white" />
                       </div>
                       <div className="text-center px-0.5">
@@ -361,6 +374,208 @@ const Header = () => {
             >
               Favicon Generator
             </Link>
+
+            {/* Other Products & Services Dropdown */}
+            <div className="relative group">
+              <button className="text-body-medium text-text-medium hover:text-brand-red transition-colors duration-200 flex items-center">
+                Other products
+                <ChevronDown className="w-4 h-4 ml-1" />
+              </button>
+              <div className="absolute right-0 mt-2 w-80 bg-white rounded-xl shadow-2xl border border-gray-100 z-50 p-4 opacity-0 group-hover:opacity-100 pointer-events-none group-hover:pointer-events-auto transition-opacity duration-200">
+                <div className="grid gap-1">
+                  {/* Products Section */}
+                  <div className="mb-4">
+                    <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
+                      Products
+                    </h4>
+                    <Link
+                      to="/img"
+                      className="group flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-50 transition-colors duration-200"
+                    >
+                      <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-green-500 to-green-600 flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform duration-200">
+                        <Image className="w-4 h-4 text-white" />
+                      </div>
+                      <div>
+                        <span className="text-sm font-medium text-text-dark group-hover:text-brand-red transition-colors duration-200">
+                          iLoveIMG
+                        </span>
+                        <p className="text-xs text-gray-500">
+                          Effortless image editing
+                        </p>
+                      </div>
+                    </Link>
+                    <Link
+                      to="/sign-pdf"
+                      className="group flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-50 transition-colors duration-200"
+                    >
+                      <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform duration-200">
+                        <PenTool className="w-4 h-4 text-white" />
+                      </div>
+                      <div>
+                        <span className="text-sm font-medium text-text-dark group-hover:text-brand-red transition-colors duration-200">
+                          iLoveSign
+                        </span>
+                        <p className="text-xs text-gray-500">
+                          e-Signing made simple
+                        </p>
+                      </div>
+                    </Link>
+                    <Link
+                      to="/api-docs"
+                      className="group flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-50 transition-colors duration-200"
+                    >
+                      <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-purple-500 to-purple-600 flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform duration-200">
+                        <Code className="w-4 h-4 text-white" />
+                      </div>
+                      <div>
+                        <span className="text-sm font-medium text-text-dark group-hover:text-brand-red transition-colors duration-200">
+                          iLoveAPI
+                        </span>
+                        <p className="text-xs text-gray-500">
+                          Document automation for developers
+                        </p>
+                      </div>
+                    </Link>
+                  </div>
+
+                  {/* Integrations Section */}
+                  <div className="mb-4">
+                    <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
+                      Integrations
+                    </h4>
+                    <Link
+                      to="/integrations"
+                      className="group flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-50 transition-colors duration-200"
+                    >
+                      <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-orange-500 to-orange-600 flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform duration-200">
+                        <Zap className="w-4 h-4 text-white" />
+                      </div>
+                      <div>
+                        <span className="text-sm font-medium text-text-dark group-hover:text-brand-red transition-colors duration-200">
+                          Integrations
+                        </span>
+                        <p className="text-xs text-gray-500">
+                          Zapier, Make, Wordpress...
+                        </p>
+                      </div>
+                    </Link>
+                  </div>
+
+                  {/* Solutions Section */}
+                  <div className="mb-4">
+                    <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
+                      Solutions
+                    </h4>
+                    <Link
+                      to="/business"
+                      className="group flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-50 transition-colors duration-200"
+                    >
+                      <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-indigo-600 flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform duration-200">
+                        <Building className="w-4 h-4 text-white" />
+                      </div>
+                      <div>
+                        <span className="text-sm font-medium text-text-dark group-hover:text-brand-red transition-colors duration-200">
+                          Business
+                        </span>
+                        <p className="text-xs text-gray-500">
+                          PDF editing & workflows for teams
+                        </p>
+                      </div>
+                    </Link>
+                  </div>
+
+                  {/* Applications Section */}
+                  <div className="mb-4">
+                    <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
+                      Applications
+                    </h4>
+                    <Link
+                      to="/desktop-app"
+                      className="group flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-50 transition-colors duration-200"
+                    >
+                      <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-gray-600 to-gray-700 flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform duration-200">
+                        <Monitor className="w-4 h-4 text-white" />
+                      </div>
+                      <div>
+                        <span className="text-sm font-medium text-text-dark group-hover:text-brand-red transition-colors duration-200">
+                          Desktop App
+                        </span>
+                        <p className="text-xs text-gray-500">
+                          Available for Mac and Windows
+                        </p>
+                      </div>
+                    </Link>
+                    <Link
+                      to="/mobile-app"
+                      className="group flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-50 transition-colors duration-200"
+                    >
+                      <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-pink-500 to-pink-600 flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform duration-200">
+                        <Smartphone className="w-4 h-4 text-white" />
+                      </div>
+                      <div>
+                        <span className="text-sm font-medium text-text-dark group-hover:text-brand-red transition-colors duration-200">
+                          Mobile App
+                        </span>
+                        <p className="text-xs text-gray-500">
+                          Available for iOS and Android
+                        </p>
+                      </div>
+                    </Link>
+                  </div>
+
+                  {/* Footer Links */}
+                  <div className="pt-3 border-t border-gray-100">
+                    <div className="grid grid-cols-2 gap-2">
+                      <Link
+                        to="/pricing"
+                        className="flex items-center space-x-2 p-2 rounded-lg hover:bg-gray-50 transition-colors duration-200"
+                      >
+                        <DollarSign className="w-4 h-4 text-gray-500" />
+                        <span className="text-sm text-text-dark hover:text-brand-red transition-colors duration-200">
+                          Pricing
+                        </span>
+                      </Link>
+                      <Link
+                        to="/security"
+                        className="flex items-center space-x-2 p-2 rounded-lg hover:bg-gray-50 transition-colors duration-200"
+                      >
+                        <Shield className="w-4 h-4 text-gray-500" />
+                        <span className="text-sm text-text-dark hover:text-brand-red transition-colors duration-200">
+                          Security
+                        </span>
+                      </Link>
+                      <Link
+                        to="/features"
+                        className="flex items-center space-x-2 p-2 rounded-lg hover:bg-gray-50 transition-colors duration-200"
+                      >
+                        <Star className="w-4 h-4 text-gray-500" />
+                        <span className="text-sm text-text-dark hover:text-brand-red transition-colors duration-200">
+                          Features
+                        </span>
+                      </Link>
+                      <Link
+                        to="/about"
+                        className="flex items-center space-x-2 p-2 rounded-lg hover:bg-gray-50 transition-colors duration-200"
+                      >
+                        <Info className="w-4 h-4 text-gray-500" />
+                        <span className="text-sm text-text-dark hover:text-brand-red transition-colors duration-200">
+                          About us
+                        </span>
+                      </Link>
+                      <Link
+                        to="/help"
+                        className="flex items-center space-x-2 p-2 rounded-lg hover:bg-gray-50 transition-colors duration-200"
+                      >
+                        <HelpCircle className="w-4 h-4 text-gray-500" />
+                        <span className="text-sm text-text-dark hover:text-brand-red transition-colors duration-200">
+                          Help
+                        </span>
+                      </Link>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
           </nav>
 
           {/* Right Side Actions */}
@@ -447,12 +662,13 @@ const Header = () => {
                     Login
                   </Button>
                 </Link>
-                <Link to="/register">
-                  <Button size="sm" className="bg-brand-red hover:bg-red-600">
-                    <Crown className="w-4 h-4 mr-2" />
-                    Get Started
-                  </Button>
-                </Link>
+                <Button
+                  size="sm"
+                  className="bg-brand-red hover:bg-red-600"
+                  onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                >
+                  <Menu className="w-4 h-4" />
+                </Button>
               </div>
             )}
 
@@ -501,8 +717,8 @@ const Header = () => {
                       size="sm"
                       className="w-full justify-start bg-brand-red hover:bg-red-600"
                     >
-                      <Crown className="w-4 h-4 mr-2" />
-                      Get Started
+                      <User className="w-4 h-4 mr-2" />
+                      Sign Up
                     </Button>
                   </Link>
                 </>
