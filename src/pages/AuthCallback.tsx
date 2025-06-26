@@ -42,9 +42,8 @@ const AuthCallback: React.FC = () => {
             description: "You have been successfully signed in with Google.",
           });
 
-          // Redirect to the original page or dashboard
-          const redirectUrl = authService.getAuthRedirectUrl();
-          navigate(redirectUrl);
+          // Always redirect to home page after Google login
+          navigate("/");
         } catch (error) {
           console.error("Auth callback error:", error);
           toast({
