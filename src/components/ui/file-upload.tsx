@@ -29,7 +29,7 @@ const FileUpload: React.FC<FileUploadProps> = ({
   maxSize = 10,
   maxFiles,
   className,
-  allowedTypes = ["pdf"],
+  allowedTypes = [],
   acceptedFileTypes,
   uploadText,
   supportText,
@@ -53,7 +53,12 @@ const FileUpload: React.FC<FileUploadProps> = ({
       return "image/*,.jpg,.jpeg,.png,.gif,.bmp,.webp";
     }
 
-    return ".pdf";
+    if (allowedTypes.includes("pdf")) {
+      return ".pdf";
+    }
+
+    // No specific restrictions, allow common file types
+    return "*";
   };
 
   // Determine the correct upload text
@@ -72,7 +77,11 @@ const FileUpload: React.FC<FileUploadProps> = ({
       return "Select image files";
     }
 
-    return "Select PDF files";
+    if (allowedTypes.includes("pdf")) {
+      return "Select PDF files";
+    }
+
+    return "Select files";
   };
 
   // Determine the correct support text
@@ -88,7 +97,11 @@ const FileUpload: React.FC<FileUploadProps> = ({
       return "Supports JPG, PNG, GIF, BMP, WebP formats";
     }
 
-    return "Supports PDF format";
+    if (allowedTypes.includes("pdf")) {
+      return "Supports PDF format";
+    }
+
+    return "Supports multiple file formats";
   };
 
   const finalAccept = getAcceptAttribute();
@@ -97,9 +110,12 @@ const FileUpload: React.FC<FileUploadProps> = ({
 
   const validateFile = useCallback(
     (file: File): string | null => {
+      let isValidType = false;
+      let errorMessage = "";
+
       // Handle acceptedFileTypes prop (used by image tools)
-      if (acceptedFileTypes) {
-        const isValidType = Object.keys(acceptedFileTypes).some((mimeType) => {
+      if (acceptedFileTypes && Object.keys(acceptedFileTypes).length > 0) {
+        isValidType = Object.keys(acceptedFileTypes).some((mimeType) => {
           if (mimeType === "image/*") {
             return (
               file.type.startsWith("image/") ||
@@ -111,11 +127,11 @@ const FileUpload: React.FC<FileUploadProps> = ({
 
         if (!isValidType) {
           const extensions = Object.values(acceptedFileTypes).flat();
-          return `Only ${extensions.join(", ")} files are allowed`;
+          errorMessage = `Only ${extensions.join(", ")} files are allowed`;
         }
-      } else {
+      } else if (allowedTypes.length > 0) {
         // Check file type based on allowedTypes
-        const isValidType = allowedTypes.some((type) => {
+        isValidType = allowedTypes.some((type) => {
           if (type === "pdf") {
             return (
               file.type === "application/pdf" ||
@@ -138,8 +154,15 @@ const FileUpload: React.FC<FileUploadProps> = ({
             if (type === "pdf") return "PDF files";
             return type.toUpperCase() + " files";
           });
-          return `Only ${typeNames.join(", ")} are allowed`;
+          errorMessage = `Only ${typeNames.join(", ")} are allowed`;
         }
+      } else {
+        // No file type restrictions specified, allow all files
+        isValidType = true;
+      }
+
+      if (!isValidType) {
+        return errorMessage;
       }
 
       if (file.size > maxSize * 1024 * 1024) {

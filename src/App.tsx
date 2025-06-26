@@ -59,7 +59,6 @@ import Status from "./pages/Status";
 import {
   PdfToPowerPoint,
   PdfToExcel,
-  JpgToPdf,
   Watermark,
   UnlockPdf,
   ProtectPdf,
@@ -77,6 +76,9 @@ import {
   PowerPointToPdf,
   ExcelToPdf,
 } from "./pages/AllTools";
+
+// Import enhanced JPG to PDF component
+import JpgToPdf from "./pages/JpgToPdf";
 
 // Import the comprehensive PDF editor
 import SignPdf from "./pages/SignPdf";

@@ -223,6 +223,7 @@ const Compress = () => {
                   onFilesSelect={handleFilesSelect}
                   multiple={false}
                   maxSize={25}
+                  allowedTypes={["pdf"]}
                 />
               </div>
             )}
