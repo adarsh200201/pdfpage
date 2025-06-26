@@ -134,7 +134,7 @@ const FileUpload: React.FC<FileUploadProps> = ({
 
         if (!isValidType) {
           const typeNames = allowedTypes.map((type) => {
-            if (type === "image") return "Image files (JPG, PNG, GIF, etc.)";
+            if (type === "image") return "image files";
             if (type === "pdf") return "PDF files";
             return type.toUpperCase() + " files";
           });

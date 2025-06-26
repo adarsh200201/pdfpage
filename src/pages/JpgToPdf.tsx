@@ -303,7 +303,16 @@ const JpgToPdf = () => {
                   accept="image/*,.jpg,.jpeg,.png,.gif,.bmp,.webp"
                   multiple={true}
                   maxSize={25}
-                  allowedTypes={["image"]}
+                  acceptedFileTypes={{
+                    "image/*": [
+                      ".jpg",
+                      ".jpeg",
+                      ".png",
+                      ".gif",
+                      ".bmp",
+                      ".webp",
+                    ],
+                  }}
                   uploadText="Select image files to convert"
                   supportText="Supports JPG, PNG, GIF, BMP, WebP formats"
                 />
