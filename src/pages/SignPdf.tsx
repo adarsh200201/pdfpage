@@ -1,12 +1,15 @@
-import { useState, useRef } from "react";
+import React, { useState, useCallback, useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
 import Header from "@/components/layout/Header";
 import FileUpload from "@/components/ui/file-upload";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PromoBanner } from "@/components/ui/promo-banner";
 import AuthModal from "@/components/auth/AuthModal";
-import PDFViewer from "@/components/ui/pdf-viewer";
+import EditorToolbar from "@/components/pdf-editor/EditorToolbar";
+import PDFEditorCanvas from "@/components/pdf-editor/PDFEditorCanvas";
+import PageThumbnails from "@/components/pdf-editor/PageThumbnails";
+import PropertiesPanel from "@/components/pdf-editor/PropertiesPanel";
+import { usePDFEditor } from "@/hooks/usePDFEditor";
 import { useAuth } from "@/contexts/AuthContext";
 import { PDFService } from "@/services/pdfService";
 import { useToast } from "@/hooks/use-toast";
@@ -15,79 +18,1000 @@ import {
   Download,
   FileText,
   PenTool,
-  Type,
-  Upload,
+  Save,
   Crown,
   Star,
-  Eye,
-  EyeOff,
+  Maximize,
+  Minimize,
+  Layers,
+  Upload,
 } from "lucide-react";
+import {
+  AnyElement,
+  SignatureElement,
+  TextElement,
+  DrawElement,
+  ShapeElement,
+  ImageElement,
+} from "@/types/pdf-editor";
+import { cn } from "@/lib/utils";
 
 const SignPdf = () => {
   const [file, setFile] = useState<File | null>(null);
-  const [signatureType, setSignatureType] = useState<
-    "draw" | "type" | "upload"
-  >("draw");
-  const [signatureText, setSignatureText] = useState("");
-  const [signatureImage, setSignatureImage] = useState<File | null>(null);
-  const [signaturePosition, setSignaturePosition] = useState({
-    x: 100,
-    y: 200,
-    page: 1,
-    width: 150,
-    height: 50,
-  });
+  const [pdfPages, setPdfPages] = useState<number>(1);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [isComplete, setIsComplete] = useState(false);
+  const [showAuthModal, setShowAuthModal] = useState(false);
   const [signedFile, setSignedFile] = useState<{
     name: string;
     url: string;
     size: number;
   } | null>(null);
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [isComplete, setIsComplete] = useState(false);
-  const [showAuthModal, setShowAuthModal] = useState(false);
-  const [showPreview, setShowPreview] = useState(false);
-  const [signaturePreview, setSignaturePreview] = useState<string | null>(null);
-  const [pdfPages, setPdfPages] = useState<number>(1);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [isDrawing, setIsDrawing] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [selectedColor, setSelectedColor] = useState("#000000");
+  const [selectedStrokeWidth, setSelectedStrokeWidth] = useState(2);
+  const [selectedFontSize, setSelectedFontSize] = useState(16);
+  const [showThumbnails, setShowThumbnails] = useState(true);
+  const [showProperties, setShowProperties] = useState(true);
+
+  // Signature-specific states
+  const [signatureMode, setSignatureMode] = useState<
+    "select" | "draw" | "type" | "upload" | null
+  >(null);
+  const [isCreatingSignature, setIsCreatingSignature] = useState(false);
+  const [signatureData, setSignatureData] = useState<{
+    type: "draw" | "type" | "upload";
+    data: string;
+    text?: string;
+  } | null>(null);
+  const [showSignatureOptions, setShowSignatureOptions] = useState(false);
 
   const { isAuthenticated, user } = useAuth();
   const { toast } = useToast();
 
-  const handleFileUpload = async (uploadedFiles: File[]) => {
-    if (uploadedFiles.length > 0) {
-      const selectedFile = uploadedFiles[0];
-      setFile(selectedFile);
-      setIsComplete(false);
-      setSignedFile(null);
+  // Initialize PDF editor
+  const { state, actions, selectors, computed } = usePDFEditor();
 
-      try {
-        const { loadPDFDocument } = await import("@/lib/pdf-utils");
-        const arrayBuffer = await selectedFile.arrayBuffer();
-        const pdfDoc = await loadPDFDocument(arrayBuffer);
-        setPdfPages(pdfDoc.getPageCount());
+  // Handle file upload
+  const handleFileUpload = useCallback(
+    async (uploadedFiles: File[]) => {
+      if (uploadedFiles.length > 0) {
+        const selectedFile = uploadedFiles[0];
+        setFile(selectedFile);
+        setIsComplete(false);
+        setSignedFile(null);
+        actions.clearAll();
+        setShowSignatureOptions(true); // Show signature options after PDF upload
+
+        try {
+          // Load PDF to get page count
+          const pdfjsLib = await import("pdfjs-dist");
+
+          // Set worker if not already set
+          if (!pdfjsLib.GlobalWorkerOptions.workerSrc) {
+            pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdn.jsdelivr.net/npm/pdfjs-dist@4.8.69/build/pdf.worker.min.mjs`;
+          }
+
+          const arrayBuffer = await selectedFile.arrayBuffer();
+          const loadingTask = pdfjsLib.getDocument({
+            data: arrayBuffer,
+            verbosity: 0, // Reduce console noise
+          });
+
+          const pdf = await loadingTask.promise;
+          setPdfPages(pdf.numPages);
+
+          toast({
+            title: "PDF loaded successfully",
+            description: `Document has ${pdf.numPages} page(s). Ready for signing!`,
+          });
+        } catch (error) {
+          console.error("Error reading PDF:", error);
+          setPdfPages(1);
+          toast({
+            title: "PDF loaded",
+            description: "PDF loaded successfully",
+          });
+        }
+      }
+    },
+    [actions, toast],
+  );
+
+  // Handle signature type selection
+  const handleSignatureTypeSelect = useCallback(
+    (type: "draw" | "type" | "upload") => {
+      setSignatureMode(type);
+      setIsCreatingSignature(true);
+      setShowSignatureOptions(false);
+      actions.setTool("signature");
+    },
+    [actions],
+  );
+
+  // Handle signature creation completion
+  const handleSignatureCreated = useCallback(
+    (data: string, text?: string) => {
+      const newSignatureData = {
+        type: signatureMode as "draw" | "type" | "upload",
+        data,
+        text,
+      };
+
+      console.log("Signature created:", newSignatureData);
+
+      setSignatureData(newSignatureData);
+      setIsCreatingSignature(false);
+
+      toast({
+        title: "Signature created",
+        description: "Click on the PDF to position your signature",
+      });
+    },
+    [signatureMode, toast],
+  );
+
+  // Handle signature positioning
+  const handleSignaturePlace = useCallback(
+    (x: number, y: number) => {
+      if (signatureData) {
+        console.log("Placing signature:", signatureData);
+
+        const signatureElement = {
+          type: "signature" as const,
+          pageIndex: state.pageIndex,
+          bounds: { x, y, width: 200, height: 60 },
+          properties: {
+            signatureType: signatureData.type,
+            signatureData: signatureData.data,
+            signatureText: signatureData.text,
+            strokeWidth: selectedStrokeWidth,
+            color: selectedColor,
+          },
+        };
+
+        console.log("Signature element:", signatureElement);
+
+        const signatureId = actions.addElement(
+          signatureElement as Omit<
+            SignatureElement,
+            "id" | "createdAt" | "updatedAt"
+          >,
+        );
+
+        // Select the newly created signature
+        actions.selectElements([signatureId]);
+        actions.setTool("select");
 
         toast({
-          title: "PDF loaded successfully",
-          description: `Document has ${pdfDoc.getPageCount()} page(s)`,
+          title: "Signature placed",
+          description: "You can now adjust the position and size",
         });
-      } catch (error) {
-        console.error("Error reading PDF:", error);
-        setPdfPages(1);
+      } else {
+        console.error("No signature data available");
+      }
+    },
+    [
+      signatureData,
+      actions,
+      state.pageIndex,
+      selectedStrokeWidth,
+      selectedColor,
+      toast,
+    ],
+  );
+
+  // Handle zoom controls
+  const handleZoomIn = useCallback(() => {
+    actions.setZoom(Math.min(state.zoom * 1.2, 3));
+  }, [actions, state.zoom]);
+
+  const handleZoomOut = useCallback(() => {
+    actions.setZoom(Math.max(state.zoom / 1.2, 0.25));
+  }, [actions, state.zoom]);
+
+  // Handle page navigation
+  const handlePageChange = useCallback(
+    (pageIndex: number) => {
+      actions.setPage(pageIndex);
+    },
+    [actions],
+  );
+
+  // Handle signature creation
+  const createSignature = useCallback(
+    (
+      type: "draw" | "type" | "upload",
+      data: string,
+      text?: string,
+      bounds?: { x: number; y: number; width: number; height: number },
+    ) => {
+      const signatureBounds = bounds || {
+        x: 100,
+        y: 100,
+        width: 200,
+        height: 60,
+      };
+
+      actions.addElement({
+        type: "signature",
+        pageIndex: state.pageIndex,
+        bounds: signatureBounds,
+        properties: {
+          signatureType: type,
+          signatureData: data,
+          signatureText: text,
+          strokeWidth: selectedStrokeWidth,
+          color: selectedColor,
+        },
+      } as Omit<SignatureElement, "id" | "createdAt" | "updatedAt">);
+
+      // Switch to select tool after creating signature
+      actions.setTool("select");
+    },
+    [actions, state.pageIndex, selectedStrokeWidth, selectedColor],
+  );
+
+  // Handle quick signature actions
+  const handleQuickSignature = useCallback(() => {
+    // Create a simple text signature
+    const signatureText = prompt("Enter your signature text:");
+    if (signatureText && signatureText.trim()) {
+      createSignature("type", "", signatureText.trim());
+    }
+  }, [createSignature]);
+
+  // Handle save and download
+  const handleSave = useCallback(async () => {
+    if (!file) {
+      toast({
+        title: "No file loaded",
+        description: "Please load a PDF file first",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Check usage limits
+    try {
+      const usageCheck = await PDFService.checkUsageLimit();
+      if (!usageCheck.canUpload) {
+        setShowAuthModal(true);
+        return;
+      }
+    } catch (error) {
+      console.error("Error checking usage limit:", error);
+    }
+
+    setIsProcessing(true);
+
+    try {
+      toast({
+        title: "🔄 Processing PDF...",
+        description: `Applying ${state.elements.length} element(s) to PDF`,
+      });
+
+      const processedPdf = await processElementsOnPDF(file, state.elements);
+      const blob = new Blob([processedPdf], { type: "application/pdf" });
+      const url = URL.createObjectURL(blob);
+
+      setSignedFile({
+        name: file.name.replace(/\.pdf$/i, "_edited.pdf"),
+        url,
+        size: blob.size,
+      });
+      setIsComplete(true);
+
+      // Track usage
+      await PDFService.trackUsage("sign-pdf", state.elements.length, file.size);
+
+      toast({
+        title: "🎉 PDF processed successfully!",
+        description: `Applied ${state.elements.length} modifications`,
+      });
+    } catch (error) {
+      console.error("Error processing PDF:", error);
+      toast({
+        title: "Processing failed",
+        description:
+          "There was an error processing your PDF. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsProcessing(false);
+    }
+  }, [file, state.elements, toast]);
+
+  const handleDownload = useCallback(() => {
+    if (signedFile) {
+      const link = document.createElement("a");
+      link.href = signedFile.url;
+      link.download = signedFile.name;
+      link.click();
+    }
+  }, [signedFile]);
+
+  // Process elements on PDF
+  const processElementsOnPDF = async (
+    file: File,
+    elements: AnyElement[],
+  ): Promise<Uint8Array> => {
+    const { PDFDocument, rgb } = await import("pdf-lib");
+
+    const arrayBuffer = await file.arrayBuffer();
+    const pdfDoc = await PDFDocument.load(arrayBuffer);
+    const pages = pdfDoc.getPages();
+
+    // Process elements by page
+    for (let pageIndex = 0; pageIndex < pages.length; pageIndex++) {
+      const page = pages[pageIndex];
+      const { width, height } = page.getSize();
+      const pageElements = elements.filter((el) => el.pageIndex === pageIndex);
+
+      for (const element of pageElements) {
+        try {
+          switch (element.type) {
+            case "text":
+              const textEl = element as TextElement;
+              const textColor = hexToRgb(textEl.properties.color);
+              page.drawText(textEl.properties.text, {
+                x: element.bounds.x,
+                y: height - element.bounds.y - element.bounds.height,
+                size: textEl.properties.fontSize,
+                color: rgb(textColor.r, textColor.g, textColor.b),
+              });
+              break;
+
+            case "signature":
+              const sigEl = element as SignatureElement;
+              if (
+                sigEl.properties.signatureType === "type" &&
+                sigEl.properties.signatureText
+              ) {
+                const sigColor = hexToRgb(sigEl.properties.color);
+                page.drawText(sigEl.properties.signatureText, {
+                  x: element.bounds.x,
+                  y: height - element.bounds.y - element.bounds.height,
+                  size: 18,
+                  color: rgb(sigColor.r, sigColor.g, sigColor.b),
+                });
+              } else if (sigEl.properties.signatureData) {
+                try {
+                  const imageBytes =
+                    sigEl.properties.signatureData.split(",")[1];
+                  const imageData = Uint8Array.from(atob(imageBytes), (c) =>
+                    c.charCodeAt(0),
+                  );
+
+                  let embeddedImage;
+                  if (
+                    sigEl.properties.signatureData.includes("data:image/png")
+                  ) {
+                    embeddedImage = await pdfDoc.embedPng(imageData);
+                  } else {
+                    embeddedImage = await pdfDoc.embedJpg(imageData);
+                  }
+
+                  page.drawImage(embeddedImage, {
+                    x: element.bounds.x,
+                    y: height - element.bounds.y - element.bounds.height,
+                    width: element.bounds.width,
+                    height: element.bounds.height,
+                  });
+                } catch (imageError) {
+                  console.error("Error embedding signature image:", imageError);
+                }
+              }
+              break;
+
+            case "rectangle":
+              const rectEl = element as ShapeElement;
+              const rectColor = hexToRgb(rectEl.properties.strokeColor);
+              page.drawRectangle({
+                x: element.bounds.x,
+                y: height - element.bounds.y - element.bounds.height,
+                width: element.bounds.width,
+                height: element.bounds.height,
+                borderColor: rgb(rectColor.r, rectColor.g, rectColor.b),
+                borderWidth: rectEl.properties.strokeWidth,
+              });
+              break;
+
+            case "draw":
+              const drawEl = element as DrawElement;
+              const drawColor = hexToRgb(drawEl.properties.color);
+              // For draw elements, we'd need to implement path drawing
+              // This is a simplified version
+              page.drawText("✍️", {
+                x: element.bounds.x,
+                y: height - element.bounds.y - element.bounds.height,
+                size: 20,
+                color: rgb(drawColor.r, drawColor.g, drawColor.b),
+              });
+              break;
+          }
+        } catch (elementError) {
+          console.error(
+            `Error processing element ${element.id}:`,
+            elementError,
+          );
+        }
       }
     }
+
+    // Add metadata
+    pdfDoc.setSubject("Edited with PdfPage");
+    pdfDoc.setCreator("PdfPage - PDF Editor");
+
+    return await pdfDoc.save();
   };
 
-  const handleSignatureImageUpload = (uploadedFiles: File[]) => {
-    if (uploadedFiles.length > 0) {
-      setSignatureImage(uploadedFiles[0]);
-      toast({
-        title: "Signature image uploaded",
-        description: "Your signature image is ready to be added to the PDF",
-      });
-      setTimeout(() => updateSignaturePreview(), 100);
-    }
+  // Utility function to convert hex to RGB
+  const hexToRgb = (hex: string) => {
+    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+    return result
+      ? {
+          r: parseInt(result[1], 16) / 255,
+          g: parseInt(result[2], 16) / 255,
+          b: parseInt(result[3], 16) / 255,
+        }
+      : { r: 0, g: 0, b: 0 };
   };
+
+  // Reset function
+  const reset = useCallback(() => {
+    setFile(null);
+    setSignedFile(null);
+    setIsComplete(false);
+    setPdfPages(1);
+    actions.clearAll();
+    if (signedFile) {
+      URL.revokeObjectURL(signedFile.url);
+    }
+  }, [actions, signedFile]);
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.ctrlKey || e.metaKey) {
+        switch (e.key) {
+          case "z":
+            e.preventDefault();
+            if (e.shiftKey) {
+              actions.redo();
+            } else {
+              actions.undo();
+            }
+            break;
+          case "c":
+            e.preventDefault();
+            actions.copyElements();
+            break;
+          case "v":
+            e.preventDefault();
+            actions.pasteElements();
+            break;
+          case "s":
+            e.preventDefault();
+            handleSave();
+            break;
+        }
+      } else {
+        switch (e.key) {
+          case "Delete":
+          case "Backspace":
+            e.preventDefault();
+            actions.deleteSelectedElements();
+            break;
+          case "Escape":
+            e.preventDefault();
+            actions.clearSelection();
+            break;
+        }
+      }
+
+      // Tool shortcuts
+      if (!e.ctrlKey && !e.metaKey && !e.altKey) {
+        switch (e.key.toLowerCase()) {
+          case "v":
+            actions.setTool("select");
+            break;
+          case "t":
+            actions.setTool("text");
+            break;
+          case "p":
+            actions.setTool("draw");
+            break;
+          case "r":
+            actions.setTool("rectangle");
+            break;
+          case "c":
+            actions.setTool("circle");
+            break;
+          case "s":
+            actions.setTool("signature");
+            break;
+        }
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [actions, handleSave]);
+
+  if (isComplete) {
+    return (
+      <div className="min-h-screen bg-bg-light">
+        <Header />
+
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <PromoBanner className="mb-8" />
+
+          <div className="flex items-center space-x-2 mb-8">
+            <Link
+              to="/"
+              className="text-body-medium text-text-light hover:text-brand-red"
+            >
+              <ArrowLeft className="w-4 h-4 mr-1 inline" />
+              Back to Home
+            </Link>
+          </div>
+
+          <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
+            <div className="text-center mb-6">
+              <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <FileText className="w-8 h-8 text-green-600" />
+              </div>
+              <h3 className="text-xl font-semibold text-text-dark mb-2">
+                PDF Edited Successfully!
+              </h3>
+              <p className="text-text-light">
+                Applied {state.elements.length} modification(s) to your PDF
+              </p>
+            </div>
+
+            {signedFile && (
+              <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg mb-6">
+                <div className="flex items-center space-x-3">
+                  <FileText className="w-8 h-8 text-blue-500" />
+                  <div>
+                    <p className="font-medium text-text-dark">
+                      {signedFile.name}
+                    </p>
+                    <p className="text-sm text-text-light">
+                      {(signedFile.size / 1024 / 1024).toFixed(2)} MB •
+                      Professionally Edited
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div className="flex flex-col sm:flex-row gap-3">
+              <Button onClick={handleDownload} className="flex-1">
+                <Download className="w-4 h-4 mr-2" />
+                Download Edited PDF
+              </Button>
+              <Button variant="outline" onClick={reset}>
+                Edit Another PDF
+              </Button>
+            </div>
+          </div>
+        </div>
+
+        <AuthModal
+          isOpen={showAuthModal}
+          onClose={() => setShowAuthModal(false)}
+          defaultTab="register"
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-bg-light">
+      <Header />
+
+      <div className="max-w-full px-4 sm:px-6 lg:px-8 py-4">
+        <PromoBanner className="mb-6" />
+
+        {/* Navigation */}
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center space-x-2">
+            <Link
+              to="/"
+              className="text-body-medium text-text-light hover:text-brand-red"
+            >
+              <ArrowLeft className="w-4 h-4 mr-1 inline" />
+              Back to Home
+            </Link>
+          </div>
+
+          {file && (
+            <div className="flex items-center space-x-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowThumbnails(!showThumbnails)}
+              >
+                <Layers className="w-4 h-4 mr-1" />
+                {showThumbnails ? "Hide" : "Show"} Pages
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowProperties(!showProperties)}
+              >
+                <FileText className="w-4 h-4 mr-1" />
+                {showProperties ? "Hide" : "Show"} Properties
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setIsFullscreen(!isFullscreen)}
+              >
+                {isFullscreen ? (
+                  <Minimize className="w-4 h-4" />
+                ) : (
+                  <Maximize className="w-4 h-4" />
+                )}
+              </Button>
+            </div>
+          )}
+        </div>
+
+        {/* Header */}
+        {!file && (
+          <div className="text-center mb-8">
+            <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
+              <PenTool className="w-8 h-8 text-white" />
+            </div>
+            <h1 className="text-heading-medium text-text-dark mb-4">
+              Professional PDF Editor
+            </h1>
+            <p className="text-body-large text-text-light max-w-3xl mx-auto">
+              Create, edit, and sign PDF documents with our advanced real-time
+              editor. Add text, shapes, signatures, images, and annotations with
+              professional precision.
+            </p>
+            <div className="mt-6 flex flex-wrap justify-center gap-3">
+              <div className="inline-flex items-center px-4 py-2 rounded-full text-sm bg-blue-100 text-blue-800">
+                <span className="mr-2">✨</span>
+                Real-time editing
+              </div>
+              <div className="inline-flex items-center px-4 py-2 rounded-full text-sm bg-green-100 text-green-800">
+                <span className="mr-2">🎨</span>
+                Professional tools
+              </div>
+              <div className="inline-flex items-center px-4 py-2 rounded-full text-sm bg-purple-100 text-purple-800">
+                <span className="mr-2">⚡</span>
+                Instant preview
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Main Content */}
+        {!file ? (
+          <div className="max-w-2xl mx-auto">
+            <div className="bg-white rounded-xl p-8 shadow-sm border border-gray-100">
+              <FileUpload
+                onFilesSelect={handleFileUpload}
+                accept=".pdf"
+                multiple={false}
+                maxSize={50}
+                allowedTypes={["pdf"]}
+                uploadText="Select PDF file to sign"
+                supportText="Supports PDF format • Max 50MB"
+              />
+            </div>
+
+            {/* Quick Actions */}
+            <div className="mt-8 text-center">
+              <h3 className="text-lg font-semibold text-text-dark mb-4">
+                Quick Start
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="p-4 bg-white rounded-lg border border-gray-200">
+                  <PenTool className="w-8 h-8 text-blue-500 mx-auto mb-2" />
+                  <h4 className="font-medium mb-1">Sign Documents</h4>
+                  <p className="text-sm text-gray-600">
+                    Add electronic signatures anywhere on your PDF
+                  </p>
+                </div>
+                <div className="p-4 bg-white rounded-lg border border-gray-200">
+                  <FileText className="w-8 h-8 text-green-500 mx-auto mb-2" />
+                  <h4 className="font-medium mb-1">Add Text & Annotations</h4>
+                  <p className="text-sm text-gray-600">
+                    Insert text, comments, and markup elements
+                  </p>
+                </div>
+                <div className="p-4 bg-white rounded-lg border border-gray-200">
+                  <Upload className="w-8 h-8 text-purple-500 mx-auto mb-2" />
+                  <h4 className="font-medium mb-1">Insert Images</h4>
+                  <p className="text-sm text-gray-600">
+                    Add logos, stamps, and other images
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        ) : showSignatureOptions ? (
+          // Signature Options Screen
+          <div className="max-w-4xl mx-auto">
+            <div className="bg-white rounded-xl p-8 shadow-sm border border-gray-100">
+              <div className="text-center mb-8">
+                <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                  <PenTool className="w-8 h-8 text-white" />
+                </div>
+                <h2 className="text-2xl font-bold text-gray-900 mb-2">
+                  Add Your Signature
+                </h2>
+                <p className="text-gray-600">
+                  Choose how you'd like to create your signature
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                {/* Draw Signature */}
+                <div
+                  className="cursor-pointer group"
+                  onClick={() => handleSignatureTypeSelect("draw")}
+                >
+                  <div className="bg-gray-50 rounded-xl p-6 border-2 border-transparent group-hover:border-blue-500 group-hover:bg-blue-50 transition-all duration-200">
+                    <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mx-auto mb-4 group-hover:bg-blue-200">
+                      <PenTool className="w-6 h-6 text-blue-600" />
+                    </div>
+                    <h3 className="text-lg font-semibold text-center mb-2">
+                      Draw
+                    </h3>
+                    <p className="text-sm text-gray-600 text-center">
+                      Draw your signature with mouse or touch
+                    </p>
+                  </div>
+                </div>
+
+                {/* Upload Image */}
+                <div
+                  className="cursor-pointer group"
+                  onClick={() => handleSignatureTypeSelect("upload")}
+                >
+                  <div className="bg-gray-50 rounded-xl p-6 border-2 border-transparent group-hover:border-green-500 group-hover:bg-green-50 transition-all duration-200">
+                    <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center mx-auto mb-4 group-hover:bg-green-200">
+                      <Upload className="w-6 h-6 text-green-600" />
+                    </div>
+                    <h3 className="text-lg font-semibold text-center mb-2">
+                      Image
+                    </h3>
+                    <p className="text-sm text-gray-600 text-center">
+                      Upload an image of your signature
+                    </p>
+                  </div>
+                </div>
+
+                {/* Type Signature */}
+                <div
+                  className="cursor-pointer group"
+                  onClick={() => handleSignatureTypeSelect("type")}
+                >
+                  <div className="bg-gray-50 rounded-xl p-6 border-2 border-transparent group-hover:border-purple-500 group-hover:bg-purple-50 transition-all duration-200">
+                    <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center mx-auto mb-4 group-hover:bg-purple-200">
+                      <FileText className="w-6 h-6 text-purple-600" />
+                    </div>
+                    <h3 className="text-lg font-semibold text-center mb-2">
+                      Type
+                    </h3>
+                    <p className="text-sm text-gray-600 text-center">
+                      Type your name as a signature
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="text-center">
+                <Button
+                  variant="outline"
+                  onClick={() => setFile(null)}
+                  className="mr-4"
+                >
+                  Choose Different PDF
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setShowSignatureOptions(false);
+                    actions.setTool("select");
+                  }}
+                >
+                  Skip Signature & Edit PDF
+                </Button>
+              </div>
+            </div>
+          </div>
+        ) : isCreatingSignature ? (
+          // Signature Creation Screen
+          <SignatureCreationScreen
+            type={signatureMode!}
+            onComplete={handleSignatureCreated}
+            onCancel={() => {
+              setIsCreatingSignature(false);
+              setShowSignatureOptions(true);
+            }}
+          />
+        ) : (
+          <div
+            className={cn(
+              "bg-white rounded-xl shadow-sm border border-gray-100",
+              isFullscreen && "fixed inset-4 z-50",
+            )}
+          >
+            {/* Editor Toolbar */}
+            <EditorToolbar
+              currentTool={state.currentTool}
+              onToolChange={actions.setTool}
+              onUndo={actions.undo}
+              onRedo={actions.redo}
+              onCopy={actions.copyElements}
+              onPaste={actions.pasteElements}
+              onDelete={actions.deleteSelectedElements}
+              onZoomIn={handleZoomIn}
+              onZoomOut={handleZoomOut}
+              onSave={handleSave}
+              onDownload={handleSave}
+              zoom={state.zoom}
+              canUndo={computed.canUndo}
+              canRedo={computed.canRedo}
+              hasSelection={computed.hasSelection}
+              canPaste={computed.canPaste}
+              selectedColor={selectedColor}
+              onColorChange={setSelectedColor}
+              selectedStrokeWidth={selectedStrokeWidth}
+              onStrokeWidthChange={setSelectedStrokeWidth}
+              selectedFontSize={selectedFontSize}
+              onFontSizeChange={setSelectedFontSize}
+            />
+
+            {/* Editor Layout */}
+            <div className="flex h-[calc(100vh-200px)]">
+              {/* Page Thumbnails */}
+              {showThumbnails && (
+                <PageThumbnails
+                  file={file}
+                  currentPage={state.pageIndex}
+                  totalPages={pdfPages}
+                  onPageChange={handlePageChange}
+                />
+              )}
+
+              {/* Main Canvas Area */}
+              <div className="flex-1 relative">
+                <PDFEditorCanvas
+                  file={file}
+                  pageIndex={state.pageIndex}
+                  zoom={state.zoom}
+                  elements={state.elements}
+                  selectedElements={state.selectedElements}
+                  currentTool={state.currentTool}
+                  isDrawing={state.isDrawing}
+                  currentDrawPath={state.currentDrawPath}
+                  selectedColor={selectedColor}
+                  selectedStrokeWidth={selectedStrokeWidth}
+                  selectedFontSize={selectedFontSize}
+                  onElementAdd={actions.addElement}
+                  onElementUpdate={actions.updateElement}
+                  onElementSelect={actions.selectElements}
+                  onElementToggleSelect={actions.toggleElementSelection}
+                  onStartDrawing={actions.startDrawing}
+                  onAddDrawPoint={actions.addDrawPoint}
+                  onEndDrawing={actions.endDrawing}
+                  onCanvasSizeChange={actions.setCanvasSize}
+                  onSignaturePlace={
+                    signatureData ? handleSignaturePlace : undefined
+                  }
+                  className="h-full"
+                />
+
+                {/* Processing Overlay */}
+                {isProcessing && (
+                  <div className="absolute inset-0 bg-white bg-opacity-90 flex items-center justify-center z-10">
+                    <div className="text-center">
+                      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
+                      <span className="text-lg font-medium">
+                        Processing PDF...
+                      </span>
+                      <p className="text-sm text-gray-500 mt-2">
+                        Applying your edits
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Properties Panel */}
+              {showProperties && (
+                <PropertiesPanel
+                  selectedElements={selectors.getSelectedElements()}
+                  onElementUpdate={actions.updateElement}
+                  onElementDelete={actions.deleteElements}
+                  onElementCopy={actions.copyElements}
+                />
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Premium Features */}
+        {!user?.isPremium && (
+          <div className="max-w-4xl mx-auto mt-8">
+            <div className="bg-gradient-to-r from-yellow-50 to-orange-50 border border-yellow-200 rounded-xl p-6">
+              <div className="flex items-center mb-4">
+                <Crown className="w-6 h-6 text-yellow-600 mr-2" />
+                <h3 className="text-lg font-semibold text-orange-800">
+                  Unlock Premium Features
+                </h3>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                <div className="flex items-center">
+                  <Star className="w-4 h-4 mr-2 text-yellow-600" />
+                  <span className="text-sm text-orange-700">
+                    Unlimited PDF editing
+                  </span>
+                </div>
+                <div className="flex items-center">
+                  <Star className="w-4 h-4 mr-2 text-yellow-600" />
+                  <span className="text-sm text-orange-700">
+                    Advanced signature tools
+                  </span>
+                </div>
+                <div className="flex items-center">
+                  <Star className="w-4 h-4 mr-2 text-yellow-600" />
+                  <span className="text-sm text-orange-700">
+                    Batch processing
+                  </span>
+                </div>
+                <div className="flex items-center">
+                  <Star className="w-4 h-4 mr-2 text-yellow-600" />
+                  <span className="text-sm text-orange-700">
+                    Priority support
+                  </span>
+                </div>
+              </div>
+              <Button className="bg-yellow-600 text-white hover:bg-yellow-700">
+                <Crown className="w-4 h-4 mr-2" />
+                Get Premium Access
+              </Button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Auth Modal */}
+      <AuthModal
+        isOpen={showAuthModal}
+        onClose={() => setShowAuthModal(false)}
+        defaultTab="register"
+      />
+    </div>
+  );
+};
+
+// Signature Creation Screen Component
+interface SignatureCreationScreenProps {
+  type: "draw" | "type" | "upload";
+  onComplete: (data: string, text?: string) => void;
+  onCancel: () => void;
+}
+
+const SignatureCreationScreen: React.FC<SignatureCreationScreenProps> = ({
+  type,
+  onComplete,
+  onCancel,
+}) => {
+  const [signatureText, setSignatureText] = useState("");
+  const [uploadedImage, setUploadedImage] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [isDrawing, setIsDrawing] = useState(false);
 
   const startDrawing = (e: React.MouseEvent<HTMLCanvasElement>) => {
     setIsDrawing(true);
@@ -117,7 +1041,7 @@ const SignPdf = () => {
 
     const ctx = canvas.getContext("2d");
     if (ctx) {
-      ctx.lineWidth = 2;
+      ctx.lineWidth = 3;
       ctx.lineCap = "round";
       ctx.strokeStyle = "#000000";
       ctx.lineTo(x, y);
@@ -127,10 +1051,9 @@ const SignPdf = () => {
 
   const stopDrawing = () => {
     setIsDrawing(false);
-    setTimeout(() => updateSignaturePreview(), 100);
   };
 
-  const clearSignature = () => {
+  const clearCanvas = () => {
     const canvas = canvasRef.current;
     if (canvas) {
       const ctx = canvas.getContext("2d");
@@ -138,666 +1061,157 @@ const SignPdf = () => {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
       }
     }
-    setSignaturePreview(null);
   };
 
-  const updateSignaturePreview = () => {
-    if (signatureType === "draw") {
+  const handleImageUpload = (files: File[]) => {
+    if (files.length > 0) {
+      const file = files[0];
+      setUploadedImage(file);
+
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setImagePreview(e.target?.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleComplete = () => {
+    if (type === "draw") {
       const canvas = canvasRef.current;
       if (canvas) {
         const dataURL = canvas.toDataURL();
-        setSignaturePreview(dataURL);
+        onComplete(dataURL);
       }
-    } else if (signatureType === "type" && signatureText) {
-      setSignaturePreview(signatureText);
-    } else if (signatureType === "upload" && signatureImage) {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        setSignaturePreview(e.target?.result as string);
-      };
-      reader.readAsDataURL(signatureImage);
+    } else if (type === "type" && signatureText.trim()) {
+      onComplete("", signatureText.trim());
+    } else if (type === "upload" && imagePreview) {
+      onComplete(imagePreview);
     }
   };
 
-  const handleSignPdf = async () => {
-    if (!file) {
-      toast({
-        title: "No file selected",
-        description: "Please select a PDF file to sign.",
-        variant: "destructive",
-      });
-      return;
+  const canComplete = () => {
+    if (type === "draw") {
+      // Check if something is drawn on canvas
+      const canvas = canvasRef.current;
+      if (!canvas) return false;
+
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return false;
+
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      return imageData.data.some((channel) => channel !== 0);
+    } else if (type === "type") {
+      return signatureText.trim().length > 0;
+    } else if (type === "upload") {
+      return imagePreview !== null;
     }
-
-    if (signatureType === "type" && !signatureText.trim()) {
-      toast({
-        title: "No signature text",
-        description: "Please enter your signature text.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (signatureType === "upload" && !signatureImage) {
-      toast({
-        title: "No signature image",
-        description: "Please upload a signature image.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    try {
-      const usageCheck = await PDFService.checkUsageLimit();
-      if (!usageCheck.canUpload) {
-        setShowAuthModal(true);
-        return;
-      }
-    } catch (error) {
-      console.error("Error checking usage limit:", error);
-    }
-
-    setIsProcessing(true);
-
-    try {
-      toast({
-        title: `🔄 Adding signature to ${file.name}...`,
-        description: "Processing PDF with your signature",
-      });
-
-      let signatureData: string | null = null;
-
-      if (signatureType === "draw") {
-        const canvas = canvasRef.current;
-        if (canvas) {
-          signatureData = canvas.toDataURL();
-        }
-      } else if (signatureType === "upload" && signatureImage) {
-        signatureData = await new Promise((resolve) => {
-          const reader = new FileReader();
-          reader.onload = (e) => resolve(e.target?.result as string);
-          reader.readAsDataURL(signatureImage);
-        });
-      }
-
-      const signedPdf = await addSignatureToPdf(file, {
-        type: signatureType,
-        text: signatureText,
-        imageData: signatureData,
-        position: signaturePosition,
-      });
-
-      const blob = new Blob([signedPdf], { type: "application/pdf" });
-      const url = URL.createObjectURL(blob);
-
-      setSignedFile({
-        name: file.name.replace(/\.pdf$/i, "_signed.pdf"),
-        url,
-        size: blob.size,
-      });
-      setIsComplete(true);
-
-      await PDFService.trackUsage("sign-pdf", 1, file.size);
-
-      toast({
-        title: "🎉 Signing completed!",
-        description: "PDF has been signed successfully.",
-      });
-    } catch (error) {
-      console.error("Error signing PDF:", error);
-      toast({
-        title: "Signing failed",
-        description: "There was an error signing your PDF. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsProcessing(false);
-    }
-  };
-
-  const addSignatureToPdf = async (
-    file: File,
-    signature: {
-      type: string;
-      text?: string;
-      imageData?: string | null;
-      position: { x: number; y: number; page: number };
-    },
-  ): Promise<Uint8Array> => {
-    console.log("🔄 Adding signature to PDF...");
-
-    try {
-      const { loadPDFDocument, getRGBColor, safePDFOperation } = await import(
-        "@/lib/pdf-utils"
-      );
-
-      return await safePDFOperation(
-        async () => {
-          const arrayBuffer = await file.arrayBuffer();
-          const pdfDoc = await loadPDFDocument(arrayBuffer);
-          const pages = pdfDoc.getPages();
-
-          if (signature.position.page <= pages.length) {
-            const page = pages[signature.position.page - 1];
-            const { height } = page.getSize();
-
-            if (signature.type === "type" && signature.text) {
-              const rgb = await getRGBColor(0, 0, 0.8);
-              page.drawText(signature.text, {
-                x: signature.position.x,
-                y: height - signature.position.y,
-                size: 18,
-                color: rgb,
-              });
-              console.log(`✅ Added text signature: "${signature.text}"`);
-            } else if (signature.imageData) {
-              try {
-                let embeddedImage;
-                if (signature.imageData.includes("data:image/png")) {
-                  const pngImageBytes = signature.imageData.split(",")[1];
-                  const pngBytes = Uint8Array.from(atob(pngImageBytes), (c) =>
-                    c.charCodeAt(0),
-                  );
-                  embeddedImage = await pdfDoc.embedPng(pngBytes);
-                } else {
-                  const jpgImageBytes = signature.imageData.split(",")[1];
-                  const jpgBytes = Uint8Array.from(atob(jpgImageBytes), (c) =>
-                    c.charCodeAt(0),
-                  );
-                  embeddedImage = await pdfDoc.embedJpg(jpgBytes);
-                }
-
-                const imageDims = embeddedImage.scale(0.3);
-
-                page.drawImage(embeddedImage, {
-                  x: signature.position.x,
-                  y: height - signature.position.y - imageDims.height,
-                  width: imageDims.width,
-                  height: imageDims.height,
-                });
-                console.log(`✅ Added image signature`);
-              } catch (imageError) {
-                console.error("Error embedding signature image:", imageError);
-                const fallbackRgb = await getRGBColor(0, 0, 0.8);
-                page.drawText("Digital Signature", {
-                  x: signature.position.x,
-                  y: height - signature.position.y,
-                  size: 18,
-                  color: fallbackRgb,
-                });
-              }
-            }
-
-            const currentDate = new Date().toLocaleDateString();
-            const metaRgb = await getRGBColor(0.5, 0.5, 0.5);
-            page.drawText(`Signed on: ${currentDate}`, {
-              x: signature.position.x,
-              y: height - signature.position.y - 30,
-              size: 8,
-              color: metaRgb,
-            });
-          }
-
-          pdfDoc.setSubject(`Digitally signed PDF`);
-          pdfDoc.setCreator(`PdfPage - PDF Signature Tool`);
-
-          const pdfBytes = await pdfDoc.save();
-          console.log(`🎉 PDF signing completed: ${pdfBytes.length} bytes`);
-
-          return pdfBytes;
-        },
-        undefined,
-        "PDF signing",
-      );
-    } catch (error) {
-      console.error("PDF signing failed:", error);
-      throw error;
-    }
-  };
-
-  const downloadFile = (url: string, filename: string) => {
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = filename;
-    link.click();
-  };
-
-  const reset = () => {
-    setFile(null);
-    setSignedFile(null);
-    setIsComplete(false);
-    setSignatureText("");
-    setSignatureImage(null);
-    clearSignature();
-    setShowPreview(false);
+    return false;
   };
 
   return (
-    <div className="min-h-screen bg-bg-light">
-      <Header />
-
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <PromoBanner className="mb-8" />
-
-        <div className="flex items-center space-x-2 mb-8">
-          <Link
-            to="/"
-            className="text-body-medium text-text-light hover:text-brand-red"
-          >
-            <ArrowLeft className="w-4 h-4 mr-1 inline" />
-            Back to Home
-          </Link>
-        </div>
-
+    <div className="max-w-4xl mx-auto">
+      <div className="bg-white rounded-xl p-8 shadow-sm border border-gray-100">
         <div className="text-center mb-8">
-          <div className="w-16 h-16 bg-gradient-to-br from-violet-500 to-violet-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
-            <PenTool className="w-8 h-8 text-white" />
-          </div>
-          <h1 className="text-heading-medium text-text-dark mb-4">Sign PDF</h1>
-          <p className="text-body-large text-text-light max-w-2xl mx-auto">
-            Sign your PDF documents with interactive positioning. Create,
-            position, and apply digital signatures with ease.
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">
+            {type === "draw" && "Draw Your Signature"}
+            {type === "type" && "Type Your Signature"}
+            {type === "upload" && "Upload Signature Image"}
+          </h2>
+          <p className="text-gray-600">
+            {type === "draw" &&
+              "Use your mouse or finger to draw your signature"}
+            {type === "type" && "Enter your name to create a typed signature"}
+            {type === "upload" && "Upload an image file of your signature"}
           </p>
-          <div className="mt-4 inline-flex items-center px-3 py-1 rounded-full text-sm bg-green-100 text-green-800">
-            <span className="mr-2">✨</span>
-            Interactive positioning with PDF preview!
-          </div>
         </div>
 
-        {!isComplete ? (
-          <div className="space-y-8">
-            {!file && (
-              <div className="bg-white rounded-xl p-8 shadow-sm border border-gray-100">
-                <FileUpload
-                  onFilesSelect={handleFileUpload}
-                  accept=".pdf"
-                  multiple={false}
-                  maxSize={50}
-                  allowedTypes={["pdf"]}
-                  uploadText="Select PDF file or drop PDF file here"
-                  supportText="Supports PDF format"
+        <div className="max-w-2xl mx-auto mb-8">
+          {type === "draw" && (
+            <div className="space-y-4">
+              <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 bg-gray-50">
+                <canvas
+                  ref={canvasRef}
+                  width={600}
+                  height={200}
+                  className="w-full border border-gray-300 rounded bg-white cursor-crosshair"
+                  onMouseDown={startDrawing}
+                  onMouseMove={draw}
+                  onMouseUp={stopDrawing}
+                  onMouseLeave={stopDrawing}
                 />
               </div>
-            )}
-
-            {file && (
-              <div className="space-y-8">
-                <div className="flex items-center justify-between bg-white rounded-xl p-4 shadow-sm border border-gray-100">
-                  <div>
-                    <h3 className="text-lg font-semibold text-text-dark">
-                      {file.name}
-                    </h3>
-                    <p className="text-sm text-text-light">
-                      {(file.size / 1024 / 1024).toFixed(2)} MB • {pdfPages}{" "}
-                      page(s)
-                    </p>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-4">
-                      <Button
-                        onClick={() => setShowPreview(!showPreview)}
-                        className={`flex items-center space-x-2 ${
-                          !showPreview
-                            ? "bg-violet-600 hover:bg-violet-700 text-white"
-                            : "bg-gray-100 hover:bg-gray-200 text-gray-700"
-                        }`}
-                      >
-                        {showPreview ? (
-                          <>
-                            <EyeOff className="w-4 h-4" />
-                            <span>Hide Preview</span>
-                          </>
-                        ) : (
-                          <>
-                            <Eye className="w-4 h-4" />
-                            <span>📄 View PDF & Position Signature</span>
-                          </>
-                        )}
-                      </Button>
-                      <Button variant="outline" onClick={() => setFile(null)}>
-                        Select Different File
-                      </Button>
-                    </div>
-                    {!showPreview && (
-                      <div className="text-sm text-amber-600 bg-amber-50 px-3 py-1 rounded-full">
-                        👆 Click to see your PDF and position signature
-                        interactively
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {showPreview && (
-                  <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
-                    <div className="mb-4">
-                      <h3 className="text-lg font-semibold text-text-dark mb-2">
-                        📄 PDF Preview & Signature Positioning
-                      </h3>
-                      <div className="text-sm text-gray-600 bg-blue-50 border border-blue-200 rounded-lg p-3">
-                        💡 <strong>How to use:</strong>
-                        <ol className="list-decimal list-inside mt-1 space-y-1">
-                          <li>
-                            Create your signature below (draw, type, or upload)
-                          </li>
-                          <li>
-                            Click anywhere on the PDF to position your signature
-                          </li>
-                          <li>Drag the blue box to adjust the position</li>
-                          <li>
-                            Use the manual controls to fine-tune size and
-                            position
-                          </li>
-                        </ol>
-                      </div>
-                    </div>
-                    <PDFViewer
-                      file={file}
-                      signaturePosition={signaturePosition}
-                      onPositionChange={setSignaturePosition}
-                      signaturePreview={signaturePreview}
-                      signatureType={signatureType}
-                      signatureText={signatureText}
-                    />
-                  </div>
-                )}
-
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                  <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
-                    <h3 className="text-lg font-semibold text-text-dark mb-4">
-                      ✍️ Create Your Signature
-                    </h3>
-
-                    <div className="space-y-4 mb-6">
-                      <div className="flex space-x-4">
-                        {[
-                          { value: "draw", label: "Draw", icon: PenTool },
-                          { value: "type", label: "Type", icon: Type },
-                          { value: "upload", label: "Upload", icon: Upload },
-                        ].map((option) => {
-                          const IconComponent = option.icon;
-                          return (
-                            <button
-                              key={option.value}
-                              onClick={() => {
-                                setSignatureType(option.value as any);
-                                setTimeout(() => updateSignaturePreview(), 100);
-                              }}
-                              className={`flex items-center px-4 py-2 rounded border ${
-                                signatureType === option.value
-                                  ? "border-violet-500 bg-violet-50 text-violet-700"
-                                  : "border-gray-300 text-gray-700 hover:border-gray-400"
-                              }`}
-                            >
-                              <IconComponent className="w-4 h-4 mr-2" />
-                              {option.label}
-                            </button>
-                          );
-                        })}
-                      </div>
-
-                      {signatureType === "draw" && (
-                        <div className="space-y-4">
-                          <label className="block text-sm font-medium text-text-dark">
-                            Draw your signature below:
-                          </label>
-                          <div className="border border-gray-300 rounded-lg">
-                            <canvas
-                              ref={canvasRef}
-                              width={400}
-                              height={150}
-                              className="w-full cursor-crosshair rounded-lg"
-                              onMouseDown={startDrawing}
-                              onMouseMove={draw}
-                              onMouseUp={stopDrawing}
-                              onMouseLeave={stopDrawing}
-                            />
-                          </div>
-                          <div className="flex space-x-2">
-                            <Button
-                              variant="outline"
-                              onClick={clearSignature}
-                              className="flex-1"
-                            >
-                              Clear Signature
-                            </Button>
-                            <Button
-                              variant="outline"
-                              onClick={() => setShowPreview(true)}
-                              className="flex-1"
-                            >
-                              <Eye className="w-4 h-4 mr-2" />
-                              Preview Position
-                            </Button>
-                          </div>
-                        </div>
-                      )}
-
-                      {signatureType === "type" && (
-                        <div>
-                          <label className="block text-sm font-medium text-text-dark mb-2">
-                            Type your signature:
-                          </label>
-                          <input
-                            type="text"
-                            value={signatureText}
-                            onChange={(e) => {
-                              setSignatureText(e.target.value);
-                              setTimeout(() => updateSignaturePreview(), 100);
-                            }}
-                            placeholder="Enter your name"
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-violet-500 focus:border-transparent text-xl font-serif"
-                          />
-                          {signatureText && (
-                            <div className="mt-4 p-4 border border-gray-200 rounded-lg">
-                              <p className="text-lg font-serif text-blue-600">
-                                {signatureText}
-                              </p>
-                              <p className="text-xs text-gray-500 mt-1">
-                                Preview • Click "Show Preview" to position it
-                              </p>
-                              <Button
-                                variant="outline"
-                                onClick={() => setShowPreview(true)}
-                                className="mt-2 w-full"
-                                size="sm"
-                              >
-                                <Eye className="w-4 h-4 mr-2" />
-                                Preview Position
-                              </Button>
-                            </div>
-                          )}
-                        </div>
-                      )}
-
-                      {signatureType === "upload" && (
-                        <div>
-                          <label className="block text-sm font-medium text-text-dark mb-2">
-                            Upload signature image:
-                          </label>
-                          <FileUpload
-                            onFilesSelect={handleSignatureImageUpload}
-                            accept="image/*"
-                            multiple={false}
-                            maxSize={5}
-                            allowedTypes={["image"]}
-                            uploadText="Select signature image"
-                            supportText="PNG, JPG supported • Max 5MB"
-                          />
-                          {signatureImage && (
-                            <div className="mt-4 p-4 border border-gray-200 rounded-lg">
-                              <p className="text-sm text-green-600 mb-2">
-                                ✅ {signatureImage.name} uploaded
-                              </p>
-                              <Button
-                                variant="outline"
-                                onClick={() => setShowPreview(true)}
-                                className="w-full"
-                                size="sm"
-                              >
-                                <Eye className="w-4 h-4 mr-2" />
-                                Preview Position
-                              </Button>
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
-                    <h4 className="text-md font-semibold text-text-dark mb-4">
-                      ⚙️ Position Controls
-                    </h4>
-
-                    <div className="space-y-4">
-                      <div>
-                        <label className="block text-sm font-medium text-text-dark mb-2">
-                          Page Number (1-{pdfPages})
-                        </label>
-                        <input
-                          type="number"
-                          min="1"
-                          max={pdfPages}
-                          value={signaturePosition.page}
-                          onChange={(e) =>
-                            setSignaturePosition({
-                              ...signaturePosition,
-                              page: Math.min(
-                                pdfPages,
-                                Math.max(1, parseInt(e.target.value) || 1),
-                              ),
-                            })
-                          }
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-violet-500 focus:border-transparent"
-                        />
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-sm font-medium text-text-dark mb-2">
-                            Width
-                          </label>
-                          <input
-                            type="number"
-                            min="50"
-                            max="400"
-                            value={Math.round(signaturePosition.width)}
-                            onChange={(e) =>
-                              setSignaturePosition({
-                                ...signaturePosition,
-                                width: Math.max(
-                                  50,
-                                  parseInt(e.target.value) || 150,
-                                ),
-                              })
-                            }
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-violet-500 focus:border-transparent"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-text-dark mb-2">
-                            Height
-                          </label>
-                          <input
-                            type="number"
-                            min="20"
-                            max="200"
-                            value={Math.round(signaturePosition.height)}
-                            onChange={(e) =>
-                              setSignaturePosition({
-                                ...signaturePosition,
-                                height: Math.max(
-                                  20,
-                                  parseInt(e.target.value) || 50,
-                                ),
-                              })
-                            }
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-violet-500 focus:border-transparent"
-                          />
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="mt-6">
-                      <Button
-                        onClick={handleSignPdf}
-                        disabled={
-                          isProcessing || (!signaturePreview && !signatureText)
-                        }
-                        className="w-full"
-                      >
-                        {isProcessing ? (
-                          <>
-                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                            Signing PDF...
-                          </>
-                        ) : (
-                          <>
-                            <PenTool className="w-4 h-4 mr-2" />
-                            Sign PDF
-                          </>
-                        )}
-                      </Button>
-                    </div>
-                  </div>
-                </div>
+              <div className="text-center">
+                <Button variant="outline" onClick={clearCanvas}>
+                  Clear Signature
+                </Button>
               </div>
-            )}
-          </div>
-        ) : (
-          <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
-            <div className="text-center mb-6">
-              <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <PenTool className="w-8 h-8 text-green-600" />
-              </div>
-              <h3 className="text-xl font-semibold text-text-dark mb-2">
-                Signing Complete!
-              </h3>
-              <p className="text-text-light">
-                Successfully added your digital signature to the PDF
-              </p>
             </div>
+          )}
 
-            {signedFile && (
-              <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg mb-6">
-                <div className="flex items-center space-x-3">
-                  <FileText className="w-8 h-8 text-violet-500" />
-                  <div>
-                    <p className="font-medium text-text-dark">
-                      {signedFile.name}
-                    </p>
-                    <p className="text-sm text-text-light">
-                      {(signedFile.size / 1024 / 1024).toFixed(2)} MB •
-                      Digitally Signed
-                    </p>
+          {type === "type" && (
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Your Full Name
+                </label>
+                <input
+                  type="text"
+                  value={signatureText}
+                  onChange={(e) => setSignatureText(e.target.value)}
+                  placeholder="Enter your full name"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-xl"
+                />
+              </div>
+              {signatureText && (
+                <div className="bg-gray-50 p-6 rounded-lg border">
+                  <p className="text-sm text-gray-600 mb-2">Preview:</p>
+                  <div className="text-3xl font-serif text-blue-600">
+                    {signatureText}
                   </div>
                 </div>
-              </div>
-            )}
-
-            <div className="flex flex-col sm:flex-row gap-3">
-              <Button
-                onClick={() =>
-                  signedFile && downloadFile(signedFile.url, signedFile.name)
-                }
-                className="flex-1"
-              >
-                <Download className="w-4 h-4 mr-2" />
-                Download Signed PDF
-              </Button>
-              <Button variant="outline" onClick={reset}>
-                Sign Another PDF
-              </Button>
+              )}
             </div>
-          </div>
-        )}
+          )}
+
+          {type === "upload" && (
+            <div className="space-y-4">
+              <FileUpload
+                onFilesSelect={handleImageUpload}
+                accept="image/*"
+                multiple={false}
+                maxSize={5}
+                allowedTypes={["image"]}
+                uploadText="Upload signature image"
+                supportText="PNG, JPG, SVG supported • Max 5MB"
+              />
+              {imagePreview && (
+                <div className="bg-gray-50 p-6 rounded-lg border">
+                  <p className="text-sm text-gray-600 mb-2">Preview:</p>
+                  <img
+                    src={imagePreview}
+                    alt="Signature preview"
+                    className="max-w-full h-auto max-h-32 mx-auto"
+                  />
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        <div className="flex justify-center space-x-4">
+          <Button variant="outline" onClick={onCancel}>
+            Back
+          </Button>
+          <Button
+            onClick={handleComplete}
+            disabled={!canComplete()}
+            className="min-w-32"
+          >
+            Use This Signature
+          </Button>
+        </div>
       </div>
-
-      <AuthModal
-        isOpen={showAuthModal}
-        onClose={() => setShowAuthModal(false)}
-        defaultTab="register"
-      />
     </div>
   );
 };

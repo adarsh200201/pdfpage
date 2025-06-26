@@ -64,15 +64,15 @@ const FileUpload: React.FC<FileUploadProps> = ({
       if (
         Object.keys(acceptedFileTypes).some((key) => key.startsWith("image"))
       ) {
-        return "Select image files or drop image files here";
+        return "Select image files";
       }
     }
 
     if (allowedTypes.includes("image")) {
-      return "Select image files or drop image files here";
+      return "Select image files";
     }
 
-    return "Select PDF files or drop PDF files here";
+    return "Select PDF files";
   };
 
   // Determine the correct support text
@@ -266,18 +266,10 @@ const FileUpload: React.FC<FileUploadProps> = ({
 
           <div>
             <h3 className="text-heading-small text-text-dark mb-2">
-              {uploadText
-                ? uploadText
-                : finalUploadText.includes(" or ")
-                  ? finalUploadText.split(" or ")[0]
-                  : finalUploadText}
+              {uploadText || "Select files"}
             </h3>
             <p className="text-body-small text-text-light mb-4">
-              {uploadText
-                ? "Drag and drop files here"
-                : finalUploadText.includes(" or ")
-                  ? finalUploadText.split(" or ")[1]
-                  : finalSupportText}
+              or drag and drop files here
             </p>
 
             <Button
@@ -292,11 +284,7 @@ const FileUpload: React.FC<FileUploadProps> = ({
                 fileInput?.click();
               }}
             >
-              {uploadText
-                ? uploadText
-                : finalUploadText.includes(" or ")
-                  ? finalUploadText.split(" or ")[0]
-                  : finalUploadText}
+              {uploadText || "Choose Files"}
             </Button>
 
             <p className="text-xs text-text-light mt-2">

@@ -65,7 +65,6 @@ import {
   ProtectPdf,
   OrganizePdf,
   EditPdf,
-  SignPdf,
   RotatePdf,
   HtmlToPdf,
   PdfToPdfA,
@@ -78,6 +77,9 @@ import {
   PowerPointToPdf,
   ExcelToPdf,
 } from "./pages/AllTools";
+
+// Import the comprehensive PDF editor
+import SignPdf from "./pages/SignPdf";
 
 import NotFound from "./pages/NotFound";
 import Settings from "./pages/Settings";
