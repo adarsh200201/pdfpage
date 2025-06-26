@@ -36,7 +36,7 @@ const Register = () => {
     confirmPassword: "",
   });
 
-  const { register } = useAuth();
+  const { register, loginWithGoogle } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
   const location = useLocation();
@@ -378,6 +378,8 @@ const Register = () => {
                   type="button"
                   variant="outline"
                   className="w-full h-12 border-gray-200 hover:bg-gray-50"
+                  onClick={loginWithGoogle}
+                  disabled={isLoading}
                 >
                   <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24">
                     <path

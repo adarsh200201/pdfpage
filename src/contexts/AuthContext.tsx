@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import Cookies from "js-cookie";
 import authService from "@/services/authService";
+import { checkEnvironment } from "@/utils/env-check";
 
 interface User {
   id: string;
@@ -145,8 +146,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   };
 
   const loginWithGoogle = () => {
-    console.log("🔵 [FRONTEND] Initiating Google OAuth login");
-    authService.loginWithGoogle();
+    try {
+      console.log("🔵 [FRONTEND] Initiating Google OAuth login");
+
+      // Check environment
+      const envCheck = checkEnvironment();
+
+      if (!envCheck.hasViteApiUrl) {
+        console.warn("⚠️ [FRONTEND] VITE_API_URL not set, using fallback");
+      }
+
+      console.log("🔗 [FRONTEND] OAuth URL:", envCheck.googleOAuthUrl);
+
+      // Call the auth service
+      authService.loginWithGoogle();
+    } catch (error) {
+      console.error("🔴 [FRONTEND] Error initiating Google OAuth:", error);
+    }
   };
 
   const logout = () => {
