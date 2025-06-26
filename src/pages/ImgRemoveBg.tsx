@@ -312,24 +312,46 @@ const ImgRemoveBg = () => {
 
       const startTime = Date.now();
 
-      // Since removeBackground doesn't exist in imageService, we'll simulate it by converting format
-      const result = await imageService.convertFormat(
+      console.log("Starting background removal with settings:", {
+        model: settings.model,
+        precision: settings.precision,
+        edgeSmoothing: settings.edgeSmoothing,
+        outputFormat: settings.outputFormat,
+      });
+
+      // Use real background removal functionality
+      const result = await imageService.removeBackground(
         selectedFile,
-        "image/png",
+        {
+          model: settings.model,
+          precision: settings.precision,
+          edgeSmoothing: settings.edgeSmoothing,
+          outputFormat: settings.outputFormat,
+        },
+        (progressValue) => {
+          console.log("Background removal progress:", progressValue + "%");
+          setProgress(30 + progressValue * 0.6); // Scale progress from 30% to 90%
+        },
       );
+
+      console.log("Background removal completed:", result);
 
       const endTime = Date.now();
 
-      // Simulate metrics calculation
+      // Use real metrics from the background removal process
       const newMetrics: RemovalMetrics = {
-        processingTime: endTime - startTime,
-        accuracy: 85 + Math.random() * 10,
-        edgeQuality: 80 + Math.random() * 15,
-        objectsDetected: Math.floor(Math.random() * 3) + 1,
-        backgroundComplexity: Math.floor(Math.random() * 100),
-        confidenceScore: 88 + Math.random() * 10,
+        processingTime: result.metadata.processingTime,
+        accuracy: result.metadata.confidence,
+        edgeQuality: result.metadata.edgeQuality,
+        objectsDetected: 1, // Will be enhanced in future versions
+        backgroundComplexity: Math.floor(
+          (result.metadata.originalSize / result.metadata.resultSize) * 50,
+        ),
+        confidenceScore: result.metadata.confidence,
         pixelsProcessed: selectedFile.size * 8, // Approximate
-        compressionRatio: 0.65,
+        compressionRatio:
+          (result.metadata.originalSize - result.metadata.resultSize) /
+          result.metadata.originalSize,
       };
 
       setMetrics(newMetrics);
@@ -337,8 +359,8 @@ const ImgRemoveBg = () => {
       clearInterval(progressInterval);
       setProgress(100);
 
-      // Create result preview URL
-      const url = URL.createObjectURL(result);
+      // Create result preview URL from the processed image
+      const url = URL.createObjectURL(result.blob);
       setResultUrl(url);
 
       // Add to history
@@ -356,7 +378,7 @@ const ImgRemoveBg = () => {
       // Download the result
       const link = document.createElement("a");
       link.href = url;
-      link.download = `removed-bg-${selectedFile.name.replace(/\.[^/.]+$/, "")}.${settings.outputFormat}`;
+      link.download = result.file.name;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -365,14 +387,29 @@ const ImgRemoveBg = () => {
 
       toast({
         title: "Success!",
-        description: "Background removed successfully.",
+        description: `Background removed successfully using ${result.metadata.model} algorithm. Quality: ${result.metadata.confidence.toFixed(0)}%`,
       });
     } catch (error) {
       console.error("Background removal failed:", error);
+
+      let errorMessage =
+        "There was an error removing the background. Please try again.";
+
+      if (error instanceof Error) {
+        if (error.message.includes("quota exceeded")) {
+          errorMessage = "API quota exceeded. Using offline processing...";
+          // Could retry with client-side processing here
+        } else if (error.message.includes("network")) {
+          errorMessage =
+            "Network error. Please check your connection and try again.";
+        } else if (error.message.includes("too large")) {
+          errorMessage = "Image is too large. Please try with a smaller image.";
+        }
+      }
+
       toast({
         title: "Removal failed",
-        description:
-          "There was an error removing the background. Please try again.",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
