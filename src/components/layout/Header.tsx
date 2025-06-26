@@ -736,8 +736,8 @@ const Header = () => {
               </div>
             </div>
 
-            {/* Other Products & Services Dropdown */}
-            <div className="relative group">
+            {/* Other Products & Services Dropdown (temporarily hidden) */}
+            <div className="relative group hidden">
               <button className="text-body-medium text-text-medium hover:text-brand-red transition-colors duration-200 flex items-center">
                 Other products
                 <ChevronDown className="w-4 h-4 ml-1" />
