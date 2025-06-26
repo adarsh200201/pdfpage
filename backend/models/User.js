@@ -32,9 +32,24 @@ const userSchema = new mongoose.Schema(
     },
     password: {
       type: String,
-      required: [true, "Password is required"],
+      required: function () {
+        return !this.googleId; // Password not required if using Google OAuth
+      },
       minlength: [6, "Password must be at least 6 characters"],
       select: false,
+    },
+    googleId: {
+      type: String,
+      sparse: true, // Allows multiple null values
+    },
+    profilePicture: {
+      type: String,
+      default: null,
+    },
+    authProvider: {
+      type: String,
+      enum: ["local", "google"],
+      default: "local",
     },
     isPremium: {
       type: Boolean,
@@ -123,13 +138,14 @@ userSchema.virtual("premiumDaysRemaining").get(function () {
 // Index for better query performance
 userSchema.index({ email: 1 }, { unique: true });
 userSchema.index({ username: 1 }, { unique: true, sparse: true });
+userSchema.index({ googleId: 1 }, { unique: true, sparse: true });
 userSchema.index({ isPremium: 1 });
 userSchema.index({ premiumExpiryDate: 1 });
 
 // Middleware to hash password before saving
 userSchema.pre("save", async function (next) {
-  // Only hash the password if it has been modified (or is new)
-  if (!this.isModified("password")) return next();
+  // Only hash the password if it has been modified (or is new) and password exists
+  if (!this.isModified("password") || !this.password) return next();
 
   try {
     // Hash password with cost of 12
@@ -154,6 +170,8 @@ userSchema.pre("save", function (next) {
 
 // Method to compare password
 userSchema.methods.comparePassword = async function (candidatePassword) {
+  // If user signed up with Google OAuth and has no password, return false
+  if (!this.password) return false;
   return await bcrypt.compare(candidatePassword, this.password);
 };
 

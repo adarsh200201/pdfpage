@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import Cookies from "js-cookie";
+import authService from "@/services/authService";
 
 interface User {
   id: string;
@@ -17,6 +18,7 @@ interface AuthContextType {
   isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
   register: (name: string, email: string, password: string) => Promise<void>;
+  loginWithGoogle: () => void;
   logout: () => void;
   updateUser: (userData: Partial<User>) => void;
 }
@@ -142,6 +144,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   };
 
+  const loginWithGoogle = () => {
+    console.log("🔵 [FRONTEND] Initiating Google OAuth login");
+    authService.loginWithGoogle();
+  };
+
   const logout = () => {
     Cookies.remove("token");
     setUser(null);
@@ -157,6 +164,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     isLoading,
     login,
     register,
+    loginWithGoogle,
     logout,
     updateUser,
   };

@@ -5,9 +5,13 @@ const helmet = require("helmet");
 const compression = require("compression");
 const morgan = require("morgan");
 const rateLimit = require("express-rate-limit");
+const passport = require("./config/passport");
 require("dotenv").config();
 
 const app = express();
+
+// Initialize Passport
+app.use(passport.initialize());
 
 // Security middleware
 app.use(
@@ -23,13 +27,19 @@ app.use(
           "https://www.google-analytics.com",
           "https://www.googletagmanager.com",
           "https://checkout.razorpay.com",
-          "https://pagead2.googlesyndication.com"
+          "https://pagead2.googlesyndication.com",
         ],
         connectSrc: ["'self'", "https://api.razorpay.com"],
         frameSrc: ["'self'", "https://checkout.razorpay.com"],
         styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
         fontSrc: ["'self'", "https://fonts.gstatic.com"],
-        imgSrc: ["'self'", "data:", "https://www.google-analytics.com", "https://www.googletagmanager.com", "https://checkout.razorpay.com"],
+        imgSrc: [
+          "'self'",
+          "data:",
+          "https://www.google-analytics.com",
+          "https://www.googletagmanager.com",
+          "https://checkout.razorpay.com",
+        ],
       },
     },
   }),
@@ -57,9 +67,9 @@ app.use(
       "http://localhost:3000",
       "http://localhost:5173",
       "http://localhost:8080", // Frontend dev server
-      "https://your-domain.com", // Add your production domain
-      "https://pdfpagee.netlify.app",
-      "https://pdfpage.onrender.com",
+      "https://pdfpagee.netlify.app", // Production frontend
+      "https://pdfpage.onrender.com", // Production backend
+      "https://accounts.google.com", // Google OAuth
     ],
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],

@@ -88,6 +88,7 @@ import Settings from "./pages/Settings";
 import ToolRedirect from "./pages/ToolRedirect";
 import ToolAvailable from "./pages/ToolAvailable";
 import AvailableTools from "./pages/AvailableTools";
+import AuthCallback from "./pages/AuthCallback";
 
 const queryClient = new QueryClient();
 
@@ -148,6 +149,7 @@ const App = () => {
                 <Route path="/login" element={<Login />} />
                 <Route path="/register" element={<Register />} />
                 <Route path="/forgot-password" element={<ForgotPassword />} />
+                <Route path="/auth/callback" element={<AuthCallback />} />
 
                 {/* Core PDF Tools - REAL-TIME IMPLEMENTATIONS */}
                 <Route path="/merge" element={<Merge />} />

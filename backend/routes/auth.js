@@ -7,6 +7,7 @@ const {
   sendOTPEmail,
   sendPasswordResetConfirmation,
 } = require("../services/emailService");
+const passport = require("../config/passport");
 const router = express.Router();
 
 // Helper function to generate JWT token
@@ -632,6 +633,45 @@ router.post(
         success: false,
         message: "Server error",
       });
+    }
+  },
+);
+
+// @route   GET /api/auth/google
+// @desc    Initiate Google OAuth
+// @access  Public
+router.get(
+  "/google",
+  passport.authenticate("google", {
+    scope: ["profile", "email"],
+  }),
+);
+
+// @route   GET /api/auth/google/callback
+// @desc    Google OAuth callback
+// @access  Public
+router.get(
+  "/google/callback",
+  passport.authenticate("google", { session: false }),
+  async (req, res) => {
+    try {
+      console.log("🔵 [GOOGLE-CALLBACK] User authenticated:", req.user.email);
+
+      // Update login stats
+      req.user.loginCount += 1;
+      req.user.lastLogin = new Date();
+      await req.user.save();
+
+      // Generate JWT token
+      const token = generateToken(req.user._id);
+
+      // Redirect to frontend with token
+      const frontendURL = process.env.FRONTEND_URL || "http://localhost:3000";
+      res.redirect(`${frontendURL}/auth/callback?token=${token}`);
+    } catch (error) {
+      console.error("🔴 [GOOGLE-CALLBACK] Error:", error);
+      const frontendURL = process.env.FRONTEND_URL || "http://localhost:3000";
+      res.redirect(`${frontendURL}/auth/callback?error=authentication_failed`);
     }
   },
 );

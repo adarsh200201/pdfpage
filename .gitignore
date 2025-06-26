@@ -37,3 +37,8 @@ yarn-error.log*
 
 # Local config
 .config/
+
+# OAuth credentials
+GOOGLE_OAUTH_IMPLEMENTATION.md
+PRODUCTION_DEPLOYMENT.md
+backend/.env
