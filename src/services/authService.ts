@@ -16,35 +16,19 @@ export const authService = {
    * Initiate Google OAuth login
    */
   loginWithGoogle: () => {
-    try {
-      const apiUrl =
-        import.meta.env.VITE_API_URL || "http://localhost:5000/api";
-      const googleOAuthUrl = `${apiUrl}/auth/google`;
+    const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+    const googleOAuthUrl = `${apiUrl}/auth/google`;
 
-      console.log("🔵 [AUTH-SERVICE] Starting Google OAuth flow");
-      console.log("📍 [AUTH-SERVICE] Environment variables:");
-      console.log("  VITE_API_URL:", import.meta.env.VITE_API_URL);
-      console.log("  Fallback URL:", "http://localhost:5000/api");
-      console.log("  Final API URL:", apiUrl);
-      console.log("  Google OAuth URL:", googleOAuthUrl);
-      console.log("  Current URL:", window.location.href);
+    console.log(
+      "🔵 [AUTH-SERVICE] Redirecting to Google OAuth:",
+      googleOAuthUrl,
+    );
 
-      // Store the current location to redirect back after auth
-      sessionStorage.setItem("authRedirectUrl", window.location.pathname);
-      console.log(
-        "💾 [AUTH-SERVICE] Stored redirect URL:",
-        window.location.pathname,
-      );
+    // Store the current location to redirect back after auth
+    sessionStorage.setItem("authRedirectUrl", window.location.pathname);
 
-      // Test if we can access the URL (basic check)
-      console.log("🔄 [AUTH-SERVICE] Attempting redirect to:", googleOAuthUrl);
-
-      // Redirect to Google OAuth
-      window.location.href = googleOAuthUrl;
-    } catch (error) {
-      console.error("🔴 [AUTH-SERVICE] Error in loginWithGoogle:", error);
-      throw error;
-    }
+    // Redirect to Google OAuth
+    window.location.href = googleOAuthUrl;
   },
 
   /**

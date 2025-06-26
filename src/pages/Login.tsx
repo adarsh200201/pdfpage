@@ -18,7 +18,6 @@ import {
   Shield,
   Zap,
 } from "lucide-react";
-import GoogleAuthDebug from "@/components/debug/GoogleAuthDebug";
 
 const Login = () => {
   const [isLoading, setIsLoading] = useState(false);
@@ -284,9 +283,6 @@ const Login = () => {
                   </Link>
                 </p>
               </div>
-
-              {/* Debug Panel - Remove in production */}
-              <GoogleAuthDebug />
             </CardContent>
           </Card>
 
