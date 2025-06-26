@@ -28,6 +28,7 @@ import {
   HelpCircle,
   Info,
   Star,
+  RotateCw,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -51,163 +52,104 @@ const Header = () => {
   const isImagePage = location.pathname.startsWith("/img");
 
   const navItems = [
-    { label: "Merge PDF", href: "/merge" },
-    { label: "Split PDF", href: "/split" },
-    { label: "Compress PDF", href: "/compress" },
-    { label: isImagePage ? "Image Tools" : "PdfPage", href: "/img" },
+    { label: "PDF Tools", href: "/merge", type: "dropdown" },
+    { label: "Image Tools", href: "/img", type: "dropdown" },
+    { label: "Favicon Tools", href: "/favicon", type: "dropdown" },
+    { label: "All Tools", href: "/tools", type: "mega" },
   ];
 
-  const allPdfTools = [
+  // PDF Tools
+  const pdfTools = [
     {
       title: "Merge PDF",
       href: "/merge",
       icon: Combine,
       color: "from-blue-500 to-blue-600",
-      available: true,
+      description: "Combine multiple PDFs into one",
     },
     {
       title: "Split PDF",
       href: "/split",
       icon: Scissors,
       color: "from-green-500 to-green-600",
+      description: "Extract pages from PDF",
     },
     {
       title: "Compress PDF",
       href: "/compress",
       icon: Minimize,
       color: "from-purple-500 to-purple-600",
+      description: "Reduce PDF file size",
     },
     {
-      title: "PDF to Word",
-      href: "/pdf-to-word",
-      icon: FileText,
+      title: "Edit PDF",
+      href: "/edit-pdf",
+      icon: PenTool,
+      color: "from-indigo-500 to-indigo-600",
+      description: "Edit PDF content",
+    },
+    {
+      title: "Sign PDF",
+      href: "/sign-pdf",
+      icon: PenTool,
       color: "from-orange-500 to-orange-600",
-    },
-    {
-      title: "PDF to PowerPoint",
-      href: "/pdf-to-powerpoint",
-      icon: FileText,
-      color: "from-red-500 to-red-600",
-    },
-    {
-      title: "PDF to Excel",
-      href: "/pdf-to-excel",
-      icon: FileText,
-      color: "from-emerald-500 to-emerald-600",
-    },
-    {
-      title: "Word to PDF",
-      href: "/word-to-pdf",
-      icon: FileText,
-      color: "from-blue-500 to-blue-600",
-    },
-    {
-      title: "PowerPoint to PDF",
-      href: "/powerpoint-to-pdf",
-      icon: FileText,
-      color: "from-red-500 to-red-600",
-    },
-    {
-      title: "Excel to PDF",
-      href: "/excel-to-pdf",
-      icon: FileText,
-      color: "from-emerald-500 to-emerald-600",
-    },
-    {
-      title: "JPG to PDF",
-      href: "/jpg-to-pdf",
-      icon: FileImage,
-      color: "from-pink-500 to-pink-600",
-    },
-    {
-      title: "PDF to JPG",
-      href: "/pdf-to-jpg",
-      icon: FileImage,
-      color: "from-yellow-500 to-yellow-600",
+      description: "Add digital signatures",
     },
     {
       title: "Watermark PDF",
       href: "/watermark",
       icon: Scissors,
       color: "from-cyan-500 to-cyan-600",
-    },
-    {
-      title: "Unlock PDF",
-      href: "/unlock-pdf",
-      icon: Shield,
-      color: "from-red-500 to-red-600",
+      description: "Add watermarks",
     },
     {
       title: "Protect PDF",
       href: "/protect-pdf",
       icon: Shield,
       color: "from-green-500 to-green-600",
+      description: "Password protect PDF",
     },
     {
-      title: "Organize PDF",
-      href: "/organize-pdf",
-      icon: FileText,
-      color: "from-indigo-500 to-indigo-600",
-    },
-    {
-      title: "Edit PDF",
-      href: "/edit-pdf",
-      icon: FileText,
-      color: "from-purple-500 to-purple-600",
-    },
-    {
-      title: "Sign PDF",
-      href: "/sign-pdf",
-      icon: FileText,
-      color: "from-orange-500 to-orange-600",
-    },
-    {
-      title: "Page Numbers",
-      href: "/page-numbers",
-      icon: FileText,
-      color: "from-blue-600 to-blue-700",
-    },
-    {
-      title: "HTML to PDF",
-      href: "/html-to-pdf",
-      icon: FileText,
-      color: "from-amber-500 to-amber-600",
-    },
-    {
-      title: "PDF to PDF/A",
-      href: "/pdf-to-pdfa",
-      icon: FileText,
-      color: "from-teal-500 to-teal-600",
-    },
-    {
-      title: "Repair PDF",
-      href: "/repair-pdf",
-      icon: FileText,
-      color: "from-red-600 to-red-700",
+      title: "Unlock PDF",
+      href: "/unlock-pdf",
+      icon: Shield,
+      color: "from-red-500 to-red-600",
+      description: "Remove PDF password",
     },
     {
       title: "Rotate PDF",
       href: "/rotate-pdf",
       icon: FileText,
       color: "from-purple-600 to-purple-700",
+      description: "Rotate PDF pages",
     },
     {
-      title: "Scan to PDF",
-      href: "/scan-to-pdf",
+      title: "Organize PDF",
+      href: "/organize-pdf",
       icon: FileText,
-      color: "from-green-600 to-green-700",
+      color: "from-indigo-500 to-indigo-600",
+      description: "Rearrange PDF pages",
+    },
+    {
+      title: "Page Numbers",
+      href: "/page-numbers",
+      icon: FileText,
+      color: "from-blue-600 to-blue-700",
+      description: "Add page numbers",
     },
     {
       title: "OCR PDF",
       href: "/ocr-pdf",
       icon: FileText,
       color: "from-blue-700 to-blue-800",
+      description: "Extract text from scanned PDFs",
     },
     {
       title: "Compare PDF",
       href: "/compare-pdf",
       icon: FileText,
       color: "from-indigo-600 to-indigo-700",
+      description: "Compare PDF documents",
       isNew: true,
     },
     {
@@ -215,6 +157,7 @@ const Header = () => {
       href: "/redact-pdf",
       icon: FileText,
       color: "from-red-700 to-red-800",
+      description: "Hide sensitive information",
       isNew: true,
     },
     {
@@ -222,8 +165,214 @@ const Header = () => {
       href: "/crop-pdf",
       icon: Scissors,
       color: "from-green-700 to-green-800",
+      description: "Crop PDF pages",
       isNew: true,
     },
+    {
+      title: "Repair PDF",
+      href: "/repair-pdf",
+      icon: FileText,
+      color: "from-red-600 to-red-700",
+      description: "Fix corrupted PDFs",
+    },
+    {
+      title: "Scan to PDF",
+      href: "/scan-to-pdf",
+      icon: FileText,
+      color: "from-green-600 to-green-700",
+      description: "Convert scans to PDF",
+    },
+  ];
+
+  // PDF Conversion Tools
+  const pdfConversionTools = [
+    {
+      title: "PDF to Word",
+      href: "/pdf-to-word",
+      icon: FileText,
+      color: "from-blue-500 to-blue-600",
+      description: "Convert PDF to Word",
+    },
+    {
+      title: "PDF to PowerPoint",
+      href: "/pdf-to-powerpoint",
+      icon: FileText,
+      color: "from-red-500 to-red-600",
+      description: "Convert PDF to PowerPoint",
+    },
+    {
+      title: "PDF to Excel",
+      href: "/pdf-to-excel",
+      icon: FileText,
+      color: "from-emerald-500 to-emerald-600",
+      description: "Convert PDF to Excel",
+    },
+    {
+      title: "PDF to JPG",
+      href: "/pdf-to-jpg",
+      icon: FileImage,
+      color: "from-yellow-500 to-yellow-600",
+      description: "Convert PDF to images",
+    },
+    {
+      title: "Word to PDF",
+      href: "/word-to-pdf",
+      icon: FileText,
+      color: "from-blue-500 to-blue-600",
+      description: "Convert Word to PDF",
+    },
+    {
+      title: "PowerPoint to PDF",
+      href: "/powerpoint-to-pdf",
+      icon: FileText,
+      color: "from-red-500 to-red-600",
+      description: "Convert PowerPoint to PDF",
+    },
+    {
+      title: "Excel to PDF",
+      href: "/excel-to-pdf",
+      icon: FileText,
+      color: "from-emerald-500 to-emerald-600",
+      description: "Convert Excel to PDF",
+    },
+    {
+      title: "JPG to PDF",
+      href: "/jpg-to-pdf",
+      icon: FileImage,
+      color: "from-pink-500 to-pink-600",
+      description: "Convert images to PDF",
+    },
+    {
+      title: "HTML to PDF",
+      href: "/html-to-pdf",
+      icon: FileText,
+      color: "from-amber-500 to-amber-600",
+      description: "Convert HTML to PDF",
+    },
+    {
+      title: "PDF to PDF/A",
+      href: "/pdf-to-pdfa",
+      icon: FileText,
+      color: "from-teal-500 to-teal-600",
+      description: "Convert to archival format",
+    },
+  ];
+
+  // Image Tools
+  const imageTools = [
+    {
+      title: "Compress Image",
+      href: "/img/compress",
+      icon: Minimize,
+      color: "from-green-500 to-green-600",
+      description: "Reduce image file size",
+    },
+    {
+      title: "Resize Image",
+      href: "/img/resize",
+      icon: Image,
+      color: "from-blue-500 to-blue-600",
+      description: "Change image dimensions",
+    },
+    {
+      title: "Crop Image",
+      href: "/img/crop",
+      icon: Scissors,
+      color: "from-purple-500 to-purple-600",
+      description: "Crop and trim images",
+    },
+    {
+      title: "Rotate Image",
+      href: "/img/rotate",
+      icon: RotateCw,
+      color: "from-orange-500 to-orange-600",
+      description: "Rotate and flip images",
+    },
+    {
+      title: "Remove Background",
+      href: "/img/remove-bg",
+      icon: Scissors,
+      color: "from-red-500 to-red-600",
+      description: "Remove image background",
+      isPopular: true,
+    },
+    {
+      title: "Upscale Image",
+      href: "/img/upscale",
+      icon: Image,
+      color: "from-indigo-500 to-indigo-600",
+      description: "Enhance image quality",
+      isNew: true,
+    },
+    {
+      title: "Add Watermark",
+      href: "/img/watermark",
+      icon: Shield,
+      color: "from-cyan-500 to-cyan-600",
+      description: "Add watermarks to images",
+    },
+    {
+      title: "Meme Generator",
+      href: "/img/meme",
+      icon: Image,
+      color: "from-pink-500 to-pink-600",
+      description: "Create memes",
+      isFun: true,
+    },
+    {
+      title: "JPG to PNG",
+      href: "/img/jpg-to-png",
+      icon: FileImage,
+      color: "from-emerald-500 to-emerald-600",
+      description: "Convert JPG to PNG",
+    },
+    {
+      title: "PNG to JPG",
+      href: "/img/png-to-jpg",
+      icon: FileImage,
+      color: "from-yellow-500 to-yellow-600",
+      description: "Convert PNG to JPG",
+    },
+    {
+      title: "Image Converter",
+      href: "/img/convert",
+      icon: FileImage,
+      color: "from-teal-500 to-teal-600",
+      description: "Convert image formats",
+    },
+    {
+      title: "Image to PDF",
+      href: "/img/to-pdf",
+      icon: FileImage,
+      color: "from-amber-500 to-amber-600",
+      description: "Convert images to PDF",
+    },
+  ];
+
+  // Favicon Tools
+  const faviconTools = [
+    {
+      title: "Favicon Generator",
+      href: "/favicon",
+      icon: Globe,
+      color: "from-purple-500 to-purple-600",
+      description: "Create favicon from image",
+    },
+    {
+      title: "Favicon Converter",
+      href: "/favicon-converter",
+      icon: FileImage,
+      color: "from-blue-500 to-blue-600",
+      description: "Convert to favicon format",
+    },
+  ];
+
+  // All tools combined for mega menu
+  const allTools = [
+    ...pdfTools,
+    ...pdfConversionTools,
+    ...imageTools,
+    ...faviconTools,
   ];
 
   return (
@@ -244,122 +393,186 @@ const Header = () => {
 
           {/* Desktop Navigation */}
           <nav className="hidden md:flex items-center space-x-8 relative">
-            {navItems.map((item) => (
-              <Link
-                key={item.href}
-                to={item.href}
-                className="text-body-medium text-text-medium hover:text-brand-red transition-colors duration-200"
-              >
-                {item.label}
-              </Link>
-            ))}
-
-            {/* Convert PDF Dropdown */}
+            {/* PDF Tools Dropdown */}
             <div className="relative group">
               <button className="text-body-medium text-text-medium hover:text-brand-red transition-colors duration-200 flex items-center">
-                Convert PDF
+                PDF Tools
                 <ChevronDown className="w-4 h-4 ml-1" />
               </button>
-              <div className="absolute left-1/2 transform -translate-x-1/2 mt-2 w-80 bg-white rounded-xl shadow-2xl border border-gray-100 z-50 p-4 opacity-0 group-hover:opacity-100 pointer-events-none group-hover:pointer-events-auto transition-opacity duration-200">
-                <div className="grid grid-cols-2 gap-3">
-                  <Link
-                    to="/word-to-pdf"
-                    className="group flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-50 transition-colors duration-200"
-                  >
-                    <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-600 to-blue-700 flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform duration-200">
-                      <FileText className="w-4 h-4 text-white" />
+              <div className="absolute left-1/2 transform -translate-x-1/2 mt-2 w-[900px] bg-white rounded-xl shadow-2xl border border-gray-100 z-[60] p-6 invisible opacity-0 group-hover:visible group-hover:opacity-100 transition-all duration-200">
+                <div className="grid grid-cols-2 gap-6">
+                  {/* PDF Editing Tools */}
+                  <div>
+                    <h4 className="text-sm font-semibold text-gray-700 uppercase tracking-wider mb-3">
+                      Edit & Organize
+                    </h4>
+                    <div className="grid gap-2">
+                      {pdfTools.slice(0, 8).map((tool) => (
+                        <Link
+                          key={tool.href}
+                          to={tool.href}
+                          className="group flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-50 transition-colors duration-200"
+                        >
+                          <div
+                            className={`w-8 h-8 rounded-lg bg-gradient-to-br ${tool.color} flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform duration-200`}
+                          >
+                            <tool.icon className="w-4 h-4 text-white" />
+                          </div>
+                          <div className="flex-1">
+                            <div className="flex items-center">
+                              <span className="text-sm font-medium text-text-dark group-hover:text-brand-red transition-colors duration-200">
+                                {tool.title}
+                              </span>
+                              {tool.isNew && (
+                                <span className="ml-2 text-xs bg-green-100 text-green-800 px-2 py-0.5 rounded-full">
+                                  New
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-xs text-gray-500">
+                              {tool.description}
+                            </p>
+                          </div>
+                        </Link>
+                      ))}
                     </div>
-                    <span className="text-sm font-medium text-text-dark group-hover:text-brand-red transition-colors duration-200 truncate">
-                      Word to PDF
-                    </span>
-                  </Link>
-                  <Link
-                    to="/powerpoint-to-pdf"
-                    className="group flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-50 transition-colors duration-200"
-                  >
-                    <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-red-600 to-red-700 flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform duration-200">
-                      <FileText className="w-4 h-4 text-white" />
+                  </div>
+
+                  {/* PDF Conversion Tools */}
+                  <div>
+                    <h4 className="text-sm font-semibold text-gray-700 uppercase tracking-wider mb-3">
+                      Convert & Transform
+                    </h4>
+                    <div className="grid gap-2">
+                      {pdfConversionTools.slice(0, 8).map((tool) => (
+                        <Link
+                          key={tool.href}
+                          to={tool.href}
+                          className="group flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-50 transition-colors duration-200"
+                        >
+                          <div
+                            className={`w-8 h-8 rounded-lg bg-gradient-to-br ${tool.color} flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform duration-200`}
+                          >
+                            <tool.icon className="w-4 h-4 text-white" />
+                          </div>
+                          <div className="flex-1">
+                            <span className="text-sm font-medium text-text-dark group-hover:text-brand-red transition-colors duration-200">
+                              {tool.title}
+                            </span>
+                            <p className="text-xs text-gray-500">
+                              {tool.description}
+                            </p>
+                          </div>
+                        </Link>
+                      ))}
                     </div>
-                    <span className="text-sm font-medium text-text-dark group-hover:text-brand-red transition-colors duration-200 truncate">
-                      PowerPoint to PDF
-                    </span>
-                  </Link>
+                  </div>
+                </div>
+
+                {/* View All PDF Tools */}
+                <div className="mt-4 pt-4 border-t border-gray-100">
                   <Link
-                    to="/excel-to-pdf"
-                    className="group flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-50 transition-colors duration-200"
+                    to="/tools?category=pdf"
+                    className="flex items-center justify-center space-x-2 p-2 rounded-lg hover:bg-blue-50 text-blue-600 hover:text-blue-700 transition-colors duration-200"
                   >
-                    <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-600 to-emerald-700 flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform duration-200">
-                      <FileText className="w-4 h-4 text-white" />
-                    </div>
-                    <span className="text-sm font-medium text-text-dark group-hover:text-brand-red transition-colors duration-200 truncate">
-                      Excel to PDF
+                    <span className="text-sm font-medium">
+                      View All PDF Tools
                     </span>
-                  </Link>
-                  <Link
-                    to="/jpg-to-pdf"
-                    className="group flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-50 transition-colors duration-200"
-                  >
-                    <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-pink-600 to-pink-700 flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform duration-200">
-                      <FileImage className="w-4 h-4 text-white" />
-                    </div>
-                    <span className="text-sm font-medium text-text-dark group-hover:text-brand-red transition-colors duration-200 truncate">
-                      JPG to PDF
-                    </span>
-                  </Link>
-                  <Link
-                    to="/html-to-pdf"
-                    className="group flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-50 transition-colors duration-200"
-                  >
-                    <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-amber-500 to-amber-600 flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform duration-200">
-                      <FileText className="w-4 h-4 text-white" />
-                    </div>
-                    <span className="text-sm font-medium text-text-dark group-hover:text-brand-red transition-colors duration-200 truncate">
-                      HTML to PDF
-                    </span>
-                  </Link>
-                  <Link
-                    to="/pdf-to-jpg"
-                    className="group flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-50 transition-colors duration-200"
-                  >
-                    <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-yellow-600 to-yellow-700 flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform duration-200">
-                      <FileImage className="w-4 h-4 text-white" />
-                    </div>
-                    <span className="text-sm font-medium text-text-dark group-hover:text-brand-red transition-colors duration-200 truncate">
-                      PDF to JPG
-                    </span>
+                    <ChevronDown className="w-4 h-4 rotate-[-90deg]" />
                   </Link>
                 </div>
               </div>
             </div>
 
-            {/* All Tools Dropdown */}
+            {/* Image Tools Dropdown */}
             <div className="relative group">
               <button className="text-body-medium text-text-medium hover:text-brand-red transition-colors duration-200 flex items-center">
-                All Tools
+                Image Tools
                 <ChevronDown className="w-4 h-4 ml-1" />
               </button>
-              <div className="absolute left-1/2 transform -translate-x-1/2 mt-2 w-[1050px] bg-white rounded-xl shadow-2xl border border-gray-100 z-50 p-3 opacity-0 group-hover:opacity-100 pointer-events-none group-hover:pointer-events-auto transition-opacity duration-200">
-                <div className="grid grid-cols-7 gap-1">
-                  {allPdfTools.map((tool) => (
+              <div className="absolute left-1/2 transform -translate-x-1/2 mt-2 w-[600px] bg-white rounded-xl shadow-2xl border border-gray-100 z-[60] p-6 invisible opacity-0 group-hover:visible group-hover:opacity-100 transition-all duration-200">
+                <div className="grid grid-cols-2 gap-3">
+                  {imageTools.map((tool) => (
                     <Link
                       key={tool.href}
                       to={tool.href}
-                      className="group flex flex-col items-center p-1 rounded hover:bg-gray-50 transition-all duration-200 border border-transparent hover:border-gray-200 h-full aspect-square justify-center"
+                      className="group flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-50 transition-colors duration-200"
                     >
                       <div
-                        className={`w-10 h-10 rounded-lg bg-gradient-to-br ${tool.color} flex items-center justify-center mb-0.5 group-hover:scale-110 transition-transform duration-200`}
+                        className={`w-8 h-8 rounded-lg bg-gradient-to-br ${tool.color} flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform duration-200`}
                       >
-                        <tool.icon className="w-5 h-5 text-white" />
+                        <tool.icon className="w-4 h-4 text-white" />
                       </div>
-                      <div className="text-center px-0.5">
-                        <div className="text-[11px] font-medium text-text-dark group-hover:text-brand-red transition-colors duration-200 leading-tight">
-                          {tool.title}
-                        </div>
-                        {tool.isNew && (
-                          <span className="inline-block mt-0.5 text-[9px] bg-brand-red text-white px-1 py-0.5 rounded-full">
-                            New
+                      <div className="flex-1">
+                        <div className="flex items-center">
+                          <span className="text-sm font-medium text-text-dark group-hover:text-brand-red transition-colors duration-200">
+                            {tool.title}
                           </span>
-                        )}
+                          {tool.isNew && (
+                            <span className="ml-2 text-xs bg-green-100 text-green-800 px-2 py-0.5 rounded-full">
+                              New
+                            </span>
+                          )}
+                          {tool.isPopular && (
+                            <span className="ml-2 text-xs bg-orange-100 text-orange-800 px-2 py-0.5 rounded-full">
+                              Popular
+                            </span>
+                          )}
+                          {tool.isFun && (
+                            <span className="ml-2 text-xs bg-pink-100 text-pink-800 px-2 py-0.5 rounded-full">
+                              Fun
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-xs text-gray-500">
+                          {tool.description}
+                        </p>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+
+                {/* View All Image Tools */}
+                <div className="mt-4 pt-4 border-t border-gray-100">
+                  <Link
+                    to="/img"
+                    className="flex items-center justify-center space-x-2 p-2 rounded-lg hover:bg-green-50 text-green-600 hover:text-green-700 transition-colors duration-200"
+                  >
+                    <span className="text-sm font-medium">
+                      View All Image Tools
+                    </span>
+                    <ChevronDown className="w-4 h-4 rotate-[-90deg]" />
+                  </Link>
+                </div>
+              </div>
+            </div>
+
+            {/* Favicon Tools Dropdown */}
+            <div className="relative group">
+              <button className="text-body-medium text-text-medium hover:text-brand-red transition-colors duration-200 flex items-center">
+                Favicon Tools
+                <ChevronDown className="w-4 h-4 ml-1" />
+              </button>
+              <div className="absolute left-1/2 transform -translate-x-1/2 mt-2 w-80 bg-white rounded-xl shadow-2xl border border-gray-100 z-[60] p-4 invisible opacity-0 group-hover:visible group-hover:opacity-100 transition-all duration-200">
+                <div className="grid gap-3">
+                  {faviconTools.map((tool) => (
+                    <Link
+                      key={tool.href}
+                      to={tool.href}
+                      className="group flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-50 transition-colors duration-200"
+                    >
+                      <div
+                        className={`w-8 h-8 rounded-lg bg-gradient-to-br ${tool.color} flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform duration-200`}
+                      >
+                        <tool.icon className="w-4 h-4 text-white" />
+                      </div>
+                      <div className="flex-1">
+                        <span className="text-sm font-medium text-text-dark group-hover:text-brand-red transition-colors duration-200">
+                          {tool.title}
+                        </span>
+                        <p className="text-xs text-gray-500">
+                          {tool.description}
+                        </p>
                       </div>
                     </Link>
                   ))}
@@ -367,13 +580,158 @@ const Header = () => {
               </div>
             </div>
 
-            {/* Favicon Generator */}
-            <Link
-              to="/favicon"
-              className="text-body-medium text-text-medium hover:text-purple-600 transition-colors duration-200"
-            >
-              Favicon Generator
-            </Link>
+            {/* All Tools Mega Menu */}
+            <div className="relative group">
+              <button className="text-body-medium text-text-medium hover:text-brand-red transition-colors duration-200 flex items-center">
+                All Tools
+                <ChevronDown className="w-4 h-4 ml-1" />
+              </button>
+              <div className="absolute left-1/2 transform -translate-x-1/2 mt-2 w-[1200px] bg-white rounded-xl shadow-2xl border border-gray-100 z-[60] p-6 invisible opacity-0 group-hover:visible group-hover:opacity-100 transition-all duration-200">
+                <div className="grid grid-cols-4 gap-6">
+                  {/* PDF Tools Section */}
+                  <div>
+                    <h4 className="text-sm font-semibold text-gray-700 uppercase tracking-wider mb-3 flex items-center">
+                      <FileText className="w-4 h-4 mr-2 text-red-500" />
+                      PDF Tools
+                    </h4>
+                    <div className="grid gap-1">
+                      {pdfTools.slice(0, 8).map((tool) => (
+                        <Link
+                          key={tool.href}
+                          to={tool.href}
+                          className="group flex items-center space-x-2 p-2 rounded-lg hover:bg-gray-50 transition-colors duration-200"
+                        >
+                          <div
+                            className={`w-6 h-6 rounded bg-gradient-to-br ${tool.color} flex items-center justify-center flex-shrink-0`}
+                          >
+                            <tool.icon className="w-3 h-3 text-white" />
+                          </div>
+                          <span className="text-xs font-medium text-text-dark group-hover:text-brand-red transition-colors duration-200 truncate">
+                            {tool.title}
+                          </span>
+                        </Link>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* PDF Conversion Section */}
+                  <div>
+                    <h4 className="text-sm font-semibold text-gray-700 uppercase tracking-wider mb-3 flex items-center">
+                      <FileImage className="w-4 h-4 mr-2 text-blue-500" />
+                      PDF Convert
+                    </h4>
+                    <div className="grid gap-1">
+                      {pdfConversionTools.slice(0, 8).map((tool) => (
+                        <Link
+                          key={tool.href}
+                          to={tool.href}
+                          className="group flex items-center space-x-2 p-2 rounded-lg hover:bg-gray-50 transition-colors duration-200"
+                        >
+                          <div
+                            className={`w-6 h-6 rounded bg-gradient-to-br ${tool.color} flex items-center justify-center flex-shrink-0`}
+                          >
+                            <tool.icon className="w-3 h-3 text-white" />
+                          </div>
+                          <span className="text-xs font-medium text-text-dark group-hover:text-brand-red transition-colors duration-200 truncate">
+                            {tool.title}
+                          </span>
+                        </Link>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Image Tools Section */}
+                  <div>
+                    <h4 className="text-sm font-semibold text-gray-700 uppercase tracking-wider mb-3 flex items-center">
+                      <Image className="w-4 h-4 mr-2 text-green-500" />
+                      Image Tools
+                    </h4>
+                    <div className="grid gap-1">
+                      {imageTools.slice(0, 8).map((tool) => (
+                        <Link
+                          key={tool.href}
+                          to={tool.href}
+                          className="group flex items-center space-x-2 p-2 rounded-lg hover:bg-gray-50 transition-colors duration-200"
+                        >
+                          <div
+                            className={`w-6 h-6 rounded bg-gradient-to-br ${tool.color} flex items-center justify-center flex-shrink-0`}
+                          >
+                            <tool.icon className="w-3 h-3 text-white" />
+                          </div>
+                          <span className="text-xs font-medium text-text-dark group-hover:text-brand-red transition-colors duration-200 truncate">
+                            {tool.title}
+                          </span>
+                        </Link>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Other Tools Section */}
+                  <div>
+                    <h4 className="text-sm font-semibold text-gray-700 uppercase tracking-wider mb-3 flex items-center">
+                      <Globe className="w-4 h-4 mr-2 text-purple-500" />
+                      Other Tools
+                    </h4>
+                    <div className="grid gap-1">
+                      {faviconTools.map((tool) => (
+                        <Link
+                          key={tool.href}
+                          to={tool.href}
+                          className="group flex items-center space-x-2 p-2 rounded-lg hover:bg-gray-50 transition-colors duration-200"
+                        >
+                          <div
+                            className={`w-6 h-6 rounded bg-gradient-to-br ${tool.color} flex items-center justify-center flex-shrink-0`}
+                          >
+                            <tool.icon className="w-3 h-3 text-white" />
+                          </div>
+                          <span className="text-xs font-medium text-text-dark group-hover:text-brand-red transition-colors duration-200 truncate">
+                            {tool.title}
+                          </span>
+                        </Link>
+                      ))}
+
+                      {/* Additional tools and links */}
+                      <Link
+                        to="/api-docs"
+                        className="group flex items-center space-x-2 p-2 rounded-lg hover:bg-gray-50 transition-colors duration-200"
+                      >
+                        <div className="w-6 h-6 rounded bg-gradient-to-br from-indigo-500 to-indigo-600 flex items-center justify-center flex-shrink-0">
+                          <Code className="w-3 h-3 text-white" />
+                        </div>
+                        <span className="text-xs font-medium text-text-dark group-hover:text-brand-red transition-colors duration-200 truncate">
+                          API Documentation
+                        </span>
+                      </Link>
+
+                      <Link
+                        to="/business"
+                        className="group flex items-center space-x-2 p-2 rounded-lg hover:bg-gray-50 transition-colors duration-200"
+                      >
+                        <div className="w-6 h-6 rounded bg-gradient-to-br from-orange-500 to-orange-600 flex items-center justify-center flex-shrink-0">
+                          <Building className="w-3 h-3 text-white" />
+                        </div>
+                        <span className="text-xs font-medium text-text-dark group-hover:text-brand-red transition-colors duration-200 truncate">
+                          Business Solutions
+                        </span>
+                      </Link>
+                    </div>
+                  </div>
+                </div>
+
+                {/* View All Tools */}
+                <div className="mt-6 pt-4 border-t border-gray-100 text-center">
+                  <Link
+                    to="/tools"
+                    className="inline-flex items-center space-x-2 px-4 py-2 bg-brand-red text-white rounded-lg hover:bg-red-600 transition-colors duration-200"
+                  >
+                    <span className="text-sm font-medium">
+                      View All {allTools.length} Tools
+                    </span>
+                    <ChevronDown className="w-4 h-4 rotate-[-90deg]" />
+                  </Link>
+                </div>
+              </div>
+            </div>
 
             {/* Other Products & Services Dropdown */}
             <div className="relative group">
@@ -662,13 +1020,11 @@ const Header = () => {
                     Login
                   </Button>
                 </Link>
-                <Button
-                  size="sm"
-                  className="bg-brand-red hover:bg-red-600"
-                  onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                >
-                  <Menu className="w-4 h-4" />
-                </Button>
+                <Link to="/register">
+                  <Button size="sm" className="bg-brand-red hover:bg-red-600">
+                    Sign Up
+                  </Button>
+                </Link>
               </div>
             )}
 
@@ -689,16 +1045,109 @@ const Header = () => {
         {/* Mobile Menu */}
         {mobileMenuOpen && (
           <div className="md:hidden border-t border-gray-100 py-4">
-            {navItems.map((item) => (
+            {/* Quick Access Tools */}
+            <div className="grid grid-cols-2 gap-2 mb-4">
               <Link
-                key={item.href}
-                to={item.href}
-                className="text-body-medium text-text-medium hover:text-brand-red transition-colors duration-200 block py-2"
+                to="/merge"
+                className="flex items-center space-x-2 p-3 rounded-lg bg-blue-50 hover:bg-blue-100 transition-colors duration-200"
                 onClick={() => setMobileMenuOpen(false)}
               >
-                {item.label}
+                <Combine className="w-4 h-4 text-blue-600" />
+                <span className="text-sm font-medium text-blue-700">
+                  Merge PDF
+                </span>
               </Link>
-            ))}
+              <Link
+                to="/split"
+                className="flex items-center space-x-2 p-3 rounded-lg bg-green-50 hover:bg-green-100 transition-colors duration-200"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                <Scissors className="w-4 h-4 text-green-600" />
+                <span className="text-sm font-medium text-green-700">
+                  Split PDF
+                </span>
+              </Link>
+              <Link
+                to="/compress"
+                className="flex items-center space-x-2 p-3 rounded-lg bg-purple-50 hover:bg-purple-100 transition-colors duration-200"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                <Minimize className="w-4 h-4 text-purple-600" />
+                <span className="text-sm font-medium text-purple-700">
+                  Compress PDF
+                </span>
+              </Link>
+              <Link
+                to="/img/remove-bg"
+                className="flex items-center space-x-2 p-3 rounded-lg bg-red-50 hover:bg-red-100 transition-colors duration-200"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                <Scissors className="w-4 h-4 text-red-600" />
+                <span className="text-sm font-medium text-red-700">
+                  Remove BG
+                </span>
+              </Link>
+            </div>
+
+            {/* Category Links */}
+            <div className="space-y-2 border-t border-gray-100 pt-4">
+              <Link
+                to="/tools?category=pdf"
+                className="flex items-center justify-between p-3 rounded-lg hover:bg-gray-50 transition-colors duration-200"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                <div className="flex items-center space-x-3">
+                  <FileText className="w-5 h-5 text-red-500" />
+                  <span className="text-sm font-medium text-text-dark">
+                    PDF Tools
+                  </span>
+                </div>
+                <ChevronDown className="w-4 h-4 text-gray-400 rotate-[-90deg]" />
+              </Link>
+
+              <Link
+                to="/img"
+                className="flex items-center justify-between p-3 rounded-lg hover:bg-gray-50 transition-colors duration-200"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                <div className="flex items-center space-x-3">
+                  <Image className="w-5 h-5 text-green-500" />
+                  <span className="text-sm font-medium text-text-dark">
+                    Image Tools
+                  </span>
+                </div>
+                <ChevronDown className="w-4 h-4 text-gray-400 rotate-[-90deg]" />
+              </Link>
+
+              <Link
+                to="/favicon"
+                className="flex items-center justify-between p-3 rounded-lg hover:bg-gray-50 transition-colors duration-200"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                <div className="flex items-center space-x-3">
+                  <Globe className="w-5 h-5 text-purple-500" />
+                  <span className="text-sm font-medium text-text-dark">
+                    Favicon Tools
+                  </span>
+                </div>
+                <ChevronDown className="w-4 h-4 text-gray-400 rotate-[-90deg]" />
+              </Link>
+
+              <Link
+                to="/tools"
+                className="flex items-center justify-between p-3 rounded-lg hover:bg-gray-50 transition-colors duration-200"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                <div className="flex items-center space-x-3">
+                  <Star className="w-5 h-5 text-orange-500" />
+                  <span className="text-sm font-medium text-text-dark">
+                    All Tools
+                  </span>
+                </div>
+                <ChevronDown className="w-4 h-4 text-gray-400 rotate-[-90deg]" />
+              </Link>
+            </div>
+
             <div className="flex flex-col space-y-2 pt-4 border-t border-gray-100 mt-4">
               {!isAuthenticated ? (
                 <>
@@ -794,36 +1243,178 @@ const Header = () => {
       {showMegaMenu && (
         <div className="absolute top-full left-0 w-full bg-white shadow-2xl border-t border-gray-100 z-40">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-            <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
-              {allPdfTools.map((tool, index) => {
-                const IconComponent = tool.icon;
-                return (
+            <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-8">
+              {/* PDF Tools */}
+              <div>
+                <h3 className="text-lg font-semibold text-text-dark mb-4 flex items-center">
+                  <FileText className="w-5 h-5 mr-2 text-red-500" />
+                  PDF Tools
+                </h3>
+                <div className="space-y-2">
+                  {pdfTools.slice(0, 6).map((tool) => (
+                    <Link
+                      key={tool.href}
+                      to={tool.href}
+                      className="group flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-50 transition-colors duration-200"
+                      onClick={() => setShowMegaMenu(false)}
+                    >
+                      <div
+                        className={`w-8 h-8 rounded-lg bg-gradient-to-br ${tool.color} flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform duration-200`}
+                      >
+                        <tool.icon className="w-4 h-4 text-white" />
+                      </div>
+                      <span className="text-sm font-medium text-text-dark group-hover:text-brand-red transition-colors duration-200">
+                        {tool.title}
+                      </span>
+                    </Link>
+                  ))}
                   <Link
-                    key={index}
-                    to={tool.href}
-                    className="group flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-50 transition-colors duration-200"
+                    to="/tools?category=pdf"
+                    className="block mt-3 text-sm text-blue-600 hover:text-blue-700 font-medium"
                     onClick={() => setShowMegaMenu(false)}
                   >
-                    <div
-                      className={`w-10 h-10 rounded-lg bg-gradient-to-br ${tool.color} flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform duration-200`}
-                    >
-                      <IconComponent className="w-5 h-5 text-white" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center">
-                        <span className="text-sm font-medium text-text-dark group-hover:text-brand-red transition-colors duration-200 truncate">
-                          {tool.title}
-                        </span>
-                        {tool.isNew && (
-                          <span className="ml-2 px-2 py-1 text-xs bg-green-100 text-green-800 rounded-full">
-                            New
-                          </span>
-                        )}
-                      </div>
-                    </div>
+                    View all PDF tools →
                   </Link>
-                );
-              })}
+                </div>
+              </div>
+
+              {/* Image Tools */}
+              <div>
+                <h3 className="text-lg font-semibold text-text-dark mb-4 flex items-center">
+                  <Image className="w-5 h-5 mr-2 text-green-500" />
+                  Image Tools
+                </h3>
+                <div className="space-y-2">
+                  {imageTools.slice(0, 6).map((tool) => (
+                    <Link
+                      key={tool.href}
+                      to={tool.href}
+                      className="group flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-50 transition-colors duration-200"
+                      onClick={() => setShowMegaMenu(false)}
+                    >
+                      <div
+                        className={`w-8 h-8 rounded-lg bg-gradient-to-br ${tool.color} flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform duration-200`}
+                      >
+                        <tool.icon className="w-4 h-4 text-white" />
+                      </div>
+                      <div className="flex-1">
+                        <div className="flex items-center">
+                          <span className="text-sm font-medium text-text-dark group-hover:text-brand-red transition-colors duration-200">
+                            {tool.title}
+                          </span>
+                          {tool.isPopular && (
+                            <span className="ml-2 text-xs bg-orange-100 text-orange-800 px-1 py-0.5 rounded">
+                              Popular
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </Link>
+                  ))}
+                  <Link
+                    to="/img"
+                    className="block mt-3 text-sm text-green-600 hover:text-green-700 font-medium"
+                    onClick={() => setShowMegaMenu(false)}
+                  >
+                    View all image tools →
+                  </Link>
+                </div>
+              </div>
+
+              {/* Conversion Tools */}
+              <div>
+                <h3 className="text-lg font-semibold text-text-dark mb-4 flex items-center">
+                  <FileImage className="w-5 h-5 mr-2 text-blue-500" />
+                  Convert Files
+                </h3>
+                <div className="space-y-2">
+                  {pdfConversionTools.slice(0, 6).map((tool) => (
+                    <Link
+                      key={tool.href}
+                      to={tool.href}
+                      className="group flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-50 transition-colors duration-200"
+                      onClick={() => setShowMegaMenu(false)}
+                    >
+                      <div
+                        className={`w-8 h-8 rounded-lg bg-gradient-to-br ${tool.color} flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform duration-200`}
+                      >
+                        <tool.icon className="w-4 h-4 text-white" />
+                      </div>
+                      <span className="text-sm font-medium text-text-dark group-hover:text-brand-red transition-colors duration-200">
+                        {tool.title}
+                      </span>
+                    </Link>
+                  ))}
+                  <Link
+                    to="/tools?category=convert"
+                    className="block mt-3 text-sm text-blue-600 hover:text-blue-700 font-medium"
+                    onClick={() => setShowMegaMenu(false)}
+                  >
+                    View all converters →
+                  </Link>
+                </div>
+              </div>
+
+              {/* Other Tools & Services */}
+              <div>
+                <h3 className="text-lg font-semibold text-text-dark mb-4 flex items-center">
+                  <Globe className="w-5 h-5 mr-2 text-purple-500" />
+                  Other Tools
+                </h3>
+                <div className="space-y-2">
+                  {faviconTools.map((tool) => (
+                    <Link
+                      key={tool.href}
+                      to={tool.href}
+                      className="group flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-50 transition-colors duration-200"
+                      onClick={() => setShowMegaMenu(false)}
+                    >
+                      <div
+                        className={`w-8 h-8 rounded-lg bg-gradient-to-br ${tool.color} flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform duration-200`}
+                      >
+                        <tool.icon className="w-4 h-4 text-white" />
+                      </div>
+                      <span className="text-sm font-medium text-text-dark group-hover:text-brand-red transition-colors duration-200">
+                        {tool.title}
+                      </span>
+                    </Link>
+                  ))}
+
+                  <Link
+                    to="/api-docs"
+                    className="group flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-50 transition-colors duration-200"
+                    onClick={() => setShowMegaMenu(false)}
+                  >
+                    <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-indigo-600 flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform duration-200">
+                      <Code className="w-4 h-4 text-white" />
+                    </div>
+                    <span className="text-sm font-medium text-text-dark group-hover:text-brand-red transition-colors duration-200">
+                      API Documentation
+                    </span>
+                  </Link>
+
+                  <Link
+                    to="/business"
+                    className="group flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-50 transition-colors duration-200"
+                    onClick={() => setShowMegaMenu(false)}
+                  >
+                    <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-orange-500 to-orange-600 flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform duration-200">
+                      <Building className="w-4 h-4 text-white" />
+                    </div>
+                    <span className="text-sm font-medium text-text-dark group-hover:text-brand-red transition-colors duration-200">
+                      Business Solutions
+                    </span>
+                  </Link>
+
+                  <Link
+                    to="/tools"
+                    className="block mt-3 text-sm text-purple-600 hover:text-purple-700 font-medium"
+                    onClick={() => setShowMegaMenu(false)}
+                  >
+                    View all tools →
+                  </Link>
+                </div>
+              </div>
             </div>
           </div>
         </div>
