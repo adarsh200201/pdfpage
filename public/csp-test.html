@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CSP Test - PDF.js Worker Loading</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 20px;
+      }
+      .test-result {
+        padding: 10px;
+        margin: 10px 0;
+        border-radius: 4px;
+      }
+      .success {
+        background-color: #d4edda;
+        color: #155724;
+        border: 1px solid #c3e6cb;
+      }
+      .error {
+        background-color: #f8d7da;
+        color: #721c24;
+        border: 1px solid #f5c6cb;
+      }
+      .info {
+        background-color: #d1ecf1;
+        color: #0c5460;
+        border: 1px solid #bee5eb;
+      }
+      .test-button {
+        background-color: #007bff;
+        color: white;
+        border: none;
+        padding: 10px 20px;
+        border-radius: 4px;
+        cursor: pointer;
+        margin: 5px;
+      }
+      .test-button:hover {
+        background-color: #0056b3;
+      }
+      #results {
+        margin-top: 20px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>CSP Test - PDF.js Worker Loading</h1>
+    <p>
+      This page tests whether PDF.js workers can be loaded with the current
+      Content Security Policy settings.
+    </p>
+
+    <div>
+      <button class="test-button" onclick="testWorkerSources()">
+        Test Worker Sources
+      </button>
+      <button class="test-button" onclick="testBlobWorker()">
+        Test Blob Worker
+      </button>
+      <button class="test-button" onclick="testPDFJSInit()">
+        Test PDF.js Initialization
+      </button>
+      <button class="test-button" onclick="clearResults()">
+        Clear Results
+      </button>
+    </div>
+
+    <div id="results"></div>
+
+    <script src="/pdf.worker.config.js"></script>
+    <script>
+      function addResult(message, type = "info") {
+        const results = document.getElementById("results");
+        const div = document.createElement("div");
+        div.className = `test-result ${type}`;
+        div.innerHTML = `<strong>${new Date().toLocaleTimeString()}</strong>: ${message}`;
+        results.appendChild(div);
+        results.scrollTop = results.scrollHeight;
+      }
+
+      function clearResults() {
+        document.getElementById("results").innerHTML = "";
+      }
+
+      async function testWorkerSources() {
+        addResult("Testing worker sources...", "info");
+
+        const sources = [
+          "https://cdn.jsdelivr.net/npm/pdfjs-dist@4.8.69/build/pdf.worker.min.mjs",
+          "https://unpkg.com/pdfjs-dist@4.8.69/build/pdf.worker.min.mjs",
+        ];
+
+        for (const src of sources) {
+          try {
+            addResult(`Testing: ${src}`, "info");
+
+            const response = await fetch(src, { method: "HEAD" });
+            if (response.ok) {
+              addResult(
+                `✅ ${src} - Accessible (${response.status})`,
+                "success",
+              );
+            } else {
+              addResult(
+                `❌ ${src} - Not accessible (${response.status})`,
+                "error",
+              );
+            }
+          } catch (error) {
+            addResult(`❌ ${src} - Error: ${error.message}`, "error");
+          }
+        }
+      }
+
+      function testBlobWorker() {
+        addResult("Testing blob worker creation...", "info");
+
+        try {
+          const workerCode = `
+                    self.onmessage = function(e) {
+                        self.postMessage({type: 'success', message: 'Blob worker created successfully'});
+                    };
+                `;
+
+          const blob = new Blob([workerCode], {
+            type: "application/javascript",
+          });
+          const worker = new Worker(URL.createObjectURL(blob));
+
+          worker.onmessage = function (e) {
+            addResult(`✅ Blob worker: ${e.data.message}`, "success");
+            worker.terminate();
+          };
+
+          worker.onerror = function (error) {
+            addResult(`❌ Blob worker error: ${error.message}`, "error");
+          };
+
+          worker.postMessage("test");
+
+          // Timeout in case worker doesn't respond
+          setTimeout(() => {
+            worker.terminate();
+            addResult("⚠️ Blob worker test timeout", "error");
+          }, 5000);
+        } catch (error) {
+          addResult(
+            `❌ Blob worker creation failed: ${error.message}`,
+            "error",
+          );
+        }
+      }
+
+      async function testPDFJSInit() {
+        addResult("Testing PDF.js initialization...", "info");
+
+        try {
+          // Wait for worker configuration
+          if (window.configurePDFWorker) {
+            await window.configurePDFWorker();
+            addResult("✅ PDF worker configuration completed", "success");
+          } else {
+            addResult("⚠️ PDF worker configuration not available", "error");
+          }
+
+          // Check if worker source was set
+          if (window.PDFJS_WORKER_SRC) {
+            addResult(
+              `✅ Worker source configured: ${window.PDFJS_WORKER_SRC}`,
+              "success",
+            );
+          } else if (window.PDFJS_DISABLE_WORKER) {
+            addResult("ℹ️ Worker disabled, using fallback mode", "info");
+          } else {
+            addResult("⚠️ No worker configuration found", "error");
+          }
+        } catch (error) {
+          addResult(
+            `❌ PDF.js initialization failed: ${error.message}`,
+            "error",
+          );
+        }
+      }
+
+      // Listen for worker configuration events
+      window.addEventListener("pdfWorkerConfigured", function (event) {
+        const detail = event.detail;
+        if (detail.disabled) {
+          addResult("📄 PDF worker disabled, using fallback mode", "info");
+        } else {
+          addResult(`📄 PDF worker configured: ${detail.workerSrc}`, "success");
+        }
+      });
+
+      // Auto-run tests when page loads
+      window.addEventListener("load", function () {
+        addResult("Page loaded, starting automatic tests...", "info");
+        setTimeout(testWorkerSources, 1000);
+        setTimeout(testBlobWorker, 2000);
+        setTimeout(testPDFJSInit, 3000);
+      });
+    </script>
+  </body>
+</html>

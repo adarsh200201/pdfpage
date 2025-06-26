@@ -54,8 +54,17 @@ export default defineConfig(({ mode }) => ({
           // Separate chunk for PDF libraries to avoid conflicts
           "pdf-libs": ["pdfjs-dist", "react-pdf", "pdf-lib"],
         },
+        // Ensure workers are treated as assets
+        assetFileNames: (assetInfo) => {
+          if (assetInfo.name && assetInfo.name.includes("pdf.worker")) {
+            return "assets/[name]-[hash][extname]";
+          }
+          return "assets/[name]-[hash][extname]";
+        },
       },
     },
+    // Increase chunk size warning limit for PDF libraries
+    chunkSizeWarningLimit: 1000,
   },
   optimizeDeps: {
     include: [
@@ -82,6 +91,18 @@ export default defineConfig(({ mode }) => ({
   worker: {
     format: "es",
     plugins: () => [],
+    rollupOptions: {
+      external: ["pdfjs-dist/build/pdf.worker.js"],
+      output: {
+        // Ensure worker files maintain proper extensions
+        entryFileNames: (chunkInfo) => {
+          if (chunkInfo.name && chunkInfo.name.includes("worker")) {
+            return "[name].js";
+          }
+          return "[name]-[hash].js";
+        },
+      },
+    },
   },
   define: {
     // Help PDF.js work better in Vite

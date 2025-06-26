@@ -94,36 +94,73 @@ export const configurePDFjs = async (force = false): Promise<void> => {
 
   try {
     const isDev = import.meta.env.DEV;
-    // Always use worker, even in development, to avoid errors
-    const workerSrc = `https://cdn.jsdelivr.net/npm/pdfjs-dist@4.8.69/build/pdf.worker.min.mjs`;
 
-    const configOptions: PDFConfigOptions = {
-      workerSrc,
-      disableWorker: false, // Always enable worker
-    };
+    // Try different worker sources in order of preference
+    const workerSources = [
+      `https://cdn.jsdelivr.net/npm/pdfjs-dist@4.8.69/build/pdf.worker.min.mjs`,
+      `https://unpkg.com/pdfjs-dist@4.8.69/build/pdf.worker.min.mjs`,
+      `/pdf.worker.min.mjs`, // Fallback to self-hosted if available
+    ];
 
-    // Configure both react-pdf and pdfjs-dist
-    const reactPdfResult = configureReactPDF(configOptions);
-    const pdfjsDistResult = await configurePDFJSDist(configOptions);
+    let workerConfigured = false;
 
-    console.log("PDF.js configuration completed:", {
-      reactPdf: reactPdfResult,
-      pdfjsDist: pdfjsDistResult,
-      workerSrc,
-      environment: isDev ? "development" : "production",
-    });
+    for (const workerSrc of workerSources) {
+      try {
+        console.log(`Trying worker source: ${workerSrc}`);
+
+        const configOptions: PDFConfigOptions = {
+          workerSrc,
+          disableWorker: false,
+        };
+
+        // Configure both react-pdf and pdfjs-dist
+        const reactPdfResult = configureReactPDF(configOptions);
+        const pdfjsDistResult = await configurePDFJSDist(configOptions);
+
+        if (reactPdfResult || pdfjsDistResult) {
+          console.log("PDF.js configuration completed:", {
+            reactPdf: reactPdfResult,
+            pdfjsDist: pdfjsDistResult,
+            workerSrc,
+            environment: isDev ? "development" : "production",
+          });
+          workerConfigured = true;
+          break;
+        }
+      } catch (workerError) {
+        console.warn(`Worker source ${workerSrc} failed:`, workerError);
+        continue;
+      }
+    }
+
+    if (!workerConfigured) {
+      console.warn("All worker sources failed, trying without worker...");
+      // Last resort: disable worker entirely
+      const fallbackOptions: PDFConfigOptions = {
+        workerSrc: "",
+        disableWorker: true,
+      };
+
+      configureReactPDF(fallbackOptions);
+      await configurePDFJSDist(fallbackOptions);
+      console.log("PDF.js configured without worker (fallback mode)");
+    }
 
     isConfigured = true;
   } catch (error) {
     console.error("PDF.js configuration failed:", error);
 
-    // Fallback configuration
+    // Ultimate fallback configuration
     try {
-      console.log("Applying fallback configuration...");
-      configureReactPDF({ workerSrc: "" });
-      await configurePDFJSDist({ workerSrc: "" });
+      console.log("Applying ultimate fallback configuration...");
+      configureReactPDF({ workerSrc: "", disableWorker: true });
+      await configurePDFJSDist({ workerSrc: "", disableWorker: true });
+      console.log("PDF.js configured in ultimate fallback mode");
     } catch (fallbackError) {
-      console.error("Fallback configuration also failed:", fallbackError);
+      console.error(
+        "Ultimate fallback configuration also failed:",
+        fallbackError,
+      );
     }
   }
 };
@@ -162,10 +199,76 @@ export const getPDFConfigStatus = () => {
   }
 };
 
+// Function to wait for worker configuration from the browser
+const waitForWorkerConfig = (): Promise<string> => {
+  return new Promise((resolve) => {
+    // Check if already configured
+    if ((window as any).PDFJS_WORKER_SRC !== undefined) {
+      resolve((window as any).PDFJS_WORKER_SRC);
+      return;
+    }
+
+    // Listen for worker configuration event
+    const handleWorkerConfigured = (event: any) => {
+      window.removeEventListener("pdfWorkerConfigured", handleWorkerConfigured);
+      resolve(event.detail.workerSrc || "");
+    };
+
+    window.addEventListener("pdfWorkerConfigured", handleWorkerConfigured);
+
+    // Fallback timeout
+    setTimeout(() => {
+      window.removeEventListener("pdfWorkerConfigured", handleWorkerConfigured);
+      console.warn("PDF worker configuration timeout, using fallback");
+      resolve("");
+    }, 5000);
+  });
+};
+
+// Enhanced configuration that uses browser-tested worker sources
+export const configureWithBrowserTesting = async (): Promise<void> => {
+  try {
+    console.log("Waiting for browser worker configuration...");
+    const workerSrc = await waitForWorkerConfig();
+
+    const configOptions: PDFConfigOptions = {
+      workerSrc,
+      disableWorker: !workerSrc || (window as any).PDFJS_DISABLE_WORKER,
+    };
+
+    console.log(
+      "Configuring PDF.js with browser-tested settings:",
+      configOptions,
+    );
+
+    // Configure both react-pdf and pdfjs-dist
+    const reactPdfResult = configureReactPDF(configOptions);
+    const pdfjsDistResult = await configurePDFJSDist(configOptions);
+
+    console.log("PDF.js configuration with browser testing completed:", {
+      reactPdf: reactPdfResult,
+      pdfjsDist: pdfjsDistResult,
+      workerSrc,
+      disableWorker: configOptions.disableWorker,
+    });
+
+    isConfigured = true;
+  } catch (error) {
+    console.error("Browser-tested PDF.js configuration failed:", error);
+    // Fall back to original configuration
+    await configurePDFjs(true);
+  }
+};
+
 // Initialize configuration immediately but safely
 (async () => {
   try {
-    await safeConfigurePDFjs();
+    // Use browser-tested configuration if available, otherwise fallback
+    if (typeof window !== "undefined" && window.addEventListener) {
+      await configureWithBrowserTesting();
+    } else {
+      await safeConfigurePDFjs();
+    }
   } catch (error) {
     console.error("Initial PDF.js configuration failed:", error);
   }

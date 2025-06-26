@@ -27,14 +27,37 @@ export class PDFService {
     );
   }
 
-  // Initialize Web Worker for background processing
-  private static getWorker(): Worker {
-    if (!this.worker) {
+  // Initialize Web Worker for background processing with CSP error handling
+  private static getWorker(): Worker | null {
+    if (this.worker) return this.worker;
+
+    try {
       const workerCode = `
-        importScripts('https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js');
+        // Try to import PDF-lib with multiple fallback strategies
+        let PDFLib = null;
+
+        // Try different import methods based on environment
+        try {
+          importScripts('https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js');
+          PDFLib = self.PDFLib;
+        } catch (e1) {
+          try {
+            importScripts('https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js');
+            PDFLib = self.PDFLib;
+          } catch (e2) {
+            // If both fail, we'll handle operations in main thread
+            self.postMessage({ type: 'error', error: 'PDF library not available in worker' });
+            return;
+          }
+        }
 
         self.onmessage = function(e) {
           const { type, data, id } = e.data;
+
+          if (!PDFLib) {
+            self.postMessage({ type: 'error', id, error: 'PDF library not loaded' });
+            return;
+          }
 
           try {
             switch (type) {
@@ -56,62 +79,80 @@ export class PDFService {
         };
 
         async function mergePDFs(files, id) {
-          const PDFLib = self.PDFLib;
-          const mergedPdf = await PDFLib.PDFDocument.create();
+          try {
+            const mergedPdf = await PDFLib.PDFDocument.create();
 
-          for (let i = 0; i < files.length; i++) {
-            self.postMessage({ type: 'progress', id, progress: (i / files.length) * 50 });
+            for (let i = 0; i < files.length; i++) {
+              self.postMessage({ type: 'progress', id, progress: (i / files.length) * 50 });
 
-            const pdf = await PDFLib.PDFDocument.load(files[i]);
-            const pages = await mergedPdf.copyPages(pdf, pdf.getPageIndices());
-            pages.forEach(page => mergedPdf.addPage(page));
+              const pdf = await PDFLib.PDFDocument.load(files[i]);
+              const pages = await mergedPdf.copyPages(pdf, pdf.getPageIndices());
+              pages.forEach(page => mergedPdf.addPage(page));
+            }
+
+            self.postMessage({ type: 'progress', id, progress: 75 });
+            const pdfBytes = await mergedPdf.save();
+            self.postMessage({ type: 'complete', id, result: pdfBytes });
+          } catch (error) {
+            self.postMessage({ type: 'error', id, error: error.message });
           }
-
-          self.postMessage({ type: 'progress', id, progress: 75 });
-          const pdfBytes = await mergedPdf.save();
-          self.postMessage({ type: 'complete', id, result: pdfBytes });
         }
 
         async function compressPDF(data, id) {
-          const PDFLib = self.PDFLib;
-          const pdfDoc = await PDFLib.PDFDocument.load(data.file);
+          try {
+            const pdfDoc = await PDFLib.PDFDocument.load(data.file);
 
-          self.postMessage({ type: 'progress', id, progress: 50 });
+            self.postMessage({ type: 'progress', id, progress: 50 });
 
-          const pdfBytes = await pdfDoc.save({
-            useObjectStreams: false,
-            addDefaultPage: false,
-            objectsPerTick: 50,
-          });
+            const pdfBytes = await pdfDoc.save({
+              useObjectStreams: false,
+              addDefaultPage: false,
+              objectsPerTick: 50,
+            });
 
-          self.postMessage({ type: 'complete', id, result: pdfBytes });
+            self.postMessage({ type: 'complete', id, result: pdfBytes });
+          } catch (error) {
+            self.postMessage({ type: 'error', id, error: error.message });
+          }
         }
 
         async function splitPDF(data, id) {
-          const PDFLib = self.PDFLib;
-          const pdfDoc = await PDFLib.PDFDocument.load(data.file);
-          const pageCount = pdfDoc.getPageCount();
-          const splitPDFs = [];
+          try {
+            const pdfDoc = await PDFLib.PDFDocument.load(data.file);
+            const pageCount = pdfDoc.getPageCount();
+            const splitPDFs = [];
 
-          for (let i = 0; i < pageCount; i++) {
-            self.postMessage({ type: 'progress', id, progress: (i / pageCount) * 90 });
+            for (let i = 0; i < pageCount; i++) {
+              self.postMessage({ type: 'progress', id, progress: (i / pageCount) * 90 });
 
-            const newPdf = await PDFLib.PDFDocument.create();
-            const [page] = await newPdf.copyPages(pdfDoc, [i]);
-            newPdf.addPage(page);
+              const newPdf = await PDFLib.PDFDocument.create();
+              const [page] = await newPdf.copyPages(pdfDoc, [i]);
+              newPdf.addPage(page);
 
-            const pdfBytes = await newPdf.save();
-            splitPDFs.push(pdfBytes);
+              const pdfBytes = await newPdf.save();
+              splitPDFs.push(pdfBytes);
+            }
+
+            self.postMessage({ type: 'complete', id, result: splitPDFs });
+          } catch (error) {
+            self.postMessage({ type: 'error', id, error: error.message });
           }
-
-          self.postMessage({ type: 'complete', id, result: splitPDFs });
         }
       `;
 
       const blob = new Blob([workerCode], { type: "application/javascript" });
       this.worker = new Worker(URL.createObjectURL(blob));
+
+      console.log("PDF Worker created successfully");
+      return this.worker;
+    } catch (error) {
+      console.warn(
+        "Failed to create PDF worker due to CSP restrictions:",
+        error,
+      );
+      console.log("Falling back to main-thread processing");
+      return null;
     }
-    return this.worker;
   }
 
   // Generate cache key for file
@@ -235,40 +276,61 @@ export class PDFService {
           return resolve(await this.mergePDFsClientSide(files, onProgress));
         }
 
-        // Use Web Worker for large files
+        // Try to use Web Worker for large files
         const worker = this.getWorker();
-        const jobId = Math.random().toString(36).substr(2, 9);
 
-        // Convert files to ArrayBuffers for worker
-        const fileArrays = await Promise.all(
-          files.map(async (file, index) => {
-            onProgress?.((index / files.length) * 30);
-            return await file.file.arrayBuffer();
-          }),
-        );
+        if (worker) {
+          const jobId = Math.random().toString(36).substr(2, 9);
 
-        worker.onmessage = (e) => {
-          const { type, id, progress, result, error } = e.data;
-          if (id !== jobId) return;
+          // Convert files to ArrayBuffers for worker
+          const fileArrays = await Promise.all(
+            files.map(async (file, index) => {
+              onProgress?.((index / files.length) * 30);
+              return await file.file.arrayBuffer();
+            }),
+          );
 
-          switch (type) {
-            case "progress":
-              onProgress?.(30 + progress * 0.7); // Scale to 30-100%
-              break;
-            case "complete":
-              resolve(new Uint8Array(result));
-              break;
-            case "error":
-              reject(new Error(error));
-              break;
-          }
-        };
+          worker.onmessage = (e) => {
+            const { type, id, progress, result, error } = e.data;
+            if (id !== jobId) return;
 
-        worker.postMessage({
-          type: "merge",
-          data: fileArrays,
-          id: jobId,
-        });
+            switch (type) {
+              case "progress":
+                onProgress?.(30 + progress * 0.7); // Scale to 30-100%
+                break;
+              case "complete":
+                resolve(new Uint8Array(result));
+                break;
+              case "error":
+                console.warn(
+                  "Worker error, falling back to main thread:",
+                  error,
+                );
+                // Fallback to main thread processing
+                this.mergePDFsClientSide(files, onProgress)
+                  .then(resolve)
+                  .catch(reject);
+                break;
+            }
+          };
+
+          worker.onerror = (error) => {
+            console.warn("Worker failed, falling back to main thread:", error);
+            this.mergePDFsClientSide(files, onProgress)
+              .then(resolve)
+              .catch(reject);
+          };
+
+          worker.postMessage({
+            type: "merge",
+            data: fileArrays,
+            id: jobId,
+          });
+        } else {
+          // Worker creation failed, use main thread processing
+          console.log("Worker not available, using main thread processing");
+          return resolve(await this.mergePDFsClientSide(files, onProgress));
+        }
       } catch (error) {
         console.error("Error in optimized PDF merging:", error);
         reject(new Error("Failed to merge PDF files"));
