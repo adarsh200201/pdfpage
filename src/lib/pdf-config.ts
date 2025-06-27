@@ -141,9 +141,15 @@ export const configurePDFjs = async (force = false): Promise<void> => {
         disableWorker: true,
       };
 
-      configureReactPDF(fallbackOptions);
-      await configurePDFJSDist(fallbackOptions);
-      console.log("PDF.js configured without worker (fallback mode)");
+      try {
+        configureReactPDF(fallbackOptions);
+        await configurePDFJSDist(fallbackOptions);
+        console.log("PDF.js configured without worker (fallback mode)");
+        workerConfigured = true; // Mark as configured even without worker
+      } catch (fallbackError) {
+        console.error("Fallback configuration failed:", fallbackError);
+        // Even if fallback fails, continue - some PDF operations might still work
+      }
     }
 
     isConfigured = true;
@@ -156,11 +162,14 @@ export const configurePDFjs = async (force = false): Promise<void> => {
       configureReactPDF({ workerSrc: "", disableWorker: true });
       await configurePDFJSDist({ workerSrc: "", disableWorker: true });
       console.log("PDF.js configured in ultimate fallback mode");
+      isConfigured = true; // Mark as configured even if errors occurred
     } catch (fallbackError) {
       console.error(
         "Ultimate fallback configuration also failed:",
         fallbackError,
       );
+      // Continue anyway - some basic PDF operations might still work
+      isConfigured = true; // Mark as configured to prevent infinite retries
     }
   }
 };
@@ -204,24 +213,40 @@ const waitForWorkerConfig = (): Promise<string> => {
   return new Promise((resolve) => {
     // Check if already configured
     if ((window as any).PDFJS_WORKER_SRC !== undefined) {
+      console.log(
+        "Using pre-configured worker source:",
+        (window as any).PDFJS_WORKER_SRC,
+      );
       resolve((window as any).PDFJS_WORKER_SRC);
       return;
     }
 
+    // Try immediate fallback with best-available worker source
+    const tryImmediateFallback = () => {
+      const fallbackWorkerSources = [
+        `https://cdn.jsdelivr.net/npm/pdfjs-dist@4.8.69/build/pdf.worker.min.mjs`,
+        `https://unpkg.com/pdfjs-dist@4.8.69/build/pdf.worker.min.mjs`,
+        `/pdf.worker.min.mjs`,
+      ];
+
+      console.log("PDF worker configuration timeout, using immediate fallback");
+      resolve(fallbackWorkerSources[0]); // Use the most reliable CDN source
+    };
+
     // Listen for worker configuration event
     const handleWorkerConfigured = (event: any) => {
       window.removeEventListener("pdfWorkerConfigured", handleWorkerConfigured);
+      console.log("Worker configured via event:", event.detail.workerSrc);
       resolve(event.detail.workerSrc || "");
     };
 
     window.addEventListener("pdfWorkerConfigured", handleWorkerConfigured);
 
-    // Fallback timeout
+    // Reduced timeout for faster fallback
     setTimeout(() => {
       window.removeEventListener("pdfWorkerConfigured", handleWorkerConfigured);
-      console.warn("PDF worker configuration timeout, using fallback");
-      resolve("");
-    }, 5000);
+      tryImmediateFallback();
+    }, 2000); // Reduced from 5000ms to 2000ms for better user experience
   });
 };
 
@@ -241,9 +266,21 @@ export const configureWithBrowserTesting = async (): Promise<void> => {
       configOptions,
     );
 
-    // Configure both react-pdf and pdfjs-dist
-    const reactPdfResult = configureReactPDF(configOptions);
-    const pdfjsDistResult = await configurePDFJSDist(configOptions);
+    // Configure both react-pdf and pdfjs-dist with error handling
+    let reactPdfResult = false;
+    let pdfjsDistResult = false;
+
+    try {
+      reactPdfResult = configureReactPDF(configOptions);
+    } catch (reactError) {
+      console.warn("React PDF configuration failed:", reactError);
+    }
+
+    try {
+      pdfjsDistResult = await configurePDFJSDist(configOptions);
+    } catch (distError) {
+      console.warn("PDFjs-dist configuration failed:", distError);
+    }
 
     console.log("PDF.js configuration with browser testing completed:", {
       reactPdf: reactPdfResult,
@@ -255,8 +292,14 @@ export const configureWithBrowserTesting = async (): Promise<void> => {
     isConfigured = true;
   } catch (error) {
     console.error("Browser-tested PDF.js configuration failed:", error);
-    // Fall back to original configuration
-    await configurePDFjs(true);
+    // Fall back to original configuration with error handling
+    try {
+      await configurePDFjs(true);
+    } catch (fallbackError) {
+      console.error("Fallback configuration also failed:", fallbackError);
+      // Continue anyway - mark as configured to prevent infinite retries
+      isConfigured = true;
+    }
   }
 };
 

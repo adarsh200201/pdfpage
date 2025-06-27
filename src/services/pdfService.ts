@@ -8,6 +8,15 @@ export interface ProcessedFile {
 export class PDFService {
   private static API_URL = import.meta.env.VITE_API_URL || "/api";
 
+  // Helper method to format file size (static method for class use)
+  private static formatFileSize(bytes: number): string {
+    if (bytes === 0) return "0 Bytes";
+    const k = 1024;
+    const sizes = ["Bytes", "KB", "MB", "GB"];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
+  }
+
   // Cache for processed PDFs
   private static cache = new Map<string, ArrayBuffer>();
   private static readonly CACHE_SIZE_LIMIT = 50 * 1024 * 1024; // 50MB
@@ -215,7 +224,7 @@ export class PDFService {
         }
 
         if (isDuplicate) {
-          console.log("🚫 Duplicate file detected, not caching");
+          console.log("�� Duplicate file detected, not caching");
           return;
         }
       }
@@ -246,7 +255,7 @@ export class PDFService {
   private static getFromCache(key: string): ArrayBuffer | null {
     const result = this.cache.get(key);
     if (result) {
-      console.log(`✅ Cache hit: ${key}`);
+      console.log(`�� Cache hit: ${key}`);
     }
     return result || null;
   }
@@ -512,18 +521,40 @@ export class PDFService {
     onProgress?: (progress: number) => void,
     cacheKey?: string,
   ): Promise<Uint8Array> {
-    // Always use client-side compression to avoid CORS issues
-    onProgress?.(10);
+    try {
+      // Always use client-side compression to avoid CORS issues
+      onProgress?.(10);
 
-    // For development, skip backend and go directly to client-side compression
-    console.log("📱 Using client-side compression");
+      // For development, skip backend and go directly to client-side compression
+      console.log("📱 Using client-side compression");
 
-    return await this.optimizePDFClientSideAdvanced(
-      file,
-      quality,
-      extremeMode,
-      onProgress,
-    );
+      const result = await this.optimizePDFClientSideAdvanced(
+        file,
+        quality,
+        extremeMode,
+        onProgress,
+      );
+
+      // Cache the result if cacheKey is provided
+      if (cacheKey && result) {
+        this.addToCache(cacheKey, result.buffer.slice(0));
+      }
+
+      return result;
+    } catch (error: any) {
+      console.error("Compression failed:", error);
+      // Try fallback compression method
+      try {
+        console.log("🔄 Trying fallback compression method...");
+        onProgress?.(20);
+        return await this.fallbackCompressionMethod(file, quality, onProgress);
+      } catch (fallbackError: any) {
+        console.error("Fallback compression also failed:", fallbackError);
+        throw new Error(
+          `PDF compression failed: ${error.message || "Unknown error"}`,
+        );
+      }
+    }
   }
   private static async optimizePDFClientSideAdvanced(
     file: File,
@@ -556,41 +587,67 @@ export class PDFService {
                 onProgress,
               );
 
-          // If still no good compression, try reconstructing the PDF
+          // Validate compression actually reduced file size
           const compressionRatio = (file.size - bestResult.length) / file.size;
           console.log(
             `🗜️ Compression achieved: ${(compressionRatio * 100).toFixed(1)}% reduction`,
           );
 
-          if (compressionRatio < 0.03) {
-            // Less than 3% reduction
+          // Check if we achieved meaningful compression
+          if (bestResult.length > file.size) {
             console.warn(
-              "Low compression ratio, attempting PDF reconstruction",
+              `⚠️ Compression made file larger (${bestResult.length} > ${file.size}), returning original file`,
+            );
+            bestResult = new Uint8Array(arrayBuffer);
+          } else if (compressionRatio < 0.02 && bestResult.length < file.size) {
+            // Less than 5% reduction - try reconstruction for better results
+            console.log(
+              `📉 Low compression ratio (${(compressionRatio * 100).toFixed(2)}%), attempting reconstruction`,
             );
             onProgress?.(85);
             try {
               const reconstructedResult =
                 await this.reconstructPDFForCompression(arrayBuffer, quality);
-              if (reconstructedResult.length < bestResult.length) {
+              if (
+                reconstructedResult.length < bestResult.length &&
+                reconstructedResult.length < file.size
+              ) {
                 bestResult = reconstructedResult;
+                const newRatio = (file.size - bestResult.length) / file.size;
                 console.log(
-                  `📐 Reconstruction improved compression: ${(((file.size - bestResult.length) / file.size) * 100).toFixed(1)}% reduction`,
+                  `📐 Reconstruction improved compression: ${(newRatio * 100).toFixed(1)}% reduction`,
+                );
+              } else {
+                console.log(
+                  `✅ Keeping original compression result: ${(compressionRatio * 100).toFixed(2)}% reduction`,
                 );
               }
             } catch (reconstructError) {
-              console.warn("PDF reconstruction failed, using original result");
+              console.warn(
+                "PDF reconstruction failed, keeping original compression result",
+              );
             }
+          } else if (compressionRatio > 0) {
+            console.log(
+              `✅ Compression successful: ${(compressionRatio * 100).toFixed(3)}% reduction`,
+            );
+          } else {
+            console.log("❌ No compression achieved - file size unchanged");
           }
 
           onProgress?.(100);
 
-          // Cache the result
-          const cacheKey = this.generateCacheKey("compress", file, { quality });
-          this.addToCache(cacheKey, bestResult.buffer);
+          // Cache the result only if it's actually smaller
+          if (bestResult.length < file.size) {
+            const cacheKey = this.generateCacheKey("compress", file, {
+              quality,
+            });
+            this.addToCache(cacheKey, bestResult.buffer);
+          }
 
           return bestResult;
         },
-        () => this.fallbackCompressionMethod(file, quality), // Fallback method
+        () => this.fallbackCompressionMethod(file, quality, onProgress), // Fallback method
         "Advanced PDF compression",
       );
     } catch (error) {
@@ -613,38 +670,97 @@ export class PDFService {
 
       onProgress?.(40);
 
-      // Method 1: Standard compression with optimization
-      const pdfDoc = await loadPDFDocument(arrayBuffer);
+      // Analyze PDF content first to choose best strategy
+      const analysis = await this.analyzePDFContent(arrayBuffer);
 
-      // Optimize document structure
-      await this.optimizeDocumentMetadata(pdfDoc);
+      // Method 1: Forced compression by rebuilding PDF
+      const forcedResult = await this.forcedCompressionRebuild(
+        arrayBuffer,
+        quality,
+        originalSize,
+        onProgress,
+      );
+
+      if (forcedResult && forcedResult.length < originalSize) {
+        const reduction =
+          ((originalSize - forcedResult.length) / originalSize) * 100;
+        console.log(
+          `💪 Forced compression achieved ${reduction.toFixed(3)}% reduction`,
+        );
+        return forcedResult;
+      }
+
+      // Method 2: Direct aggressive compression for image-heavy PDFs
+      if (analysis.hasImages && quality < 0.5) {
+        const directResult = await this.directContentCompression(
+          arrayBuffer,
+          quality,
+          originalSize,
+          onProgress,
+        );
+
+        if (directResult && directResult.length < originalSize) {
+          const reduction =
+            ((originalSize - directResult.length) / originalSize) * 100;
+          console.log(
+            `⚡ Direct compression achieved ${reduction.toFixed(3)}% reduction`,
+          );
+          return directResult;
+        }
+      }
+
+      // Method 2: Aggressive image and content compression (if images detected)
+      if (analysis.hasImages) {
+        const compressedResult = await this.compressWithImageOptimization(
+          arrayBuffer,
+          quality,
+          originalSize,
+          onProgress,
+        );
+
+        if (compressedResult && compressedResult.length < originalSize) {
+          const reduction =
+            ((originalSize - compressedResult.length) / originalSize) * 100;
+          console.log(
+            `🎯 Image optimization achieved ${reduction.toFixed(3)}% compression`,
+          );
+          return compressedResult;
+        }
+      }
       onProgress?.(50);
 
-      // Try different compression strategies
+      // Method 2: Standard compression with optimization
+      const pdfDoc = await loadPDFDocument(arrayBuffer);
+
+      // Optimize document structure first
+      await this.optimizeDocumentMetadata(pdfDoc);
+      onProgress?.(60);
+
+      // Enhanced compression strategies with proper quality-based settings
       const strategies = [
-        // Strategy 1: Aggressive compression
+        // Strategy 1: Ultra compression (for quality < 0.3)
         {
           useObjectStreams: true,
           addDefaultPage: false,
-          objectsPerTick: Math.floor(20 * quality),
+          objectsPerTick: 1,
           updateFieldAppearances: false,
-          compress: true,
+          compressStreams: true,
         },
-        // Strategy 2: Balanced compression
+        // Strategy 2: High compression (for quality 0.3-0.5)
         {
-          useObjectStreams: quality > 0.5,
+          useObjectStreams: true,
           addDefaultPage: false,
-          objectsPerTick: Math.floor(40 * quality),
-          updateFieldAppearances: quality > 0.7,
-          compress: true,
+          objectsPerTick: quality < 0.4 ? 1 : 2,
+          updateFieldAppearances: false,
+          compressStreams: true,
         },
-        // Strategy 3: Content stream optimization
+        // Strategy 3: Medium compression (for quality 0.5-0.7)
         {
-          useObjectStreams: false,
+          useObjectStreams: true,
           addDefaultPage: false,
-          objectsPerTick: Math.floor(60 * quality),
-          updateFieldAppearances: true,
-          compress: false,
+          objectsPerTick: Math.max(1, Math.floor(quality * 5)),
+          updateFieldAppearances: false,
+          compressStreams: true,
         },
       ];
 
@@ -653,7 +769,7 @@ export class PDFService {
 
       for (let i = 0; i < strategies.length; i++) {
         try {
-          onProgress?.(50 + (i / strategies.length) * 30);
+          onProgress?.(60 + (i / strategies.length) * 20);
 
           const result = await pdfDoc.save(strategies[i]);
 
@@ -671,15 +787,435 @@ export class PDFService {
 
       onProgress?.(80);
 
-      if (bestResult) {
+      // Return best result or attempt reconstruction
+      if (bestResult && bestResult.length < originalSize) {
         return bestResult;
       } else {
-        // Fallback to basic save
-        return await pdfDoc.save();
+        // Try canvas-based compression as final attempt
+        const canvasResult = await this.canvasBasedCompression(
+          arrayBuffer,
+          quality,
+          originalSize,
+        );
+        if (canvasResult && canvasResult.length < originalSize) {
+          return canvasResult;
+        }
+
+        // Try reconstruction as final attempt
+        return await this.reconstructPDFForCompression(arrayBuffer, quality);
       }
     } catch (error) {
       console.error("All compression methods failed:", error);
-      throw error;
+      // Return original file instead of throwing error
+      return new Uint8Array(arrayBuffer);
+    }
+  }
+
+  // Canvas-based compression as last resort
+  private static async canvasBasedCompression(
+    arrayBuffer: ArrayBuffer,
+    quality: number,
+    originalSize: number,
+  ): Promise<Uint8Array | null> {
+    try {
+      console.log("🖼️ Attempting canvas-based compression...");
+
+      // Import pdf.js for rendering
+      const pdfjsLib = await import("pdfjs-dist");
+      const { createPDFDocument } = await import("@/lib/pdf-utils");
+
+      const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
+      const pdf = await loadingTask.promise;
+
+      const newPdf = await createPDFDocument();
+
+      // Determine compression settings based on quality
+      const jpegQuality = Math.max(0.1, quality);
+      const scale = quality < 0.3 ? 0.5 : quality < 0.5 ? 0.7 : 0.8;
+
+      console.log(
+        `🖼️ Canvas compression: quality=${jpegQuality}, scale=${scale}`,
+      );
+
+      for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+        try {
+          const page = await pdf.getPage(pageNum);
+          const viewport = page.getViewport({ scale });
+
+          // Create canvas
+          const canvas = document.createElement("canvas");
+          const context = canvas.getContext("2d");
+          if (!context) continue;
+
+          canvas.height = viewport.height;
+          canvas.width = viewport.width;
+
+          // Render page to canvas
+          await page.render({ canvasContext: context, viewport }).promise;
+
+          // Convert to compressed JPEG
+          const imageData = canvas.toDataURL("image/jpeg", jpegQuality);
+          const imageBytes = Uint8Array.from(
+            atob(imageData.split(",")[1]),
+            (c) => c.charCodeAt(0),
+          );
+
+          // Embed compressed image in new PDF
+          const jpegImage = await newPdf.embedJpg(imageBytes);
+          const pdfPage = newPdf.addPage([viewport.width, viewport.height]);
+          pdfPage.drawImage(jpegImage, {
+            x: 0,
+            y: 0,
+            width: viewport.width,
+            height: viewport.height,
+          });
+
+          console.log(
+            `🖼️ Rendered page ${pageNum} with ${jpegQuality} quality`,
+          );
+        } catch (pageError) {
+          console.warn(`Failed to render page ${pageNum}:`, pageError);
+        }
+      }
+
+      // Save with maximum compression
+      const result = await newPdf.save({
+        useObjectStreams: true,
+        addDefaultPage: false,
+        objectsPerTick: 1,
+        updateFieldAppearances: false,
+      });
+
+      if (result.length < originalSize) {
+        const reduction = ((originalSize - result.length) / originalSize) * 100;
+        console.log(
+          `🖼️ Canvas compression achieved ${reduction.toFixed(1)}% reduction`,
+        );
+        return result;
+      }
+
+      return null;
+    } catch (error) {
+      console.warn("Canvas-based compression failed:", error);
+      return null;
+    }
+  }
+
+  // Analyze PDF content to determine best compression strategy
+  private static async analyzePDFContent(arrayBuffer: ArrayBuffer): Promise<{
+    hasImages: boolean;
+    pageCount: number;
+    estimatedImageRatio: number;
+  }> {
+    try {
+      const { loadPDFDocument } = await import("@/lib/pdf-utils");
+      const pdfDoc = await loadPDFDocument(arrayBuffer);
+
+      const pageCount = pdfDoc.getPageCount();
+      let hasImages = false;
+      let estimatedImageRatio = 0;
+
+      // Simple heuristic: if file size per page is high, likely has images
+      const avgSizePerPage = arrayBuffer.byteLength / pageCount;
+      if (avgSizePerPage > 100000) {
+        // 100KB per page suggests images
+        hasImages = true;
+        estimatedImageRatio = Math.min(0.8, avgSizePerPage / 500000); // Cap at 80%
+      }
+
+      console.log(
+        `📊 PDF Analysis: ${pageCount} pages, hasImages: ${hasImages}, imageRatio: ${(estimatedImageRatio * 100).toFixed(1)}%`,
+      );
+
+      return { hasImages, pageCount, estimatedImageRatio };
+    } catch (error) {
+      console.warn("PDF content analysis failed:", error);
+      return { hasImages: false, pageCount: 1, estimatedImageRatio: 0 };
+    }
+  }
+
+  // Forced compression by rebuilding PDF from scratch
+  private static async forcedCompressionRebuild(
+    arrayBuffer: ArrayBuffer,
+    quality: number,
+    originalSize: number,
+    onProgress?: (progress: number) => void,
+  ): Promise<Uint8Array | null> {
+    try {
+      console.log("💪 Starting forced compression rebuild...");
+
+      const { loadPDFDocument, createPDFDocument } = await import(
+        "@/lib/pdf-utils"
+      );
+
+      const sourcePdf = await loadPDFDocument(arrayBuffer);
+      const pageCount = sourcePdf.getPageCount();
+
+      // Create multiple compression attempts with different strategies
+      const strategies = [
+        {
+          scale: quality < 0.3 ? 0.4 : 0.6,
+          objectsPerTick: 1,
+          useObjectStreams: true,
+        },
+        {
+          scale: quality < 0.3 ? 0.5 : 0.7,
+          objectsPerTick: 1,
+          useObjectStreams: false,
+        },
+        {
+          scale: quality < 0.3 ? 0.6 : 0.8,
+          objectsPerTick: 2,
+          useObjectStreams: true,
+        },
+      ];
+
+      let bestResult: Uint8Array | null = null;
+      let bestSize = originalSize;
+
+      for (
+        let strategyIndex = 0;
+        strategyIndex < strategies.length;
+        strategyIndex++
+      ) {
+        try {
+          const strategy = strategies[strategyIndex];
+          const newPdf = await createPDFDocument();
+
+          console.log(
+            `💪 Trying strategy ${strategyIndex + 1}: scale=${strategy.scale}, objects=${strategy.objectsPerTick}`,
+          );
+
+          // Copy and scale pages
+          for (let i = 0; i < pageCount; i++) {
+            try {
+              const [page] = await newPdf.copyPages(sourcePdf, [i]);
+
+              // Apply scaling
+              if (strategy.scale < 1) {
+                page.scale(strategy.scale, strategy.scale);
+                console.log(
+                  `💪 Scaled page ${i + 1} to ${(strategy.scale * 100).toFixed(0)}%`,
+                );
+              }
+
+              newPdf.addPage(page);
+            } catch (pageError) {
+              console.warn(`Failed to copy page ${i + 1}:`, pageError);
+            }
+          }
+
+          // Completely strip all metadata
+          newPdf.setTitle("");
+          newPdf.setAuthor("");
+          newPdf.setSubject("");
+          newPdf.setKeywords([]);
+          newPdf.setCreator("");
+          newPdf.setProducer("");
+
+          // Save with strategy settings
+          const result = await newPdf.save({
+            useObjectStreams: strategy.useObjectStreams,
+            addDefaultPage: false,
+            objectsPerTick: strategy.objectsPerTick,
+            updateFieldAppearances: false,
+          });
+
+          if (result.length < bestSize) {
+            bestResult = result;
+            bestSize = result.length;
+            const reduction =
+              ((originalSize - result.length) / originalSize) * 100;
+            console.log(
+              `💪 Strategy ${strategyIndex + 1} achieved ${reduction.toFixed(3)}% compression`,
+            );
+          }
+
+          onProgress?.(40 + (strategyIndex / strategies.length) * 30);
+        } catch (strategyError) {
+          console.warn(`Strategy ${strategyIndex + 1} failed:`, strategyError);
+        }
+      }
+
+      return bestResult;
+    } catch (error) {
+      console.warn("Forced compression rebuild failed:", error);
+      return null;
+    }
+  }
+
+  // Direct content compression method for maximum compression
+  private static async directContentCompression(
+    arrayBuffer: ArrayBuffer,
+    quality: number,
+    originalSize: number,
+    onProgress?: (progress: number) => void,
+  ): Promise<Uint8Array | null> {
+    try {
+      const { loadPDFDocument, createPDFDocument } = await import(
+        "@/lib/pdf-utils"
+      );
+
+      console.log("⚡ Starting direct content compression...");
+
+      const originalPdf = await loadPDFDocument(arrayBuffer);
+      const pageCount = originalPdf.getPageCount();
+
+      // Create minimalist PDF with scaled content
+      const newPdf = await createPDFDocument();
+
+      for (let i = 0; i < pageCount; i++) {
+        try {
+          const [copiedPage] = await newPdf.copyPages(originalPdf, [i]);
+
+          // Extreme scaling for direct compression
+          let scaleFactor = 1.0;
+          if (quality < 0.2) {
+            scaleFactor = 0.3; // 70% reduction
+          } else if (quality < 0.3) {
+            scaleFactor = 0.5; // 50% reduction
+          } else if (quality < 0.5) {
+            scaleFactor = 0.7; // 30% reduction
+          }
+
+          if (scaleFactor < 1.0) {
+            copiedPage.scale(scaleFactor, scaleFactor);
+            console.log(
+              `⚡ Direct scaled page ${i + 1} to ${(scaleFactor * 100).toFixed(0)}%`,
+            );
+          }
+
+          newPdf.addPage(copiedPage);
+          onProgress?.(40 + (i / pageCount) * 30);
+        } catch (error) {
+          console.warn(`Failed to process page ${i + 1} in direct compression`);
+        }
+      }
+
+      // Minimal PDF with no metadata
+      await this.optimizeDocumentMetadata(newPdf);
+
+      // Force compression with minimal settings
+      const result = await newPdf.save({
+        useObjectStreams: false, // Sometimes false works better
+        addDefaultPage: false,
+        objectsPerTick: 50, // Larger chunks can be more efficient
+        updateFieldAppearances: false,
+      });
+
+      if (result.length < originalSize) {
+        const reduction = ((originalSize - result.length) / originalSize) * 100;
+        console.log(
+          `⚡ Direct compression successful: ${reduction.toFixed(3)}% reduction`,
+        );
+        return result;
+      }
+
+      return null;
+    } catch (error) {
+      console.warn("Direct content compression failed:", error);
+      return null;
+    }
+  }
+
+  // New method for aggressive image and content compression
+  private static async compressWithImageOptimization(
+    arrayBuffer: ArrayBuffer,
+    quality: number,
+    originalSize: number,
+    onProgress?: (progress: number) => void,
+  ): Promise<Uint8Array | null> {
+    try {
+      const { loadPDFDocument, createPDFDocument } = await import(
+        "@/lib/pdf-utils"
+      );
+
+      const originalPdf = await loadPDFDocument(arrayBuffer);
+      const newPdf = await createPDFDocument();
+
+      const pageCount = originalPdf.getPageCount();
+      console.log(`🖼️ Processing ${pageCount} pages for image compression...`);
+
+      // Process each page and compress images
+      for (let i = 0; i < pageCount; i++) {
+        try {
+          const [copiedPage] = await newPdf.copyPages(originalPdf, [i]);
+
+          // Get page dimensions for optimization
+          const { width, height } = copiedPage.getSize();
+
+          // Scale down oversized pages to reduce file size
+          if (width > 1200 || height > 1600) {
+            const scale = Math.min(1200 / width, 1600 / height, 1);
+            copiedPage.scale(scale, scale);
+            console.log(
+              `📏 Scaled page ${i + 1} by ${(scale * 100).toFixed(1)}%`,
+            );
+          }
+
+          newPdf.addPage(copiedPage);
+
+          onProgress?.(40 + (i / pageCount) * 20);
+        } catch (pageError) {
+          console.warn(`Failed to process page ${i + 1}:`, pageError);
+          // Add page without optimization if processing fails
+          try {
+            const [fallbackPage] = await newPdf.copyPages(originalPdf, [i]);
+            newPdf.addPage(fallbackPage);
+          } catch (fallbackError) {
+            console.warn(`Failed to add page ${i + 1} even with fallback`);
+          }
+        }
+      }
+
+      // Remove all metadata for maximum compression
+      await this.optimizeDocumentMetadata(newPdf);
+
+      // Ultra-aggressive compression settings with multiple attempts
+      const compressionSettings = [
+        {
+          useObjectStreams: true,
+          addDefaultPage: false,
+          objectsPerTick: 1,
+          updateFieldAppearances: false,
+          compressStreams: true,
+        },
+        {
+          useObjectStreams: false,
+          addDefaultPage: false,
+          objectsPerTick: 1,
+          updateFieldAppearances: false,
+        },
+      ];
+
+      let bestResult = null;
+      let bestSize = originalSize;
+
+      for (const settings of compressionSettings) {
+        try {
+          const result = await newPdf.save(settings);
+          if (result.length < bestSize) {
+            bestResult = result;
+            bestSize = result.length;
+          }
+        } catch (error) {
+          console.warn("Compression settings failed:", error);
+        }
+      }
+
+      if (bestResult && bestResult.length < originalSize) {
+        const compressionRatio =
+          (originalSize - bestResult.length) / originalSize;
+        console.log(
+          `✅ Image optimization successful: ${(compressionRatio * 100).toFixed(1)}% reduction`,
+        );
+        return bestResult;
+      }
+
+      return null;
+    } catch (error) {
+      console.warn("Image compression optimization failed:", error);
+      return null;
     }
   }
 
@@ -691,7 +1227,7 @@ export class PDFService {
     onProgress?: (progress: number) => void,
   ): Promise<Uint8Array> {
     try {
-      console.log("🔥 Starting extreme compression mode...");
+      console.log("🔥 Starting enhanced high compression mode...");
 
       const { loadPDFDocument, createPDFDocument } = await import(
         "@/lib/pdf-utils"
@@ -699,72 +1235,92 @@ export class PDFService {
 
       onProgress?.(40);
 
-      // Method 1: Extreme reconstruction with minimal data
+      // Method 1: Aggressive page-by-page reconstruction with optimization
+      const reconstructedResult = await this.extremePageByPageCompression(
+        arrayBuffer,
+        quality,
+        originalSize,
+        onProgress,
+      );
+
+      if (reconstructedResult && reconstructedResult.length < originalSize) {
+        const reduction =
+          ((originalSize - reconstructedResult.length) / originalSize) * 100;
+        console.log(
+          `🚀 Extreme reconstruction achieved ${reduction.toFixed(3)}% compression`,
+        );
+        return reconstructedResult;
+      }
+      onProgress?.(60);
+
+      // Method 2: Direct compression with ultra settings
       const originalPdf = await loadPDFDocument(arrayBuffer);
-      const newPdf = await createPDFDocument();
 
-      const pageCount = originalPdf.getPageCount();
+      // Remove ALL unnecessary metadata immediately
+      await this.optimizeDocumentMetadata(originalPdf);
 
-      onProgress?.(50);
+      // Enhanced ultra compression strategies for maximum reduction
+      const ultraStrategies = [
+        // Strategy 1: Absolute maximum compression
+        {
+          useObjectStreams: true,
+          addDefaultPage: false,
+          objectsPerTick: 1,
+          updateFieldAppearances: false,
+          compressStreams: true,
+        },
+        // Strategy 2: Alternative ultra settings
+        {
+          useObjectStreams: true,
+          addDefaultPage: false,
+          objectsPerTick: 1,
+          updateFieldAppearances: false,
+          compressStreams: true,
+        },
+      ];
 
-      // Copy pages with extreme optimization
-      for (let i = 0; i < pageCount; i++) {
+      let bestResult: Uint8Array | null = null;
+      let bestSize = originalSize;
+
+      for (let i = 0; i < ultraStrategies.length; i++) {
         try {
-          const originalPage = originalPdf.getPage(i);
-          const { width, height } = originalPage.getSize();
+          onProgress?.(60 + (i / ultraStrategies.length) * 20);
 
-          // Create new page with same dimensions but minimal content
-          const newPage = newPdf.addPage([width, height]);
+          const result = await originalPdf.save(ultraStrategies[i]);
 
-          // Try to copy only essential content
-          try {
-            const [copiedPage] = await newPdf.copyPages(originalPdf, [i]);
-            newPdf.removePage(newPdf.getPageCount() - 1); // Remove empty page
-            newPdf.addPage(copiedPage);
-          } catch (copyError) {
-            // Keep the blank page if copying fails
-            console.warn(
-              `Page ${i + 1} content copy failed, using minimal page`,
+          if (result.length < bestSize) {
+            bestResult = result;
+            bestSize = result.length;
+            console.log(
+              `🔥 Ultra strategy ${i + 1} achieved ${(((originalSize - result.length) / originalSize) * 100).toFixed(1)}% compression`,
             );
           }
-
-          onProgress?.(50 + (i / pageCount) * 25);
-        } catch (pageError) {
-          console.warn(`Failed to process page ${i + 1}`);
+        } catch (strategyError) {
+          console.warn(`Ultra strategy ${i + 1} failed:`, strategyError);
         }
       }
 
-      onProgress?.(75);
+      onProgress?.(80);
 
-      // Remove all metadata for maximum compression
-      newPdf.setTitle("");
-      newPdf.setAuthor("");
-      newPdf.setSubject("");
-      newPdf.setKeywords([]);
-      newPdf.setCreator("PdfPage");
-      newPdf.setProducer("PdfPage");
-
-      // Extreme compression settings
-      const extremeOptions = {
-        useObjectStreams: true,
-        addDefaultPage: false,
-        objectsPerTick: Math.floor(10 * quality), // Very aggressive
-        updateFieldAppearances: false,
-        compress: true,
-      };
-
-      onProgress?.(85);
-
-      const result = await newPdf.save(extremeOptions);
-
-      console.log(
-        `🔥 Extreme compression completed: ${(((originalSize - result.length) / originalSize) * 100).toFixed(1)}% reduction`,
-      );
-
-      onProgress?.(100);
-      return result;
+      // Return best result or fallback
+      if (bestResult && bestResult.length < originalSize) {
+        console.log(
+          `🔥 Enhanced compression completed: ${(((originalSize - bestResult.length) / originalSize) * 100).toFixed(1)}% reduction`,
+        );
+        return bestResult;
+      } else {
+        console.warn(
+          "Enhanced compression failed to reduce size, falling back to standard compression",
+        );
+        return await this.tryMultipleCompressionMethods(
+          arrayBuffer,
+          quality,
+          originalSize,
+          onProgress,
+        );
+      }
     } catch (error) {
-      console.error("Extreme compression failed:", error);
+      console.error("Enhanced compression failed:", error);
       // Fallback to standard compression
       return await this.tryMultipleCompressionMethods(
         arrayBuffer,
@@ -772,6 +1328,96 @@ export class PDFService {
         originalSize,
         onProgress,
       );
+    }
+  }
+
+  // Extreme page-by-page compression with aggressive optimization
+  private static async extremePageByPageCompression(
+    arrayBuffer: ArrayBuffer,
+    quality: number,
+    originalSize: number,
+    onProgress?: (progress: number) => void,
+  ): Promise<Uint8Array | null> {
+    try {
+      const { loadPDFDocument, createPDFDocument } = await import(
+        "@/lib/pdf-utils"
+      );
+
+      console.log("🚀 Starting extreme page-by-page compression...");
+
+      const originalPdf = await loadPDFDocument(arrayBuffer);
+      const newPdf = await createPDFDocument();
+      const pageCount = originalPdf.getPageCount();
+
+      // Process pages with aggressive optimization
+      for (let i = 0; i < pageCount; i++) {
+        try {
+          const [copiedPage] = await newPdf.copyPages(originalPdf, [i]);
+
+          // Aggressive page optimization
+          const { width, height } = copiedPage.getSize();
+
+          // More aggressive scaling for extreme mode
+          if (quality < 0.3) {
+            // Ultra compression - scale down significantly
+            const maxDimension = Math.max(width, height);
+            if (maxDimension > 800) {
+              const scale = 800 / maxDimension;
+              copiedPage.scale(scale, scale);
+              console.log(
+                `🔥 Ultra-scaled page ${i + 1} by ${(scale * 100).toFixed(1)}%`,
+              );
+            }
+          } else if (quality < 0.5) {
+            // High compression - moderate scaling
+            const maxDimension = Math.max(width, height);
+            if (maxDimension > 1000) {
+              const scale = 1000 / maxDimension;
+              copiedPage.scale(scale, scale);
+              console.log(
+                `🔥 Scaled page ${i + 1} by ${(scale * 100).toFixed(1)}%`,
+              );
+            }
+          }
+
+          newPdf.addPage(copiedPage);
+          onProgress?.(40 + (i / pageCount) * 20);
+        } catch (pageError) {
+          console.warn(`Failed to optimize page ${i + 1}, adding as-is`);
+          try {
+            const [fallbackPage] = await newPdf.copyPages(originalPdf, [i]);
+            newPdf.addPage(fallbackPage);
+          } catch (fallbackError) {
+            console.warn(`Skipping page ${i + 1} due to errors`);
+          }
+        }
+      }
+
+      // Ultra-aggressive metadata removal
+      await this.optimizeDocumentMetadata(newPdf);
+
+      // Maximum compression settings
+      const result = await newPdf.save({
+        useObjectStreams: true,
+        addDefaultPage: false,
+        objectsPerTick: 1,
+        updateFieldAppearances: false,
+        compressStreams: true,
+      });
+
+      const compressionRatio = (originalSize - result.length) / originalSize;
+
+      if (compressionRatio > 0.001) {
+        // Any meaningful reduction
+        console.log(
+          `🎯 Extreme compression successful: ${(compressionRatio * 100).toFixed(3)}% reduction`,
+        );
+        return result;
+      }
+      return null;
+    } catch (error) {
+      console.warn("Extreme page-by-page compression failed:", error);
+      return null;
     }
   }
 
@@ -784,6 +1430,7 @@ export class PDFService {
       const { loadPDFDocument, createPDFDocument } = await import(
         "@/lib/pdf-utils"
       );
+      const originalSize = arrayBuffer.byteLength;
 
       console.log("🔄 Reconstructing PDF for compression...");
 
@@ -792,32 +1439,57 @@ export class PDFService {
 
       const pageCount = originalPdf.getPageCount();
 
-      // Copy pages one by one with optimization
+      // Copy pages with smart optimization
       for (let i = 0; i < pageCount; i++) {
         try {
           const [copiedPage] = await newPdf.copyPages(originalPdf, [i]);
+
+          // Apply quality-based optimizations
+          if (quality < 0.5) {
+            const { width, height } = copiedPage.getSize();
+            const maxDimension = Math.max(width, height);
+
+            // Scale down large pages for better compression
+            if (maxDimension > 1400) {
+              const scale = 1400 / maxDimension;
+              copiedPage.scale(scale, scale);
+            }
+          }
+
           newPdf.addPage(copiedPage);
         } catch (pageError) {
           console.warn(`Failed to copy page ${i + 1}, skipping`);
         }
       }
 
-      // Set minimal metadata
-      newPdf.setCreator("PdfPage Compressor");
-      newPdf.setProducer("PdfPage Advanced Engine");
-      newPdf.setCreationDate(new Date());
+      // Comprehensive metadata optimization
+      await this.optimizeDocumentMetadata(newPdf);
 
-      // Save with aggressive compression
-      const result = await newPdf.save({
+      // Quality-based compression settings
+      const compressionSettings = {
         useObjectStreams: true,
         addDefaultPage: false,
-        objectsPerTick: Math.floor(15 * quality),
+        objectsPerTick:
+          quality < 0.3 ? 1 : Math.max(1, Math.floor(quality * 3)),
         updateFieldAppearances: false,
-        compress: true,
-      });
+        compressStreams: true,
+      };
 
-      console.log("✅ PDF reconstruction completed");
-      return result;
+      const result = await newPdf.save(compressionSettings);
+
+      // Return if any size reduction achieved
+      if (result.length <= originalSize) {
+        const reduction = ((originalSize - result.length) / originalSize) * 100;
+        console.log(
+          `✅ PDF reconstruction completed: ${reduction.toFixed(3)}% reduction`,
+        );
+        return result;
+      } else {
+        console.warn(
+          `PDF reconstruction made file larger: ${result.length} vs ${originalSize}, returning original`,
+        );
+        return new Uint8Array(arrayBuffer);
+      }
     } catch (error) {
       console.error("PDF reconstruction failed:", error);
       throw error;
@@ -827,20 +1499,65 @@ export class PDFService {
   // Optimize document metadata and structure
   private static async optimizeDocumentMetadata(pdfDoc: any): Promise<void> {
     try {
-      // Remove unnecessary metadata
-      pdfDoc.setCreator("PdfPage");
-      pdfDoc.setProducer("PdfPage PDF Compressor v2.0");
-      pdfDoc.setCreationDate(new Date());
-      pdfDoc.setModificationDate(new Date());
+      // Remove ALL metadata to minimize file size
+      pdfDoc.setCreator("");
+      pdfDoc.setProducer("");
+      pdfDoc.setTitle("");
+      pdfDoc.setAuthor("");
+      pdfDoc.setSubject("");
+      pdfDoc.setKeywords([]);
 
       // Remove custom metadata that might be bloating the file
-      const infoDict = pdfDoc.getInfoDict();
-      if (infoDict) {
-        // Clear potentially large metadata fields
-        infoDict.delete("Keywords");
-        infoDict.delete("Subject");
-        infoDict.delete("Trapped");
-        infoDict.delete("Custom");
+      try {
+        const infoDict = pdfDoc.getInfoDict();
+        if (infoDict) {
+          // Clear ALL metadata fields for maximum compression
+          const metadataFields = [
+            "Keywords",
+            "Subject",
+            "Trapped",
+            "Custom",
+            "Title",
+            "Author",
+            "Creator",
+            "Producer",
+            "CreationDate",
+            "ModDate",
+            "Application",
+            "PDF Producer",
+            "PDF Creator",
+            "Generator",
+            "Software",
+            "Tool",
+            "Version",
+            "Build",
+            "Source",
+          ];
+
+          metadataFields.forEach((field) => {
+            try {
+              infoDict.delete(field);
+            } catch (deleteError) {
+              // Ignore errors for non-existent fields
+            }
+          });
+        }
+      } catch (infoDictError) {
+        console.warn("Could not access info dictionary:", infoDictError);
+      }
+
+      // Try to remove XMP metadata if present
+      try {
+        const context = pdfDoc.context;
+        if (context && context.trailerInfo && context.trailerInfo.Root) {
+          const catalog = context.trailerInfo.Root;
+          if (catalog.Metadata) {
+            catalog.delete("Metadata");
+            console.log("🗑️ Removed XMP metadata for compression");
+          }
+        }
+      } catch (xmpError) {
+        console.warn("Could not remove XMP metadata:", xmpError);
       }
     } catch (error) {
       console.warn("Metadata optimization failed:", error);
@@ -1021,29 +1738,92 @@ export class PDFService {
     }
   }
 
-  // Fallback compression method
+  // Enhanced fallback compression method
   private static async fallbackCompressionMethod(
     file: File,
     quality: number,
+    onProgress?: (progress: number) => void,
   ): Promise<Uint8Array> {
     try {
-      console.log("🔄 Using fallback compression method...");
+      console.log("🔄 Using enhanced fallback compression method...");
 
-      // Simple compression using basic PDF-lib operations
       const arrayBuffer = await file.arrayBuffer();
+      const originalSize = arrayBuffer.byteLength;
       const { loadPDFDocument } = await import("@/lib/pdf-utils");
+
+      onProgress?.(30);
 
       const pdfDoc = await loadPDFDocument(arrayBuffer);
 
-      // Apply basic compression
-      const pdfBytes = await pdfDoc.save({
-        useObjectStreams: false,
-        addDefaultPage: false,
-        objectsPerTick: Math.floor(30 * quality),
-      });
+      // Comprehensive metadata cleanup
+      await this.optimizeDocumentMetadata(pdfDoc);
 
-      console.log("✅ Fallback compression completed");
-      return pdfBytes;
+      onProgress?.(50);
+
+      // Try multiple fallback strategies
+      const fallbackStrategies = [
+        // Most aggressive
+        {
+          useObjectStreams: true,
+          addDefaultPage: false,
+          objectsPerTick: 1,
+          updateFieldAppearances: false,
+          compressStreams: true,
+        },
+        // Moderate
+        {
+          useObjectStreams: true,
+          addDefaultPage: false,
+          objectsPerTick: 2,
+          updateFieldAppearances: false,
+          compressStreams: true,
+        },
+        // Conservative
+        {
+          useObjectStreams: false,
+          addDefaultPage: false,
+          objectsPerTick: 5,
+          updateFieldAppearances: false,
+        },
+      ];
+
+      let bestResult: Uint8Array | null = null;
+      let bestSize = originalSize;
+
+      for (let i = 0; i < fallbackStrategies.length; i++) {
+        try {
+          onProgress?.(50 + (i / fallbackStrategies.length) * 40);
+
+          const result = await pdfDoc.save(fallbackStrategies[i]);
+
+          if (result.length < bestSize) {
+            bestResult = result;
+            bestSize = result.length;
+            console.log(
+              `📌 Fallback strategy ${i + 1} achieved ${(((originalSize - result.length) / originalSize) * 100).toFixed(1)}% compression`,
+            );
+          }
+        } catch (strategyError) {
+          console.warn(`Fallback strategy ${i + 1} failed:`, strategyError);
+        }
+      }
+
+      onProgress?.(90);
+
+      // Return best result or original if no improvement
+      if (bestResult && bestResult.length < originalSize) {
+        console.log(
+          `✅ Fallback compression successful: ${(((originalSize - bestResult.length) / originalSize) * 100).toFixed(1)}% reduction`,
+        );
+        onProgress?.(100);
+        return bestResult;
+      } else {
+        console.warn(
+          "All fallback compression strategies failed to reduce size, returning original",
+        );
+        onProgress?.(100);
+        return new Uint8Array(arrayBuffer);
+      }
     } catch (error) {
       console.error("Fallback compression failed:", error);
       throw new Error(

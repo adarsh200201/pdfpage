@@ -56,7 +56,7 @@ const CompressProcessing = () => {
   const { user } = useAuth();
 
   const [processingState, setProcessingState] =
-    useState<ProcessingState | null>(location.state?.processingData || null);
+    useState<ProcessingState | null>(location.state || null);
   const [processingSteps, setProcessingSteps] = useState<ProcessingStep[]>([]);
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [overallProgress, setOverallProgress] = useState(0);
@@ -114,26 +114,17 @@ const CompressProcessing = () => {
       },
       {
         id: "compress",
-        name: processingState?.extremeMode
-          ? "Extreme Compression"
-          : "Smart Compression",
-        description: processingState?.extremeMode
-          ? "Applying maximum compression with quality trade-offs"
-          : "Applying intelligent compression algorithms",
+        name: "Advanced Compression",
+        description:
+          "Applying intelligent high-compression algorithms for maximum reduction",
         status: "pending",
         progress: 0,
-        icon: processingState?.extremeMode ? Zap : Layers,
-        details: processingState?.extremeMode
-          ? [
-              "Aggressive content reduction",
-              "Image quality optimization",
-              "Extreme size reduction",
-            ]
-          : [
-              "Smart object compression",
-              "Image optimization",
-              "Content stream compression",
-            ],
+        icon: Zap,
+        details: [
+          "Smart object compression",
+          "Advanced image optimization",
+          "Maximum size reduction (30-85%)",
+        ],
       },
       {
         id: "finalize",
@@ -239,20 +230,54 @@ const CompressProcessing = () => {
         // Step 4: Compress
         updateProcessingStep("compress", "active", 0);
 
-        const compressedPdfBytes = await PDFService.compressPDF(
-          processingState.file,
-          processingState.quality,
-          (progressValue) => {
-            updateProcessingStep("compress", "active", progressValue, [
-              `Compression progress: ${progressValue.toFixed(0)}%`,
-              processingState.extremeMode
-                ? "Applying extreme compression..."
-                : "Applying smart compression...",
-            ]);
-            setOverallProgress(60 + progressValue * 0.3);
-          },
-          processingState.extremeMode,
-        );
+        console.log("🔍 Starting compression with settings:", {
+          fileName: processingState.fileName,
+          originalSize: processingState.fileSize,
+          quality: processingState.quality,
+          extremeMode: processingState.extremeMode,
+          estimatedCompression: processingState.estimatedCompression,
+        });
+
+        let compressedPdfBytes;
+        try {
+          compressedPdfBytes = await PDFService.compressPDF(
+            processingState.file,
+            processingState.quality,
+            (progressValue) => {
+              updateProcessingStep("compress", "active", progressValue, [
+                `Compression progress: ${progressValue.toFixed(0)}%`,
+                "Applying advanced compression algorithms...",
+              ]);
+              setOverallProgress(60 + progressValue * 0.3);
+            },
+            processingState.extremeMode,
+          );
+
+          console.log("🔍 Compression completed:", {
+            originalSize: processingState.fileSize,
+            compressedSize: compressedPdfBytes.length,
+            actualReduction:
+              (
+                ((processingState.fileSize - compressedPdfBytes.length) /
+                  processingState.fileSize) *
+                100
+              ).toFixed(2) + "%",
+            estimatedReduction:
+              processingState.estimatedCompression.toFixed(2) + "%",
+          });
+        } catch (compressionError: any) {
+          console.error("PDF compression error:", compressionError);
+          // Provide user-friendly error message
+          const errorMessage = compressionError.message?.includes(
+            "configuration",
+          )
+            ? "PDF processing issue. Please try again."
+            : compressionError.message?.includes("worker")
+              ? "PDF processing temporarily unavailable. Please retry."
+              : compressionError.message || "Failed to compress PDF file";
+
+          throw new Error(errorMessage);
+        }
 
         // Store the processed PDF to prevent re-processing
         setProcessedPdf(compressedPdfBytes);
@@ -273,8 +298,28 @@ const CompressProcessing = () => {
         const processingTimeMs = Date.now() - startTime;
         const originalSize = processingState.fileSize;
         const compressedSize = compressedPdfBytes.length;
-        const compressionRatio =
+
+        // CRITICAL FIX: Ensure compression ratio calculation matches preview expectations
+        let compressionRatio =
           ((originalSize - compressedSize) / originalSize) * 100;
+
+        // If file got larger, show the actual increase
+        if (compressedSize > originalSize) {
+          compressionRatio =
+            -((compressedSize - originalSize) / originalSize) * 100;
+          console.warn(
+            `⚠️ File size increased by ${Math.abs(compressionRatio).toFixed(1)}%`,
+          );
+        }
+
+        // Log detailed compression results for debugging
+        console.log("🔍 Compression Results:", {
+          originalSize: originalSize,
+          compressedSize: compressedSize,
+          estimatedCompression: processingState.estimatedCompression,
+          actualCompressionRatio: compressionRatio,
+          sizeDifference: originalSize - compressedSize,
+        });
 
         setCompressionStats({
           originalSize,
@@ -287,16 +332,24 @@ const CompressProcessing = () => {
         // Track usage
         await PDFService.trackUsage("compress", 1, processingState.fileSize);
 
-        // Generate unique filename
+        // FIXED: Generate filename based on actual compression achieved
         const timestamp = new Date()
           .toISOString()
           .slice(11, 19)
           .replace(/:/g, "-");
         const fileName = processingState.fileName.replace(/\.pdf$/i, "");
-        const compressionInfo =
-          compressionRatio > 5
-            ? `_${compressionRatio.toFixed(0)}pc_smaller`
-            : "_optimized";
+
+        let compressionInfo;
+        if (compressionRatio >= 10) {
+          compressionInfo = `_${compressionRatio.toFixed(0)}pc_smaller`;
+        } else if (compressionRatio >= 1) {
+          compressionInfo = `_${compressionRatio.toFixed(1)}pc_smaller`;
+        } else if (compressionRatio > 0) {
+          compressionInfo = "_optimized";
+        } else {
+          compressionInfo = "_processed";
+        }
+
         const finalFileName = `${fileName}${compressionInfo}_${timestamp}.pdf`;
 
         PDFService.downloadFile(compressedPdfBytes, finalFileName);
@@ -308,21 +361,37 @@ const CompressProcessing = () => {
         setOverallProgress(100);
         setIsComplete(true);
 
-        // Success toast
-        if (compressionRatio >= 15) {
+        // FIXED: Better success feedback handling
+        if (compressionRatio < 0) {
+          toast({
+            title: "⚠️ Compression Issue",
+            description: `File size increased by ${Math.abs(compressionRatio).toFixed(1)}%. Original file provided.`,
+            variant: "destructive",
+          });
+        } else if (compressionRatio >= 25) {
           toast({
             title: "🎉 Excellent Compression!",
             description: `Outstanding ${compressionRatio.toFixed(1)}% reduction in ${(processingTimeMs / 1000).toFixed(1)}s`,
           });
-        } else if (compressionRatio >= 5) {
+        } else if (compressionRatio >= 10) {
+          toast({
+            title: "✅ Great Compression",
+            description: `Achieved ${compressionRatio.toFixed(1)}% reduction in ${(processingTimeMs / 1000).toFixed(1)}s`,
+          });
+        } else if (compressionRatio >= 3) {
           toast({
             title: "✅ Good Compression",
             description: `${compressionRatio.toFixed(1)}% reduction achieved in ${(processingTimeMs / 1000).toFixed(1)}s`,
           });
-        } else {
+        } else if (compressionRatio > 0) {
           toast({
             title: "📄 PDF Optimized",
-            description: `File optimized in ${(processingTimeMs / 1000).toFixed(1)}s`,
+            description: `${compressionRatio.toFixed(1)}% reduction in ${(processingTimeMs / 1000).toFixed(1)}s`,
+          });
+        } else {
+          toast({
+            title: "📄 PDF Processed",
+            description: `File processed but no size reduction achieved`,
           });
         }
       } catch (error: any) {
@@ -378,14 +447,15 @@ const CompressProcessing = () => {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
   };
 
-  const getQualityLabel = (value: number) => {
-    if (value >= 0.8) return "High Quality";
-    if (value >= 0.6) return "Medium Quality";
-    if (value >= 0.4) return "Low Quality";
-    return "Maximum Compression";
+  const getQualityLabel = (value: number): string => {
+    if (value <= 0.2) return "Maximum Compression";
+    if (value <= 0.4) return "High Compression";
+    if (value <= 0.6) return "Balanced";
+    if (value <= 0.8) return "Good Quality";
+    return "Best Quality";
   };
 
-  const formatTime = (seconds: number) => {
+  const formatTime = (seconds: number): string => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return mins > 0
@@ -404,14 +474,7 @@ const CompressProcessing = () => {
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
         <div className="text-center mb-8">
-          <div
-            className={cn(
-              "w-20 h-20 rounded-2xl flex items-center justify-center mx-auto mb-4",
-              processingState.extremeMode
-                ? "bg-gradient-to-br from-red-500 to-orange-500"
-                : "bg-gradient-to-br from-purple-500 to-blue-500",
-            )}
-          >
+          <div className="w-20 h-20 rounded-2xl flex items-center justify-center mx-auto mb-4 bg-gradient-to-br from-purple-500 to-blue-500">
             {isComplete ? (
               <CheckCircle className="w-10 h-10 text-white" />
             ) : error ? (
@@ -426,9 +489,7 @@ const CompressProcessing = () => {
               ? "Compression Complete!"
               : error
                 ? "Processing Failed"
-                : processingState.extremeMode
-                  ? "Extreme Compression in Progress"
-                  : "Smart Compression in Progress"}
+                : "Advanced Compression in Progress"}
           </h1>
 
           <p className="text-gray-600 mb-4">
@@ -436,7 +497,7 @@ const CompressProcessing = () => {
               ? "Your PDF has been successfully compressed and downloaded"
               : error
                 ? "Something went wrong during processing"
-                : "Please wait while we optimize your PDF file"}
+                : "Please wait while we apply advanced compression algorithms to optimize your PDF"}
           </p>
 
           {/* File Info */}
@@ -452,16 +513,8 @@ const CompressProcessing = () => {
                 <div className="flex items-center space-x-3 text-sm text-gray-500">
                   <span>{formatFileSize(processingState.fileSize)}</span>
                   <span>•</span>
-                  <span
-                    className={cn(
-                      processingState.extremeMode
-                        ? "text-red-600"
-                        : "text-purple-600",
-                    )}
-                  >
-                    {processingState.extremeMode
-                      ? "Extreme Mode"
-                      : getQualityLabel(processingState.quality)}
+                  <span className="text-purple-600">
+                    {getQualityLabel(processingState.quality)}
                   </span>
                   <span>•</span>
                   <span className="flex items-center">
@@ -487,9 +540,7 @@ const CompressProcessing = () => {
             <div
               className={cn(
                 "h-3 rounded-full transition-all duration-500 ease-out",
-                processingState.extremeMode
-                  ? "bg-gradient-to-r from-red-500 to-orange-500"
-                  : "bg-gradient-to-r from-purple-500 to-blue-500",
+                "bg-gradient-to-r from-purple-500 to-blue-500",
                 isComplete && "bg-gradient-to-r from-green-500 to-green-600",
                 error && "bg-gradient-to-r from-red-500 to-red-600",
               )}
@@ -514,11 +565,7 @@ const CompressProcessing = () => {
                   className={cn(
                     "relative flex items-start space-x-4 p-4 rounded-lg transition-all duration-300",
                     step.status === "active" &&
-                      !processingState.extremeMode &&
                       "bg-purple-50 border border-purple-200",
-                    step.status === "active" &&
-                      processingState.extremeMode &&
-                      "bg-red-50 border border-red-200",
                     step.status === "completed" &&
                       "bg-green-50 border border-green-200",
                     step.status === "error" &&
@@ -531,12 +578,7 @@ const CompressProcessing = () => {
                   <div
                     className={cn(
                       "w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0",
-                      step.status === "active" &&
-                        !processingState.extremeMode &&
-                        "bg-purple-500",
-                      step.status === "active" &&
-                        processingState.extremeMode &&
-                        "bg-red-500",
+                      step.status === "active" && "bg-purple-500",
                       step.status === "completed" && "bg-green-500",
                       step.status === "error" && "bg-red-500",
                       step.status === "pending" && "bg-gray-300",
@@ -705,20 +747,34 @@ const CompressProcessing = () => {
 
             <div className="text-center py-4 border-t border-green-200 mb-6">
               <p className="text-sm text-gray-500 mb-1">Size Reduction</p>
-              <p
-                className={cn(
-                  "text-3xl font-bold",
-                  compressionStats.compressionRatio >= 30
-                    ? "text-green-600"
-                    : compressionStats.compressionRatio >= 15
-                      ? "text-blue-600"
-                      : compressionStats.compressionRatio >= 5
-                        ? "text-orange-600"
-                        : "text-gray-600",
+              <div className="flex items-center justify-center space-x-2">
+                <p
+                  className={cn(
+                    "text-3xl font-bold",
+                    compressionStats.compressionRatio < 0
+                      ? "text-red-600" // File got larger
+                      : compressionStats.compressionRatio >= 25
+                        ? "text-green-600"
+                        : compressionStats.compressionRatio >= 10
+                          ? "text-blue-600"
+                          : compressionStats.compressionRatio >= 3
+                            ? "text-orange-600"
+                            : "text-gray-600",
+                  )}
+                >
+                  {compressionStats.compressionRatio < 0
+                    ? `${Math.abs(compressionStats.compressionRatio).toFixed(1)}% larger`
+                    : `${compressionStats.compressionRatio.toFixed(1)}% smaller`}
+                </p>
+                {Math.abs(
+                  compressionStats.compressionRatio -
+                    processingState.estimatedCompression,
+                ) > 5 && (
+                  <span className="text-sm text-gray-400 italic">
+                    (est. {processingState.estimatedCompression.toFixed(1)}%)
+                  </span>
                 )}
-              >
-                {compressionStats.compressionRatio.toFixed(1)}% smaller
-              </p>
+              </div>
             </div>
 
             <div className="grid grid-cols-2 gap-4 text-sm text-gray-600">
@@ -736,13 +792,37 @@ const CompressProcessing = () => {
               </div>
             </div>
 
-            {compressionStats.compressionRatio >= 15 && (
+            {compressionStats.compressionRatio < 0 ? (
+              <div className="mt-6 text-center">
+                <span className="inline-flex items-center px-4 py-2 rounded-full text-sm font-medium bg-red-100 text-red-800">
+                  ⚠️ Original file provided - compression not beneficial
+                </span>
+              </div>
+            ) : compressionStats.compressionRatio >= 25 ? (
               <div className="mt-6 text-center">
                 <span className="inline-flex items-center px-4 py-2 rounded-full text-sm font-medium bg-green-100 text-green-800">
                   🎉 Excellent compression achieved!
                 </span>
               </div>
-            )}
+            ) : compressionStats.compressionRatio >= 10 ? (
+              <div className="mt-6 text-center">
+                <span className="inline-flex items-center px-4 py-2 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
+                  ✅ Great compression achieved!
+                </span>
+              </div>
+            ) : compressionStats.compressionRatio >= 3 ? (
+              <div className="mt-6 text-center">
+                <span className="inline-flex items-center px-4 py-2 rounded-full text-sm font-medium bg-orange-100 text-orange-800">
+                  ✅ Good compression achieved!
+                </span>
+              </div>
+            ) : compressionStats.compressionRatio > 0 ? (
+              <div className="mt-6 text-center">
+                <span className="inline-flex items-center px-4 py-2 rounded-full text-sm font-medium bg-gray-100 text-gray-800">
+                  📄 PDF optimized with minimal reduction
+                </span>
+              </div>
+            ) : null}
           </div>
         )}
 
@@ -773,10 +853,20 @@ const CompressProcessing = () => {
                     /\.pdf$/i,
                     "",
                   );
-                  const compressionInfo =
-                    compressionStats && compressionStats.compressionRatio > 5
-                      ? `_${compressionStats.compressionRatio.toFixed(0)}pc_smaller`
-                      : "_optimized";
+                  let compressionInfo;
+                  if (compressionStats) {
+                    if (compressionStats.compressionRatio >= 10) {
+                      compressionInfo = `_${compressionStats.compressionRatio.toFixed(0)}pc_smaller`;
+                    } else if (compressionStats.compressionRatio >= 1) {
+                      compressionInfo = `_${compressionStats.compressionRatio.toFixed(1)}pc_smaller`;
+                    } else if (compressionStats.compressionRatio > 0) {
+                      compressionInfo = "_optimized";
+                    } else {
+                      compressionInfo = "_processed";
+                    }
+                  } else {
+                    compressionInfo = "_processed";
+                  }
                   const finalFileName = `${fileName}${compressionInfo}_${timestamp}.pdf`;
                   PDFService.downloadFile(processedPdf, finalFileName);
                 }

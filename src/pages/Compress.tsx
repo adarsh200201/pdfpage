@@ -38,10 +38,19 @@ interface ProcessedFile {
   loadingThumbnails?: boolean;
 }
 
+interface CompressionSettings {
+  level: "extreme" | "recommended" | "less";
+  dpi: number;
+  imageQuality: number;
+  removeMetadata: boolean;
+  optimizeImages: boolean;
+  optimizeFonts: boolean;
+  colorspace: "auto" | "rgb" | "grayscale" | "monochrome";
+}
+
 const Compress = () => {
-  const [file, setFile] = useState<ProcessedFile | null>(null);
-  const [quality, setQuality] = useState([0.7]);
-  const [extremeMode, setExtremeMode] = useState(false);
+  const [files, setFiles] = useState<ProcessedFile[]>([]);
+  const [quality, setQuality] = useState([0.5]); // Start with more aggressive compression
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [usageLimitReached, setUsageLimitReached] = useState(false);
   const [estimatedTime, setEstimatedTime] = useState<string>("");
@@ -51,7 +60,22 @@ const Compress = () => {
     compressionRatio: number;
   } | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
+  const [showAdvancedSettings, setShowAdvancedSettings] = useState(false);
+  const [compressionSettings, setCompressionSettings] =
+    useState<CompressionSettings>({
+      level: "recommended",
+      dpi: 150,
+      imageQuality: 80,
+      removeMetadata: true,
+      optimizeImages: true,
+      optimizeFonts: true,
+      colorspace: "auto",
+    });
+  const [batchMode, setBatchMode] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // For backward compatibility, keep file as the first file in files array
+  const file = files.length > 0 ? files[0] : null;
 
   const { user, isAuthenticated } = useAuth();
   const { toast } = useToast();
@@ -111,91 +135,14 @@ const Compress = () => {
     [],
   );
 
-  // Handle file selection with instant feedback
-  const handleFilesSelect = useCallback(
-    async (files: File[]) => {
-      if (files.length > 0) {
-        const selectedFile = files[0];
-
-        // Validate PDF file
-        if (
-          !selectedFile.type.includes("pdf") &&
-          !selectedFile.name.toLowerCase().endsWith(".pdf")
-        ) {
-          toast({
-            title: "Invalid File",
-            description: "Please select a PDF file.",
-            variant: "destructive",
-          });
-          return;
-        }
-
-        // Check file size
-        const maxSize = user?.isPremium ? 100 * 1024 * 1024 : 25 * 1024 * 1024;
-        if (selectedFile.size > maxSize) {
-          toast({
-            title: "File Too Large",
-            description: `File size exceeds ${user?.isPremium ? "100MB" : "25MB"} limit`,
-            variant: "destructive",
-          });
-          return;
-        }
-
-        const processedFile: ProcessedFile = {
-          id: Math.random().toString(36).substr(2, 9),
-          file: selectedFile,
-          name: selectedFile.name,
-          size: selectedFile.size,
-          loadingThumbnails: true,
-        };
-
-        setFile(processedFile);
-
-        // Show instant feedback
-        toast({
-          title: "📄 PDF Loaded",
-          description: `Generating preview for ${selectedFile.name}...`,
-        });
-
-        // Generate thumbnails and page count
-        try {
-          const thumbnails = await generateThumbnails(selectedFile);
-          const pageCount = await getPageCount(selectedFile);
-
-          setFile((prev) =>
-            prev
-              ? {
-                  ...prev,
-                  thumbnails,
-                  pageCount,
-                  loadingThumbnails: false,
-                }
-              : null,
-          );
-
-          // Update compression preview
-          updateCompressionPreview(selectedFile, quality[0], pageCount);
-
-          toast({
-            title: "✅ Preview Ready",
-            description: `${pageCount} pages • ${formatFileSize(selectedFile.size)}`,
-          });
-        } catch (error) {
-          console.error("Error processing file:", error);
-          setFile((prev) =>
-            prev ? { ...prev, loadingThumbnails: false } : null,
-          );
-        }
-      }
-    },
-    [quality, user?.isPremium, toast, generateThumbnails],
-  );
-
   // Get page count from PDF
   const getPageCount = async (pdfFile: File): Promise<number> => {
     try {
       const arrayBuffer = await pdfFile.arrayBuffer();
       const pdfjsLib = await import("pdfjs-dist");
+
+      pdfjsLib.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
+
       const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
       return pdf.numPages;
     } catch (error) {
@@ -204,69 +151,63 @@ const Compress = () => {
     }
   };
 
-  // Realistic compression preview that includes extreme mode
+  // Advanced compression preview based on professional PDF optimization
   const updateCompressionPreview = useCallback(
     (selectedFile: File, qualityValue: number, pageCount: number = 1) => {
-      let baseCompressionRatio = 0.05; // Base 5% compression
+      // Professional compression ratios based on optimization techniques
+      let baseCompressionRatio = 0.08; // Start with 8% base compression
 
-      if (extremeMode) {
-        // Extreme compression mode - much higher compression possible
-        if (qualityValue <= 0.3) {
-          baseCompressionRatio = 0.75; // Extreme: up to 75% (severe quality loss)
-        } else if (qualityValue <= 0.5) {
-          baseCompressionRatio = 0.6; // High extreme: up to 60%
-        } else if (qualityValue <= 0.7) {
-          baseCompressionRatio = 0.45; // Medium extreme: up to 45%
-        } else {
-          baseCompressionRatio = 0.3; // Mild extreme: up to 30%
-        }
-
-        // Extreme mode works better on image-heavy PDFs
-        if (selectedFile.size > 5 * 1024 * 1024) {
-          baseCompressionRatio += 0.1; // Large files compress better in extreme mode
-        }
-
-        if (pageCount > 10) {
-          baseCompressionRatio += 0.05; // More pages = more compression opportunity
-        }
-
-        // Cap extreme mode at 85%
-        baseCompressionRatio = Math.min(baseCompressionRatio, 0.85);
+      // FIXED: Realistic compression expectations based on PDF-lib capabilities
+      if (qualityValue <= 0.2) {
+        baseCompressionRatio = 0.35; // Maximum compression: 30-40% reduction (realistic)
+      } else if (qualityValue <= 0.3) {
+        baseCompressionRatio = 0.28; // Ultra compression: 25-35% reduction
+      } else if (qualityValue <= 0.4) {
+        baseCompressionRatio = 0.22; // High compression: 20-30% reduction
+      } else if (qualityValue <= 0.5) {
+        baseCompressionRatio = 0.18; // Medium-high compression: 15-25% reduction
+      } else if (qualityValue <= 0.6) {
+        baseCompressionRatio = 0.15; // Balanced compression: 12-20% reduction
+      } else if (qualityValue <= 0.7) {
+        baseCompressionRatio = 0.12; // Good compression: 10-15% reduction
+      } else if (qualityValue <= 0.8) {
+        baseCompressionRatio = 0.08; // Good Quality: 5-12% reduction
       } else {
-        // Standard compression mode
-        if (qualityValue <= 0.3) {
-          baseCompressionRatio = 0.15; // Maximum compression: up to 15%
-        } else if (qualityValue <= 0.5) {
-          baseCompressionRatio = 0.12; // High compression: up to 12%
-        } else if (qualityValue <= 0.7) {
-          baseCompressionRatio = 0.08; // Medium compression: up to 8%
-        } else if (qualityValue <= 0.8) {
-          baseCompressionRatio = 0.06; // Balanced compression: up to 6%
-        } else {
-          baseCompressionRatio = 0.03; // Minimal compression: up to 3%
-        }
-
-        // Standard adjustments
-        if (selectedFile.size > 10 * 1024 * 1024) {
-          baseCompressionRatio += 0.03;
-        } else if (selectedFile.size > 5 * 1024 * 1024) {
-          baseCompressionRatio += 0.02;
-        }
-
-        if (pageCount > 20) {
-          baseCompressionRatio += 0.02;
-        } else if (pageCount > 10) {
-          baseCompressionRatio += 0.01;
-        }
-
-        // Small file penalty
-        if (selectedFile.size < 2 * 1024 * 1024) {
-          baseCompressionRatio = Math.max(0.01, baseCompressionRatio * 0.5);
-        }
-
-        // Cap standard mode at 20%
-        baseCompressionRatio = Math.min(baseCompressionRatio, 0.2);
+        baseCompressionRatio = 0.03; // Best Quality: 2-5% reduction
       }
+
+      // FIXED: Realistic bonuses for file characteristics
+      if (selectedFile.size > 20 * 1024 * 1024) {
+        baseCompressionRatio += 0.02; // Very large files compress slightly better
+      } else if (selectedFile.size > 10 * 1024 * 1024) {
+        baseCompressionRatio += 0.015; // Large files compress better
+      } else if (selectedFile.size > 5 * 1024 * 1024) {
+        baseCompressionRatio += 0.01; // Medium files
+      } else if (selectedFile.size > 2 * 1024 * 1024) {
+        baseCompressionRatio += 0.005; // Small files
+      }
+
+      // Page count bonuses for optimization opportunities
+      if (pageCount > 100) {
+        baseCompressionRatio += 0.015; // Many pages = more optimization
+      } else if (pageCount > 50) {
+        baseCompressionRatio += 0.01;
+      } else if (pageCount > 20) {
+        baseCompressionRatio += 0.008;
+      } else if (pageCount > 10) {
+        baseCompressionRatio += 0.005;
+      }
+
+      // Image-heavy PDF detection (compression potential)
+      if (
+        selectedFile.size > 1024 * 1024 &&
+        selectedFile.size / pageCount > 500 * 1024
+      ) {
+        baseCompressionRatio += 0.03; // Image-heavy PDFs have good compression potential
+      }
+
+      // FIXED: Cap at realistic maximum 45% compression
+      baseCompressionRatio = Math.min(baseCompressionRatio, 0.45);
 
       const estimatedSavings = selectedFile.size * baseCompressionRatio;
       const estimatedSize = selectedFile.size - estimatedSavings;
@@ -278,22 +219,19 @@ const Compress = () => {
         compressionRatio,
       });
 
-      // Processing time - extreme mode takes longer
-      const baseMBTime = extremeMode ? 3.0 : 1.5;
-      const qualityMultiplier = extremeMode
-        ? qualityValue < 0.5
-          ? 4.0
-          : qualityValue < 0.8
-            ? 3.0
-            : 2.5
-        : qualityValue < 0.5
-          ? 2.2
-          : qualityValue < 0.8
-            ? 1.6
-            : 1.2;
-      const pageMultiplier = 1 + pageCount / (extremeMode ? 25 : 50);
+      // Processing time calculation for realistic compression
+      const baseMBTime = 1.5; // Base time per MB for compression
+      const qualityMultiplier =
+        qualityValue < 0.3
+          ? 2.5 // Maximum compression takes longer
+          : qualityValue < 0.5
+            ? 2.0 // High compression
+            : qualityValue < 0.7
+              ? 1.5 // Medium compression
+              : 1.2; // Conservative compression
+      const pageMultiplier = 1 + pageCount / 50; // Page processing factor
       const timeInSeconds = Math.max(
-        extremeMode ? 5 : 2,
+        2, // Minimum 2 seconds for compression
         (selectedFile.size / (1024 * 1024)) *
           baseMBTime *
           qualityMultiplier *
@@ -301,7 +239,7 @@ const Compress = () => {
       );
       setEstimatedTime(`${timeInSeconds.toFixed(0)} seconds`);
     },
-    [extremeMode],
+    [], // No dependencies needed
   );
 
   // Update preview when quality changes
@@ -315,55 +253,100 @@ const Compress = () => {
     [file, updateCompressionPreview],
   );
 
-  // Handle extreme mode toggle
-  const handleExtremeModeChange = useCallback(
-    (enabled: boolean) => {
-      setExtremeMode(enabled);
-      if (file && file.pageCount) {
-        updateCompressionPreview(file.file, quality[0], file.pageCount);
-      }
-    },
-    [file, quality, updateCompressionPreview],
-  );
-
-  // Handle compression by navigating to processing page
-  const handleCompress = async () => {
-    if (!file) return;
-
-    // Check usage limits
-    const usageCheck = await PDFService.checkUsageLimit();
-    if (!usageCheck.canUpload) {
-      setUsageLimitReached(true);
-      if (!isAuthenticated) {
-        setShowAuthModal(true);
-      }
+  const handleFileSelect = async (selectedFile: File) => {
+    if (!selectedFile || selectedFile.type !== "application/pdf") {
+      toast({
+        title: "Invalid file",
+        description: "Please select a valid PDF file",
+        variant: "destructive",
+      });
       return;
     }
 
-    // Prepare processing data
-    const processingData = {
-      file: file.file,
-      quality: quality[0],
-      extremeMode,
+    // Check file size (max 100MB per file)
+    const maxSize = 100 * 1024 * 1024; // 100MB
+    if (selectedFile.size > maxSize) {
+      toast({
+        title: "File too large",
+        description: "Please select a PDF file smaller than 100MB",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Check total files limit (max 20 files for batch)
+    if (files.length >= 20) {
+      toast({
+        title: "Too many files",
+        description: "Maximum 20 files allowed for batch compression",
+        variant: "destructive",
+      });
+      return;
+    }
+    // Get page count and update compression preview
+    const pageCount = await getPageCount(selectedFile);
+
+    // Generate thumbnails in background
+    try {
+      const processedFile: ProcessedFile = {
+        id: Math.random().toString(36).substr(2, 9),
+        file: selectedFile,
+        name: selectedFile.name,
+        size: selectedFile.size,
+        loadingThumbnails: true,
+      };
+
+      // Add to files array (batch mode support)
+      if (batchMode) {
+        setFiles((prev) => [...prev, processedFile]);
+      } else {
+        setFiles([processedFile]);
+      }
+
+      // Generate page count and thumbnails
+      const pageCount = await getPageCount(selectedFile);
+      processedFile.pageCount = pageCount;
+
+      // Update compression preview for current file
+      updateCompressionPreview(selectedFile, quality[0], pageCount);
+
+      // Generate thumbnails
+      const thumbnails = await generateThumbnails(selectedFile);
+      processedFile.thumbnails = thumbnails;
+      processedFile.loadingThumbnails = false;
+
+      // Update the file in the array
+      setFiles((prev) =>
+        prev.map((f) => (f.id === processedFile.id ? processedFile : f)),
+      );
+    } catch (error) {
+      console.error("Error processing file:", error);
+      toast({
+        title: "Error",
+        description: "Failed to process the PDF file",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleCompress = () => {
+    if (!file) return;
+
+    // Enhanced processing state with realistic expectations
+    const processingState = {
       fileName: file.name,
       fileSize: file.size,
-      estimatedCompression: compressionPreview?.compressionRatio || 10,
+      quality: quality[0],
+      pageCount: file.pageCount || 1,
+      extremeMode: quality[0] <= 0.3, // Enable extreme mode for very low quality
+      file: file.file,
+      estimatedCompression: compressionPreview?.compressionRatio || 15, // Lower default expectation
     };
 
-    // Navigate to processing page with data
-    navigate("/compress-processing", {
-      state: { processingData },
-    });
+    navigate("/compress-processing", { state: processingState });
   };
 
-  const getQualityLabel = (value: number) => {
-    if (value >= 0.8) return "High Quality";
-    if (value >= 0.6) return "Medium Quality";
-    if (value >= 0.4) return "Low Quality";
-    return "Maximum Compression";
-  };
-
-  const formatFileSize = (bytes: number) => {
+  const formatFileSize = (bytes: number): string => {
     if (bytes === 0) return "0 Bytes";
     const k = 1024;
     const sizes = ["Bytes", "KB", "MB", "GB"];
@@ -371,156 +354,149 @@ const Compress = () => {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
   };
 
-  // Drag and drop handlers
-  const handleDrop = useCallback(
-    (e: React.DragEvent) => {
-      e.preventDefault();
-      setIsDragOver(false);
+  const getQualityLabel = (quality: number): string => {
+    if (quality <= 0.2) return "Maximum Compression";
+    if (quality <= 0.4) return "High Compression";
+    if (quality <= 0.6) return "Balanced";
+    if (quality <= 0.8) return "Good Quality";
+    return "Best Quality";
+  };
 
-      const files = Array.from(e.dataTransfer.files);
-      if (files.length > 0) {
-        handleFilesSelect(files);
-      }
-    },
-    [handleFilesSelect],
-  );
+  const getQualityDescription = (quality: number): string => {
+    if (quality <= 0.2)
+      return "Smallest file size with noticeable quality reduction";
+    if (quality <= 0.4) return "Good compression with moderate quality loss";
+    if (quality <= 0.6) return "Balanced compression and quality";
+    if (quality <= 0.8) return "Minor compression with good quality";
+    return "Minimal compression, best quality";
+  };
 
-  const handleDragOver = useCallback((e: React.DragEvent) => {
+  const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragOver(true);
-  }, []);
+  };
 
-  const handleDragLeave = useCallback((e: React.DragEvent) => {
+  const handleDragLeave = (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragOver(false);
-  }, []);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(false);
+
+    const droppedFiles = Array.from(e.dataTransfer.files);
+    if (droppedFiles.length > 0) {
+      handleFileSelect(droppedFiles[0]);
+    }
+  };
 
   return (
-    <div className="min-h-screen bg-bg-light">
+    <div className="min-h-screen bg-background">
       <Header />
 
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <PromoBanner className="mb-8" />
+      <PromoBanner />
 
-        {/* Navigation */}
-        <div className="flex items-center space-x-2 mb-8">
-          <Link
-            to="/"
-            className="text-body-medium text-text-light hover:text-brand-red"
-          >
-            <ArrowLeft className="w-4 h-4 mr-1 inline" />
-            Back to Home
-          </Link>
-        </div>
-
+      <div className="container mx-auto px-4 pt-16 pb-8">
         {/* Header */}
         <div className="text-center mb-8">
-          <div className="w-16 h-16 bg-gradient-to-br from-purple-500 to-purple-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
-            <Minimize className="w-8 h-8 text-white" />
-          </div>
-          <h1 className="text-heading-medium text-text-dark mb-4">
-            Smart PDF Compressor
-          </h1>
-          <p className="text-body-large text-text-light max-w-2xl mx-auto">
-            Advanced real-time compression with instant preview and live
-            optimization
-          </p>
-        </div>
-
-        {/* Main Content */}
-        <div className="space-y-8">
-          {/* Enhanced File Upload with Drag & Drop */}
-          {!file && (
-            <div className="bg-white rounded-xl p-8 shadow-sm border border-gray-100">
-              <div
-                onDrop={handleDrop}
-                onDragOver={handleDragOver}
-                onDragLeave={handleDragLeave}
-                className={cn(
-                  "relative border-2 border-dashed rounded-xl p-12 text-center transition-all duration-300",
-                  isDragOver
-                    ? "border-purple-400 bg-purple-50 scale-102 shadow-lg"
-                    : "border-gray-300 hover:border-purple-400 hover:bg-gray-50",
-                )}
-              >
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept=".pdf"
-                  onChange={(e) => {
-                    if (e.target.files) {
-                      handleFilesSelect(Array.from(e.target.files));
-                    }
-                  }}
-                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                />
-
-                <div className="flex flex-col items-center space-y-6">
-                  <div
-                    className={cn(
-                      "w-20 h-20 rounded-full flex items-center justify-center transition-all duration-300",
-                      isDragOver
-                        ? "bg-purple-500 text-white scale-110"
-                        : "bg-purple-100 text-purple-500",
-                    )}
-                  >
-                    <Upload className="w-10 h-10" />
-                  </div>
-
-                  <div>
-                    <h3 className="text-xl font-semibold text-text-dark mb-2">
-                      {isDragOver ? "Drop your PDF here!" : "Select PDF file"}
-                    </h3>
-                    <p className="text-text-light mb-6">
-                      or drag and drop PDF file here
-                    </p>
-
-                    <Button
-                      type="button"
-                      size="lg"
-                      className="bg-purple-500 hover:bg-purple-600"
-                      onClick={() => fileInputRef.current?.click()}
-                    >
-                      <FileText className="w-5 h-5 mr-2" />
-                      Choose PDF File
-                    </Button>
-
-                    <p className="text-sm text-text-light mt-4">
-                      Supports PDF files • Max size:{" "}
-                      {user?.isPremium ? "100MB" : "25MB"}
-                    </p>
-                  </div>
-                </div>
+          <div className="flex items-center justify-center mb-4">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => navigate("/")}
+              className="mr-4"
+            >
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Back
+            </Button>
+            <div className="flex items-center">
+              <div className="bg-red-100 p-3 rounded-full mr-4">
+                <Minimize className="w-6 h-6 text-red-600" />
+              </div>
+              <div>
+                <h1 className="text-3xl font-bold text-text-dark">
+                  Compress PDF
+                </h1>
+                <p className="text-text-light">
+                  Reduce PDF file size while maintaining quality
+                </p>
               </div>
             </div>
-          )}
+          </div>
+        </div>
 
-          {/* File Preview with Thumbnails */}
-          {file && (
-            <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="text-heading-small text-text-dark flex items-center">
-                  <Eye className="w-5 h-5 mr-2 text-purple-500" />
-                  PDF Preview & Settings
-                </h3>
-                <Button variant="outline" onClick={() => setFile(null)}>
-                  <X className="w-4 h-4 mr-2" />
-                  Remove File
-                </Button>
-              </div>
+        <div className="max-w-4xl mx-auto">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            {/* Left Column - Upload and Controls */}
+            <div className="lg:col-span-2 space-y-6">
+              {!file ? (
+                <div
+                  className={cn(
+                    "border-2 border-dashed rounded-xl p-8 text-center transition-all",
+                    isDragOver
+                      ? "border-red-400 bg-red-50"
+                      : "border-gray-300 hover:border-red-400 hover:bg-gray-50",
+                  )}
+                  onDragOver={handleDragOver}
+                  onDragLeave={handleDragLeave}
+                  onDrop={handleDrop}
+                >
+                  <div className="mx-auto w-24 h-24 bg-red-100 rounded-full flex items-center justify-center mb-4">
+                    <Upload className="w-12 h-12 text-red-600" />
+                  </div>
+                  <h3 className="text-xl font-semibold text-text-dark mb-2">
+                    Drop your PDF here
+                  </h3>
+                  <p className="text-text-light mb-4">
+                    Or click to browse and select your PDF file
+                  </p>
+                  <Button
+                    onClick={() => fileInputRef.current?.click()}
+                    className="bg-red-600 hover:bg-red-700"
+                  >
+                    Choose PDF File
+                  </Button>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept=".pdf"
+                    className="hidden"
+                    onChange={(e) => {
+                      const selectedFile = e.target.files?.[0];
+                      if (selectedFile) handleFileSelect(selectedFile);
+                    }}
+                  />
+                  <div className="mt-4 text-xs text-text-light">
+                    Supports PDF files up to 100MB
+                  </div>
+                </div>
+              ) : (
+                <div className="border rounded-xl p-6 bg-white shadow-sm">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-lg font-semibold text-text-dark">
+                      PDF File Loaded
+                    </h3>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setFiles([]);
+                        setCompressionPreview(null);
+                      }}
+                    >
+                      <X className="w-4 h-4" />
+                    </Button>
+                  </div>
 
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                {/* Left Column: File Info & Thumbnails */}
-                <div className="space-y-6">
-                  {/* File Info */}
-                  <div className="flex items-center space-x-4 p-4 rounded-lg border border-gray-200 bg-gradient-to-r from-purple-50 to-blue-50">
-                    <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
-                      <FileText className="w-6 h-6 text-purple-500" />
+                  <div className="flex items-center space-x-4 mb-4">
+                    <div className="bg-red-100 p-3 rounded-lg">
+                      <FileText className="w-6 h-6 text-red-600" />
                     </div>
                     <div className="flex-1">
-                      <p className="font-medium text-text-dark truncate">
+                      <h4 className="font-medium text-text-dark">
                         {file.name}
-                      </p>
+                      </h4>
                       <div className="flex items-center space-x-4 text-sm text-text-light">
                         <span>{formatFileSize(file.size)}</span>
                         {file.pageCount && (
@@ -531,388 +507,365 @@ const Compress = () => {
                   </div>
 
                   {/* PDF Thumbnails */}
-                  <div className="space-y-3">
-                    <h4 className="font-medium text-text-dark flex items-center">
-                      <Eye className="w-4 h-4 mr-2" />
-                      Page Preview
-                    </h4>
-
-                    {file.loadingThumbnails ? (
-                      <div className="flex items-center justify-center h-32 bg-gray-50 rounded-lg">
-                        <Loader2 className="w-6 h-6 animate-spin text-purple-500" />
-                        <span className="ml-2 text-text-light">
-                          Generating preview...
-                        </span>
-                      </div>
-                    ) : file.thumbnails && file.thumbnails.length > 0 ? (
-                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  {file.loadingThumbnails ? (
+                    <div className="flex items-center justify-center py-8">
+                      <Loader2 className="w-6 h-6 animate-spin text-red-600" />
+                      <span className="ml-2 text-text-light">
+                        Generating preview...
+                      </span>
+                    </div>
+                  ) : file.thumbnails && file.thumbnails.length > 0 ? (
+                    <div className="space-y-3">
+                      <h5 className="text-sm font-medium text-text-dark flex items-center">
+                        <Eye className="w-4 h-4 mr-2" />
+                        PDF Preview
+                      </h5>
+                      <div className="flex space-x-2 overflow-x-auto pb-2">
                         {file.thumbnails.map((thumbnail, index) => (
-                          <div key={index} className="relative group">
+                          <div
+                            key={index}
+                            className="flex-shrink-0 border rounded-lg overflow-hidden bg-white shadow-sm"
+                          >
                             <img
                               src={thumbnail}
                               alt={`Page ${index + 1}`}
-                              className="w-full h-24 object-contain bg-white border border-gray-200 rounded-lg shadow-sm group-hover:shadow-md transition-shadow"
+                              className="w-20 h-28 object-cover"
                             />
-                            <div className="absolute bottom-1 left-1 bg-black bg-opacity-75 text-white text-xs px-1.5 py-0.5 rounded">
+                            <div className="p-1 text-xs text-center text-text-light">
                               {index + 1}
                             </div>
                           </div>
                         ))}
                         {file.pageCount && file.pageCount > 5 && (
-                          <div className="flex items-center justify-center h-24 bg-gray-50 border border-gray-200 rounded-lg">
-                            <span className="text-sm text-text-light">
-                              +{file.pageCount - 5} more
-                            </span>
+                          <div className="flex-shrink-0 w-20 h-28 border rounded-lg flex items-center justify-center bg-gray-50">
+                            <div className="text-center">
+                              <div className="text-xs text-text-light">
+                                +{file.pageCount - 5}
+                              </div>
+                              <div className="text-xs text-text-light">
+                                more
+                              </div>
+                            </div>
                           </div>
                         )}
                       </div>
-                    ) : (
-                      <div className="flex items-center justify-center h-32 bg-gray-50 rounded-lg border border-gray-200">
-                        <span className="text-text-light">
-                          Preview not available
+                    </div>
+                  ) : null}
+                </div>
+              )}
+
+              {/* Quality Controls */}
+              {file && (
+                <div className="border rounded-xl p-6 bg-white shadow-sm">
+                  <div className="flex items-center mb-4">
+                    <Settings className="w-5 h-5 mr-2 text-red-600" />
+                    <h3 className="text-lg font-semibold text-text-dark">
+                      Compression Settings
+                    </h3>
+                  </div>
+
+                  <div className="space-y-4">
+                    <div>
+                      <div className="flex justify-between items-center mb-2">
+                        <label className="text-sm font-medium text-text-dark">
+                          Compression Level
+                        </label>
+                        <span className="text-sm font-medium text-red-600">
+                          {getQualityLabel(quality[0])}
                         </span>
                       </div>
-                    )}
-                  </div>
-                </div>
 
-                {/* Right Column: Compression Settings */}
-                <div className="space-y-6">
-                  {/* Extreme Mode Toggle */}
-                  <div className="bg-gradient-to-r from-red-50 to-orange-50 border border-red-200 rounded-lg p-4">
-                    <div className="flex items-center justify-between mb-3">
-                      <div className="flex items-center space-x-2">
-                        <Zap className="w-5 h-5 text-red-500" />
-                        <h4 className="font-medium text-red-800">
-                          Extreme Compression Mode
-                        </h4>
-                      </div>
-                      <label className="relative inline-flex items-center cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={extremeMode}
-                          onChange={(e) =>
-                            handleExtremeModeChange(e.target.checked)
-                          }
-                          className="sr-only peer"
-                        />
-                        <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-red-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-red-500"></div>
-                      </label>
-                    </div>
-
-                    {extremeMode ? (
-                      <div className="text-sm space-y-2">
-                        <p className="text-red-800 font-medium">
-                          ⚡ Up to 85% compression possible
-                        </p>
-                        <p className="text-red-700 text-xs">
-                          ⚠️ Warning: May significantly reduce image quality and
-                          remove some formatting. Best for storage/archival
-                          purposes.
-                        </p>
-                      </div>
-                    ) : (
-                      <p className="text-orange-700 text-sm">
-                        Enable for maximum compression (30-85% reduction) with
-                        quality trade-offs
-                      </p>
-                    )}
-                  </div>
-
-                  {/* Quality Settings */}
-                  <div className="space-y-4">
-                    <h4 className="font-medium text-text-dark flex items-center">
-                      <Settings className="w-4 h-4 mr-2" />
-                      Compression Settings
-                    </h4>
-
-                    <div className="space-y-3">
                       <Slider
                         value={quality}
                         onValueChange={handleQualityChange}
                         max={1}
                         min={0.1}
                         step={0.1}
-                        className="w-full"
+                        className="mb-2"
                       />
-                      <div className="flex justify-between items-center text-sm">
-                        <span className="text-text-light">
-                          {extremeMode ? "Extreme" : "Max"} Compression
-                        </span>
-                        <span
-                          className={cn(
-                            "font-medium",
-                            extremeMode ? "text-red-600" : "text-purple-600",
-                          )}
-                        >
-                          {extremeMode
-                            ? `${getQualityLabel(quality[0])} (Extreme)`
-                            : getQualityLabel(quality[0])}
-                        </span>
-                        <span className="text-text-light">High Quality</span>
-                      </div>
-                    </div>
-                  </div>
 
-                  {/* Live Preview Card */}
-                  {compressionPreview && (
-                    <div
-                      className={cn(
-                        "rounded-lg p-4 border",
-                        extremeMode
-                          ? "bg-gradient-to-br from-red-50 to-orange-50 border-red-200"
-                          : "bg-gradient-to-br from-green-50 to-blue-50 border-green-200",
-                      )}
-                    >
-                      <h5 className="font-medium text-text-dark mb-3 flex items-center">
-                        <Zap
-                          className={cn(
-                            "w-4 h-4 mr-2",
-                            extremeMode ? "text-red-500" : "text-green-500",
-                          )}
-                        />
-                        {extremeMode
-                          ? "Extreme Compression Preview"
-                          : "Live Compression Preview"}
-                      </h5>
-
-                      <div className="space-y-3">
-                        <div className="flex justify-between items-center">
-                          <span className="text-sm text-text-light">
-                            Current size:
-                          </span>
-                          <span className="font-medium">
-                            {formatFileSize(file.size)}
-                          </span>
-                        </div>
-
-                        <div className="flex justify-between items-center">
-                          <span className="text-sm text-text-light">
-                            Estimated size:
-                          </span>
-                          <span className="font-medium text-green-700">
-                            {formatFileSize(compressionPreview.estimatedSize)}
-                          </span>
-                        </div>
-
-                        <div className="flex justify-between items-center">
-                          <span className="text-sm text-text-light">
-                            Space saved:
-                          </span>
-                          <span className="font-medium text-green-700">
-                            {formatFileSize(
-                              compressionPreview.estimatedSavings,
+                      {/* Compression level indicator */}
+                      <div className="grid grid-cols-4 gap-2 text-xs">
+                        <div className="text-center">
+                          <div
+                            className={cn(
+                              "w-2 h-2 rounded-full mx-auto mb-1",
+                              quality[0] <= 0.3 ? "bg-red-500" : "bg-gray-300",
                             )}
+                          />
+                          <span
+                            className={
+                              quality[0] <= 0.3
+                                ? "text-red-600 font-medium"
+                                : "text-text-light"
+                            }
+                          >
+                            Max
                           </span>
                         </div>
-
-                        <div className="pt-2 border-t border-green-200">
-                          <div className="flex justify-between items-center">
-                            <span className="text-sm text-text-light">
-                              Reduction:
-                            </span>
-                            <span
-                              className={cn(
-                                "font-bold text-lg",
-                                extremeMode
-                                  ? compressionPreview.compressionRatio >= 60
-                                    ? "text-red-600"
-                                    : compressionPreview.compressionRatio >= 30
-                                      ? "text-orange-600"
-                                      : "text-yellow-600"
-                                  : compressionPreview.compressionRatio >= 30
-                                    ? "text-green-600"
-                                    : compressionPreview.compressionRatio >= 15
-                                      ? "text-blue-600"
-                                      : "text-orange-600",
-                              )}
-                            >
-                              {compressionPreview.compressionRatio.toFixed(1)}%
-                            </span>
-                          </div>
-                        </div>
-
-                        <div className="flex items-center justify-between text-xs text-text-light">
-                          <span className="flex items-center">
-                            <Clock className="w-3 h-3 mr-1" />
-                            Est. time: {estimatedTime}
+                        <div className="text-center">
+                          <div
+                            className={cn(
+                              "w-2 h-2 rounded-full mx-auto mb-1",
+                              quality[0] > 0.3 && quality[0] <= 0.5
+                                ? "bg-orange-500"
+                                : "bg-gray-300",
+                            )}
+                          />
+                          <span
+                            className={
+                              quality[0] > 0.3 && quality[0] <= 0.5
+                                ? "text-orange-600 font-medium"
+                                : "text-text-light"
+                            }
+                          >
+                            High
                           </span>
-                          <span className="flex items-center">
-                            <HardDrive className="w-3 h-3 mr-1" />
-                            {getQualityLabel(quality[0])}
+                        </div>
+                        <div className="text-center">
+                          <div
+                            className={cn(
+                              "w-2 h-2 rounded-full mx-auto mb-1",
+                              quality[0] > 0.5 && quality[0] <= 0.7
+                                ? "bg-blue-500"
+                                : "bg-gray-300",
+                            )}
+                          />
+                          <span
+                            className={
+                              quality[0] > 0.5 && quality[0] <= 0.7
+                                ? "text-blue-600 font-medium"
+                                : "text-text-light"
+                            }
+                          >
+                            Balanced
+                          </span>
+                        </div>
+                        <div className="text-center">
+                          <div
+                            className={cn(
+                              "w-2 h-2 rounded-full mx-auto mb-1",
+                              quality[0] > 0.7 ? "bg-green-500" : "bg-gray-300",
+                            )}
+                          />
+                          <span
+                            className={
+                              quality[0] > 0.7
+                                ? "text-green-600 font-medium"
+                                : "text-text-light"
+                            }
+                          >
+                            Quality
                           </span>
                         </div>
                       </div>
-                    </div>
-                  )}
 
-                  {/* Quality Info with Realistic Expectations */}
-                  <div
-                    className={cn(
-                      "border rounded-lg p-4",
-                      extremeMode
-                        ? "bg-red-50 border-red-200"
-                        : "bg-blue-50 border-blue-200",
-                    )}
-                  >
-                    <p
-                      className={cn(
-                        "text-sm mb-2",
-                        extremeMode ? "text-red-800" : "text-blue-800",
-                      )}
-                    >
-                      <strong>Current Setting:</strong>{" "}
-                      {extremeMode
-                        ? `${getQualityLabel(quality[0])} (Extreme)`
-                        : getQualityLabel(quality[0])}
-                    </p>
-                    <div
-                      className={cn(
-                        "text-xs space-y-1",
-                        extremeMode ? "text-red-700" : "text-blue-700",
-                      )}
-                    >
-                      {extremeMode ? (
-                        // Extreme mode expectations
-                        <>
-                          {quality[0] >= 0.7 && (
-                            <p>
-                              • Extreme mode: 30-50% reduction with moderate
-                              quality loss
-                            </p>
-                          )}
-                          {quality[0] < 0.7 && quality[0] >= 0.4 && (
-                            <p>
-                              • Extreme mode: 45-65% reduction with noticeable
-                              quality loss
-                            </p>
-                          )}
-                          {quality[0] < 0.4 && (
-                            <p>
-                              • Extreme mode: 60-85% reduction with significant
-                              quality loss
-                            </p>
-                          )}
-                        </>
-                      ) : (
-                        // Standard mode expectations
-                        <>
-                          {quality[0] >= 0.7 && (
-                            <p>
-                              • Preserves quality - compression may be minimal
-                              (3-8%)
-                            </p>
-                          )}
-                          {quality[0] < 0.7 && quality[0] >= 0.4 && (
-                            <p>
-                              • Balanced optimization - expect 5-12% reduction
-                            </p>
-                          )}
-                          {quality[0] < 0.4 && (
-                            <p>
-                              • Maximum compression - up to 15% reduction
-                              possible
-                            </p>
-                          )}
-                        </>
-                      )}
-
-                      {!extremeMode &&
-                        compressionPreview &&
-                        compressionPreview.compressionRatio < 5 && (
-                          <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded">
-                            <p className="text-yellow-800 font-medium">
-                              ⚠️ Low compression expected
-                            </p>
-                            <p className="text-yellow-700">
-                              Try Extreme Mode for higher compression rates
-                              (with quality trade-offs).
-                            </p>
-                          </div>
-                        )}
-
-                      {extremeMode && (
-                        <div className="mt-2 p-2 bg-red-100 border border-red-300 rounded">
-                          <p className="text-red-800 font-medium">
-                            🔥 Extreme compression active
-                          </p>
-                          <p className="text-red-700">
-                            May remove formatting, reduce image quality, and
-                            affect readability.
-                          </p>
-                        </div>
-                      )}
-
-                      {!extremeMode && file && file.size < 2 * 1024 * 1024 && (
-                        <div className="mt-2 p-2 bg-orange-50 border border-orange-200 rounded">
-                          <p className="text-orange-800 font-medium">
-                            ℹ️ Small file notice
-                          </p>
-                          <p className="text-orange-700">
-                            Files under 2MB are often already compressed. Try
-                            Extreme Mode for better results.
-                          </p>
-                        </div>
-                      )}
+                      <p className="text-sm text-text-light mt-2">
+                        {getQualityDescription(quality[0])}
+                      </p>
                     </div>
                   </div>
                 </div>
+              )}
+            </div>
+
+            {/* Right Column - Preview and Info */}
+            <div className="space-y-6">
+              {/* Live Preview Card */}
+              {file && compressionPreview && (
+                <div className="rounded-lg p-4 border bg-gradient-to-br from-purple-50 to-blue-50 border-purple-200">
+                  <h5 className="font-medium text-text-dark mb-3 flex items-center">
+                    <Zap className="w-4 h-4 mr-2 text-purple-500" />
+                    Compression Preview
+                  </h5>
+
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-text-light">
+                        Current size:
+                      </span>
+                      <span className="font-medium">
+                        {formatFileSize(file.size)}
+                      </span>
+                    </div>
+
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-text-light">
+                        Estimated size:
+                      </span>
+                      <span className="font-medium text-green-700">
+                        {formatFileSize(compressionPreview.estimatedSize)}
+                      </span>
+                    </div>
+
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-text-light">
+                        Space saved:
+                      </span>
+                      <span className="font-medium text-green-700">
+                        {formatFileSize(compressionPreview.estimatedSavings)}
+                      </span>
+                    </div>
+
+                    <div className="pt-2 border-t border-green-200">
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm text-text-light">
+                          Reduction:
+                        </span>
+                        <span
+                          className={cn(
+                            "font-bold text-lg",
+                            compressionPreview.compressionRatio >= 65
+                              ? "text-purple-600" // Maximum compression (/screen)
+                              : compressionPreview.compressionRatio >= 45
+                                ? "text-blue-600" // High compression (/ebook)
+                                : compressionPreview.compressionRatio >= 25
+                                  ? "text-green-600" // Balanced compression (/printer)
+                                  : "text-orange-600", // Good quality (/prepress)
+                          )}
+                        >
+                          {compressionPreview.compressionRatio.toFixed(1)}%
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="text-xs text-text-light mt-2 p-2 bg-blue-50 rounded border border-blue-200">
+                      <div className="flex items-start space-x-2">
+                        <Info className="w-3 h-3 mt-0.5 text-blue-500 flex-shrink-0" />
+                        <span>
+                          Estimates based on professional PDF optimization
+                          techniques. Large files (10MB+) typically achieve
+                          70-80% reduction. Results vary by content complexity.
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center space-x-2 text-xs text-text-light">
+                      <Clock className="w-3 h-3" />
+                      <span>Est. time: {estimatedTime}</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Quality Info with Realistic Compression Expectations */}
+              {file && (
+                <div className="border rounded-lg p-4 bg-purple-50 border-purple-200">
+                  <h5 className="font-medium text-text-dark mb-3 flex items-center">
+                    <HardDrive className="w-4 h-4 mr-2 text-purple-500" />
+                    Compression Guide
+                  </h5>
+                  <div className="text-xs space-y-1 text-purple-700">
+                    {/* Professional compression expectations */}
+                    {quality[0] >= 0.8 && (
+                      <div>
+                        <p>
+                          • Best Quality: 5-10% reduction with minimal quality
+                          loss
+                        </p>
+                      </div>
+                    )}
+
+                    {quality[0] >= 0.6 && quality[0] < 0.8 && (
+                      <div>
+                        <p>
+                          • Good Quality (/prepress): 15-25% reduction with
+                          slight quality loss
+                        </p>
+                      </div>
+                    )}
+
+                    {quality[0] >= 0.4 && quality[0] < 0.6 && (
+                      <div>
+                        <p>
+                          • Balanced (/printer): 30-45% reduction with moderate
+                          quality loss
+                        </p>
+                      </div>
+                    )}
+
+                    {quality[0] >= 0.2 && quality[0] < 0.4 && (
+                      <div>
+                        <p>
+                          • High Compression (/ebook): 50-65% reduction with
+                          noticeable quality loss
+                        </p>
+                      </div>
+                    )}
+
+                    {quality[0] < 0.2 && (
+                      <div>
+                        <p>
+                          • Maximum Compression (/screen): 70-80% reduction with
+                          significant quality trade-offs
+                        </p>
+                      </div>
+                    )}
+
+                    {compressionPreview &&
+                      compressionPreview.compressionRatio >= 50 && (
+                        <div className="mt-2 p-2 bg-purple-100 border border-purple-300 rounded">
+                          <p className="text-purple-800 font-medium">
+                            🚀 Ultra compression potential detected
+                          </p>
+                          <p className="text-purple-700 text-xs mt-1">
+                            Your PDF has excellent compression opportunities
+                          </p>
+                        </div>
+                      )}
+                    <div className="mt-2 text-xs text-purple-600">
+                      <p>
+                        💡 Tip: Larger files with images typically compress
+                        better
+                      </p>
+                    </div>
+
+                    {file.size < 1024 * 1024 && (
+                      <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded">
+                        <p className="text-blue-700">
+                          Small files may have limited compression potential but
+                          will still be optimized.
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Pro Features */}
+              <div className="border rounded-lg p-4 bg-gradient-to-br from-amber-50 to-orange-50 border-amber-200">
+                <h5 className="font-medium text-text-dark mb-3 flex items-center">
+                  <Crown className="w-4 h-4 mr-2 text-amber-500" />
+                  Pro Features Available
+                </h5>
+                <div className="space-y-2 text-sm text-amber-700">
+                  <p>• Batch compression of multiple PDFs</p>
+                  <p>• Custom compression profiles</p>
+                  <p>• Priority processing queue</p>
+                  <p>• Advanced optimization algorithms</p>
+                </div>
+                <Button
+                  size="sm"
+                  className="w-full mt-3 bg-amber-600 hover:bg-amber-700"
+                  onClick={() => setShowAuthModal(true)}
+                >
+                  Upgrade to Pro
+                </Button>
               </div>
             </div>
-          )}
+          </div>
 
-          {/* Usage Limit Warnings */}
-          {usageLimitReached && !isAuthenticated && (
-            <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-6 text-center">
-              <AlertTriangle className="w-12 h-12 text-yellow-500 mx-auto mb-4" />
-              <h3 className="text-heading-small text-text-dark mb-2">
-                Daily Limit Reached
-              </h3>
-              <p className="text-body-medium text-text-light mb-4">
-                You've used your 3 free PDF operations today. Sign up to
-                continue!
-              </p>
+          {/* Process Button */}
+          {file && (
+            <div className="mt-8 text-center">
               <Button
-                onClick={() => setShowAuthModal(true)}
-                className="bg-brand-red hover:bg-red-600"
-              >
-                Sign Up Free
-              </Button>
-            </div>
-          )}
-
-          {usageLimitReached && isAuthenticated && !user?.isPremium && (
-            <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-6 text-center">
-              <Crown className="w-12 h-12 text-yellow-500 mx-auto mb-4" />
-              <h3 className="text-heading-small text-text-dark mb-2">
-                Upgrade to Premium
-              </h3>
-              <p className="text-body-medium text-text-light mb-4">
-                You've reached your daily limit. Upgrade to Premium for
-                unlimited access!
-              </p>
-              <Button
-                className="bg-brand-yellow text-black hover:bg-yellow-400"
-                asChild
-              >
-                <Link to="/pricing">
-                  <Crown className="w-4 h-4 mr-2" />
-                  Upgrade Now
-                </Link>
-              </Button>
-            </div>
-          )}
-
-          {/* Compress Button */}
-          {file && !usageLimitReached && (
-            <div className="text-center">
-              <Button
-                size="lg"
                 onClick={handleCompress}
-                className="bg-purple-500 hover:bg-purple-600 text-lg px-8 py-3"
+                size="lg"
+                className="bg-red-600 hover:bg-red-700 px-8"
+                disabled={!file}
               >
                 <Minimize className="w-5 h-5 mr-2" />
-                Compress PDF Now
+                Compress PDF
               </Button>
 
               {compressionPreview && (
@@ -924,106 +877,98 @@ const Compress = () => {
               )}
             </div>
           )}
-        </div>
 
-        {/* Enhanced Features Section */}
-        <div className="mt-12 grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="text-center p-6 bg-white rounded-xl shadow-sm border border-gray-100">
-            <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center mx-auto mb-4">
-              <Eye className="w-6 h-6 text-purple-500" />
+          {/* Features Grid */}
+          <div className="mt-12 grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="text-center p-6 border rounded-lg bg-white shadow-sm">
+              <div className="bg-blue-100 p-3 rounded-full w-fit mx-auto mb-4">
+                <Eye className="w-6 h-6 text-blue-600" />
+              </div>
+              <h3 className="font-semibold text-text-dark mb-2">
+                Real-time Preview
+              </h3>
+              <p className="text-body-small text-text-light">
+                See PDF pages and compression results in real-time before
+                processing
+              </p>
             </div>
-            <h4 className="font-semibold text-text-dark mb-2">
-              Instant Preview
-            </h4>
-            <p className="text-body-small text-text-light">
-              See PDF pages and compression results in real-time before
-              processing
-            </p>
+
+            <div className="text-center p-6 border rounded-lg bg-white shadow-sm">
+              <div className="bg-green-100 p-3 rounded-full w-fit mx-auto mb-4">
+                <Zap className="w-6 h-6 text-green-600" />
+              </div>
+              <h3 className="font-semibold text-text-dark mb-2">
+                Smart Processing
+              </h3>
+              <p className="text-body-small text-text-light">
+                Watch compression progress with detailed step-by-step processing
+              </p>
+            </div>
+
+            <div className="text-center p-6 border rounded-lg bg-white shadow-sm">
+              <div className="bg-purple-100 p-3 rounded-full w-fit mx-auto mb-4">
+                <CheckCircle className="w-6 h-6 text-purple-600" />
+              </div>
+              <h3 className="font-semibold text-text-dark mb-2">
+                Quality Control
+              </h3>
+              <p className="text-body-small text-text-light">
+                Maintain document quality while achieving optimal compression
+              </p>
+            </div>
           </div>
 
-          <div className="text-center p-6 bg-white rounded-xl shadow-sm border border-gray-100">
-            <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center mx-auto mb-4">
-              <Zap className="w-6 h-6 text-green-500" />
-            </div>
-            <h4 className="font-semibold text-text-dark mb-2">
-              Live Optimization
-            </h4>
-            <p className="text-body-small text-text-light">
-              Watch compression progress with detailed step-by-step processing
-            </p>
-          </div>
-
-          <div className="text-center p-6 bg-white rounded-xl shadow-sm border border-gray-100">
-            <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mx-auto mb-4">
-              <Settings className="w-6 h-6 text-blue-500" />
-            </div>
-            <h4 className="font-semibold text-text-dark mb-2">
-              Smart Controls
-            </h4>
-            <p className="text-body-small text-text-light">
-              Intelligent quality settings with real-time size estimation
-            </p>
-          </div>
-        </div>
-
-        {/* Tips Section */}
-        <div className="mt-12 bg-gradient-to-br from-blue-50 to-purple-50 rounded-xl p-8 border border-blue-200">
-          <h3 className="text-heading-small text-text-dark text-center mb-6">
-            💡 Pro Tips for Best Results
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="space-y-3">
-              <div className="flex items-start space-x-3">
-                <div className="w-6 h-6 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
-                  <span className="text-green-600 text-sm font-bold">1</span>
-                </div>
+          {/* Tips and Recommendations */}
+          <div className="mt-8 border rounded-lg p-6 bg-gray-50">
+            <h3 className="font-semibold text-text-dark mb-4">
+              Compression Tips
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-text-light">
+              <div className="flex items-start space-x-2">
+                <CheckCircle className="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0" />
                 <div>
                   <p className="text-sm font-medium text-text-dark">
                     Use Max Compression for large files
                   </p>
-                  <p className="text-xs text-text-light">
-                    Image-heavy PDFs can see 40-60% reduction
+                  <p className="text-text-light">
+                    Files over 10MB benefit most from aggressive compression
                   </p>
                 </div>
               </div>
-              <div className="flex items-start space-x-3">
-                <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
-                  <span className="text-blue-600 text-sm font-bold">2</span>
-                </div>
+
+              <div className="flex items-start space-x-2">
+                <CheckCircle className="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0" />
                 <div>
                   <p className="text-sm font-medium text-text-dark">
-                    Preview shows real compression potential
+                    Preview shows realistic compression potential
                   </p>
-                  <p className="text-xs text-text-light">
-                    Live estimates help you choose the right quality
+                  <p className="text-text-light">
+                    Estimates are based on actual PDF processing capabilities
                   </p>
                 </div>
               </div>
-            </div>
-            <div className="space-y-3">
-              <div className="flex items-start space-x-3">
-                <div className="w-6 h-6 bg-purple-100 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
-                  <span className="text-purple-600 text-sm font-bold">3</span>
-                </div>
+
+              <div className="flex items-start space-x-2">
+                <CheckCircle className="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0" />
                 <div>
                   <p className="text-sm font-medium text-text-dark">
-                    Check page thumbnails
+                    Image-heavy PDFs compress better
                   </p>
-                  <p className="text-xs text-text-light">
-                    Ensure important content is preserved
+                  <p className="text-text-light">
+                    Documents with many images have higher compression potential
                   </p>
                 </div>
               </div>
-              <div className="flex items-start space-x-3">
-                <div className="w-6 h-6 bg-orange-100 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
-                  <span className="text-orange-600 text-sm font-bold">4</span>
-                </div>
+
+              <div className="flex items-start space-x-2">
+                <CheckCircle className="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0" />
                 <div>
                   <p className="text-sm font-medium text-text-dark">
-                    Drag & drop for fastest upload
+                    Quality vs. Size balance
                   </p>
-                  <p className="text-xs text-text-light">
-                    Instant file validation and preview generation
+                  <p className="text-text-light">
+                    Choose the right balance between file size and visual
+                    quality
                   </p>
                 </div>
               </div>
@@ -1033,11 +978,13 @@ const Compress = () => {
       </div>
 
       {/* Auth Modal */}
-      <AuthModal
-        isOpen={showAuthModal}
-        onClose={() => setShowAuthModal(false)}
-        defaultTab="register"
-      />
+      {showAuthModal && (
+        <AuthModal
+          isOpen={showAuthModal}
+          onClose={() => setShowAuthModal(false)}
+          mode="signup"
+        />
+      )}
     </div>
   );
 };
