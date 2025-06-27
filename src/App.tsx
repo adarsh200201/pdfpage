@@ -30,6 +30,7 @@ import ForgotPassword from "./pages/ForgotPassword";
 import Merge from "./pages/Merge";
 import Split from "./pages/Split";
 import Compress from "./pages/Compress";
+import CompressProcessing from "./pages/CompressProcessing";
 import Convert from "./pages/Convert";
 import PdfToJpg from "./pages/PdfToJpg";
 import PdfToWord from "./pages/PdfToWord";
@@ -155,6 +156,10 @@ const App = () => {
                 <Route path="/merge" element={<Merge />} />
                 <Route path="/split" element={<Split />} />
                 <Route path="/compress" element={<Compress />} />
+                <Route
+                  path="/compress-processing"
+                  element={<CompressProcessing />}
+                />
                 <Route path="/convert" element={<Convert />} />
                 <Route path="/rotate" element={<Rotate />} />
 
