@@ -1,4 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from "react";
+import Cropper from "react-cropper";
+import "cropperjs/dist/cropper.css";
 import ImgHeader from "../components/layout/ImgHeader";
 import { Button } from "../components/ui/button";
 import { Card, CardContent } from "../components/ui/card";
@@ -27,7 +29,6 @@ import { CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { imageService } from "../services/imageService";
 import { useToast } from "../hooks/use-toast";
 import { useAuth } from "../contexts/AuthContext";
-import { UsageService } from "../services/usageService";
 import {
   Upload,
   Download,
@@ -44,8 +45,6 @@ import {
   FlipVertical,
   Crop,
   RefreshCw,
-  Lock,
-  Unlock,
   Sparkles,
   Brain,
   Zap,
@@ -61,12 +60,9 @@ import {
   Scissors,
   Image as ImageIcon,
   Camera,
-  Maximize,
-  Minimize,
   Circle,
-  Triangle,
-  Star,
-  Heart,
+  Lock,
+  Unlock,
 } from "lucide-react";
 
 interface CropSettings {
@@ -80,17 +76,13 @@ interface CropSettings {
   flipVertical: boolean;
   quality: number;
   format: "jpeg" | "png" | "webp";
-  aiEnhancement: boolean;
-  smartCrop: boolean;
-  faceDetection: boolean;
-  edgePreservation: boolean;
 }
 
 interface CropPreset {
   id: string;
   name: string;
   description: string;
-  ratio: string;
+  ratio: number | null;
   icon: any;
   category: string;
   dimensions?: { width: number; height: number };
@@ -102,8 +94,6 @@ interface CropMetrics {
   croppedSize: number;
   compressionRatio: number;
   qualityScore: number;
-  facesDetected: number;
-  edgesPreserved: number;
 }
 
 const ImgCrop = () => {
@@ -114,17 +104,16 @@ const ImgCrop = () => {
   const [progress, setProgress] = useState(0);
   const [isComplete, setIsComplete] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
-  const [aiMode, setAiMode] = useState(false);
   const [metrics, setMetrics] = useState<CropMetrics | null>(null);
   const [cropHistory, setCropHistory] = useState<any[]>([]);
-  const [selectedPreset, setSelectedPreset] = useState<string>("");
+  const [selectedPreset, setSelectedPreset] = useState<string>("free");
+  const [isDragging, setIsDragging] = useState(false);
+  const [cropperReady, setCropperReady] = useState(false);
   const [showGrid, setShowGrid] = useState(true);
-  const [previewMode, setPreviewMode] = useState<"original" | "cropped">(
-    "original",
-  );
+  const [aspectRatioLocked, setAspectRatioLocked] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const cropperRef = useRef<HTMLImageElement>(null);
   const { toast } = useToast();
   const { user } = useAuth();
 
@@ -137,30 +126,25 @@ const ImgCrop = () => {
     rotation: 0,
     flipHorizontal: false,
     flipVertical: false,
-    quality: 95,
+    quality: 85,
     format: "jpeg",
-    aiEnhancement: false,
-    smartCrop: false,
-    faceDetection: false,
-    edgePreservation: false,
   });
 
   const cropPresets: CropPreset[] = [
     {
+      id: "free",
+      name: "Free Form",
+      description: "No aspect ratio constraint",
+      ratio: null,
+      icon: Move,
+      category: "Basic",
+    },
+    {
       id: "square",
       name: "Square",
       description: "Perfect for social media profiles",
-      ratio: "1:1",
+      ratio: 1,
       icon: Square,
-      category: "Social",
-      dimensions: { width: 1080, height: 1080 },
-    },
-    {
-      id: "instagram-post",
-      name: "Instagram Post",
-      description: "Optimized for Instagram feed",
-      ratio: "1:1",
-      icon: ImageIcon,
       category: "Social",
       dimensions: { width: 1080, height: 1080 },
     },
@@ -168,107 +152,181 @@ const ImgCrop = () => {
       id: "instagram-story",
       name: "Instagram Story",
       description: "Perfect for Instagram stories",
-      ratio: "9:16",
+      ratio: 9 / 16,
       icon: Smartphone,
       category: "Social",
       dimensions: { width: 1080, height: 1920 },
     },
     {
-      id: "facebook-cover",
-      name: "Facebook Cover",
-      description: "Facebook page cover photo",
-      ratio: "16:9",
-      icon: Monitor,
-      category: "Social",
-      dimensions: { width: 1640, height: 856 },
-    },
-    {
-      id: "twitter-header",
-      name: "Twitter Header",
-      description: "Twitter profile header",
-      ratio: "3:1",
-      icon: ImageIcon,
-      category: "Social",
-      dimensions: { width: 1500, height: 500 },
-    },
-    {
       id: "youtube-thumbnail",
       name: "YouTube Thumbnail",
       description: "YouTube video thumbnail",
-      ratio: "16:9",
+      ratio: 16 / 9,
       icon: Camera,
       category: "Video",
       dimensions: { width: 1280, height: 720 },
     },
     {
+      id: "facebook-cover",
+      name: "Facebook Cover",
+      description: "Facebook page cover photo",
+      ratio: 851 / 315,
+      icon: Monitor,
+      category: "Social",
+      dimensions: { width: 1640, height: 856 },
+    },
+    {
+      id: "4-3",
+      name: "Standard 4:3",
+      description: "Classic photo format",
+      ratio: 4 / 3,
+      icon: ImageIcon,
+      category: "Basic",
+    },
+    {
+      id: "3-2",
+      name: "Photo 3:2",
+      description: "Standard photo aspect ratio",
+      ratio: 3 / 2,
+      icon: Camera,
+      category: "Basic",
+    },
+    {
       id: "passport",
       name: "Passport Photo",
-      description: "Standard passport photo dimensions",
-      ratio: "3.5:4.5",
+      description: "Standard passport photo",
+      ratio: 35 / 45,
       icon: Circle,
       category: "Document",
       dimensions: { width: 413, height: 531 },
     },
-    {
-      id: "business-card",
-      name: "Business Card",
-      description: "Standard business card format",
-      ratio: "3.5:2",
-      icon: Target,
-      category: "Print",
-      dimensions: { width: 1050, height: 600 },
-    },
-  ];
-
-  const aspectRatios = [
-    { value: "free", label: "Free Crop" },
-    { value: "1:1", label: "Square (1:1)" },
-    { value: "4:3", label: "Standard (4:3)" },
-    { value: "16:9", label: "Widescreen (16:9)" },
-    { value: "3:2", label: "Photo (3:2)" },
-    { value: "9:16", label: "Portrait (9:16)" },
-    { value: "2:3", label: "Portrait Photo (2:3)" },
-    { value: "5:4", label: "Classic (5:4)" },
   ];
 
   const handleFileSelect = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      const file = e.target.files?.[0];
-      if (file) {
-        if (file.size > 10 * 1024 * 1024) {
-          toast({
-            title: "File too large",
-            description: "Please select an image smaller than 10MB.",
-            variant: "destructive",
-          });
-          return;
-        }
-
-        setSelectedFile(file);
-        const url = URL.createObjectURL(file);
-        setPreviewUrl(url);
-        setIsComplete(false);
-        setCroppedPreviewUrl("");
+    (file: File) => {
+      if (file.size > 10 * 1024 * 1024) {
+        toast({
+          title: "File too large",
+          description: "Please select an image smaller than 10MB.",
+          variant: "destructive",
+        });
+        return;
       }
+
+      setSelectedFile(file);
+      const url = URL.createObjectURL(file);
+      setPreviewUrl(url);
+      setIsComplete(false);
+      setCroppedPreviewUrl("");
+      setCropperReady(false);
     },
     [toast],
   );
 
+  const handleFileChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (file) {
+        handleFileSelect(file);
+      }
+    },
+    [handleFileSelect],
+  );
+
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+  }, []);
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+  }, []);
+
+  const handleDrop = useCallback(
+    (e: React.DragEvent) => {
+      e.preventDefault();
+      setIsDragging(false);
+
+      const files = Array.from(e.dataTransfer.files);
+      const imageFiles = files.filter((file) => file.type.startsWith("image/"));
+
+      if (imageFiles.length > 0) {
+        handleFileSelect(imageFiles[0]);
+      } else {
+        toast({
+          title: "Invalid file",
+          description: "Please drop an image file.",
+          variant: "destructive",
+        });
+      }
+    },
+    [handleFileSelect, toast],
+  );
+
+  const getCropper = () => {
+    return cropperRef.current?.cropper;
+  };
+
+  const getCropData = useCallback(() => {
+    const cropper = getCropper();
+    if (!cropper) return null;
+
+    try {
+      const cropBoxData = cropper.getCropBoxData();
+      const canvasData = cropper.getCanvasData();
+      const imageData = cropper.getImageData();
+
+      // Calculate crop coordinates relative to the original image
+      const scaleX = imageData.naturalWidth / imageData.width;
+      const scaleY = imageData.naturalHeight / imageData.height;
+
+      const x = Math.max(
+        0,
+        Math.round((cropBoxData.left - canvasData.left) * scaleX),
+      );
+      const y = Math.max(
+        0,
+        Math.round((cropBoxData.top - canvasData.top) * scaleY),
+      );
+      const width = Math.round(cropBoxData.width * scaleX);
+      const height = Math.round(cropBoxData.height * scaleY);
+
+      return { x, y, width, height };
+    } catch (error) {
+      console.error("Error getting crop data:", error);
+      return null;
+    }
+  }, []);
+
   const handlePresetSelect = (presetId: string) => {
     const preset = cropPresets.find((p) => p.id === presetId);
-    if (preset) {
-      setSettings((prev) => ({
-        ...prev,
-        aspectRatio: preset.ratio,
-        width: preset.dimensions?.width || prev.width,
-        height: preset.dimensions?.height || prev.height,
-      }));
-      setSelectedPreset(presetId);
-      toast({
-        title: "Preset Applied",
-        description: `${preset.name} settings have been applied.`,
-      });
+    if (!preset) return;
+
+    const cropper = getCropper();
+
+    setSelectedPreset(presetId);
+    setSettings((prev) => ({
+      ...prev,
+      aspectRatio: preset.id,
+      width: preset.dimensions?.width || prev.width,
+      height: preset.dimensions?.height || prev.height,
+    }));
+
+    if (cropper) {
+      if (preset.ratio !== null) {
+        cropper.setAspectRatio(preset.ratio);
+        setAspectRatioLocked(true);
+      } else {
+        cropper.setAspectRatio(NaN);
+        setAspectRatioLocked(false);
+      }
     }
+
+    toast({
+      title: "Preset Applied",
+      description: `${preset.name} settings have been applied.`,
+    });
   };
 
   const handleCrop = async () => {
@@ -290,6 +348,16 @@ const ImgCrop = () => {
       return;
     }
 
+    const cropData = getCropData();
+    if (!cropData) {
+      toast({
+        title: "Invalid crop area",
+        description: "Please select a valid crop area.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsProcessing(true);
     setProgress(0);
 
@@ -303,41 +371,30 @@ const ImgCrop = () => {
 
       const startTime = Date.now();
 
-      // For demonstration, we'll crop from center with the specified dimensions
-      const img = new Image();
-      img.src = previewUrl;
-      await new Promise((resolve) => {
-        img.onload = resolve;
-      });
+      // Prepare crop parameters
+      const cropParams = {
+        ...cropData,
+        rotation: settings.rotation,
+        flipHorizontal: settings.flipHorizontal,
+        flipVertical: settings.flipVertical,
+        quality: settings.quality,
+        format: settings.format,
+      };
 
-      const cropX = Math.max(0, (img.width - settings.width) / 2);
-      const cropY = Math.max(0, (img.height - settings.height) / 2);
-      const cropWidth = Math.min(settings.width, img.width);
-      const cropHeight = Math.min(settings.height, img.height);
+      console.log("Crop parameters:", cropParams);
 
-      const result = await imageService.cropImage(
-        selectedFile,
-        cropX,
-        cropY,
-        cropWidth,
-        cropHeight,
-      );
+      // Process image with backend
+      const result = await imageService.cropImage(selectedFile, cropParams);
 
       const endTime = Date.now();
 
-      // Simulate metrics calculation
+      // Calculate metrics
       const newMetrics: CropMetrics = {
         processingTime: endTime - startTime,
         originalSize: selectedFile.size,
-        croppedSize: result.size || selectedFile.size * 0.7,
-        compressionRatio: 0.7,
+        croppedSize: result.size,
+        compressionRatio: result.size / selectedFile.size,
         qualityScore: settings.quality,
-        facesDetected: settings.faceDetection
-          ? Math.floor(Math.random() * 3)
-          : 0,
-        edgesPreserved: settings.edgePreservation
-          ? Math.floor(Math.random() * 100) + 80
-          : 0,
       };
 
       setMetrics(newMetrics);
@@ -364,7 +421,7 @@ const ImgCrop = () => {
       // Download the result
       const link = document.createElement("a");
       link.href = croppedUrl;
-      link.download = `cropped-${selectedFile.name}`;
+      link.download = result.name;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -373,14 +430,16 @@ const ImgCrop = () => {
 
       toast({
         title: "Success!",
-        description: "Image cropped successfully.",
+        description: "Image cropped successfully and downloaded.",
       });
     } catch (error) {
       console.error("Crop failed:", error);
       toast({
         title: "Crop failed",
         description:
-          "There was an error cropping your image. Please try again.",
+          error instanceof Error
+            ? error.message
+            : "There was an error cropping your image.",
         variant: "destructive",
       });
     } finally {
@@ -389,6 +448,10 @@ const ImgCrop = () => {
   };
 
   const handleRotate = (degrees: number) => {
+    const cropper = getCropper();
+    if (cropper) {
+      cropper.rotate(degrees);
+    }
     setSettings((prev) => ({
       ...prev,
       rotation: (prev.rotation + degrees) % 360,
@@ -396,6 +459,15 @@ const ImgCrop = () => {
   };
 
   const handleFlip = (direction: "horizontal" | "vertical") => {
+    const cropper = getCropper();
+    if (cropper) {
+      if (direction === "horizontal") {
+        cropper.scaleX(settings.flipHorizontal ? 1 : -1);
+      } else {
+        cropper.scaleY(settings.flipVertical ? 1 : -1);
+      }
+    }
+
     if (direction === "horizontal") {
       setSettings((prev) => ({
         ...prev,
@@ -409,7 +481,19 @@ const ImgCrop = () => {
     }
   };
 
+  const handleZoom = (delta: number) => {
+    const cropper = getCropper();
+    if (cropper) {
+      cropper.zoom(delta);
+    }
+  };
+
   const handleReset = () => {
+    const cropper = getCropper();
+    if (cropper) {
+      cropper.reset();
+    }
+
     setSettings({
       aspectRatio: "free",
       width: 800,
@@ -419,47 +503,36 @@ const ImgCrop = () => {
       rotation: 0,
       flipHorizontal: false,
       flipVertical: false,
-      quality: 95,
+      quality: 85,
       format: "jpeg",
-      aiEnhancement: false,
-      smartCrop: false,
-      faceDetection: false,
-      edgePreservation: false,
     });
-    setSelectedPreset("");
+    setSelectedPreset("free");
     setCroppedPreviewUrl("");
     setIsComplete(false);
+    setAspectRatioLocked(false);
+
+    toast({
+      title: "Reset complete",
+      description: "Crop settings have been reset.",
+    });
   };
 
-  const handleShare = async () => {
-    if (navigator.share && croppedPreviewUrl) {
-      try {
-        await navigator.share({
-          title: "Cropped Image",
-          text: "Check out this cropped image!",
-          url: croppedPreviewUrl,
-        });
-      } catch (error) {
-        console.error("Error sharing:", error);
-      }
-    } else {
-      navigator.clipboard.writeText(window.location.href);
-      toast({
-        title: "Link Copied",
-        description: "Page URL copied to clipboard.",
-      });
+  const onCropperReady = () => {
+    setCropperReady(true);
+    console.log("Cropper is ready");
+  };
+
+  const onCrop = () => {
+    const cropData = getCropData();
+    if (cropData) {
+      setSettings((prev) => ({
+        ...prev,
+        x: cropData.x,
+        y: cropData.y,
+        width: cropData.width,
+        height: cropData.height,
+      }));
     }
-  };
-
-  const exportSettings = () => {
-    const dataStr = JSON.stringify(settings, null, 2);
-    const dataBlob = new Blob([dataStr], { type: "application/json" });
-    const url = URL.createObjectURL(dataBlob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = "crop-settings.json";
-    link.click();
-    URL.revokeObjectURL(url);
   };
 
   return (
@@ -483,11 +556,11 @@ const ImgCrop = () => {
               </div>
               <div>
                 <h1 className="text-5xl font-bold text-white mb-4">
-                  AI Image Cropper
+                  Professional Image Cropper
                 </h1>
                 <p className="text-xl text-white/90 leading-relaxed">
-                  Crop and resize images with precision using AI-powered smart
-                  detection, professional presets, and advanced editing tools.
+                  Crop and resize images with precision using our interactive
+                  cropping tool with real-time preview, zoom, rotate, and flip.
                 </p>
               </div>
             </div>
@@ -495,14 +568,18 @@ const ImgCrop = () => {
             {/* Feature Pills */}
             <div className="flex flex-wrap gap-3 mb-8">
               {[
-                { icon: Brain, label: "Smart Crop", color: "bg-white/20" },
-                { icon: Sparkles, label: "AI Enhanced", color: "bg-white/20" },
+                {
+                  icon: Brain,
+                  label: "Interactive Cropping",
+                  color: "bg-white/20",
+                },
+                { icon: Sparkles, label: "Live Preview", color: "bg-white/20" },
                 {
                   icon: Target,
                   label: "Precision Tools",
                   color: "bg-white/20",
                 },
-                { icon: Zap, label: "Instant Preview", color: "bg-white/20" },
+                { icon: Zap, label: "Fast Processing", color: "bg-white/20" },
                 {
                   icon: Camera,
                   label: "Professional Presets",
@@ -510,7 +587,7 @@ const ImgCrop = () => {
                 },
                 {
                   icon: Activity,
-                  label: "Real-time Analytics",
+                  label: "Live Analytics",
                   color: "bg-white/20",
                 },
               ].map((feature, index) => (
@@ -528,41 +605,8 @@ const ImgCrop = () => {
       </div>
 
       <div className="container mx-auto px-6 py-12">
-        {/* AI Mode Toggle & Quick Actions */}
-        <div className="mb-8 space-y-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div className="flex items-center gap-2">
-                <Switch
-                  checked={aiMode}
-                  onCheckedChange={setAiMode}
-                  className="data-[state=checked]:bg-gradient-to-r data-[state=checked]:from-purple-500 data-[state=checked]:to-pink-500"
-                />
-                <Label className="flex items-center gap-2 text-lg font-semibold">
-                  <Brain className="w-5 h-5 text-purple-600" />
-                  AI-Powered Mode
-                </Label>
-              </div>
-              <Badge
-                variant={aiMode ? "default" : "outline"}
-                className="bg-gradient-to-r from-purple-500 to-pink-500 text-white"
-              >
-                {aiMode ? "Smart Detection" : "Manual Mode"}
-              </Badge>
-            </div>
-            <div className="flex gap-2">
-              <Button variant="outline" size="sm" onClick={handleShare}>
-                <Share className="w-4 h-4 mr-2" />
-                Share
-              </Button>
-              <Button variant="outline" size="sm" onClick={exportSettings}>
-                <Save className="w-4 h-4 mr-2" />
-                Export Settings
-              </Button>
-            </div>
-          </div>
-
-          {/* Crop Presets */}
+        {/* Crop Presets */}
+        <div className="mb-8">
           <Card className="border-0 shadow-lg bg-white/80 backdrop-blur-sm">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -592,7 +636,7 @@ const ImgCrop = () => {
                         {preset.name}
                       </h3>
                       <p className="text-xs text-gray-600 mb-1">
-                        {preset.ratio}
+                        {preset.ratio ? `${preset.ratio.toFixed(2)}:1` : "Free"}
                       </p>
                       <Badge variant="outline" className="text-xs">
                         {preset.category}
@@ -621,8 +665,15 @@ const ImgCrop = () => {
               </CardHeader>
               <CardContent>
                 <div
-                  className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-purple-400 transition-colors cursor-pointer"
+                  className={`border-2 border-dashed rounded-lg p-8 text-center hover:border-purple-400 transition-colors cursor-pointer ${
+                    isDragging
+                      ? "border-purple-500 bg-purple-50"
+                      : "border-gray-300"
+                  }`}
                   onClick={() => fileInputRef.current?.click()}
+                  onDragOver={handleDragOver}
+                  onDragLeave={handleDragLeave}
+                  onDrop={handleDrop}
                 >
                   {selectedFile ? (
                     <div className="space-y-4">
@@ -642,10 +693,12 @@ const ImgCrop = () => {
                       <Upload className="w-12 h-12 mx-auto text-gray-400" />
                       <div>
                         <p className="text-lg font-medium text-gray-700">
-                          Click to upload an image
+                          {isDragging
+                            ? "Drop your image here"
+                            : "Click to upload or drag & drop"}
                         </p>
                         <p className="text-sm text-gray-500">
-                          or drag and drop your file here
+                          Support for JPG, PNG, WebP formats
                         </p>
                       </div>
                     </div>
@@ -655,7 +708,7 @@ const ImgCrop = () => {
                   ref={fileInputRef}
                   type="file"
                   accept="image/*"
-                  onChange={handleFileSelect}
+                  onChange={handleFileChange}
                   className="hidden"
                 />
               </CardContent>
@@ -668,22 +721,29 @@ const ImgCrop = () => {
                   <div className="flex items-center justify-between">
                     <CardTitle className="flex items-center gap-2">
                       <Eye className="w-5 h-5 text-blue-600" />
-                      Image Preview
+                      Interactive Crop Editor
+                      {cropperReady && (
+                        <Badge variant="outline" className="ml-2">
+                          Ready
+                        </Badge>
+                      )}
                     </CardTitle>
                     <div className="flex items-center gap-2">
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() =>
-                          setPreviewMode(
-                            previewMode === "original" ? "cropped" : "original",
-                          )
-                        }
-                        disabled={!croppedPreviewUrl}
+                        onClick={() => handleZoom(0.1)}
+                        disabled={!cropperReady}
                       >
-                        {previewMode === "original"
-                          ? "Show Cropped"
-                          : "Show Original"}
+                        <ZoomIn className="w-4 h-4" />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleZoom(-0.1)}
+                        disabled={!cropperReady}
+                      >
+                        <ZoomOut className="w-4 h-4" />
                       </Button>
                       <Button
                         variant="outline"
@@ -693,132 +753,142 @@ const ImgCrop = () => {
                         <Grid3X3 className="w-4 h-4 mr-2" />
                         Grid
                       </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setAspectRatioLocked(!aspectRatioLocked)}
+                      >
+                        {aspectRatioLocked ? (
+                          <Lock className="w-4 h-4" />
+                        ) : (
+                          <Unlock className="w-4 h-4" />
+                        )}
+                      </Button>
                     </div>
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <div className="relative bg-gray-100 rounded-lg overflow-hidden">
-                    <img
-                      src={
-                        previewMode === "cropped" && croppedPreviewUrl
-                          ? croppedPreviewUrl
-                          : previewUrl
+                  <div className="bg-gray-100 rounded-lg overflow-hidden">
+                    <Cropper
+                      ref={cropperRef}
+                      src={previewUrl}
+                      style={{ height: 400, width: "100%" }}
+                      aspectRatio={
+                        selectedPreset === "free"
+                          ? NaN
+                          : cropPresets.find((p) => p.id === selectedPreset)
+                              ?.ratio || NaN
                       }
-                      alt="Preview"
-                      className="w-full h-auto max-h-96 object-contain"
-                      style={{
-                        transform: `rotate(${settings.rotation}deg) scaleX(${
-                          settings.flipHorizontal ? -1 : 1
-                        }) scaleY(${settings.flipVertical ? -1 : 1})`,
-                      }}
+                      guides={showGrid}
+                      background={false}
+                      rotatable={true}
+                      scalable={true}
+                      zoomable={true}
+                      viewMode={1}
+                      dragMode="move"
+                      minCropBoxHeight={10}
+                      minCropBoxWidth={10}
+                      autoCropArea={0.8}
+                      checkOrientation={false}
+                      responsive={true}
+                      restore={false}
+                      checkCrossOrigin={false}
+                      ready={onCropperReady}
+                      crop={onCrop}
                     />
-                    {showGrid && (
-                      <div className="absolute inset-0 pointer-events-none">
-                        <div
-                          className="grid grid-cols-3 grid-rows-3 w-full h-full"
-                          style={{ backgroundColor: "transparent" }}
-                        >
-                          {[...Array(9)].map((_, i) => (
-                            <div
-                              key={i}
-                              className="border border-white/50 border-dashed"
-                            />
-                          ))}
-                        </div>
-                      </div>
-                    )}
                   </div>
 
-                  {/* Quick Transform Controls */}
-                  <div className="flex items-center justify-center gap-2 mt-4">
+                  {/* Transform Controls */}
+                  <div className="flex items-center justify-center gap-2 mt-4 flex-wrap">
                     <Button
                       variant="outline"
                       size="sm"
                       onClick={() => handleRotate(-90)}
+                      disabled={!cropperReady}
                     >
-                      <RotateCcw className="w-4 h-4" />
+                      <RotateCcw className="w-4 h-4 mr-1" />
+                      -90°
                     </Button>
                     <Button
                       variant="outline"
                       size="sm"
                       onClick={() => handleRotate(90)}
+                      disabled={!cropperReady}
                     >
-                      <RotateCw className="w-4 h-4" />
+                      <RotateCw className="w-4 h-4 mr-1" />
+                      +90°
                     </Button>
                     <Button
                       variant="outline"
                       size="sm"
                       onClick={() => handleFlip("horizontal")}
+                      disabled={!cropperReady}
                     >
-                      <FlipHorizontal className="w-4 h-4" />
+                      <FlipHorizontal className="w-4 h-4 mr-1" />
+                      Flip H
                     </Button>
                     <Button
                       variant="outline"
                       size="sm"
                       onClick={() => handleFlip("vertical")}
+                      disabled={!cropperReady}
                     >
-                      <FlipVertical className="w-4 h-4" />
+                      <FlipVertical className="w-4 h-4 mr-1" />
+                      Flip V
                     </Button>
-                    <Button variant="outline" size="sm" onClick={handleReset}>
-                      <RefreshCw className="w-4 h-4" />
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleReset}
+                      disabled={!cropperReady}
+                    >
+                      <RefreshCw className="w-4 h-4 mr-1" />
+                      Reset
                     </Button>
                   </div>
+
+                  {/* Current crop info */}
+                  {cropperReady && (
+                    <div className="mt-4 p-3 bg-gray-50 rounded-lg">
+                      <div className="grid grid-cols-4 gap-4 text-sm">
+                        <div>
+                          <Label className="text-xs text-gray-600">X</Label>
+                          <p className="font-semibold">{settings.x}px</p>
+                        </div>
+                        <div>
+                          <Label className="text-xs text-gray-600">Y</Label>
+                          <p className="font-semibold">{settings.y}px</p>
+                        </div>
+                        <div>
+                          <Label className="text-xs text-gray-600">Width</Label>
+                          <p className="font-semibold">{settings.width}px</p>
+                        </div>
+                        <div>
+                          <Label className="text-xs text-gray-600">
+                            Height
+                          </Label>
+                          <p className="font-semibold">{settings.height}px</p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             )}
 
             {/* Crop Settings */}
-            <Card className="border-0 shadow-lg bg-white/80 backdrop-blur-sm">
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <CardTitle className="flex items-center gap-2">
-                    <Settings className="w-5 h-5 text-gray-600" />
-                    Crop Settings
-                  </CardTitle>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setShowAdvanced(!showAdvanced)}
-                  >
-                    {showAdvanced ? "Hide" : "Show"} Advanced
-                  </Button>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <Tabs defaultValue="basic" className="w-full">
-                  <TabsList className="grid w-full grid-cols-3">
-                    <TabsTrigger value="basic">Basic</TabsTrigger>
-                    <TabsTrigger value="dimensions">Dimensions</TabsTrigger>
-                    <TabsTrigger value="quality">Quality</TabsTrigger>
-                  </TabsList>
-
-                  <TabsContent value="basic" className="space-y-4 mt-6">
-                    <div>
-                      <Label className="text-sm font-medium">
-                        Aspect Ratio
-                      </Label>
-                      <Select
-                        value={settings.aspectRatio}
-                        onValueChange={(value) =>
-                          setSettings((prev) => ({
-                            ...prev,
-                            aspectRatio: value,
-                          }))
-                        }
-                      >
-                        <SelectTrigger className="mt-2">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {aspectRatios.map((ratio) => (
-                            <SelectItem key={ratio.value} value={ratio.value}>
-                              {ratio.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-
+            {previewUrl && (
+              <Card className="border-0 shadow-lg bg-white/80 backdrop-blur-sm">
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="flex items-center gap-2">
+                      <Settings className="w-5 h-5 text-gray-600" />
+                      Output Settings
+                    </CardTitle>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  <div className="grid grid-cols-2 gap-4">
                     <div>
                       <Label className="text-sm font-medium">
                         Output Format
@@ -839,69 +909,7 @@ const ImgCrop = () => {
                         </SelectContent>
                       </Select>
                     </div>
-                  </TabsContent>
 
-                  <TabsContent value="dimensions" className="space-y-4 mt-6">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <Label className="text-sm font-medium">
-                          Width (px)
-                        </Label>
-                        <Input
-                          type="number"
-                          value={settings.width}
-                          onChange={(e) =>
-                            setSettings((prev) => ({
-                              ...prev,
-                              width: parseInt(e.target.value) || 0,
-                            }))
-                          }
-                          min="1"
-                          max="4000"
-                          className="mt-2"
-                        />
-                      </div>
-                      <div>
-                        <Label className="text-sm font-medium">
-                          Height (px)
-                        </Label>
-                        <Input
-                          type="number"
-                          value={settings.height}
-                          onChange={(e) =>
-                            setSettings((prev) => ({
-                              ...prev,
-                              height: parseInt(e.target.value) || 0,
-                            }))
-                          }
-                          min="1"
-                          max="4000"
-                          className="mt-2"
-                        />
-                      </div>
-                    </div>
-
-                    <div>
-                      <Label className="text-sm font-medium">
-                        Rotation: {settings.rotation}°
-                      </Label>
-                      <Slider
-                        value={[settings.rotation]}
-                        onValueChange={(value) =>
-                          setSettings((prev) => ({
-                            ...prev,
-                            rotation: value[0],
-                          }))
-                        }
-                        max={360}
-                        min={-360}
-                        step={15}
-                        className="mt-2"
-                      />
-                    </div>
-                  </TabsContent>
-
-                  <TabsContent value="quality" className="space-y-4 mt-6">
                     <div>
                       <Label className="text-sm font-medium">
                         Quality: {settings.quality}%
@@ -920,141 +928,54 @@ const ImgCrop = () => {
                         className="mt-2"
                       />
                     </div>
-
-                    {showAdvanced && (
-                      <div className="space-y-4">
-                        <Separator />
-                        <div className="space-y-4">
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <Label className="text-sm font-medium">
-                                AI Enhancement
-                              </Label>
-                              <p className="text-xs text-gray-500">
-                                Enhance image quality after cropping
-                              </p>
-                            </div>
-                            <Switch
-                              checked={settings.aiEnhancement}
-                              onCheckedChange={(checked) =>
-                                setSettings((prev) => ({
-                                  ...prev,
-                                  aiEnhancement: checked,
-                                }))
-                              }
-                            />
-                          </div>
-
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <Label className="text-sm font-medium">
-                                Smart Crop
-                              </Label>
-                              <p className="text-xs text-gray-500">
-                                AI-powered intelligent cropping
-                              </p>
-                            </div>
-                            <Switch
-                              checked={settings.smartCrop}
-                              onCheckedChange={(checked) =>
-                                setSettings((prev) => ({
-                                  ...prev,
-                                  smartCrop: checked,
-                                }))
-                              }
-                            />
-                          </div>
-
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <Label className="text-sm font-medium">
-                                Face Detection
-                              </Label>
-                              <p className="text-xs text-gray-500">
-                                Keep faces in frame automatically
-                              </p>
-                            </div>
-                            <Switch
-                              checked={settings.faceDetection}
-                              onCheckedChange={(checked) =>
-                                setSettings((prev) => ({
-                                  ...prev,
-                                  faceDetection: checked,
-                                }))
-                              }
-                            />
-                          </div>
-
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <Label className="text-sm font-medium">
-                                Edge Preservation
-                              </Label>
-                              <p className="text-xs text-gray-500">
-                                Preserve important edges and details
-                              </p>
-                            </div>
-                            <Switch
-                              checked={settings.edgePreservation}
-                              onCheckedChange={(checked) =>
-                                setSettings((prev) => ({
-                                  ...prev,
-                                  edgePreservation: checked,
-                                }))
-                              }
-                            />
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </TabsContent>
-                </Tabs>
-
-                {/* Crop Button */}
-                <div className="pt-4">
-                  <Button
-                    onClick={handleCrop}
-                    disabled={isProcessing || !selectedFile}
-                    className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700"
-                    size="lg"
-                  >
-                    {isProcessing ? (
-                      <>
-                        <RefreshCw className="w-5 h-5 mr-2 animate-spin" />
-                        Cropping Image...
-                      </>
-                    ) : (
-                      <>
-                        <Crop className="w-5 h-5 mr-2" />
-                        Crop Image
-                      </>
-                    )}
-                  </Button>
-                </div>
-
-                {/* Progress Bar */}
-                {isProcessing && (
-                  <div className="space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span>Processing image...</span>
-                      <span>{Math.round(progress)}%</span>
-                    </div>
-                    <Progress value={progress} className="h-2" />
                   </div>
-                )}
 
-                {/* Success State */}
-                {isComplete && (
-                  <Alert className="border-green-200 bg-green-50">
-                    <AlertDescription className="flex items-center gap-2 text-green-800">
-                      <Download className="w-4 h-4" />
-                      Image cropped successfully! Download started
-                      automatically.
-                    </AlertDescription>
-                  </Alert>
-                )}
-              </CardContent>
-            </Card>
+                  {/* Crop Button */}
+                  <div className="pt-4">
+                    <Button
+                      onClick={handleCrop}
+                      disabled={isProcessing || !selectedFile || !cropperReady}
+                      className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700"
+                      size="lg"
+                    >
+                      {isProcessing ? (
+                        <>
+                          <RefreshCw className="w-5 h-5 mr-2 animate-spin" />
+                          Processing Image...
+                        </>
+                      ) : (
+                        <>
+                          <Crop className="w-5 h-5 mr-2" />
+                          Crop & Download Image
+                        </>
+                      )}
+                    </Button>
+                  </div>
+
+                  {/* Progress Bar */}
+                  {isProcessing && (
+                    <div className="space-y-2">
+                      <div className="flex justify-between text-sm">
+                        <span>Processing image...</span>
+                        <span>{Math.round(progress)}%</span>
+                      </div>
+                      <Progress value={progress} className="h-2" />
+                    </div>
+                  )}
+
+                  {/* Success State */}
+                  {isComplete && (
+                    <Alert className="border-green-200 bg-green-50">
+                      <AlertDescription className="flex items-center gap-2 text-green-800">
+                        <Download className="w-4 h-4" />
+                        Image cropped successfully! Download started
+                        automatically.
+                      </AlertDescription>
+                    </Alert>
+                  )}
+                </CardContent>
+              </Card>
+            )}
           </div>
 
           {/* Analytics Sidebar */}
@@ -1063,7 +984,7 @@ const ImgCrop = () => {
             <Card className="border-0 shadow-lg bg-white/80 backdrop-blur-sm">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <BarChart3 className="w-5 h-5 text-purple-600" />
+                  <TrendingUp className="w-5 h-5 text-purple-600" />
                   Crop Analytics
                 </CardTitle>
               </CardHeader>
@@ -1085,20 +1006,6 @@ const ImgCrop = () => {
                         </div>
                         <div className="text-xs text-blue-600">Quality</div>
                       </div>
-                      <div className="p-3 bg-gradient-to-br from-green-50 to-emerald-50 rounded-lg">
-                        <div className="text-2xl font-bold text-green-700">
-                          {metrics.facesDetected}
-                        </div>
-                        <div className="text-xs text-green-600">Faces</div>
-                      </div>
-                      <div className="p-3 bg-gradient-to-br from-orange-50 to-red-50 rounded-lg">
-                        <div className="text-2xl font-bold text-orange-700">
-                          {(metrics.compressionRatio * 100).toFixed(0)}%
-                        </div>
-                        <div className="text-xs text-orange-600">
-                          Compression
-                        </div>
-                      </div>
                     </div>
 
                     <Separator />
@@ -1117,9 +1024,9 @@ const ImgCrop = () => {
                         </span>
                       </div>
                       <div className="flex justify-between text-sm">
-                        <span>Edges Preserved</span>
-                        <span className="font-medium">
-                          {metrics.edgesPreserved}%
+                        <span>Size Reduction</span>
+                        <span className="font-medium text-green-600">
+                          {((1 - metrics.compressionRatio) * 100).toFixed(1)}%
                         </span>
                       </div>
                     </div>
@@ -1177,7 +1084,7 @@ const ImgCrop = () => {
               </CardContent>
             </Card>
 
-            {/* Quick Tips */}
+            {/* Pro Tips */}
             <Card className="border-0 shadow-lg bg-white/80 backdrop-blur-sm">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -1188,20 +1095,20 @@ const ImgCrop = () => {
               <CardContent className="space-y-3">
                 <div className="p-3 bg-yellow-50 rounded-lg">
                   <h3 className="font-medium text-yellow-800 text-sm">
-                    Smart Crop
+                    Interactive Cropping
                   </h3>
                   <p className="text-xs text-yellow-700 mt-1">
-                    Enable AI mode for automatic subject detection and optimal
-                    cropping suggestions.
+                    Drag corners to resize, click and drag inside to move the
+                    crop area.
                   </p>
                 </div>
                 <div className="p-3 bg-blue-50 rounded-lg">
                   <h3 className="font-medium text-blue-800 text-sm">
-                    Face Detection
+                    Zoom & Pan
                   </h3>
                   <p className="text-xs text-blue-700 mt-1">
-                    Automatically keeps faces centered and properly framed in
-                    portrait crops.
+                    Use zoom buttons or mouse wheel. Drag to pan around the
+                    image.
                   </p>
                 </div>
                 <div className="p-3 bg-green-50 rounded-lg">
@@ -1209,8 +1116,8 @@ const ImgCrop = () => {
                     Quality Settings
                   </h3>
                   <p className="text-xs text-green-700 mt-1">
-                    Use 95% quality for print, 80% for web, and 60% for social
-                    media.
+                    Higher quality = larger file size. Use 85%+ for best
+                    results.
                   </p>
                 </div>
               </CardContent>

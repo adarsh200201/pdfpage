@@ -132,8 +132,65 @@ export class ImageService {
     });
   }
 
-  // Crop image to specified coordinates
+  // Crop image using backend API for server-side processing
   async cropImage(
+    file: File,
+    cropData: {
+      x: number;
+      y: number;
+      width: number;
+      height: number;
+      rotation?: number;
+      flipHorizontal?: boolean;
+      flipVertical?: boolean;
+      quality?: number;
+      format?: "jpeg" | "png" | "webp";
+    },
+  ): Promise<File> {
+    const formData = new FormData();
+    formData.append("image", file);
+    formData.append("x", cropData.x.toString());
+    formData.append("y", cropData.y.toString());
+    formData.append("width", cropData.width.toString());
+    formData.append("height", cropData.height.toString());
+
+    if (cropData.rotation !== undefined) {
+      formData.append("rotation", cropData.rotation.toString());
+    }
+    if (cropData.flipHorizontal !== undefined) {
+      formData.append("flipHorizontal", cropData.flipHorizontal.toString());
+    }
+    if (cropData.flipVertical !== undefined) {
+      formData.append("flipVertical", cropData.flipVertical.toString());
+    }
+    if (cropData.quality !== undefined) {
+      formData.append("quality", cropData.quality.toString());
+    }
+    if (cropData.format) {
+      formData.append("format", cropData.format);
+    }
+
+    const token = localStorage.getItem("token");
+    const response = await fetch("/api/image/crop", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || "Failed to crop image");
+    }
+
+    const blob = await response.blob();
+    const fileName = `cropped-${Date.now()}.${cropData.format || "jpeg"}`;
+    return new File([blob], fileName, { type: blob.type });
+  }
+
+  // Client-side crop fallback for preview purposes
+  async cropImageLocal(
     file: File,
     cropX: number,
     cropY: number,
@@ -2341,6 +2398,67 @@ export class ImageService {
       }
     }
   }
+  // Analyze image and get metadata
+  async analyzeImage(file: File): Promise<any> {
+    const formData = new FormData();
+    formData.append("image", file);
+
+    const token = localStorage.getItem("token");
+    const response = await fetch("/api/image/analyze", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || "Failed to analyze image");
+    }
+
+    return await response.json();
+  }
+
+  // Resize image using backend API
+  async resizeImage(
+    file: File,
+    options: {
+      width?: number;
+      height?: number;
+      fit?: "cover" | "contain" | "fill" | "inside" | "outside";
+      quality?: number;
+      format?: "jpeg" | "png" | "webp";
+    },
+  ): Promise<File> {
+    const formData = new FormData();
+    formData.append("image", file);
+
+    if (options.width) formData.append("width", options.width.toString());
+    if (options.height) formData.append("height", options.height.toString());
+    if (options.fit) formData.append("fit", options.fit);
+    if (options.quality) formData.append("quality", options.quality.toString());
+    if (options.format) formData.append("format", options.format);
+
+    const token = localStorage.getItem("token");
+    const response = await fetch("/api/image/resize", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || "Failed to resize image");
+    }
+
+    const blob = await response.blob();
+    const fileName = `resized-${Date.now()}.${options.format || "jpeg"}`;
+    return new File([blob], fileName, { type: blob.type });
+  }
 }
 
+// Export singleton instance
 export const imageService = ImageService.getInstance();
