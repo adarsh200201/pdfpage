@@ -34,10 +34,6 @@ const FloatingGoogleSignInPopup: React.FC<FloatingGoogleSignInPopupProps> = ({
       const timer = setInterval(() => {
         setTimeLeft((prev) => {
           if (prev <= 1) {
-            // Auto-hide after 5 seconds if no interaction
-            if (!hasInteracted) {
-              handleDismiss(true);
-            }
             return 0;
           }
           return prev - 1;
@@ -48,7 +44,14 @@ const FloatingGoogleSignInPopup: React.FC<FloatingGoogleSignInPopupProps> = ({
     } else {
       setIsVisible(false);
     }
-  }, [show, isAuthenticated, hasInteracted]);
+  }, [show, isAuthenticated]);
+
+  // Separate effect for auto-dismiss when timer reaches 0
+  useEffect(() => {
+    if (timeLeft === 0 && !hasInteracted && isVisible) {
+      handleDismiss(true);
+    }
+  }, [timeLeft, hasInteracted, isVisible]);
 
   const handleGoogleSignIn = async () => {
     if (isLoading) return;

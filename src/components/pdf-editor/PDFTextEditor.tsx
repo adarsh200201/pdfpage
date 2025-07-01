@@ -1,10 +1,15 @@
-import React, { useState, useRef, useEffect } from 'react';
-import * as pdfjsLib from 'pdfjs-dist';
-import { PDFDocumentProxy, PDFPageProxy, TextItem, TextMarkedContent } from 'pdfjs-dist/types/src/display/api';
-import 'pdfjs-dist/build/pdf.worker.entry';
+import React, { useState, useRef, useEffect } from "react";
+import * as pdfjsLib from "pdfjs-dist";
+import {
+  PDFDocumentProxy,
+  PDFPageProxy,
+  TextItem,
+  TextMarkedContent,
+} from "pdfjs-dist/types/src/display/api";
+import "pdfjs-dist/build/pdf.worker.entry";
 
 // Set worker path
-if (typeof window !== 'undefined' && 'Worker' in window) {
+if (typeof window !== "undefined" && "Worker" in window) {
   pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
 }
 
@@ -22,7 +27,7 @@ class SimpleTextLayerBuilder {
 
   async setTextContent(textContent: any) {
     const textLayer = this.textLayerDiv;
-    textLayer.innerHTML = '';
+    textLayer.innerHTML = "";
 
     if (!textContent || !textContent.items || textContent.items.length === 0) {
       return;
@@ -33,22 +38,22 @@ class SimpleTextLayerBuilder {
     for (const item of textContent.items) {
       const tx = pdfjsLib.Util.transform(
         this.viewport.transform,
-        item.transform
+        item.transform,
       );
 
       const style = {
         left: `${tx[4]}px`,
         top: `${tx[5]}px`,
-        fontSize: `${Math.sqrt((tx[0] * tx[0]) + (tx[1] * tx[1]))}px`,
-        lineHeight: '1',
-        position: 'absolute',
-        cursor: 'text',
-        whiteSpace: 'pre',
+        fontSize: `${Math.sqrt(tx[0] * tx[0] + tx[1] * tx[1])}px`,
+        lineHeight: "1",
+        position: "absolute",
+        cursor: "text",
+        whiteSpace: "pre",
         transform: `matrix(${tx[0]},${tx[1]},${tx[2]},${tx[3]},0,0)`,
-        transformOrigin: '0% 0%',
+        transformOrigin: "0% 0%",
       };
 
-      const span = document.createElement('span');
+      const span = document.createElement("span");
       span.textContent = item.str;
       Object.assign(span.style, style);
       textFrag.appendChild(span);
@@ -68,19 +73,31 @@ interface PDFTextEditorProps {
   onError: (error: Error) => void;
 }
 
-const PDFTextEditor: React.FC<PDFTextEditorProps> = ({ file, onSave, onError }) => {
+const PDFTextEditor: React.FC<PDFTextEditorProps> = ({
+  file,
+  onSave,
+  onError,
+}) => {
   const [pdfDocument, setPdfDocument] = useState<PDFDocumentProxy | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [scale, setScale] = useState(1.5);
   const [isEditing, setIsEditing] = useState(false);
-  const [modifiedText, setModifiedText] = useState('');
-  
+  const [modifiedText, setModifiedText] = useState("");
+
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const textLayerRef = useRef<HTMLDivElement>(null);
   const textAreaRef = useRef<HTMLTextAreaElement>(null);
-  const [textPosition, setTextPosition] = useState({ top: 0, left: 0, width: 0, height: 0 });
-  const [selectedText, setSelectedText] = useState('');
-  const [selectionPosition, setSelectionPosition] = useState({ top: 0, left: 0 });
+  const [textPosition, setTextPosition] = useState({
+    top: 0,
+    left: 0,
+    width: 0,
+    height: 0,
+  });
+  const [selectedText, setSelectedText] = useState("");
+  const [selectionPosition, setSelectionPosition] = useState({
+    top: 0,
+    left: 0,
+  });
 
   // Load PDF document
   useEffect(() => {
@@ -91,7 +108,7 @@ const PDFTextEditor: React.FC<PDFTextEditorProps> = ({ file, onSave, onError }) 
         const pdf = await loadingTask.promise;
         setPdfDocument(pdf);
       } catch (error) {
-        console.error('Error loading PDF:', error);
+        console.error("Error loading PDF:", error);
         onError(error as Error);
       }
     };
@@ -105,12 +122,12 @@ const PDFTextEditor: React.FC<PDFTextEditorProps> = ({ file, onSave, onError }) 
 
     const renderPage = async () => {
       try {
-        const page = await pdfDocument.getPage(currentPage) as PDFPageProxy;
+        const page = (await pdfDocument.getPage(currentPage)) as PDFPageProxy;
         const viewport = page.getViewport({ scale });
-        
+
         // Set canvas dimensions
         const canvas = canvasRef.current!;
-        const context = canvas.getContext('2d')!;
+        const context = canvas.getContext("2d")!;
         canvas.height = viewport.height;
         canvas.width = viewport.width;
 
@@ -122,8 +139,8 @@ const PDFTextEditor: React.FC<PDFTextEditorProps> = ({ file, onSave, onError }) 
 
         // Set up text layer
         if (textLayerRef.current) {
-          textLayerRef.current.innerHTML = '';
-          
+          textLayerRef.current.innerHTML = "";
+
           const textLayer = new SimpleTextLayerBuilder({
             textLayerDiv: textLayerRef.current,
             pageNumber: currentPage,
@@ -134,17 +151,16 @@ const PDFTextEditor: React.FC<PDFTextEditorProps> = ({ file, onSave, onError }) 
           const textItems = textContent.items as TextItem[];
           textLayer.setTextContent(textContent);
           textLayer.render();
-            
+
           // Make text selectable
-          const textSpans = textLayerRef.current?.querySelectorAll('.textLayer > div');
+          const textSpans =
+            textLayerRef.current?.querySelectorAll(".textLayer > div");
           textSpans?.forEach((span) => {
-            span.addEventListener('mouseup', handleTextSelection);
-              span.addEventListener('mouseup', handleTextSelection);
-            });
+            span.addEventListener("mouseup", handleTextSelection);
           });
         }
       } catch (error) {
-        console.error('Error rendering PDF:', error);
+        console.error("Error rendering PDF:", error);
         onError(error as Error);
       }
     };
@@ -154,27 +170,27 @@ const PDFTextEditor: React.FC<PDFTextEditorProps> = ({ file, onSave, onError }) 
 
   const handleTextSelection = (e: MouseEvent) => {
     const selection = window.getSelection();
-    if (!selection || selection.toString().trim() === '') return;
-    
+    if (!selection || selection.toString().trim() === "") return;
+
     const range = selection.getRangeAt(0);
     const rect = range.getBoundingClientRect();
-    
+
     setSelectedText(selection.toString());
     setSelectionPosition({
       left: rect.left + window.scrollX,
       top: rect.bottom + window.scrollY,
     });
-    
+
     // Store the range for later use
     (window as any).lastSelection = range;
   };
 
   const handleEditText = () => {
     if (!textLayerRef.current) return;
-    
+
     const range = (window as any).lastSelection as Range;
     if (!range) return;
-    
+
     const rect = range.getBoundingClientRect();
     setTextPosition({
       top: rect.top + window.scrollY,
@@ -182,10 +198,10 @@ const PDFTextEditor: React.FC<PDFTextEditorProps> = ({ file, onSave, onError }) 
       width: rect.width,
       height: rect.height,
     });
-    
+
     setModifiedText(selectedText);
     setIsEditing(true);
-    
+
     // Focus the textarea after a small delay to ensure it's rendered
     setTimeout(() => {
       textAreaRef.current?.focus();
@@ -195,11 +211,11 @@ const PDFTextEditor: React.FC<PDFTextEditorProps> = ({ file, onSave, onError }) 
 
   const saveTextEdit = () => {
     if (!isEditing) return;
-    
+
     // In a real implementation, you would update the PDF with the modified text
     // This is a simplified version that just shows the concept
-    console.log('Text modified:', modifiedText);
-    
+    console.log("Text modified:", modifiedText);
+
     // Here you would update the PDF with the modified text
     // For demonstration, we'll just update the selection
     if ((window as any).lastSelection) {
@@ -207,21 +223,21 @@ const PDFTextEditor: React.FC<PDFTextEditorProps> = ({ file, onSave, onError }) 
       range.deleteContents();
       range.insertNode(document.createTextNode(modifiedText));
     }
-    
+
     setIsEditing(false);
   };
 
   const handleSavePdf = async () => {
     if (!pdfDocument) return;
-    
+
     try {
       // In a real implementation, you would use a PDF library that supports modification
       // like pdf-lib (https://pdf-lib.js.org/) to create a new PDF with the modified content
       // This is a simplified version that just returns the original file
       const arrayBuffer = await file.arrayBuffer();
-      onSave(new Blob([arrayBuffer], { type: 'application/pdf' }));
+      onSave(new Blob([arrayBuffer], { type: "application/pdf" }));
     } catch (error) {
-      console.error('Error saving PDF:', error);
+      console.error("Error saving PDF:", error);
       onError(error as Error);
     }
   };
@@ -238,8 +254,8 @@ const PDFTextEditor: React.FC<PDFTextEditorProps> = ({ file, onSave, onError }) 
     }
   };
 
-  const zoomIn = () => setScale(prev => Math.min(prev + 0.25, 3));
-  const zoomOut = () => setScale(prev => Math.max(prev - 0.25, 0.5));
+  const zoomIn = () => setScale((prev) => Math.min(prev + 0.25, 3));
+  const zoomOut = () => setScale((prev) => Math.max(prev - 0.25, 0.5));
 
   if (!pdfDocument) {
     return <div>Loading PDF...</div>;
@@ -250,8 +266,8 @@ const PDFTextEditor: React.FC<PDFTextEditorProps> = ({ file, onSave, onError }) 
       {/* Toolbar */}
       <div className="bg-gray-100 p-2 flex justify-between items-center">
         <div className="flex space-x-2">
-          <button 
-            onClick={handlePrevPage} 
+          <button
+            onClick={handlePrevPage}
             disabled={currentPage <= 1}
             className="px-3 py-1 bg-white border rounded disabled:opacity-50"
           >
@@ -260,8 +276,8 @@ const PDFTextEditor: React.FC<PDFTextEditorProps> = ({ file, onSave, onError }) 
           <span className="px-3 py-1">
             Page {currentPage} of {pdfDocument.numPages}
           </span>
-          <button 
-            onClick={handleNextPage} 
+          <button
+            onClick={handleNextPage}
             disabled={currentPage >= pdfDocument.numPages}
             className="px-3 py-1 bg-white border rounded disabled:opacity-50"
           >
@@ -269,14 +285,14 @@ const PDFTextEditor: React.FC<PDFTextEditorProps> = ({ file, onSave, onError }) 
           </button>
         </div>
         <div className="flex space-x-2">
-          <button 
+          <button
             onClick={zoomOut}
             className="px-3 py-1 bg-white border rounded"
           >
             -
           </button>
           <span className="px-3 py-1">{Math.round(scale * 100)}%</span>
-          <button 
+          <button
             onClick={zoomIn}
             className="px-3 py-1 bg-white border rounded"
           >
@@ -284,7 +300,7 @@ const PDFTextEditor: React.FC<PDFTextEditorProps> = ({ file, onSave, onError }) 
           </button>
         </div>
         <div>
-          <button 
+          <button
             onClick={handleSavePdf}
             className="px-4 py-1 bg-blue-500 text-white rounded hover:bg-blue-600"
           >
@@ -294,18 +310,21 @@ const PDFTextEditor: React.FC<PDFTextEditorProps> = ({ file, onSave, onError }) 
       </div>
 
       {/* PDF Viewer */}
-      <div className="relative overflow-auto border border-gray-200" style={{ height: 'calc(100% - 50px)' }}>
+      <div
+        className="relative overflow-auto border border-gray-200"
+        style={{ height: "calc(100% - 50px)" }}
+      >
         <div className="relative">
           <canvas ref={canvasRef} className="absolute top-0 left-0" />
-          <div 
-            ref={textLayerRef} 
+          <div
+            ref={textLayerRef}
             className="absolute top-0 left-0 textLayer"
-            style={{ 
-              transformOrigin: '0 0',
+            style={{
+              transformOrigin: "0 0",
               transform: `scale(${scale})`,
-              width: '100%',
-              height: '100%',
-              pointerEvents: 'auto',
+              width: "100%",
+              height: "100%",
+              pointerEvents: "auto",
             }}
           />
         </div>
@@ -313,9 +332,9 @@ const PDFTextEditor: React.FC<PDFTextEditorProps> = ({ file, onSave, onError }) 
 
       {/* Text Edit Popup */}
       {isEditing && (
-        <div 
+        <div
           style={{
-            position: 'absolute',
+            position: "absolute",
             top: `${textPosition.top}px`,
             left: `${textPosition.left}px`,
             zIndex: 1000,
@@ -327,16 +346,16 @@ const PDFTextEditor: React.FC<PDFTextEditorProps> = ({ file, onSave, onError }) 
             value={modifiedText}
             onChange={(e) => setModifiedText(e.target.value)}
             className="w-full p-2 border rounded mb-2"
-            style={{ minWidth: '200px', minHeight: '100px' }}
+            style={{ minWidth: "200px", minHeight: "100px" }}
           />
           <div className="flex justify-end space-x-2">
-            <button 
+            <button
               onClick={() => setIsEditing(false)}
               className="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300"
             >
               Cancel
             </button>
-            <button 
+            <button
               onClick={saveTextEdit}
               className="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600"
             >
@@ -348,23 +367,23 @@ const PDFTextEditor: React.FC<PDFTextEditorProps> = ({ file, onSave, onError }) 
 
       {/* Selection Toolbar */}
       {selectedText && !isEditing && (
-        <div 
+        <div
           style={{
-            position: 'absolute',
+            position: "absolute",
             top: `${selectionPosition.top}px`,
             left: `${selectionPosition.left}px`,
             zIndex: 1000,
           }}
           className="bg-white border border-gray-300 rounded shadow-lg p-1 flex space-x-1"
         >
-          <button 
+          <button
             onClick={handleEditText}
             className="p-1 hover:bg-gray-100 rounded"
             title="Edit text"
           >
             ✏️
           </button>
-          <button 
+          <button
             onClick={() => navigator.clipboard.writeText(selectedText)}
             className="p-1 hover:bg-gray-100 rounded"
             title="Copy text"

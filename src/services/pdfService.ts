@@ -2417,24 +2417,6 @@ export class PDFService {
     }
   }
 
-  // Check usage limits
-  static async checkUsageLimit(): Promise<{
-    canUpload: boolean;
-    remainingUploads: number | string;
-    message: string;
-    isPremium: boolean;
-  }> {
-    // During 3-month free promotion, always allow unlimited access
-    // Skip backend check to avoid fetch errors
-    console.log("Using 3-month free promotion mode");
-    return {
-      canUpload: true,
-      remainingUploads: "unlimited",
-      message: "🚀 3 Months Free Access - All tools unlocked!",
-      isPremium: true, // Treat as premium during free period
-    };
-  }
-
   // Track usage
   static async trackUsage(
     toolUsed: string,
