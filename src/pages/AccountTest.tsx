@@ -91,7 +91,8 @@ const AccountTest: React.FC = () => {
 
   const fetchRealTimeStatus = async () => {
     try {
-      const response = await fetch("/api/schema-test/real-time-status");
+      const apiUrl = import.meta.env.VITE_API_URL || "/api";
+      const response = await fetch(`${apiUrl}/schema-test/real-time-status`);
       if (response.ok) {
         const data = await response.json();
         setRealTimeStatus(data.status);
@@ -122,18 +123,22 @@ const AccountTest: React.FC = () => {
     setError(null);
 
     try {
-      const response = await fetch("/api/schema-test/create-test-account", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
+      const apiUrl = import.meta.env.VITE_API_URL || "/api";
+      const response = await fetch(
+        `${apiUrl}/schema-test/create-test-account`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            testData: formData,
+            screenTimeInSec: screenTime,
+            pageLoadTime: pageLoadTime,
+            realTimeTest: true,
+          }),
         },
-        body: JSON.stringify({
-          testData: formData,
-          screenTimeInSec: screenTime,
-          pageLoadTime: pageLoadTime,
-          realTimeTest: true,
-        }),
-      });
+      );
 
       const data = await response.json();
 
@@ -155,7 +160,8 @@ const AccountTest: React.FC = () => {
     setError(null);
 
     try {
-      const response = await fetch("/api/auth/register", {
+      const apiUrl = import.meta.env.VITE_API_URL || "/api";
+      const response = await fetch(`${apiUrl}/auth/register`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

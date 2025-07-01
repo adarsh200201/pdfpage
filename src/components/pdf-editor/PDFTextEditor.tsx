@@ -6,11 +6,10 @@ import {
   TextItem,
   TextMarkedContent,
 } from "pdfjs-dist/types/src/display/api";
-import "pdfjs-dist/build/pdf.worker.entry";
 
-// Set worker path
+// Set worker path for PDF.js 4.8.69
 if (typeof window !== "undefined" && "Worker" in window) {
-  pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
+  pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdn.jsdelivr.net/npm/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
 }
 
 // Simple text layer implementation

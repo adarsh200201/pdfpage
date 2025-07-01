@@ -9,7 +9,8 @@ const ApiTest = () => {
     setLoading(true);
     try {
       // Test basic connectivity
-      const response = await fetch("/api/pdf/word-to-pdf-advanced", {
+      const apiUrl = import.meta.env.VITE_API_URL || "/api";
+      const response = await fetch(`${apiUrl}/pdf/word-to-pdf-advanced`, {
         method: "POST",
         body: new FormData(), // Empty form data to test endpoint
       });

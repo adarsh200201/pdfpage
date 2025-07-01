@@ -23,7 +23,8 @@ const AdminLogin = ({ onLogin }: AdminLoginProps) => {
     setError(null);
 
     try {
-      const response = await fetch("/api/auth/login", {
+      const apiUrl = import.meta.env.VITE_API_URL || "/api";
+      const response = await fetch(`${apiUrl}/auth/login`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

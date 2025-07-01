@@ -140,9 +140,10 @@ const RealTimeMonitoring: React.FC = () => {
 
   const fetchRealTimeData = async () => {
     try {
+      const apiUrl = import.meta.env.VITE_API_URL || "/api";
       const [statusResponse, analyticsResponse] = await Promise.all([
-        fetch("/api/schema-test/real-time-status"),
-        fetch("/api/schema-test/live-analytics"),
+        fetch(`${apiUrl}/schema-test/real-time-status`),
+        fetch(`${apiUrl}/schema-test/live-analytics`),
       ]);
 
       if (statusResponse.ok) {
@@ -166,16 +167,20 @@ const RealTimeMonitoring: React.FC = () => {
     setError(null);
 
     try {
-      const response = await fetch("/api/schema-test/create-test-account", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
+      const apiUrl = import.meta.env.VITE_API_URL || "/api";
+      const response = await fetch(
+        `${apiUrl}/schema-test/create-test-account`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            checkSoftLimit: true,
+            realTimeTest: true,
+          }),
         },
-        body: JSON.stringify({
-          checkSoftLimit: true,
-          realTimeTest: true,
-        }),
-      });
+      );
 
       const data = await response.json();
 

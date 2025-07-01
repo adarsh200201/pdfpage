@@ -48,6 +48,12 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import AuthModal from "@/components/auth/AuthModal";
 
+// Configure PDF.js for OCR
+import * as pdfjsLib from "pdfjs-dist";
+if (typeof window !== "undefined" && "Worker" in window) {
+  pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdn.jsdelivr.net/npm/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
+}
+
 interface ProcessedFile {
   id: string;
   file: File;
@@ -82,15 +88,9 @@ interface OcrResult {
 
 interface OcrSettings {
   language: string;
-  outputFormat: "txt" | "docx" | "pdf" | "json";
-  enhanceImage: boolean;
+  outputFormat: "txt" | "pdf" | "docx";
   preserveFormatting: boolean;
-  detectTables: boolean;
-  detectStructure: boolean;
-  confidenceThreshold: number;
-  noiseReduction: boolean;
-  autoRotate: boolean;
-  multiColumn: boolean;
+  enhanceQuality: boolean;
 }
 
 const OcrPdf = () => {
@@ -104,14 +104,8 @@ const OcrPdf = () => {
   const [ocrSettings, setOcrSettings] = useState<OcrSettings>({
     language: "auto",
     outputFormat: "txt",
-    enhanceImage: true,
     preserveFormatting: true,
-    detectTables: true,
-    detectStructure: true,
-    confidenceThreshold: 70,
-    noiseReduction: true,
-    autoRotate: true,
-    multiColumn: false,
+    enhanceQuality: true,
   });
   const [currentPage, setCurrentPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState("");
@@ -139,16 +133,25 @@ const OcrPdf = () => {
   const supportedLanguages = [
     { code: "auto", name: "Auto-detect" },
     { code: "eng", name: "English" },
-    { code: "spa", name: "Spanish" },
     { code: "fra", name: "French" },
     { code: "deu", name: "German" },
+    { code: "spa", name: "Spanish" },
     { code: "ita", name: "Italian" },
     { code: "por", name: "Portuguese" },
     { code: "rus", name: "Russian" },
     { code: "chi_sim", name: "Chinese (Simplified)" },
+    { code: "chi_tra", name: "Chinese (Traditional)" },
     { code: "jpn", name: "Japanese" },
     { code: "kor", name: "Korean" },
     { code: "ara", name: "Arabic" },
+    { code: "hin", name: "Hindi" },
+    { code: "tha", name: "Thai" },
+    { code: "vie", name: "Vietnamese" },
+    { code: "pol", name: "Polish" },
+    { code: "nld", name: "Dutch" },
+    { code: "swe", name: "Swedish" },
+    { code: "dan", name: "Danish" },
+    { code: "nor", name: "Norwegian" },
   ];
 
   const handleFilesSelect = (files: File[]) => {
@@ -248,90 +251,35 @@ const OcrPdf = () => {
     language: string,
     onProgress?: (progress: number) => void,
   ): Promise<OcrResult> => {
-    onProgress?.(10);
+    try {
+      const { ocrService } = await import("@/services/ocrService");
 
-    // Simulate OCR processing
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-    onProgress?.(50);
+      const settings = {
+        language: language === "auto" ? "eng" : language,
+        outputFormat: ocrSettings.outputFormat,
+        preserveFormatting: ocrSettings.preserveFormatting,
+        enhanceQuality: ocrSettings.enhanceQuality,
+      };
 
-    // Simulate text extraction
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-    onProgress?.(80);
+      return await ocrService.performOcr(file, settings, (progress, status) => {
+        onProgress?.(progress);
+        setProgress(Math.round(progress));
 
-    // Mock OCR results with realistic text
-    const mockExtractedText = [
-      `DOCUMENT TITLE: Sample PDF Document
-
-This is page 1 of the extracted text content. The OCR process has successfully identified and converted the scanned text from the PDF into editable format.
-
-Key Features Detected:
-• Headers and titles are properly recognized
-• Bullet points and lists are maintained
-• Paragraph formatting is preserved
-• Special characters: @, #, $, %, &, *
-
-Contact Information:
-Email: contact@example.com
-Phone: +1 (555) 123-4567
-Website: www.example.com
-
-The optical character recognition system has analyzed the document structure and extracted readable text with high accuracy.`,
-
-      `PAGE 2 - TECHNICAL SPECIFICATIONS
-
-Technical Details:
-- Image resolution: 300 DPI
-- Color mode: RGB/Grayscale
-- File format: PDF/A-1b compliant
-- Language detection: ${
-        supportedLanguages.find((lang) => lang.code === language)?.name ||
-        "Auto-detected"
-      }
-
-Content Analysis:
-The document contains multiple text blocks, images, and formatting elements. The OCR engine has successfully processed:
-
-1. Standard text content
-2. Tables and structured data
-3. Headers and footers
-4. Mathematical expressions: 2x + 5 = 11
-5. Currency values: $1,234.56
-
-Quality Assessment:
-Character recognition confidence: 94.7%
-Word-level accuracy: 96.2%
-Line detection success: 98.1%`,
-
-      `PAGE 3 - EXTRACTED CONTENT SUMMARY
-
-Final Results:
-✓ Text extraction completed successfully
-✓ Language detection: Confident match
-✓ Formatting preservation: High quality
-✓ Character accuracy: Excellent
-
-Statistical Information:
-- Total characters processed: 2,847
-- Words identified: 521
-- Lines detected: 67
-- Paragraphs found: 12
-
-Notes:
-This OCR extraction maintains the original document structure while converting scanned content into searchable and editable text format. The process handles various fonts, sizes, and formatting styles.
-
-End of document processing.`,
-    ];
-
-    const mockResult: OcrResult = {
-      extractedText: mockExtractedText,
-      confidence: 94.7,
-      detectedLanguages: language === "auto" ? ["eng", "spa"] : [language],
-      pageCount: 3,
-      processedPages: 3,
-    };
-
-    onProgress?.(100);
-    return mockResult;
+        // Update processing status
+        if (status && progress % 10 === 0) {
+          // Update every 10% to avoid spam
+          toast({
+            title: "🔄 OCR Processing",
+            description: status,
+          });
+        }
+      });
+    } catch (error) {
+      console.error("OCR processing failed:", error);
+      throw new Error(
+        `OCR processing failed: ${error instanceof Error ? error.message : "Unknown error"}`,
+      );
+    }
   };
 
   // Enhanced helper functions

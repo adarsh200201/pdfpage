@@ -129,6 +129,8 @@ const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
     try {
       setError(null);
 
+      const apiUrl = import.meta.env.VITE_API_URL || "/api";
+
       // Fetch multiple endpoints in parallel
       const [
         usageStatsResponse,
@@ -139,42 +141,42 @@ const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
         realTimeStatusResponse,
       ] = await Promise.all([
         // User statistics
-        fetch("/api/users/stats", {
+        fetch(`${apiUrl}/users/stats`, {
           headers: {
             Authorization: `Bearer ${localStorage.getItem("token")}`,
           },
         }),
 
         // Popular tools - fetch all data without time filtering
-        fetch("/api/usage/popular-tools", {
+        fetch(`${apiUrl}/usage/popular-tools`, {
           headers: {
             Authorization: `Bearer ${localStorage.getItem("token")}`,
           },
         }),
 
         // Recent users
-        fetch("/api/users/recent?limit=10", {
+        fetch(`${apiUrl}/users/recent?limit=10`, {
           headers: {
             Authorization: `Bearer ${localStorage.getItem("token")}`,
           },
         }),
 
         // Conversion analytics
-        fetch("/api/analytics/conversion-funnel?days=30", {
+        fetch(`${apiUrl}/analytics/conversion-funnel?days=30`, {
           headers: {
             Authorization: `Bearer ${localStorage.getItem("token")}`,
           },
         }),
 
         // Device statistics
-        fetch("/api/usage/device-stats?days=30", {
+        fetch(`${apiUrl}/usage/device-stats?days=30`, {
           headers: {
             Authorization: `Bearer ${localStorage.getItem("token")}`,
           },
         }),
 
         // Real-time status
-        fetch("/api/schema-test/real-time-status"),
+        fetch(`${apiUrl}/schema-test/real-time-status`),
       ]);
 
       // Process user stats
