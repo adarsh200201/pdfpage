@@ -92,23 +92,16 @@ const checkUsageLimit = async (req, res, next) => {
       return next();
     }
 
-    // For authenticated free users, check their daily limit
+    // For authenticated free users, allow usage (no daily limits anymore)
+    // Usage tracking is now handled by IP-based middleware and frontend
     if (req.user) {
-      if (!req.user.canUpload()) {
-        return res.status(429).json({
-          success: false,
-          message:
-            "Daily upload limit reached. Upgrade to premium for unlimited access.",
-          remainingUploads: 0,
-          upgradeUrl: "/pricing",
-        });
-      }
+      // Authenticated users get more generous limits handled elsewhere
+      return next();
     } else {
-      // For anonymous users, check session-based limits (implemented in frontend)
-      // We'll trust the frontend for now, but could implement IP-based tracking
+      // For anonymous users, limits are handled by IP-based middleware
+      // which runs before this middleware in the chain
+      return next();
     }
-
-    next();
   } catch (error) {
     console.error("Usage limit middleware error:", error);
     return res.status(500).json({

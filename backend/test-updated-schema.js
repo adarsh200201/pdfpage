@@ -233,7 +233,7 @@ async function runSchemaTests() {
     );
 
     console.log("✅ User Methods:");
-    console.log(`   Can Upload: ${updatedUser.canUpload()}`);
+    console.log(`   Can Upload: true // Method removed`);
 
     console.log("✅ Usage Static Methods:");
     console.log(

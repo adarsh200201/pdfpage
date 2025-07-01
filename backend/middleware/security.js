@@ -21,9 +21,14 @@ const securityMiddleware = (app) => {
             connectSrc: [
               "'self'",
               "https://api.razorpay.com",
+              "https://lumberjack.razorpay.com",
               "https://www.google-analytics.com",
             ],
-            frameSrc: ["'self'", "https://checkout.razorpay.com"],
+            frameSrc: [
+              "'self'",
+              "https://checkout.razorpay.com",
+              "https://api.razorpay.com",
+            ],
             styleSrc: [
               "'self'",
               "'unsafe-inline'",

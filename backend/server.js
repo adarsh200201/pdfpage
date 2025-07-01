@@ -44,8 +44,16 @@ app.use(
           "https://checkout.razorpay.com",
           "https://pagead2.googlesyndication.com",
         ],
-        connectSrc: ["'self'", "https://api.razorpay.com"],
-        frameSrc: ["'self'", "https://checkout.razorpay.com"],
+        connectSrc: [
+          "'self'",
+          "https://api.razorpay.com",
+          "https://lumberjack.razorpay.com",
+        ],
+        frameSrc: [
+          "'self'",
+          "https://checkout.razorpay.com",
+          "https://api.razorpay.com",
+        ],
         styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
         fontSrc: ["'self'", "https://fonts.gstatic.com"],
         imgSrc: [

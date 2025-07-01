@@ -1184,6 +1184,38 @@ const RotatePdfAdvanced = () => {
                 </Card>
               ))}
 
+              {/* Completed Downloads Section */}
+              {files.some((f) => f.status === "completed") && (
+                <Card className="bg-green-50 border-green-200">
+                  <CardContent className="p-6">
+                    <div className="text-center">
+                      <CheckCircle className="w-12 h-12 text-green-600 mx-auto mb-4" />
+                      <h3 className="text-lg font-semibold text-green-800 mb-2">
+                        Rotation Complete!
+                      </h3>
+                      <p className="text-green-700 mb-4">
+                        Your PDF files have been rotated successfully. Download
+                        them below:
+                      </p>
+                      <div className="flex flex-wrap justify-center gap-3">
+                        {files
+                          .filter((f) => f.status === "completed")
+                          .map((file) => (
+                            <Button
+                              key={file.id}
+                              onClick={() => downloadFile(file)}
+                              className="bg-green-600 hover:bg-green-700 text-white"
+                            >
+                              <Download className="w-4 h-4 mr-2" />
+                              {file.file.name.replace(".pdf", "_rotated.pdf")}
+                            </Button>
+                          ))}
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
               {/* Action Buttons */}
               <div className="flex justify-center space-x-4 pt-6">
                 <Button

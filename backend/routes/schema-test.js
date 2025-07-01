@@ -157,7 +157,7 @@ router.post("/create-test-account", async (req, res) => {
           premiumDaysRemaining: testUser.premiumDaysRemaining,
         },
         methods: {
-          canUpload: testUser.canUpload(),
+          canUpload: true, // Test users can always upload
           toolStats: testUser.getToolStats(),
         },
       },

@@ -18,7 +18,7 @@ import { useToast } from "@/hooks/use-toast";
 import AuthModal from "@/components/auth/AuthModal";
 
 const Pricing = () => {
-  const [isProcessing, setIsProcessing] = useState(false);
+  const [processingPlan, setProcessingPlan] = useState<string | null>(null);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const { user, isAuthenticated } = useAuth();
   const { toast } = useToast();
@@ -30,7 +30,7 @@ const Pricing = () => {
       return;
     }
 
-    setIsProcessing(true);
+    setProcessingPlan(planType);
 
     try {
       const amount = planType === "yearly" ? 299900 : 29900; // in paise
@@ -60,7 +60,7 @@ const Pricing = () => {
         variant: "destructive",
       });
     } finally {
-      setIsProcessing(false);
+      setProcessingPlan(null);
     }
   };
 
@@ -171,11 +171,11 @@ const Pricing = () => {
               className="w-full bg-brand-red hover:bg-red-600"
               onClick={() => handleSubscribe("monthly")}
               disabled={
-                isProcessing ||
+                processingPlan === "monthly" ||
                 (user?.isPremium && user?.premiumPlan === "monthly")
               }
             >
-              {isProcessing ? (
+              {processingPlan === "monthly" ? (
                 <>
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                   Processing...
@@ -237,11 +237,11 @@ const Pricing = () => {
               className="w-full bg-black text-white hover:bg-gray-800"
               onClick={() => handleSubscribe("yearly")}
               disabled={
-                isProcessing ||
+                processingPlan === "yearly" ||
                 (user?.isPremium && user?.premiumPlan === "yearly")
               }
             >
-              {isProcessing ? (
+              {processingPlan === "yearly" ? (
                 <>
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                   Processing...

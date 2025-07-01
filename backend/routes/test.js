@@ -46,7 +46,7 @@ router.post("/create-user", async (req, res) => {
         referrerURL: testUser.referrerURL,
         toolStats: testUser.getToolStats(),
         isPremiumActive: testUser.isPremiumActive,
-        canUpload: testUser.canUpload(),
+        canUpload: true, // Test users can always upload
       },
     });
   } catch (error) {

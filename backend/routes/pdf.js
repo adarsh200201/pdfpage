@@ -36,9 +36,9 @@ router.get(
         return res.json({
           success: true,
           authenticated: true,
-          canUse: req.user.canUpload(),
-          dailyUploads: req.user.dailyUploads,
-          maxDailyUploads: req.user.maxDailyUploads,
+          canUse: true, // Authenticated users can always use tools
+          dailyUploads: 0, // Daily limits removed
+          maxDailyUploads: 999999, // Unlimited for authenticated users
           isPremium: req.user.isPremiumActive,
           limitType: "authenticated",
         });

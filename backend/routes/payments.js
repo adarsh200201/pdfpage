@@ -332,10 +332,10 @@ router.get("/subscription-status", auth, async (req, res) => {
       daysRemaining: user.premiumDaysRemaining,
       isExpiringSoon:
         user.premiumDaysRemaining <= 7 && user.premiumDaysRemaining > 0,
-      dailyUploads: user.dailyUploads,
-      maxDailyUploads: user.maxDailyUploads,
+      dailyUploads: 0, // Daily limits removed
+      maxDailyUploads: 999999, // Unlimited for all users
       totalUploads: user.totalUploads,
-      canUpload: user.canUpload(),
+      canUpload: true, // Usage limits handled by IP middleware
     };
 
     res.json({
