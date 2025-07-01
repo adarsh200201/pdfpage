@@ -33,27 +33,68 @@ export default defineConfig(({ mode }) => ({
   build: {
     commonjsOptions: {
       include: [/pdf-lib/, /pako/, /pdfjs-dist/, /react-pdf/, /node_modules/],
+      esmExternals: true
     },
     rollupOptions: {
-      external: (id) => {
-        // Don't bundle PDF.js worker files
-        return id.includes("pdf.worker") || id.includes("pdf.worker.min");
-      },
+      external: [
+        /^node:.*/, // Exclude Node.js built-ins
+        'fs',
+        'path',
+        'crypto',
+        'stream',
+        'util',
+        'os',
+        'child_process',
+        'worker_threads',
+        'zlib',
+        'http',
+        'https',
+        'url',
+        'assert',
+        'buffer',
+        'constants',
+        'events',
+        'module',
+        'net',
+        'process',
+        'querystring',
+        'string_decoder',
+        'timers',
+        'tls',
+        'tty',
+        'vm',
+        'dns',
+        'dgram',
+        'punycode',
+        'readline',
+        'repl',
+        'v8',
+        'worker_threads',
+        'zlib',
+        'pdfjs-dist/build/pdf.worker',
+        'pdfjs-dist/build/pdf.worker.min',
+        'pdfjs-dist/legacy/build/pdf.worker',
+        'pdfjs-dist/legacy/build/pdf.worker.min'
+      ],
       output: {
-        manualChunks: {
-          // Separate chunk for PDF libraries to avoid conflicts
-          "pdf-libs": ["pdfjs-dist", "react-pdf", "pdf-lib"],
-        },
-        // Ensure proper file names for assets
-        assetFileNames: (assetInfo) => {
-          if (assetInfo.name && assetInfo.name.includes("pdf.worker")) {
-            return "assets/[name]-[hash][extname]";
+        manualChunks: (id) => {
+          if (id.includes('node_modules')) {
+            if (id.includes('pdf-lib') || id.includes('pdfjs-dist') || id.includes('react-pdf')) {
+              return 'pdf-libs';
+            }
+            return 'vendor';
           }
-          return "assets/[name]-[hash][extname]";
         },
-        // Ensure proper file names for entry chunks
-        entryFileNames: "assets/[name]-[hash].js",
-        chunkFileNames: "assets/[name]-[hash].js",
+        assetFileNames: 'assets/[name]-[hash][extname]',
+        entryFileNames: 'assets/[name]-[hash].js',
+        chunkFileNames: 'assets/[name]-[hash].js',
+        globals: {
+          'react': 'React',
+          'react-dom': 'ReactDOM',
+          'react-pdf': 'ReactPDF',
+          'pdfjs-dist': 'pdfjsLib',
+          'pdf-lib': 'PDFLib'
+        }
       },
     },
     // Increase chunk size warning limit for PDF libraries
@@ -63,41 +104,71 @@ export default defineConfig(({ mode }) => ({
   },
   optimizeDeps: {
     include: [
-      "pdfjs-dist",
+      "react",
+      "react-dom",
+      "react-pdf",
+      "pdfjs-dist/legacy/build/pdf",
+      "pdfjs-dist/legacy/build/pdf.worker.entry",
       "pdf-lib",
       "pako",
       "@pdf-lib/standard-fonts",
       "@pdf-lib/upng",
-      "react-pdf",
-    ],
-    exclude: [
-      "pdfjs-dist/build/pdf.worker.js",
-      "pdfjs-dist/build/pdf.worker.min.js",
-      "pdfjs-dist/build/pdf.worker.mjs",
-      "pdfjs-dist/build/pdf.worker.min.mjs",
+      "fabric"
     ],
     esbuildOptions: {
       define: {
-        global: "globalThis",
+        global: 'globalThis',
+        'process.env.NODE_ENV': '"production"',
       },
-      target: "es2020",
-    },
+      target: 'es2020',
+      loader: {
+        '.js': 'jsx',
+        '.mjs': 'jsx'
+      },
+      jsx: 'automatic',
+      jsxDev: false,
+      jsxImportSource: 'react',
+      treeShaking: true,
+      minify: true,
+      minifyWhitespace: true,
+      minifyIdentifiers: true,
+      minifySyntax: true,
+      chunkNames: 'chunks/[name]-[hash]',
+      assetNames: 'assets/[name]-[hash]',
+      entryNames: '[name]-[hash]',
+      platform: 'browser',
+      format: 'esm',
+      mainFields: ['module', 'jsnext:main', 'jsnext'],
+      conditions: ['import', 'module', 'browser', 'default']
+    }
   },
   worker: {
-    format: "es",
+    format: 'es',
     plugins: () => [],
     rollupOptions: {
-      external: ["pdfjs-dist/build/pdf.worker.js"],
+      external: [
+        'pdfjs-dist/build/pdf.worker',
+        'pdfjs-dist/legacy/build/pdf.worker',
+        'pdfjs-dist/legacy/build/pdf.worker.entry',
+        'pdfjs-dist/legacy/build/pdf.worker.min',
+        'pdfjs-dist/legacy/build/pdf.worker.min.mjs',
+        'pdf-lib',
+        'pako',
+        '@pdf-lib/standard-fonts',
+        '@pdf-lib/upng',
+        'react-pdf'
+      ],
       output: {
-        // Ensure worker files maintain proper extensions
-        entryFileNames: (chunkInfo) => {
-          if (chunkInfo.name && chunkInfo.name.includes("worker")) {
-            return "[name].js";
-          }
-          return "[name]-[hash].js";
-        },
-      },
-    },
+        entryFileNames: 'workers/[name].js',
+        chunkFileNames: 'workers/[name]-[hash].js',
+        assetFileNames: 'assets/workers/[name]-[hash][extname]',
+        globals: {
+          'pdfjs-dist': 'pdfjsLib',
+          'pdf-lib': 'PDFLib',
+          'react-pdf': 'ReactPDF'
+        }
+      }
+    }
   },
   define: {
     // Help PDF.js work better in Vite
