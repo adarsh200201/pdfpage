@@ -11,7 +11,7 @@ export const translations = {
     "nav.allTools": "All Tools",
     "nav.getPremium": "Get Premium",
     "nav.login": "Login",
-    "nav.getStarted": "Get Started",
+    "nav.getStarted": "Sign Up",
     "nav.dashboard": "Dashboard",
     "nav.settings": "Settings",
     "nav.upgradeToPro": "Upgrade to Pro",

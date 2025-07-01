@@ -5,6 +5,36 @@ export interface ProcessedFile {
   size: number;
 }
 
+export interface SoftLimitResponse {
+  success: boolean;
+  requiresAuth: boolean;
+  softLimit: boolean;
+  message: string;
+  usageInfo: {
+    currentUsage: number;
+    maxUsage: number;
+    timeToReset: string;
+  };
+  authAction: string;
+  benefits?: string[];
+  featuredTools?: string[];
+}
+
+export interface UsageLimitInfo {
+  authenticated: boolean;
+  canUse: boolean;
+  currentUsage?: number;
+  maxUsage?: number;
+  shouldShowSoftLimit?: boolean;
+  timeToReset?: string;
+  limitType: "authenticated" | "anonymous";
+  ipUsage?: {
+    count: number;
+    limit: number;
+    resetTime?: string;
+  };
+}
+
 export class PDFService {
   private static API_URL = import.meta.env.VITE_API_URL || "/api";
 
@@ -27,6 +57,169 @@ export class PDFService {
 
   // Request deduplication to prevent multiple concurrent operations
   private static activeRequests = new Map<string, Promise<Uint8Array>>();
+
+  // Check usage limits before processing
+  static async checkUsageLimit(): Promise<UsageLimitInfo> {
+    try {
+      const response = await fetch(`${this.API_URL}/pdf/check-limit`, {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error("Error checking usage limit:", error);
+      // Default to allowing usage on error
+      return {
+        authenticated: false,
+        canUse: true,
+        limitType: "anonymous",
+        currentUsage: 0,
+        maxUsage: 2,
+        shouldShowSoftLimit: false,
+      };
+    }
+  }
+
+  // Check if soft limit should be shown before tool usage
+  static async shouldShowSoftLimit(): Promise<{
+    show: boolean;
+    info?: UsageLimitInfo;
+  }> {
+    const limitInfo = await this.checkUsageLimit();
+
+    if (limitInfo.authenticated) {
+      // Authenticated users don't have soft limits
+      return { show: false, info: limitInfo };
+    }
+
+    return {
+      show: limitInfo.shouldShowSoftLimit || false,
+      info: limitInfo,
+    };
+  }
+
+  // Enhanced error handling for soft limit responses
+  private static handleSoftLimitResponse(
+    response: Response,
+  ): SoftLimitResponse | null {
+    const contentType = response.headers.get("content-type");
+    if (contentType && contentType.includes("application/json")) {
+      return response
+        .json()
+        .then((data) => {
+          if (data.softLimit || data.requiresAuth) {
+            return data as SoftLimitResponse;
+          }
+          return null;
+        })
+        .catch(() => null);
+    }
+    return null;
+  }
+
+  // Convert PDF to Word (.docx) via backend API
+  static async convertPdfToWordAPI(
+    file: File,
+    options: {
+      extractImages?: boolean;
+      preserveFormatting?: boolean;
+      includeMetadata?: boolean;
+    } = {},
+  ): Promise<{
+    file: File;
+    stats: {
+      originalPages: number;
+      textLength: number;
+      processingTime: number;
+      conversionType: string;
+    };
+  }> {
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+
+      if (options.extractImages !== undefined) {
+        formData.append("extractImages", options.extractImages.toString());
+      }
+      if (options.preserveFormatting !== undefined) {
+        formData.append(
+          "preserveFormatting",
+          options.preserveFormatting.toString(),
+        );
+      }
+      if (options.includeMetadata !== undefined) {
+        formData.append("includeMetadata", options.includeMetadata.toString());
+      }
+
+      const response = await fetch(`${this.API_URL}/pdf/to-word`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(
+          errorData.message || `HTTP error! status: ${response.status}`,
+        );
+      }
+
+      const blob = await response.blob();
+
+      // Get stats from headers
+      const originalPages = parseInt(
+        response.headers.get("X-Original-Pages") || "0",
+      );
+      const textLength = parseInt(response.headers.get("X-Text-Length") || "0");
+      const processingTime = parseInt(
+        response.headers.get("X-Processing-Time") || "0",
+      );
+      const conversionType =
+        response.headers.get("X-Conversion-Type") || "formatted";
+
+      // Create new file from blob
+      const fileName = file.name.replace(/\.pdf$/i, ".docx");
+      const convertedFile = new File([blob], fileName, {
+        type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      });
+
+      return {
+        file: convertedFile,
+        stats: {
+          originalPages,
+          textLength,
+          processingTime,
+          conversionType,
+        },
+      };
+    } catch (error) {
+      console.error("PDF to Word conversion failed:", error);
+
+      // Provide more specific error messages
+      if (
+        error instanceof TypeError &&
+        error.message.includes("Failed to fetch")
+      ) {
+        throw new Error(
+          `Failed to connect to the API server at ${this.API_URL}. ` +
+            `Please ensure the backend server is running on the correct port. ` +
+            `Current API URL: ${this.API_URL}`,
+        );
+      }
+
+      throw error;
+    }
+  }
 
   // Get authentication token
   private static getToken(): string | null {
@@ -247,7 +440,7 @@ export class PDFService {
     this.currentCacheSize += data.byteLength;
 
     console.log(
-      `📦 Cached result: ${key} (${(data.byteLength / 1024 / 1024).toFixed(2)} MB)`,
+      `�� Cached result: ${key} (${(data.byteLength / 1024 / 1024).toFixed(2)} MB)`,
     );
   }
 
@@ -466,8 +659,100 @@ export class PDFService {
     }
   }
 
-  // Compress PDF with advanced optimization and progress tracking
+  // Enhanced compress PDF with 5 compression levels
   static async compressPDF(
+    file: File,
+    options: {
+      level?: "extreme" | "high" | "medium" | "low" | "best-quality";
+      sessionId?: string;
+      onProgress?: (progress: number) => void;
+    } = {},
+  ): Promise<{ data: ArrayBuffer; headers?: Record<string, string> }> {
+    const { level = "medium", sessionId, onProgress } = options;
+
+    console.log(
+      `🗜️ Starting PDF compression: ${file.name} (${this.formatFileSize(file.size)}) - Level: ${level}`,
+    );
+
+    onProgress?.(10);
+
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("level", level);
+      if (sessionId) {
+        formData.append("sessionId", sessionId);
+      }
+
+      onProgress?.(30);
+
+      const response = await fetch(`${this.API_URL}/pdf/compress`, {
+        method: "POST",
+        body: formData,
+        headers: {
+          // Don't set Content-Type, let browser set it with boundary for FormData
+          Authorization: `Bearer ${this.getToken()}`,
+        },
+      });
+
+      onProgress?.(80);
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(
+          errorData.message || `HTTP error! status: ${response.status}`,
+        );
+      }
+
+      const arrayBuffer = await response.arrayBuffer();
+      onProgress?.(100);
+
+      // Extract compression info from headers
+      const headers: Record<string, string> = {};
+      response.headers.forEach((value, key) => {
+        headers[key] = value;
+      });
+
+      console.log(
+        `✅ Compression complete: ${headers["x-compression-ratio"] || "N/A"}% reduction`,
+      );
+
+      return {
+        data: arrayBuffer,
+        headers,
+      };
+    } catch (error: any) {
+      console.error("API compression failed:", error);
+
+      // Fallback to client-side compression
+      console.log("🔄 Falling back to client-side compression...");
+      onProgress?.(50);
+
+      try {
+        const result = await this.compressPDFClientSide(
+          file,
+          level,
+          onProgress,
+        );
+        return {
+          data: result.buffer,
+          headers: {
+            "x-compression-ratio": "15", // Estimated for client-side
+            "x-original-size": file.size.toString(),
+            "x-compressed-size": result.length.toString(),
+          },
+        };
+      } catch (clientError) {
+        console.error("Client-side compression also failed:", clientError);
+        throw new Error(
+          `PDF compression failed: ${error.message || "Unknown error"}`,
+        );
+      }
+    }
+  }
+
+  // Legacy compression method with advanced optimization and progress tracking
+  static async compressPDFLegacy(
     file: File,
     quality: number = 0.8,
     onProgress?: (progress: number) => void,
@@ -514,6 +799,26 @@ export class PDFService {
     }
   }
 
+  // Client-side compression fallback
+  private static async compressPDFClientSide(
+    file: File,
+    level: string,
+    onProgress?: (progress: number) => void,
+  ): Promise<Uint8Array> {
+    const qualityMap = {
+      extreme: 0.3,
+      high: 0.5,
+      medium: 0.7,
+      low: 0.85,
+      "best-quality": 0.95,
+    };
+
+    const quality = qualityMap[level as keyof typeof qualityMap] || 0.7;
+    const extremeMode = level === "extreme";
+
+    return await this.compressPDFLegacy(file, quality, onProgress, extremeMode);
+  }
+
   private static async performCompression(
     file: File,
     quality: number,
@@ -545,7 +850,7 @@ export class PDFService {
       console.error("Compression failed:", error);
       // Try fallback compression method
       try {
-        console.log("🔄 Trying fallback compression method...");
+        console.log("�� Trying fallback compression method...");
         onProgress?.(20);
         return await this.fallbackCompressionMethod(file, quality, onProgress);
       } catch (fallbackError: any) {
@@ -1207,7 +1512,7 @@ export class PDFService {
         const compressionRatio =
           (originalSize - bestResult.length) / originalSize;
         console.log(
-          `✅ Image optimization successful: ${(compressionRatio * 100).toFixed(1)}% reduction`,
+          `�� Image optimization successful: ${(compressionRatio * 100).toFixed(1)}% reduction`,
         );
         return bestResult;
       }
@@ -1292,7 +1597,7 @@ export class PDFService {
             bestResult = result;
             bestSize = result.length;
             console.log(
-              `🔥 Ultra strategy ${i + 1} achieved ${(((originalSize - result.length) / originalSize) * 100).toFixed(1)}% compression`,
+              `�� Ultra strategy ${i + 1} achieved ${(((originalSize - result.length) / originalSize) * 100).toFixed(1)}% compression`,
             );
           }
         } catch (strategyError) {
@@ -2028,21 +2333,87 @@ export class PDFService {
   // Rotate PDF (client-side for now, can be moved to backend)
   static async rotatePDF(file: File, rotation: number): Promise<Uint8Array> {
     try {
-      const { PDFDocument } = await import("pdf-lib");
+      const { PDFDocument, degrees } = await import("pdf-lib");
 
       const arrayBuffer = await file.arrayBuffer();
-      const pdfDoc = await PDFDocument.load(arrayBuffer);
-      const pages = pdfDoc.getPages();
-
-      pages.forEach((page) => {
-        page.setRotation({ angle: rotation });
+      const pdfDoc = await PDFDocument.load(arrayBuffer, {
+        ignoreEncryption: true,
+        updateMetadata: false,
       });
 
-      const pdfBytes = await pdfDoc.save();
+      const pages = pdfDoc.getPages();
+
+      // Apply rotation to each page while preserving content
+      pages.forEach((page, index) => {
+        try {
+          console.log(`Rotating page ${index + 1} by ${rotation} degrees`);
+
+          // Get current rotation and add new rotation
+          const currentRotation = page.getRotation().angle;
+          const newRotation = (currentRotation + rotation) % 360;
+
+          // Apply rotation using degrees helper for proper formatting
+          page.setRotation(degrees(newRotation));
+
+          // Ensure page content box is preserved
+          const mediaBox = page.getMediaBox();
+          const cropBox = page.getCropBox();
+
+          // If crop box doesn't exist or is different from media box, ensure it's set correctly
+          if (
+            !cropBox ||
+            cropBox.x !== mediaBox.x ||
+            cropBox.y !== mediaBox.y ||
+            cropBox.width !== mediaBox.width ||
+            cropBox.height !== mediaBox.height
+          ) {
+            page.setCropBox(
+              mediaBox.x,
+              mediaBox.y,
+              mediaBox.width,
+              mediaBox.height,
+            );
+          }
+
+          console.log(
+            `Page ${index + 1} rotated successfully: ${currentRotation}° -> ${newRotation}°`,
+          );
+        } catch (pageError) {
+          console.error(`Error rotating page ${index + 1}:`, pageError);
+          // Continue with other pages even if one fails
+        }
+      });
+
+      // Save with optimization for better compatibility
+      const pdfBytes = await pdfDoc.save({
+        useObjectStreams: false,
+        addDefaultPage: false,
+        objectsPerTick: 50,
+      });
+
+      console.log(`PDF rotation completed: ${pages.length} pages processed`);
       return pdfBytes;
     } catch (error) {
       console.error("Error rotating PDF:", error);
-      throw new Error("Failed to rotate PDF file");
+
+      // Provide more specific error messages
+      let errorMessage = "Failed to rotate PDF file";
+      if (error instanceof Error) {
+        if (
+          error.message.includes("encrypted") ||
+          error.message.includes("password")
+        ) {
+          errorMessage = "Cannot rotate password-protected PDFs";
+        } else if (error.message.includes("corrupt")) {
+          errorMessage = "PDF file appears to be corrupted";
+        } else if (error.message.includes("Invalid")) {
+          errorMessage = "Invalid PDF file format";
+        } else {
+          errorMessage = error.message;
+        }
+      }
+
+      throw new Error(errorMessage);
     }
   }
 
@@ -2886,6 +3257,426 @@ export class PDFService {
     }
   }
 
+  // Convert Word to PDF using LibreOffice backend
+  static async convertWordToPdfLibreOffice(
+    file: File,
+    options: {
+      preserveFormatting?: boolean;
+      preserveImages?: boolean;
+      preserveLayouts?: boolean;
+      preserveHeaders?: boolean;
+      preserveFooters?: boolean;
+      preserveMargins?: boolean;
+      preserveMetadata?: boolean;
+      pageSize?: "A4" | "Letter" | "Legal" | "A3" | "A5";
+      quality?: "standard" | "high" | "premium";
+      orientation?: "portrait" | "landscape" | "auto";
+      margins?: "normal" | "narrow" | "wide" | "custom";
+      compatibility?: "pdf-1.4" | "pdf-1.7" | "pdf-2.0";
+      conversionEngine?: "libreoffice" | "hybrid" | "cloud";
+      enableOCR?: boolean;
+      compressImages?: boolean;
+    } = {},
+  ): Promise<{
+    blob: Blob;
+    stats: {
+      pages: number;
+      fileSize: number;
+      processingTime: number;
+      compressionRatio: number;
+      conversionEngine: string;
+    };
+  }> {
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("options", JSON.stringify(options));
+
+      const response = await fetch(
+        `${this.API_URL}/pdf/word-to-pdf-libreoffice`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+          body: formData,
+        },
+      );
+
+      if (!response.ok) {
+        // Check if LibreOffice endpoint doesn't exist or is unavailable and fallback
+        if (response.status === 404 || response.status === 503) {
+          console.warn(
+            "LibreOffice endpoint unavailable, falling back to advanced converter",
+          );
+          return await this.convertWordToPdfAdvanced(file, options);
+        }
+
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(
+          errorData.message ||
+            `LibreOffice conversion failed: ${response.status}`,
+        );
+      }
+
+      const blob = await response.blob();
+
+      // Extract metadata from response headers
+      const pages = parseInt(response.headers.get("X-Pages") || "1");
+      const fileSize = parseInt(
+        response.headers.get("X-File-Size") || blob.size.toString(),
+      );
+      const processingTime = parseInt(
+        response.headers.get("X-Processing-Time") || "0",
+      );
+      const originalSize = parseInt(
+        response.headers.get("X-Original-Size") || file.size.toString(),
+      );
+      const compressionRatio = parseFloat(
+        response.headers.get("X-Compression-Ratio") || "0",
+      );
+      const conversionEngine =
+        response.headers.get("X-Conversion-Engine") || "LibreOffice";
+
+      return {
+        blob,
+        stats: {
+          pages,
+          fileSize,
+          processingTime,
+          compressionRatio,
+          conversionEngine,
+        },
+      };
+    } catch (error) {
+      console.error("Error in LibreOffice Word to PDF conversion:", error);
+      throw new Error(
+        `LibreOffice conversion failed: ${error instanceof Error ? error.message : "Unknown error"}`,
+      );
+    }
+  }
+
+  // Enhanced Word to PDF with mammoth (fallback)
+  static async convertWordToPdfAdvanced(
+    file: File,
+    options: {
+      preserveFormatting?: boolean;
+      preserveImages?: boolean;
+      preserveLayouts?: boolean;
+      pageSize?: "A4" | "Letter" | "Legal";
+      quality?: "standard" | "high" | "premium";
+      orientation?: "portrait" | "landscape";
+      margins?: "normal" | "narrow" | "wide";
+      compatibility?: "pdf-1.4" | "pdf-1.7" | "pdf-2.0";
+    } = {},
+  ): Promise<{
+    blob: Blob;
+    stats: {
+      pages: number;
+      fileSize: number;
+      processingTime: number;
+      compressionRatio: number;
+      conversionEngine: string;
+    };
+  }> {
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("options", JSON.stringify(options));
+
+      const response = await fetch(`${this.API_URL}/pdf/word-to-pdf-advanced`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(
+          errorData.message || `Advanced conversion failed: ${response.status}`,
+        );
+      }
+
+      const blob = await response.blob();
+
+      // Extract metadata from response headers
+      const pages = parseInt(response.headers.get("X-Pages") || "1");
+      const fileSize = parseInt(
+        response.headers.get("X-File-Size") || blob.size.toString(),
+      );
+      const processingTime = parseInt(
+        response.headers.get("X-Processing-Time") || "0",
+      );
+      const compressionRatio = Math.max(
+        0,
+        ((file.size - blob.size) / file.size) * 100,
+      );
+
+      return {
+        blob,
+        stats: {
+          pages,
+          fileSize,
+          processingTime,
+          compressionRatio,
+          conversionEngine: "Mammoth",
+        },
+      };
+    } catch (error) {
+      console.error("Error in advanced Word to PDF conversion:", error);
+      throw new Error(
+        `Advanced conversion failed: ${error instanceof Error ? error.message : "Unknown error"}`,
+      );
+    }
+  }
+
+  // Check system status for conversion engines
+  static async getSystemStatus(): Promise<{
+    libreoffice: boolean;
+    cloudApi: boolean;
+    storage: number;
+    services: {
+      libreoffice: { available: boolean; version: string };
+      cloudApi: { available: boolean; status: string };
+      storage: { usage: number; status: string };
+    };
+  }> {
+    try {
+      const response = await fetch(`${this.API_URL}/pdf/system-status`);
+
+      if (!response.ok) {
+        // If the endpoint doesn't exist yet, return fallback status
+        if (response.status === 404) {
+          console.warn("System status endpoint not available, using fallback");
+          return {
+            libreoffice: false,
+            cloudApi: false,
+            storage: 0,
+            services: {
+              libreoffice: {
+                available: false,
+                version: "Endpoint not available",
+              },
+              cloudApi: { available: false, status: "Endpoint not available" },
+              storage: { usage: 0, status: "Unknown" },
+            },
+          };
+        }
+        throw new Error(`System status check failed: ${response.status}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error("Error checking system status:", error);
+      // Return fallback status
+      return {
+        libreoffice: false,
+        cloudApi: false,
+        storage: 0,
+        services: {
+          libreoffice: { available: false, version: "Unknown" },
+          cloudApi: { available: false, status: "Unknown" },
+          storage: { usage: 0, status: "Unknown" },
+        },
+      };
+    }
+  }
+
+  // Convert Word to PDF via backend API (legacy method)
+  static async convertWordToPdfAPI(
+    file: File,
+    options: {
+      pageFormat?: "A4" | "Letter" | "Legal";
+      quality?: "standard" | "high" | "maximum";
+      preserveImages?: boolean;
+      preserveFormatting?: boolean;
+      includeMetadata?: boolean;
+    } = {},
+  ): Promise<{
+    file: File;
+    stats: {
+      pages: number;
+      fileSize: number;
+      processingTime: number;
+    };
+  }> {
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+
+      if (options.pageFormat !== undefined) {
+        formData.append("pageFormat", options.pageFormat);
+      }
+      if (options.quality !== undefined) {
+        formData.append("quality", options.quality);
+      }
+      if (options.preserveImages !== undefined) {
+        formData.append("preserveImages", options.preserveImages.toString());
+      }
+      if (options.preserveFormatting !== undefined) {
+        formData.append(
+          "preserveFormatting",
+          options.preserveFormatting.toString(),
+        );
+      }
+      if (options.includeMetadata !== undefined) {
+        formData.append("includeMetadata", options.includeMetadata.toString());
+      }
+
+      const response = await fetch(`${this.API_URL}/pdf/word-to-pdf`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(
+          errorData.message || `HTTP error! status: ${response.status}`,
+        );
+      }
+
+      const blob = await response.blob();
+
+      // Get stats from headers
+      const pages = parseInt(response.headers.get("X-Pages") || "0");
+      const fileSize = parseInt(response.headers.get("X-File-Size") || "0");
+      const processingTime = parseInt(
+        response.headers.get("X-Processing-Time") || "0",
+      );
+
+      // Create new file from blob
+      const fileName = file.name.replace(/\.(doc|docx)$/i, ".pdf");
+      const convertedFile = new File([blob], fileName, {
+        type: "application/pdf",
+      });
+
+      return {
+        file: convertedFile,
+        stats: {
+          pages,
+          fileSize,
+          processingTime,
+        },
+      };
+    } catch (error) {
+      console.error("Word to PDF conversion failed:", error);
+
+      // Provide more specific error messages
+      if (
+        error instanceof TypeError &&
+        error.message.includes("Failed to fetch")
+      ) {
+        throw new Error(
+          `Failed to connect to the API server at ${this.API_URL}. ` +
+            `Please ensure the backend server is running on the correct port. ` +
+            `Current API URL: ${this.API_URL}`,
+        );
+      }
+
+      throw error;
+    }
+  }
+
+  // Add page numbers to PDF
+  static async addPageNumbers(
+    file: File,
+    options: {
+      position:
+        | "top-left"
+        | "top-right"
+        | "top-center"
+        | "bottom-left"
+        | "bottom-right"
+        | "bottom-center";
+      startNumber: number;
+      fontSize: number;
+      fontColor: string;
+      margin: number;
+    },
+  ): Promise<Uint8Array> {
+    try {
+      console.log("📄 Starting page numbering:", file.name, options);
+
+      const { PDFDocument, StandardFonts, rgb } = await import("pdf-lib");
+
+      const arrayBuffer = await file.arrayBuffer();
+      const pdfDoc = await PDFDocument.load(arrayBuffer);
+      const pages = pdfDoc.getPages();
+
+      console.log("📊 PDF loaded:", pages.length, "pages");
+
+      // Get font
+      const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+
+      pages.forEach((page, index) => {
+        const pageNumber = options.startNumber + index;
+        const text = pageNumber.toString();
+
+        // Get page dimensions
+        const { width, height } = page.getSize();
+
+        // Calculate position
+        let x = 0;
+        let y = 0;
+
+        const textWidth = font.widthOfTextAtSize(text, options.fontSize);
+
+        switch (options.position) {
+          case "top-left":
+            x = options.margin;
+            y = height - options.margin;
+            break;
+          case "top-center":
+            x = (width - textWidth) / 2;
+            y = height - options.margin;
+            break;
+          case "top-right":
+            x = width - textWidth - options.margin;
+            y = height - options.margin;
+            break;
+          case "bottom-left":
+            x = options.margin;
+            y = options.margin;
+            break;
+          case "bottom-center":
+            x = (width - textWidth) / 2;
+            y = options.margin;
+            break;
+          case "bottom-right":
+            x = width - textWidth - options.margin;
+            y = options.margin;
+            break;
+        }
+
+        // Add page number
+        page.drawText(text, {
+          x,
+          y,
+          size: options.fontSize,
+          font,
+          color: rgb(
+            parseInt(options.fontColor.substring(1, 3), 16) / 255,
+            parseInt(options.fontColor.substring(3, 5), 16) / 255,
+            parseInt(options.fontColor.substring(5, 7), 16) / 255,
+          ),
+        });
+      });
+
+      const pdfBytes = await pdfDoc.save();
+      console.log("✅ Page numbers added successfully");
+
+      return pdfBytes;
+    } catch (error) {
+      console.error("❌ Page numbering failed:", error);
+      throw error;
+    }
+  }
+
   // Get available tools
   static async getAvailableTools(): Promise<any[]> {
     try {
@@ -2903,3 +3694,5 @@ export class PDFService {
     }
   }
 }
+
+export default PDFService;

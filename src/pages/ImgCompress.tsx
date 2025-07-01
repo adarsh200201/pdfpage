@@ -1,9 +1,15 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
 import ImgHeader from "@/components/layout/ImgHeader";
 import FileUpload from "@/components/ui/file-upload";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Slider } from "@/components/ui/slider";
 import {
   ArrowLeft,
@@ -31,6 +37,13 @@ interface ProcessedImage {
   width: number;
   height: number;
   preview: string;
+  compressedPreview?: string;
+  compressedFile?: File;
+  liveStats?: {
+    originalSize: number;
+    compressedSize: number;
+    compressionRatio: number;
+  };
 }
 
 const ImgCompress = () => {
@@ -40,6 +53,7 @@ const ImgCompress = () => {
   const [quality, setQuality] = useState([0.8]);
   const [maxWidth, setMaxWidth] = useState([1920]);
   const [maxHeight, setMaxHeight] = useState([1080]);
+  const [isGeneratingPreview, setIsGeneratingPreview] = useState(false);
   const [compressionStats, setCompressionStats] = useState<{
     originalSize: number;
     compressedSize: number;
@@ -50,6 +64,70 @@ const ImgCompress = () => {
 
   const { user, isAuthenticated } = useAuth();
   const { toast } = useToast();
+
+  // Generate real-time compression preview
+  const generatePreview = async () => {
+    if (!image || isGeneratingPreview) return;
+
+    setIsGeneratingPreview(true);
+
+    try {
+      console.log("🖼️ Generating real-time compression preview...");
+
+      // Use client-side compression for fast preview
+      const result = await imageService.compressImageLocal(
+        image.file,
+        quality[0],
+        maxWidth[0],
+        maxHeight[0],
+      );
+
+      // Create preview URL
+      const compressedPreview = URL.createObjectURL(result.file);
+
+      // Update image with compressed preview and stats
+      setImage((prev) =>
+        prev
+          ? {
+              ...prev,
+              compressedPreview,
+              compressedFile: result.file,
+              liveStats: result.stats,
+            }
+          : null,
+      );
+
+      console.log("✅ Preview generated:", result.stats);
+    } catch (error) {
+      console.error("❌ Preview generation failed:", error);
+    } finally {
+      setIsGeneratingPreview(false);
+    }
+  };
+
+  // Real-time preview generation with debouncing
+  const previewTimeoutRef = useRef<NodeJS.Timeout>();
+
+  useEffect(() => {
+    if (!image) return;
+
+    // Clear existing timeout
+    if (previewTimeoutRef.current) {
+      clearTimeout(previewTimeoutRef.current);
+    }
+
+    // Debounce preview generation (500ms delay)
+    previewTimeoutRef.current = setTimeout(() => {
+      generatePreview();
+    }, 500);
+
+    // Cleanup on unmount
+    return () => {
+      if (previewTimeoutRef.current) {
+        clearTimeout(previewTimeoutRef.current);
+      }
+    };
+  }, [quality, maxWidth, maxHeight, image?.id]);
 
   const handleFilesSelect = async (files: File[]) => {
     if (files.length > 0) {
@@ -68,6 +146,11 @@ const ImgCompress = () => {
         const info = await imageService.getImageInfo(file);
         const preview = URL.createObjectURL(file);
 
+        // Clean up previous compressed preview
+        if (image?.compressedPreview) {
+          URL.revokeObjectURL(image.compressedPreview);
+        }
+
         setImage({
           id: Math.random().toString(36).substr(2, 9),
           file,
@@ -76,6 +159,9 @@ const ImgCompress = () => {
           width: info.width,
           height: info.height,
           preview,
+          compressedPreview: undefined,
+          compressedFile: undefined,
+          liveStats: undefined,
         });
 
         setIsComplete(false);
@@ -96,12 +182,30 @@ const ImgCompress = () => {
     setIsProcessing(true);
 
     try {
-      const result = await imageService.compressImage(
+      console.log("🔄 Starting image compression...");
+
+      // Determine compression level based on quality
+      let level: "extreme" | "high" | "medium" | "low" | "best-quality" =
+        "medium";
+      if (quality[0] <= 0.4) level = "extreme";
+      else if (quality[0] <= 0.6) level = "high";
+      else if (quality[0] <= 0.8) level = "medium";
+      else if (quality[0] <= 0.9) level = "low";
+      else level = "best-quality";
+
+      console.log(
+        `📊 Compression settings: level=${level}, quality=${quality[0]}, maxSize=${maxWidth[0]}x${maxHeight[0]}`,
+      );
+
+      // Use client-side compression for reliable, real-time processing
+      console.log("💻 Using client-side compression...");
+      const result = await imageService.compressImageLocal(
         image.file,
         quality[0],
         maxWidth[0],
         maxHeight[0],
       );
+      console.log("✅ Client-side compression completed successfully");
 
       // Create download URL
       const url = URL.createObjectURL(result.file);
@@ -120,10 +224,16 @@ const ImgCompress = () => {
         title: "Image compressed successfully!",
         description: `File size reduced by ${result.stats.compressionRatio}%`,
       });
+
+      console.log("📈 Compression completed:", result.stats);
     } catch (error) {
+      console.error("❌ Image compression failed:", error);
       toast({
         title: "Compression failed",
-        description: "Failed to compress the image. Please try again.",
+        description:
+          error instanceof Error
+            ? error.message
+            : "Failed to compress the image. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -132,6 +242,14 @@ const ImgCompress = () => {
   };
 
   const resetState = () => {
+    // Clean up URLs
+    if (image?.preview) {
+      URL.revokeObjectURL(image.preview);
+    }
+    if (image?.compressedPreview) {
+      URL.revokeObjectURL(image.compressedPreview);
+    }
+
     setImage(null);
     setIsComplete(false);
     setCompressionStats(null);
@@ -156,110 +274,220 @@ const ImgCompress = () => {
           </Link>
         </div>
 
-        <div className="text-center mb-8">
-          <div className="bg-gradient-to-r from-blue-600 to-indigo-600 p-4 rounded-2xl w-fit mx-auto mb-4">
-            <Minimize2 className="w-8 h-8 text-white" />
-          </div>
-          <h1 className="text-3xl font-bold text-gray-900 mb-4">
-            Compress Image
-          </h1>
-          <p className="text-gray-600 max-w-2xl mx-auto">
-            Reduce your image file size without compromising quality. Perfect
-            for web optimization and faster loading times.
-          </p>
-        </div>
-
         {/* Main Content */}
         <div className="space-y-8">
           {!image ? (
-            <Card>
-              <CardContent className="p-8">
-                <FileUpload
-                  onFilesSelect={handleFilesSelect}
-                  acceptedFileTypes={{
-                    "image/*": [".jpg", ".jpeg", ".png", ".gif", ".webp"],
-                  }}
-                  maxFiles={1}
-                  maxSize={50}
-                  multiple={false}
-                  uploadText="Select image files or drop image files here"
-                  supportText="Supports JPG, PNG, GIF, WebP formats"
-                />
+            <div className="space-y-8">
+              {/* Mobile-First Upload Section - Priority */}
+              <Card className="mb-8">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Minimize2 className="w-5 h-5 text-blue-600" />
+                    Upload Image
+                  </CardTitle>
+                  <CardDescription>
+                    Select an image file to compress (max 50MB)
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <FileUpload
+                    onFilesSelect={handleFilesSelect}
+                    acceptedFileTypes={{
+                      "image/*": [".jpg", ".jpeg", ".png", ".gif", ".webp"],
+                    }}
+                    maxFiles={1}
+                    maxSize={50}
+                    multiple={false}
+                    uploadText="Select image files or drop image files here"
+                    supportText="Supports JPG, PNG, GIF, WebP formats"
+                  />
+                </CardContent>
+              </Card>
 
-                <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="text-center p-4">
-                    <CheckCircle className="w-8 h-8 text-green-600 mx-auto mb-2" />
-                    <h3 className="font-semibold text-gray-900">
-                      High Quality
-                    </h3>
-                    <p className="text-gray-600 text-sm">
-                      Maintain image quality while reducing file size
-                    </p>
-                  </div>
-                  <div className="text-center p-4">
-                    <FileImage className="w-8 h-8 text-blue-600 mx-auto mb-2" />
-                    <h3 className="font-semibold text-gray-900">
-                      Multiple Formats
-                    </h3>
-                    <p className="text-gray-600 text-sm">
-                      Support for JPG, PNG, WebP, and more
-                    </p>
-                  </div>
-                  <div className="text-center p-4">
-                    <Minimize2 className="w-8 h-8 text-purple-600 mx-auto mb-2" />
-                    <h3 className="font-semibold text-gray-900">
-                      Advanced Options
-                    </h3>
-                    <p className="text-gray-600 text-sm">
-                      Control quality, dimensions, and compression level
-                    </p>
-                  </div>
+              {/* Tool Description */}
+              <div className="text-center mb-8">
+                <div className="bg-gradient-to-r from-blue-600 to-indigo-600 p-4 rounded-2xl w-fit mx-auto mb-4">
+                  <Minimize2 className="w-8 h-8 text-white" />
                 </div>
-              </CardContent>
-            </Card>
+                <h1 className="text-3xl font-bold text-gray-900 mb-4">
+                  Compress Image
+                </h1>
+                <p className="text-gray-600 max-w-2xl mx-auto">
+                  Reduce your image file size without compromising quality.
+                  Perfect for web optimization and faster loading times.
+                </p>
+              </div>
+
+              {/* Features */}
+              <Card>
+                <CardContent className="p-8">
+                  <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="text-center p-4">
+                      <CheckCircle className="w-8 h-8 text-green-600 mx-auto mb-2" />
+                      <h3 className="font-semibold text-gray-900">
+                        High Quality
+                      </h3>
+                      <p className="text-gray-600 text-sm">
+                        Maintain image quality while reducing file size
+                      </p>
+                    </div>
+                    <div className="text-center p-4">
+                      <FileImage className="w-8 h-8 text-blue-600 mx-auto mb-2" />
+                      <h3 className="font-semibold text-gray-900">
+                        Multiple Formats
+                      </h3>
+                      <p className="text-gray-600 text-sm">
+                        Support for JPG, PNG, WebP, and more
+                      </p>
+                    </div>
+                    <div className="text-center p-4">
+                      <Minimize2 className="w-8 h-8 text-purple-600 mx-auto mb-2" />
+                      <h3 className="font-semibold text-gray-900">
+                        Advanced Options
+                      </h3>
+                      <p className="text-gray-600 text-sm">
+                        Control quality, dimensions, and compression level
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
           ) : (
             <div className="space-y-6">
               {/* Image Preview */}
               <Card>
                 <CardHeader>
-                  <CardTitle className="flex items-center">
-                    <ImageIcon className="w-5 h-5 mr-2" />
-                    Image Preview
+                  <CardTitle className="flex items-center justify-between">
+                    <div className="flex items-center">
+                      <ImageIcon className="w-5 h-5 mr-2" />
+                      Image Preview & Comparison
+                    </div>
+                    {isGeneratingPreview && (
+                      <div className="flex items-center text-blue-600">
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        <span className="text-sm">Generating preview...</span>
+                      </div>
+                    )}
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    <div>
-                      <img
-                        src={image.preview}
-                        alt="Preview"
-                        className="w-full h-auto rounded-lg border"
-                        style={{ maxHeight: "300px", objectFit: "contain" }}
-                      />
-                    </div>
+                    {/* Original Image */}
                     <div className="space-y-3">
-                      <div>
-                        <span className="text-sm font-medium text-gray-600">
-                          Filename:
-                        </span>
-                        <p className="text-gray-900">{image.name}</p>
+                      <div className="relative">
+                        <img
+                          src={image.preview}
+                          alt="Original"
+                          className="w-full h-auto rounded-lg border"
+                          style={{ maxHeight: "300px", objectFit: "contain" }}
+                        />
+                        <div className="absolute top-2 left-2 bg-gray-900 text-white text-xs px-2 py-1 rounded">
+                          Original
+                        </div>
                       </div>
-                      <div>
-                        <span className="text-sm font-medium text-gray-600">
-                          Dimensions:
-                        </span>
-                        <p className="text-gray-900">
-                          {image.width} × {image.height} pixels
+                      <div className="text-center p-3 bg-gray-50 rounded-lg">
+                        <p className="text-sm font-medium text-gray-600">
+                          Original Size
                         </p>
-                      </div>
-                      <div>
-                        <span className="text-sm font-medium text-gray-600">
-                          File Size:
-                        </span>
-                        <p className="text-gray-900">
+                        <p className="text-lg font-semibold text-gray-900">
                           {imageService.formatFileSize(image.size)}
                         </p>
                       </div>
+                    </div>
+
+                    {/* Compressed Preview */}
+                    <div className="space-y-3">
+                      <div className="relative">
+                        {image.compressedPreview ? (
+                          <img
+                            src={image.compressedPreview}
+                            alt="Compressed Preview"
+                            className="w-full h-auto rounded-lg border"
+                            style={{ maxHeight: "300px", objectFit: "contain" }}
+                          />
+                        ) : (
+                          <div
+                            className="w-full rounded-lg border bg-gray-100 flex items-center justify-center"
+                            style={{ height: "300px" }}
+                          >
+                            <div className="text-center text-gray-500">
+                              {isGeneratingPreview ? (
+                                <>
+                                  <Loader2 className="w-8 h-8 mx-auto mb-2 animate-spin" />
+                                  <p>Generating preview...</p>
+                                </>
+                              ) : (
+                                <>
+                                  <ImageIcon className="w-8 h-8 mx-auto mb-2" />
+                                  <p>Adjust settings to see preview</p>
+                                </>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                        <div className="absolute top-2 left-2 bg-blue-600 text-white text-xs px-2 py-1 rounded">
+                          Compressed Preview
+                        </div>
+                      </div>
+
+                      {image.liveStats ? (
+                        <div className="text-center p-3 bg-blue-50 rounded-lg">
+                          <p className="text-sm font-medium text-blue-600">
+                            Estimated Size
+                          </p>
+                          <p className="text-lg font-semibold text-blue-900">
+                            {imageService.formatFileSize(
+                              image.liveStats.compressedSize,
+                            )}
+                          </p>
+                          <p className="text-sm text-blue-600">
+                            {image.liveStats.compressionRatio}% reduction
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="text-center p-3 bg-gray-50 rounded-lg">
+                          <p className="text-sm text-gray-500">
+                            Preview not generated
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* File Info */}
+                  <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 p-4 bg-gray-50 rounded-lg">
+                    <div>
+                      <span className="text-sm font-medium text-gray-600">
+                        Filename:
+                      </span>
+                      <p className="text-gray-900 truncate text-sm">
+                        {image.name}
+                      </p>
+                    </div>
+                    <div>
+                      <span className="text-sm font-medium text-gray-600">
+                        Dimensions:
+                      </span>
+                      <p className="text-gray-900 text-sm">
+                        {image.width} × {image.height}
+                      </p>
+                    </div>
+                    <div>
+                      <span className="text-sm font-medium text-gray-600">
+                        Format:
+                      </span>
+                      <p className="text-gray-900 text-sm">
+                        {image.file.type.split("/")[1].toUpperCase()}
+                      </p>
+                    </div>
+                    <div>
+                      <span className="text-sm font-medium text-gray-600">
+                        Quality:
+                      </span>
+                      <p className="text-gray-900 text-sm">
+                        {Math.round(quality[0] * 100)}%
+                      </p>
                     </div>
                   </div>
                 </CardContent>
@@ -288,7 +516,7 @@ const ImgCompress = () => {
                     </p>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
                         Max Width: {maxWidth[0]}px

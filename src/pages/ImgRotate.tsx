@@ -3,7 +3,13 @@ import { Link } from "react-router-dom";
 import ImgHeader from "@/components/layout/ImgHeader";
 import FileUpload from "@/components/ui/file-upload";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Slider } from "@/components/ui/slider";
 import {
   ArrowLeft,
@@ -167,67 +173,85 @@ const ImgRotate = () => {
           </Link>
         </div>
 
-        <div className="text-center mb-8">
-          <div className="bg-gradient-to-r from-orange-600 to-red-600 p-4 rounded-2xl w-fit mx-auto mb-4">
-            <RotateCw className="w-8 h-8 text-white" />
-          </div>
-          <h1 className="text-3xl font-bold text-gray-900 mb-4">
-            Rotate Image
-          </h1>
-          <p className="text-gray-600 max-w-2xl mx-auto">
-            Rotate your images by any angle. Fix orientation issues or create
-            artistic effects with precise angle control.
-          </p>
-        </div>
-
         {/* Main Content */}
         <div className="space-y-8">
           {!image ? (
-            <Card>
-              <CardContent className="p-8">
-                <FileUpload
-                  onFilesSelect={handleFilesSelect}
-                  acceptedFileTypes={{
-                    "image/*": [".jpg", ".jpeg", ".png", ".gif", ".webp"],
-                  }}
-                  maxFiles={1}
-                  maxSize={50}
-                  multiple={false}
-                  uploadText="Select image file or drop image file here"
-                  supportText="Supports JPG, PNG, GIF, WebP formats"
-                />
+            <div className="space-y-8">
+              {/* Mobile-First Upload Section - Priority */}
+              <Card className="mb-8">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <RotateCw className="w-5 h-5 text-orange-600" />
+                    Upload Image
+                  </CardTitle>
+                  <CardDescription>
+                    Select an image file to rotate (max 50MB)
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <FileUpload
+                    onFilesSelect={handleFilesSelect}
+                    acceptedFileTypes={{
+                      "image/*": [".jpg", ".jpeg", ".png", ".gif", ".webp"],
+                    }}
+                    maxFiles={1}
+                    maxSize={50}
+                    multiple={false}
+                    uploadText="Select image file or drop image file here"
+                    supportText="Supports JPG, PNG, GIF, WebP formats"
+                  />
+                </CardContent>
+              </Card>
 
-                <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="text-center p-4">
-                    <RotateCw className="w-8 h-8 text-orange-600 mx-auto mb-2" />
-                    <h3 className="font-semibold text-gray-900">
-                      Quick Rotation
-                    </h3>
-                    <p className="text-gray-600 text-sm">
-                      90°, 180°, 270° rotation with one click
-                    </p>
-                  </div>
-                  <div className="text-center p-4">
-                    <Rotate3d className="w-8 h-8 text-blue-600 mx-auto mb-2" />
-                    <h3 className="font-semibold text-gray-900">
-                      Custom Angle
-                    </h3>
-                    <p className="text-gray-600 text-sm">
-                      Rotate to any angle from -180° to 180°
-                    </p>
-                  </div>
-                  <div className="text-center p-4">
-                    <CheckCircle className="w-8 h-8 text-green-600 mx-auto mb-2" />
-                    <h3 className="font-semibold text-gray-900">
-                      Live Preview
-                    </h3>
-                    <p className="text-gray-600 text-sm">
-                      See your rotation in real-time before downloading
-                    </p>
-                  </div>
+              {/* Tool Description */}
+              <div className="text-center mb-8">
+                <div className="bg-gradient-to-r from-orange-600 to-red-600 p-4 rounded-2xl w-fit mx-auto mb-4">
+                  <RotateCw className="w-8 h-8 text-white" />
                 </div>
-              </CardContent>
-            </Card>
+                <h1 className="text-3xl font-bold text-gray-900 mb-4">
+                  Rotate Image
+                </h1>
+                <p className="text-gray-600 max-w-2xl mx-auto">
+                  Rotate your images by any angle. Fix orientation issues or
+                  create artistic effects with precise angle control.
+                </p>
+              </div>
+
+              {/* Features */}
+              <Card>
+                <CardContent className="p-8">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="text-center p-4">
+                      <RotateCw className="w-8 h-8 text-orange-600 mx-auto mb-2" />
+                      <h3 className="font-semibold text-gray-900">
+                        Quick Rotation
+                      </h3>
+                      <p className="text-gray-600 text-sm">
+                        90°, 180°, 270° rotation with one click
+                      </p>
+                    </div>
+                    <div className="text-center p-4">
+                      <Rotate3d className="w-8 h-8 text-blue-600 mx-auto mb-2" />
+                      <h3 className="font-semibold text-gray-900">
+                        Custom Angle
+                      </h3>
+                      <p className="text-gray-600 text-sm">
+                        Rotate to any angle from -180° to 180°
+                      </p>
+                    </div>
+                    <div className="text-center p-4">
+                      <CheckCircle className="w-8 h-8 text-green-600 mx-auto mb-2" />
+                      <h3 className="font-semibold text-gray-900">
+                        Live Preview
+                      </h3>
+                      <p className="text-gray-600 text-sm">
+                        See your rotation in real-time before downloading
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
           ) : (
             <div className="space-y-6">
               {/* Image Preview */}

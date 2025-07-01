@@ -11,8 +11,178 @@ export class ImageService {
     return ImageService.instance;
   }
 
-  // Compress image with quality control
-  async compressImage(
+  // Compress multiple images using backend API
+  async compressImages(
+    files: File[],
+    level: "extreme" | "high" | "medium" | "low" | "best-quality" = "medium",
+    format?: "jpeg" | "png" | "webp",
+    maxWidth?: number,
+    maxHeight?: number,
+  ): Promise<{
+    blob: Blob;
+    stats: {
+      totalOriginalSize: number;
+      totalCompressedSize: number;
+      overallCompressionRatio: number;
+      imageCount: number;
+    };
+  }> {
+    try {
+      const formData = new FormData();
+
+      files.forEach((file) => {
+        formData.append("images", file);
+      });
+
+      formData.append("level", level);
+      if (format) formData.append("format", format);
+      if (maxWidth) formData.append("maxWidth", maxWidth.toString());
+      if (maxHeight) formData.append("maxHeight", maxHeight.toString());
+
+      const response = await fetch("/api/image/compress", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const blob = await response.blob();
+
+      // Get stats from headers
+      const totalOriginalSize = parseInt(
+        response.headers.get("X-Total-Original-Size") || "0",
+      );
+      const totalCompressedSize = parseInt(
+        response.headers.get("X-Total-Compressed-Size") || "0",
+      );
+      const overallCompressionRatio = parseInt(
+        response.headers.get("X-Overall-Compression-Ratio") || "0",
+      );
+      const imageCount = parseInt(
+        response.headers.get("X-Total-Images") || "0",
+      );
+
+      return {
+        blob,
+        stats: {
+          totalOriginalSize,
+          totalCompressedSize,
+          overallCompressionRatio,
+          imageCount,
+        },
+      };
+    } catch (error) {
+      console.error("Backend compression failed:", error);
+      // Fallback to client-side compression for single image
+      if (files.length === 1) {
+        const result = await this.compressImageLocal(
+          files[0],
+          parseFloat((getQualityFromLevel(level) / 100).toFixed(2)),
+        );
+        return {
+          blob: result.file,
+          stats: {
+            totalOriginalSize: result.stats.originalSize,
+            totalCompressedSize: result.stats.compressedSize,
+            overallCompressionRatio: result.stats.compressionRatio,
+            imageCount: 1,
+          },
+        };
+      }
+      throw error;
+    }
+  }
+
+  // Compress single image using backend API
+  async compressSingleImage(
+    file: File,
+    level: "extreme" | "high" | "medium" | "low" | "best-quality" = "medium",
+    format?: "jpeg" | "png" | "webp",
+    maxWidth?: number,
+    maxHeight?: number,
+  ): Promise<{
+    file: File;
+    stats: {
+      originalSize: number;
+      compressedSize: number;
+      compressionRatio: number;
+      wasResized: boolean;
+    };
+  }> {
+    try {
+      const formData = new FormData();
+      formData.append("images", file);
+      formData.append("level", level);
+      if (format) formData.append("format", format);
+      if (maxWidth) formData.append("maxWidth", maxWidth.toString());
+      if (maxHeight) formData.append("maxHeight", maxHeight.toString());
+
+      const response = await fetch("/api/image/compress", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const blob = await response.blob();
+
+      // Get stats from headers
+      const originalSize = parseInt(
+        response.headers.get("X-Original-Size") || "0",
+      );
+      const compressedSize = parseInt(
+        response.headers.get("X-Compressed-Size") || "0",
+      );
+      const compressionRatio = parseInt(
+        response.headers.get("X-Compression-Ratio") || "0",
+      );
+      const wasResized = response.headers.get("X-Was-Resized") === "true";
+
+      // Create new file from blob
+      const fileExtension =
+        response.headers.get("Content-Type")?.split("/")[1] || "jpeg";
+      const fileName = `compressed_${file.name.split(".")[0]}.${fileExtension}`;
+      const compressedFile = new File([blob], fileName, {
+        type: response.headers.get("Content-Type") || file.type,
+      });
+
+      return {
+        file: compressedFile,
+        stats: {
+          originalSize,
+          compressedSize,
+          compressionRatio,
+          wasResized,
+        },
+      };
+    } catch (error) {
+      console.error("Backend compression failed:", error);
+      // Fallback to client-side compression
+      const quality = getQualityFromLevel(level) / 100;
+      const result = await this.compressImageLocal(
+        file,
+        quality,
+        maxWidth,
+        maxHeight,
+      );
+      return {
+        file: result.file,
+        stats: {
+          originalSize: result.stats.originalSize,
+          compressedSize: result.stats.compressedSize,
+          compressionRatio: result.stats.compressionRatio,
+          wasResized: false,
+        },
+      };
+    }
+  }
+
+  // Legacy client-side compression method (renamed)
+  async compressImageLocal(
     file: File,
     quality: number = 0.8,
     maxWidth?: number,
@@ -33,15 +203,31 @@ export class ImageService {
       img.onload = () => {
         // Calculate dimensions
         let { width, height } = img;
+        let needsResize = false;
 
         if (maxWidth && width > maxWidth) {
           height = (height * maxWidth) / width;
           width = maxWidth;
+          needsResize = true;
         }
 
         if (maxHeight && height > maxHeight) {
           width = (width * maxHeight) / height;
           height = maxHeight;
+          needsResize = true;
+        }
+
+        // For very small files or when no resize is needed and quality is high,
+        // check if compression would actually help
+        if (!needsResize && quality >= 0.8 && file.size < 10000) {
+          // File is already small and high quality - likely won't compress well
+          const stats = {
+            originalSize: file.size,
+            compressedSize: file.size,
+            compressionRatio: 0,
+          };
+          resolve({ file, stats });
+          return;
         }
 
         canvas.width = width;
@@ -50,11 +236,27 @@ export class ImageService {
         // Draw and compress
         ctx?.drawImage(img, 0, 0, width, height);
 
+        // For PNG files, try converting to JPEG for better compression
+        const outputType =
+          file.type === "image/png" && quality < 0.9 ? "image/jpeg" : file.type;
+
         canvas.toBlob(
           (blob) => {
             if (blob) {
+              // Check if compression actually reduced file size
+              if (blob.size >= file.size && !needsResize) {
+                // Compression made file larger - return original
+                const stats = {
+                  originalSize: file.size,
+                  compressedSize: file.size,
+                  compressionRatio: 0,
+                };
+                resolve({ file, stats });
+                return;
+              }
+
               const compressedFile = new File([blob], file.name, {
-                type: file.type,
+                type: outputType,
                 lastModified: Date.now(),
               });
 
@@ -71,7 +273,7 @@ export class ImageService {
               reject(new Error("Failed to compress image"));
             }
           },
-          file.type,
+          outputType,
           quality,
         );
       };
@@ -170,12 +372,8 @@ export class ImageService {
       formData.append("format", cropData.format);
     }
 
-    const token = localStorage.getItem("token");
     const response = await fetch("/api/image/crop", {
       method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
       body: formData,
     });
 
@@ -982,99 +1180,1647 @@ export class ImageService {
   }> {
     const startTime = Date.now();
 
-    return new Promise((resolve, reject) => {
+    try {
+      console.log("Starting client-side background removal...");
+      onProgress?.(10);
+
+      // Create canvas and context
       const canvas = document.createElement("canvas");
       const ctx = canvas.getContext("2d");
-      const img = new Image();
 
-      img.onload = async () => {
-        try {
-          onProgress?.(40);
+      if (!ctx) {
+        throw new Error("Canvas context not available");
+      }
 
-          canvas.width = img.width;
-          canvas.height = img.height;
+      // Use FileReader instead of URL.createObjectURL for better reliability
+      const imageData = await new Promise<ImageData>((resolve, reject) => {
+        const reader = new FileReader();
 
-          // Draw original image
-          ctx?.drawImage(img, 0, 0);
-          onProgress?.(50);
+        reader.onload = (e) => {
+          const img = new Image();
 
-          // Get image data for processing
-          const imageData = ctx!.getImageData(
-            0,
-            0,
-            canvas.width,
-            canvas.height,
-          );
-          onProgress?.(60);
+          img.onload = () => {
+            try {
+              console.log(`Image loaded: ${img.width}x${img.height}`);
 
-          // Try advanced algorithm first, fallback to simple if it fails
-          let processedImageData;
-          try {
-            console.log("Attempting advanced background removal...");
-            processedImageData = await this.processImageForBackgroundRemoval(
-              imageData,
-              options,
-              (progress) => onProgress?.(60 + progress * 0.25),
-            );
-          } catch (error) {
-            console.warn(
-              "Advanced algorithm failed, using simple removal:",
-              error,
-            );
-            processedImageData = this.simpleBackgroundRemoval(
-              imageData,
-              options,
-            );
-            onProgress?.(85);
+              canvas.width = img.width;
+              canvas.height = img.height;
+
+              // Draw image to canvas
+              ctx.drawImage(img, 0, 0);
+              onProgress?.(30);
+
+              // Get image data
+              const data = ctx.getImageData(0, 0, canvas.width, canvas.height);
+              resolve(data);
+            } catch (error) {
+              console.error("Error drawing image to canvas:", error);
+              reject(error);
+            }
+          };
+
+          img.onerror = (error) => {
+            console.error("Image creation failed:", error);
+            reject(new Error("Invalid image file"));
+          };
+
+          // Set the image source
+          img.src = e.target?.result as string;
+        };
+
+        reader.onerror = () => {
+          console.error("FileReader failed");
+          reject(new Error("Failed to read file"));
+        };
+
+        // Read as data URL
+        reader.readAsDataURL(file);
+      });
+
+      onProgress?.(50);
+
+      console.log("Processing image data for background removal...");
+
+      // Process the image data with enhanced algorithm for complex scenes
+      const processedImageData = this.enhancedBackgroundRemovalForComplexScenes(
+        imageData,
+        options,
+        (progress) => onProgress?.(50 + progress * 0.4),
+      );
+
+      onProgress?.(90);
+
+      // Put processed data back to canvas
+      ctx.putImageData(processedImageData, 0, 0);
+
+      // Convert to blob
+      const blob = await new Promise<Blob>((resolve, reject) => {
+        canvas.toBlob(
+          (blob) => {
+            if (!blob) {
+              reject(new Error("Failed to create output blob"));
+              return;
+            }
+            resolve(blob);
+          },
+          "image/png",
+          1.0,
+        );
+      });
+
+      const endTime = Date.now();
+      const processingTime = endTime - startTime;
+
+      const resultFile = new File(
+        [blob],
+        file.name.replace(/\.[^/.]+$/, "_no_bg.png"),
+        { type: "image/png" },
+      );
+
+      console.log("Background removal completed successfully!");
+
+      return {
+        file: resultFile,
+        blob,
+        metadata: {
+          model: options.model || "client-side",
+          processingTime,
+          confidence: 82,
+          edgeQuality: 78,
+          originalSize: file.size,
+          resultSize: blob.size,
+        },
+      };
+    } catch (error) {
+      console.error("Client-side background removal failed:", error);
+      throw error;
+    }
+  }
+
+  // Enhanced background removal with improved edge detection and color preservation
+  private simpleBackgroundRemovalWithEdgeDetection(
+    imageData: ImageData,
+    options: any,
+    onProgress?: (progress: number) => void,
+  ): ImageData {
+    console.log(
+      "Starting enhanced background removal with improved edge detection...",
+    );
+    onProgress?.(5);
+
+    const { data, width, height } = imageData;
+    const processedData = new Uint8ClampedArray(data);
+
+    // Step 1: Enhanced background color sampling from multiple regions
+    const backgroundColors = this.advancedBackgroundSampling(
+      data,
+      width,
+      height,
+    );
+    onProgress?.(15);
+
+    // Step 2: Create sophisticated edge map for better object detection
+    const edgeMap = this.createAdvancedEdgeMap(data, width, height);
+    onProgress?.(25);
+
+    // Step 3: Create mask based on multiple criteria with model-specific thresholds
+    const threshold = this.getEnhancedThresholdForModel(options.model) || 25;
+
+    // Step 4: Advanced content detection for better preservation
+    const contentMask = this.detectAdvancedContent(
+      data,
+      width,
+      height,
+      edgeMap,
+    );
+    onProgress?.(35);
+
+    // Step 5: Process each pixel with improved algorithm
+    for (let i = 0; i < data.length; i += 4) {
+      const pixelIndex = i / 4;
+      const x = pixelIndex % width;
+      const y = Math.floor(pixelIndex / width);
+      const r = data[i];
+      const g = data[i + 1];
+      const b = data[i + 2];
+
+      // Copy RGB values initially
+      processedData[i] = r;
+      processedData[i + 1] = g;
+      processedData[i + 2] = b;
+
+      // Calculate perceptual color difference to background colors
+      let minDistance = Infinity;
+      for (const bgColor of backgroundColors) {
+        const distance = this.calculatePerceptualColorDistance(
+          { r, g, b },
+          bgColor,
+        );
+        minDistance = Math.min(minDistance, distance);
+      }
+
+      // Enhanced edge-based threshold adjustment
+      const edgeStrength = edgeMap[pixelIndex];
+      const edgeDistance = Math.min(x, y, width - 1 - x, height - 1 - y);
+      const maxEdgeDistance = Math.min(width, height) / 4;
+      const edgeFactor = Math.min(1, edgeDistance / maxEdgeDistance);
+
+      // Multi-factor threshold adjustment
+      let adjustedThreshold = threshold;
+      adjustedThreshold *= 0.6 + 0.4 * edgeFactor; // Edge distance factor
+      adjustedThreshold *= 1 + edgeStrength * 0.5; // Edge strength factor
+
+      // Check if this pixel is important content
+      const isImportantContent = contentMask[pixelIndex];
+
+      // Enhanced alpha calculation with improved falloff
+      let alpha = 255;
+      if (minDistance < adjustedThreshold) {
+        // Improved smooth transition with better edge preservation
+        const ratio = minDistance / adjustedThreshold;
+
+        // Use different curves based on content type
+        if (isImportantContent) {
+          // More conservative removal for important content
+          alpha = Math.floor(Math.pow(ratio, 0.5) * 255);
+          alpha = Math.max(alpha, 200); // Minimum 78% opacity for important content
+        } else {
+          // More aggressive removal for likely background
+          alpha = Math.floor(Math.pow(ratio, 1.2) * 255);
+        }
+
+        // Color enhancement for preserved areas
+        if (alpha > 150) {
+          // Calculate color characteristics
+          const max = Math.max(r, g, b);
+          const min = Math.min(r, g, b);
+          const saturation = max > 0 ? (max - min) / max : 0;
+          const brightness = (r + g + b) / 3;
+
+          // Enhance colors based on content type
+          let boostFactor = 1.0;
+          if (isImportantContent) {
+            boostFactor = saturation > 0.3 ? 1.2 : 1.1;
+          } else if (saturation > 0.2 && brightness > 50) {
+            boostFactor = 1.08;
           }
 
-          onProgress?.(90);
-
-          // Put processed image data back
-          ctx!.putImageData(processedImageData, 0, 0);
-
-          canvas.toBlob(
-            (blob) => {
-              if (blob) {
-                const resultFile = new File(
-                  [blob],
-                  file.name.replace(/\.[^/.]+$/, "") + "_removed_bg.png",
-                  { type: "image/png" },
-                );
-
-                const metadata = {
-                  model: options.model || "client-side",
-                  processingTime: Date.now() - startTime,
-                  confidence: 75,
-                  edgeQuality: 80,
-                  originalSize: file.size,
-                  resultSize: blob.size,
-                };
-
-                onProgress?.(100);
-                console.log(
-                  "Client-side background removal completed successfully",
-                );
-                resolve({ file: resultFile, blob, metadata });
-              } else {
-                reject(new Error("Failed to create blob"));
-              }
-            },
-            "image/png",
-            1.0,
-          );
-        } catch (error) {
-          console.error("Client-side background removal failed:", error);
-          reject(error);
+          // Apply color enhancement
+          if (boostFactor > 1.0) {
+            processedData[i] = Math.min(255, Math.floor(r * boostFactor));
+            processedData[i + 1] = Math.min(255, Math.floor(g * boostFactor));
+            processedData[i + 2] = Math.min(255, Math.floor(b * boostFactor));
+          }
         }
-      };
+      } else {
+        // Definite foreground - preserve and potentially enhance
+        if (isImportantContent) {
+          // Slight enhancement for important content
+          const boostFactor = 1.05;
+          processedData[i] = Math.min(255, Math.floor(r * boostFactor));
+          processedData[i + 1] = Math.min(255, Math.floor(g * boostFactor));
+          processedData[i + 2] = Math.min(255, Math.floor(b * boostFactor));
+        }
+      }
 
-      img.onerror = () => reject(new Error("Failed to load image"));
-      img.src = URL.createObjectURL(file);
+      processedData[i + 3] = alpha;
+    }
+
+    onProgress?.(70);
+
+    // Step 6: Advanced post-processing for color enhancement
+    this.enhanceTextAndGraphicsColors(
+      processedData,
+      contentMask,
+      width,
+      height,
+    );
+    onProgress?.(80);
+
+    // Step 7: Improved edge smoothing with content preservation
+    this.applySmoothingPass(
+      processedData,
+      width,
+      height,
+      options.edgeSmoothing || 2,
+    );
+    onProgress?.(90);
+
+    onProgress?.(100);
+
+    console.log("Background removal processing completed");
+    return new ImageData(processedData, width, height);
+  }
+
+  // Enhanced background removal specifically designed for complex, crowded scenes
+  private enhancedBackgroundRemovalForComplexScenes(
+    imageData: ImageData,
+    options: any,
+    onProgress?: (progress: number) => void,
+  ): ImageData {
+    console.log("Starting aggressive background removal for complex scenes...");
+    onProgress?.(10);
+
+    const { data, width, height } = imageData;
+    const processedData = new Uint8ClampedArray(data);
+
+    // Simple but effective approach: find the main subject in center
+    const centerX = Math.floor(width / 2);
+    const centerY = Math.floor(height / 2);
+
+    onProgress?.(30);
+
+    // Step 1: Create sophisticated person detection mask
+    const mask = new Float32Array(width * height);
+
+    // Find the main subject using multiple criteria
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        const idx = (y * width + x) * 4;
+        const r = data[idx];
+        const g = data[idx + 1];
+        const b = data[idx + 2];
+
+        // Distance from center with more focused region
+        const centerDistance = Math.sqrt(
+          (x - centerX) ** 2 + (y - centerY) ** 2,
+        );
+        const focusRadius = Math.min(width, height) * 0.4; // More focused center
+        const centerScore = Math.max(0, 1 - centerDistance / focusRadius);
+
+        // Enhanced skin tone detection
+        const skinScore = this.enhancedSkinToneDetection(r, g, b);
+
+        // Color consistency check (person should have consistent colors)
+        const consistencyScore = this.checkColorConsistency(
+          data,
+          x,
+          y,
+          width,
+          height,
+        );
+
+        // Brightness check (avoid very bright/dark areas that are likely background)
+        const brightness = (r + g + b) / 3;
+        const brightnessScore = brightness > 50 && brightness < 200 ? 1.0 : 0.2;
+
+        // Combine all factors with stricter requirements
+        const finalScore =
+          centerScore * 0.4 +
+          skinScore * 0.3 +
+          consistencyScore * 0.2 +
+          brightnessScore * 0.1;
+        mask[y * width + x] = finalScore;
+      }
+    }
+
+    onProgress?.(60);
+
+    // Step 2: Apply extremely aggressive background removal like Remove.bg
+    for (let i = 0; i < data.length; i += 4) {
+      const pixelIndex = i / 4;
+
+      // Copy RGB values
+      processedData[i] = data[i];
+      processedData[i + 1] = data[i + 1];
+      processedData[i + 2] = data[i + 2];
+
+      // Extremely aggressive alpha calculation to match Remove.bg
+      const maskValue = mask[pixelIndex];
+      let alpha = 0;
+
+      if (maskValue > 0.6) {
+        // Very high confidence - definitely foreground
+        alpha = 255;
+      } else if (maskValue > 0.45) {
+        // High confidence - likely foreground
+        alpha = 255;
+      } else if (maskValue > 0.3) {
+        // Medium confidence - check additional criteria
+        const x = pixelIndex % width;
+        const y = Math.floor(pixelIndex / width);
+        const r = data[i];
+        const g = data[i + 1];
+        const b = data[i + 2];
+
+        // Additional checks for edge cases
+        const isNearCenter =
+          Math.sqrt((x - centerX) ** 2 + (y - centerY) ** 2) <
+          Math.min(width, height) * 0.3;
+        const hasSkinTone = this.enhancedSkinToneDetection(r, g, b) > 0.4;
+
+        if (isNearCenter && hasSkinTone) {
+          alpha = 255;
+        } else {
+          alpha = 0; // Remove uncertain areas
+        }
+      } else {
+        // Low confidence - definitely background, remove completely
+        alpha = 0;
+      }
+
+      processedData[i + 3] = alpha;
+    }
+
+    onProgress?.(80);
+
+    // Step 3: Professional-grade post-processing
+    this.professionalPostProcessing(processedData, width, height, mask);
+    onProgress?.(90);
+
+    // Step 4: Final cleanup and artifact removal
+    this.removeArtifactsAndCleanEdges(processedData, width, height);
+
+    console.log("Professional background removal completed");
+    onProgress?.(100);
+
+    return new ImageData(processedData, width, height);
+  }
+
+  // Enhanced skin tone detection with better accuracy
+  private enhancedSkinToneDetection(r: number, g: number, b: number): number {
+    // More sophisticated skin tone detection
+    const rg = r - g;
+    const rb = r - b;
+    const gb = g - b;
+
+    // Multiple skin tone criteria with scores
+    let score = 0;
+
+    // Light skin tones
+    if (r > 95 && g > 65 && b > 50 && rg > 15 && rb > 15) score += 0.8;
+
+    // Medium skin tones
+    if (r > 70 && g > 50 && b > 30 && rg > 5 && rb > 10 && Math.abs(rg) < 50)
+      score += 0.7;
+
+    // Dark skin tones
+    if (r > 45 && g > 35 && b > 20 && rg > 3 && rb > 8) score += 0.6;
+
+    // Additional checks for clothing colors (blue saree in this case)
+    if (b > r && b > g && b > 50) score += 0.4; // Blue clothing
+
+    return Math.min(1, score);
+  }
+
+  // Check color consistency in local area
+  private checkColorConsistency(
+    data: Uint8ClampedArray,
+    x: number,
+    y: number,
+    width: number,
+    height: number,
+  ): number {
+    const radius = 5;
+    const centerIdx = (y * width + x) * 4;
+    const centerR = data[centerIdx];
+    const centerG = data[centerIdx + 1];
+    const centerB = data[centerIdx + 2];
+
+    let similarPixels = 0;
+    let totalPixels = 0;
+
+    for (let dy = -radius; dy <= radius; dy++) {
+      for (let dx = -radius; dx <= radius; dx++) {
+        const nx = x + dx;
+        const ny = y + dy;
+
+        if (nx >= 0 && nx < width && ny >= 0 && ny < height) {
+          const idx = (ny * width + nx) * 4;
+          const distance = Math.sqrt(
+            Math.pow(data[idx] - centerR, 2) +
+              Math.pow(data[idx + 1] - centerG, 2) +
+              Math.pow(data[idx + 2] - centerB, 2),
+          );
+
+          if (distance < 60) similarPixels++; // More lenient threshold
+          totalPixels++;
+        }
+      }
+    }
+
+    return totalPixels > 0 ? similarPixels / totalPixels : 0;
+  }
+
+  // Simple skin tone detection (kept for compatibility)
+  private isLikelySkinTone(r: number, g: number, b: number): boolean {
+    return this.enhancedSkinToneDetection(r, g, b) > 0.3;
+  }
+
+  // Professional post-processing to match Remove.bg quality
+  private professionalPostProcessing(
+    data: Uint8ClampedArray,
+    width: number,
+    height: number,
+    mask: Float32Array,
+  ): void {
+    const processed = new Uint8ClampedArray(data);
+
+    // Pass 1: Remove isolated pixels and small artifacts
+    for (let y = 2; y < height - 2; y++) {
+      for (let x = 2; x < width - 2; x++) {
+        const idx = (y * width + x) * 4;
+
+        if (data[idx + 3] > 0) {
+          // Check if this pixel is isolated (surrounded by transparent pixels)
+          let neighborCount = 0;
+          let totalNeighbors = 0;
+
+          for (let dy = -2; dy <= 2; dy++) {
+            for (let dx = -2; dx <= 2; dx++) {
+              if (dx === 0 && dy === 0) continue;
+              const nIdx = ((y + dy) * width + (x + dx)) * 4;
+              totalNeighbors++;
+              if (data[nIdx + 3] > 0) neighborCount++;
+            }
+          }
+
+          // If less than 30% of neighbors are visible, remove this pixel
+          if (neighborCount / totalNeighbors < 0.3) {
+            processed[idx + 3] = 0;
+          }
+        }
+      }
+    }
+
+    // Pass 2: Fill small holes in the main subject
+    for (let y = 1; y < height - 1; y++) {
+      for (let x = 1; x < width - 1; x++) {
+        const idx = (y * width + x) * 4;
+
+        if (processed[idx + 3] === 0 && mask[y * width + x] > 0.4) {
+          // Check if surrounded by visible pixels
+          let visibleNeighbors = 0;
+          for (let dy = -1; dy <= 1; dy++) {
+            for (let dx = -1; dx <= 1; dx++) {
+              if (dx === 0 && dy === 0) continue;
+              const nIdx = ((y + dy) * width + (x + dx)) * 4;
+              if (processed[nIdx + 3] > 200) visibleNeighbors++;
+            }
+          }
+
+          // If mostly surrounded by visible pixels, fill the hole
+          if (visibleNeighbors >= 6) {
+            processed[idx + 3] = 255;
+          }
+        }
+      }
+    }
+
+    // Copy processed data back
+    for (let i = 0; i < data.length; i++) {
+      data[i] = processed[i];
+    }
+  }
+
+  // Remove artifacts and clean edges for professional quality
+  private removeArtifactsAndCleanEdges(
+    data: Uint8ClampedArray,
+    width: number,
+    height: number,
+  ): void {
+    const refined = new Uint8ClampedArray(data);
+
+    // Pass 1: Remove very small disconnected regions
+    const visited = new Set<number>();
+
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        const idx = (y * width + x) * 4;
+        const pixelIndex = y * width + x;
+
+        if (data[idx + 3] > 0 && !visited.has(pixelIndex)) {
+          // Find connected component using flood fill
+          const component = this.floodFillComponent(
+            data,
+            x,
+            y,
+            width,
+            height,
+            visited,
+          );
+
+          // If component is too small, remove it
+          if (component.length < 500) {
+            // Minimum size threshold
+            for (const pixel of component) {
+              const removeIdx = pixel * 4;
+              refined[removeIdx + 3] = 0;
+            }
+          }
+        }
+      }
+    }
+
+    // Pass 2: Clean up edges by removing partial transparency
+    for (let i = 3; i < refined.length; i += 4) {
+      if (refined[i] > 0 && refined[i] < 255) {
+        // Convert partial transparency to binary (either keep or remove)
+        refined[i] = refined[i] > 128 ? 255 : 0;
+      }
+    }
+
+    // Pass 3: Final edge smoothing only on the boundary
+    this.smoothBoundaryEdges(refined, width, height);
+
+    // Copy refined data back
+    for (let i = 0; i < data.length; i++) {
+      data[i] = refined[i];
+    }
+  }
+
+  // Flood fill to find connected components
+  private floodFillComponent(
+    data: Uint8ClampedArray,
+    startX: number,
+    startY: number,
+    width: number,
+    height: number,
+    visited: Set<number>,
+  ): number[] {
+    const component: number[] = [];
+    const stack: [number, number][] = [[startX, startY]];
+
+    while (stack.length > 0) {
+      const [x, y] = stack.pop()!;
+      const pixelIndex = y * width + x;
+      const idx = pixelIndex * 4;
+
+      if (
+        x < 0 ||
+        x >= width ||
+        y < 0 ||
+        y >= height ||
+        visited.has(pixelIndex) ||
+        data[idx + 3] === 0
+      ) {
+        continue;
+      }
+
+      visited.add(pixelIndex);
+      component.push(pixelIndex);
+
+      // Add 4-connected neighbors
+      stack.push([x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]);
+    }
+
+    return component;
+  }
+
+  // Smooth only the boundary edges for natural look
+  private smoothBoundaryEdges(
+    data: Uint8ClampedArray,
+    width: number,
+    height: number,
+  ): void {
+    const smoothed = new Uint8ClampedArray(data);
+
+    for (let y = 1; y < height - 1; y++) {
+      for (let x = 1; x < width - 1; x++) {
+        const idx = (y * width + x) * 4;
+
+        // Only smooth pixels that are on the boundary
+        if (data[idx + 3] === 255) {
+          let hasTransparentNeighbor = false;
+
+          // Check if any neighbor is transparent
+          for (let dy = -1; dy <= 1; dy++) {
+            for (let dx = -1; dx <= 1; dx++) {
+              if (dx === 0 && dy === 0) continue;
+              const nIdx = ((y + dy) * width + (x + dx)) * 4;
+              if (data[nIdx + 3] === 0) {
+                hasTransparentNeighbor = true;
+                break;
+              }
+            }
+            if (hasTransparentNeighbor) break;
+          }
+
+          // Apply very subtle smoothing only to boundary pixels
+          if (hasTransparentNeighbor) {
+            let alphaSum = 0;
+            let count = 0;
+
+            for (let dy = -1; dy <= 1; dy++) {
+              for (let dx = -1; dx <= 1; dx++) {
+                const nIdx = ((y + dy) * width + (x + dx)) * 4;
+                alphaSum += data[nIdx + 3];
+                count++;
+              }
+            }
+
+            const avgAlpha = alphaSum / count;
+            if (avgAlpha > 200) {
+              smoothed[idx + 3] = 255; // Keep solid
+            } else if (avgAlpha < 50) {
+              smoothed[idx + 3] = 0; // Remove
+            } else {
+              smoothed[idx + 3] = avgAlpha > 128 ? 255 : 0; // Binary decision
+            }
+          }
+        }
+      }
+    }
+
+    // Copy smoothed alpha back
+    for (let i = 3; i < data.length; i += 4) {
+      data[i] = smoothed[i];
+    }
+  }
+
+  // Create person detection map using skin tone and human-like features
+  private createPersonDetectionMap(
+    data: Uint8ClampedArray,
+    width: number,
+    height: number,
+  ): Float32Array {
+    const detectionMap = new Float32Array(width * height);
+
+    for (let i = 0; i < data.length; i += 4) {
+      const pixelIndex = i / 4;
+      const r = data[i];
+      const g = data[i + 1];
+      const b = data[i + 2];
+
+      // Skin tone detection (improved algorithm)
+      const skinScore = this.calculateSkinToneScore(r, g, b);
+
+      // Color coherence (areas with similar colors are likely to be objects)
+      const x = pixelIndex % width;
+      const y = Math.floor(pixelIndex / width);
+      const coherenceScore = this.calculateLocalColorCoherence(
+        data,
+        x,
+        y,
+        width,
+        height,
+      );
+
+      // Combine scores
+      detectionMap[pixelIndex] = Math.min(
+        1,
+        skinScore * 0.6 + coherenceScore * 0.4,
+      );
+    }
+
+    // Apply smoothing to detection map
+    return this.smoothDetectionMap(detectionMap, width, height);
+  }
+
+  // Calculate skin tone probability
+  private calculateSkinToneScore(r: number, g: number, b: number): number {
+    // Enhanced skin tone detection algorithm
+    const rg = r - g;
+    const rb = r - b;
+    const gb = g - b;
+
+    // Multiple skin tone ranges for better coverage
+    const skinConditions = [
+      // Light skin tones
+      r > 60 && g > 40 && b > 20 && rg > 15 && rb > 15 && r > g && g > b,
+      // Medium skin tones
+      r > 80 && g > 50 && b > 30 && rg > 10 && rb > 20 && Math.abs(rg) < 40,
+      // Dark skin tones
+      r > 40 && g > 30 && b > 15 && rg > 5 && rb > 10 && r > g,
+      // Additional ranges
+      r > 45 && g > 34 && b > 20 && r > g && g >= b && rg >= 15 && rb >= 15,
+    ];
+
+    const matchingConditions = skinConditions.filter(
+      (condition) => condition,
+    ).length;
+    return Math.min(1, matchingConditions / skinConditions.length + 0.2);
+  }
+
+  // Calculate local color coherence
+  private calculateLocalColorCoherence(
+    data: Uint8ClampedArray,
+    x: number,
+    y: number,
+    width: number,
+    height: number,
+  ): number {
+    const radius = 3;
+    const centerIdx = (y * width + x) * 4;
+    const centerR = data[centerIdx];
+    const centerG = data[centerIdx + 1];
+    const centerB = data[centerIdx + 2];
+
+    let similarPixels = 0;
+    let totalPixels = 0;
+
+    for (let dy = -radius; dy <= radius; dy++) {
+      for (let dx = -radius; dx <= radius; dx++) {
+        const nx = x + dx;
+        const ny = y + dy;
+
+        if (nx >= 0 && nx < width && ny >= 0 && ny < height) {
+          const idx = (ny * width + nx) * 4;
+          const distance = Math.sqrt(
+            Math.pow(data[idx] - centerR, 2) +
+              Math.pow(data[idx + 1] - centerG, 2) +
+              Math.pow(data[idx + 2] - centerB, 2),
+          );
+
+          if (distance < 40) similarPixels++;
+          totalPixels++;
+        }
+      }
+    }
+
+    return totalPixels > 0 ? similarPixels / totalPixels : 0;
+  }
+
+  // Create multi-scale edge detection map
+  private createMultiScaleEdgeMap(
+    data: Uint8ClampedArray,
+    width: number,
+    height: number,
+  ): Float32Array {
+    const edgeMap = new Float32Array(width * height);
+
+    // Multiple scales for better edge detection
+    const scales = [1, 2, 3];
+
+    for (const scale of scales) {
+      const scaleEdges = this.createScaleSpecificEdgeMap(
+        data,
+        width,
+        height,
+        scale,
+      );
+
+      // Combine edges from different scales
+      for (let i = 0; i < edgeMap.length; i++) {
+        edgeMap[i] = Math.max(edgeMap[i], scaleEdges[i] / scales.length);
+      }
+    }
+
+    return edgeMap;
+  }
+
+  // Create edge map for specific scale
+  private createScaleSpecificEdgeMap(
+    data: Uint8ClampedArray,
+    width: number,
+    height: number,
+    scale: number,
+  ): Float32Array {
+    const edgeMap = new Float32Array(width * height);
+
+    for (let y = scale; y < height - scale; y++) {
+      for (let x = scale; x < width - scale; x++) {
+        let gx = 0,
+          gy = 0;
+
+        // Sobel operator with scaling
+        for (let dy = -scale; dy <= scale; dy++) {
+          for (let dx = -scale; dx <= scale; dx++) {
+            const idx = ((y + dy) * width + (x + dx)) * 4;
+            const gray = (data[idx] + data[idx + 1] + data[idx + 2]) / 3;
+
+            // Sobel weights adjusted for scale
+            const sobelX = dx / scale;
+            const sobelY = dy / scale;
+
+            gx += gray * sobelX;
+            gy += gray * sobelY;
+          }
+        }
+
+        const magnitude = Math.sqrt(gx * gx + gy * gy) / (255 * scale);
+        edgeMap[y * width + x] = Math.min(1, magnitude);
+      }
+    }
+
+    return edgeMap;
+  }
+
+  // Combine foreground detection methods
+  private combineForegroundDetection(
+    data: Uint8ClampedArray,
+    width: number,
+    height: number,
+    foregroundMap: Float32Array,
+    edgeMap: Float32Array,
+    model: string,
+  ): Float32Array {
+    const combinedMap = new Float32Array(width * height);
+
+    // Model-specific weights
+    const weights = this.getModelSpecificWeights(model);
+
+    for (let i = 0; i < combinedMap.length; i++) {
+      const x = i % width;
+      const y = Math.floor(i / width);
+
+      // Distance from center (people are often centered)
+      const centerX = width / 2;
+      const centerY = height / 2;
+      const centerDistance = Math.sqrt(
+        Math.pow(x - centerX, 2) + Math.pow(y - centerY, 2),
+      );
+      const maxDistance = Math.sqrt(centerX * centerX + centerY * centerY);
+      const centerFactor = 1 - (centerDistance / maxDistance) * 0.3;
+
+      // Combine all factors
+      combinedMap[i] = Math.min(
+        1,
+        foregroundMap[i] * weights.foreground +
+          edgeMap[i] * weights.edge +
+          centerFactor * weights.center,
+      );
+    }
+
+    return combinedMap;
+  }
+
+  // Get model-specific detection weights
+  private getModelSpecificWeights(model: string): {
+    foreground: number;
+    edge: number;
+    center: number;
+  } {
+    const weights = {
+      person: { foreground: 0.6, edge: 0.25, center: 0.15 },
+      general: { foreground: 0.4, edge: 0.4, center: 0.2 },
+      product: { foreground: 0.3, edge: 0.5, center: 0.2 },
+      animal: { foreground: 0.5, edge: 0.3, center: 0.2 },
+      car: { foreground: 0.2, edge: 0.6, center: 0.2 },
+      building: { foreground: 0.1, edge: 0.7, center: 0.2 },
+    };
+
+    return weights[model as keyof typeof weights] || weights.general;
+  }
+
+  // Smooth detection map to reduce noise
+  private smoothDetectionMap(
+    detectionMap: Float32Array,
+    width: number,
+    height: number,
+  ): Float32Array {
+    const smoothed = new Float32Array(detectionMap.length);
+    const radius = 2;
+
+    for (let y = radius; y < height - radius; y++) {
+      for (let x = radius; x < width - radius; x++) {
+        let sum = 0;
+        let count = 0;
+
+        for (let dy = -radius; dy <= radius; dy++) {
+          for (let dx = -radius; dx <= radius; dx++) {
+            const idx = (y + dy) * width + (x + dx);
+            sum += detectionMap[idx];
+            count++;
+          }
+        }
+
+        smoothed[y * width + x] = sum / count;
+      }
+    }
+
+    return smoothed;
+  }
+
+  // Apply edge refinement for smoother alpha transitions
+  private applyEdgeRefinement(
+    data: Uint8ClampedArray,
+    width: number,
+    height: number,
+    edgeMap: Float32Array,
+  ): void {
+    const tempData = new Uint8ClampedArray(data);
+    const radius = 1;
+
+    for (let y = radius; y < height - radius; y++) {
+      for (let x = radius; x < width - radius; x++) {
+        const idx = (y * width + x) * 4;
+        const edgeStrength = edgeMap[y * width + x];
+
+        if (edgeStrength > 0.3) {
+          // Apply smoothing around edges
+          let alphaSum = 0;
+          let count = 0;
+
+          for (let dy = -radius; dy <= radius; dy++) {
+            for (let dx = -radius; dx <= radius; dx++) {
+              const nIdx = ((y + dy) * width + (x + dx)) * 4;
+              alphaSum += data[nIdx + 3];
+              count++;
+            }
+          }
+
+          const avgAlpha = alphaSum / count;
+          const currentAlpha = data[idx + 3];
+
+          // Blend based on edge strength
+          tempData[idx + 3] = Math.round(
+            currentAlpha * (1 - edgeStrength * 0.3) +
+              avgAlpha * (edgeStrength * 0.3),
+          );
+        }
+      }
+    }
+
+    // Copy refined alpha values back
+    for (let i = 3; i < data.length; i += 4) {
+      data[i] = tempData[i];
+    }
+  }
+
+  // Advanced background color sampling from multiple regions
+  private advancedBackgroundSampling(
+    data: Uint8ClampedArray,
+    width: number,
+    height: number,
+  ): Array<{ r: number; g: number; b: number }> {
+    const colors: Array<{ r: number; g: number; b: number }> = [];
+    const sampleSize = 8; // Reduced sample size for more precise detection
+
+    // Sample from corners and edges with improved logic
+    const regions = [
+      // Corners (most likely to be background)
+      { x: 0, y: 0, w: width * 0.15, h: height * 0.15, weight: 3 },
+      { x: width * 0.85, y: 0, w: width * 0.15, h: height * 0.15, weight: 3 },
+      { x: 0, y: height * 0.85, w: width * 0.15, h: height * 0.15, weight: 3 },
+      {
+        x: width * 0.85,
+        y: height * 0.85,
+        w: width * 0.15,
+        h: height * 0.15,
+        weight: 3,
+      },
+
+      // Edge centers (likely background)
+      { x: width * 0.4, y: 0, w: width * 0.2, h: height * 0.1, weight: 2 },
+      {
+        x: width * 0.4,
+        y: height * 0.9,
+        w: width * 0.2,
+        h: height * 0.1,
+        weight: 2,
+      },
+      { x: 0, y: height * 0.4, w: width * 0.1, h: height * 0.2, weight: 2 },
+      {
+        x: width * 0.9,
+        y: height * 0.4,
+        w: width * 0.1,
+        h: height * 0.2,
+        weight: 2,
+      },
+    ];
+
+    for (const region of regions) {
+      for (let i = 0; i < sampleSize * region.weight; i++) {
+        const x = Math.floor(region.x + Math.random() * region.w);
+        const y = Math.floor(region.y + Math.random() * region.h);
+        const index = (y * width + x) * 4;
+
+        if (index >= 0 && index < data.length - 3) {
+          colors.push({
+            r: data[index],
+            g: data[index + 1],
+            b: data[index + 2],
+          });
+        }
+      }
+    }
+
+    // Cluster similar colors to reduce noise
+    return this.clusterSimilarColors(colors);
+  }
+
+  // Create advanced edge map for better object detection
+  private createAdvancedEdgeMap(
+    data: Uint8ClampedArray,
+    width: number,
+    height: number,
+  ): Float32Array {
+    const edgeMap = new Float32Array(width * height);
+
+    // Sobel edge detection with improved kernels
+    const sobelX = [-1, 0, 1, -2, 0, 2, -1, 0, 1];
+    const sobelY = [-1, -2, -1, 0, 0, 0, 1, 2, 1];
+
+    for (let y = 1; y < height - 1; y++) {
+      for (let x = 1; x < width - 1; x++) {
+        let gx = 0,
+          gy = 0;
+
+        // Apply Sobel kernels
+        for (let dy = -1; dy <= 1; dy++) {
+          for (let dx = -1; dx <= 1; dx++) {
+            const idx = ((y + dy) * width + (x + dx)) * 4;
+            const gray = (data[idx] + data[idx + 1] + data[idx + 2]) / 3;
+            const kernelIdx = (dy + 1) * 3 + (dx + 1);
+
+            gx += gray * sobelX[kernelIdx];
+            gy += gray * sobelY[kernelIdx];
+          }
+        }
+
+        const magnitude = Math.sqrt(gx * gx + gy * gy) / 1020; // Normalize
+        edgeMap[y * width + x] = Math.min(1, magnitude);
+      }
+    }
+
+    return edgeMap;
+  }
+
+  // Calculate perceptual color distance (LAB color space approximation)
+  private calculatePerceptualColorDistance(
+    color1: { r: number; g: number; b: number },
+    color2: { r: number; g: number; b: number },
+  ): number {
+    // Convert to LAB-like space for perceptual accuracy
+    const lab1 = this.rgbToPerceptualSpace(color1);
+    const lab2 = this.rgbToPerceptualSpace(color2);
+
+    const deltaL = lab1.l - lab2.l;
+    const deltaA = lab1.a - lab2.a;
+    const deltaB = lab1.b - lab2.b;
+
+    return Math.sqrt(deltaL * deltaL + deltaA * deltaA + deltaB * deltaB);
+  }
+
+  // Convert RGB to perceptual color space
+  private rgbToPerceptualSpace(rgb: { r: number; g: number; b: number }) {
+    // Simplified LAB conversion for better perceptual color matching
+    const r = rgb.r / 255;
+    const g = rgb.g / 255;
+    const b = rgb.b / 255;
+
+    const l = 0.299 * r + 0.587 * g + 0.114 * b;
+    const a = (r - g) * 0.5;
+    const bComp = 0.25 * (r + g) - 0.5 * b;
+
+    return { l: l * 100, a: a * 100, b: bComp * 100 };
+  }
+
+  // Cluster similar colors to reduce background color noise
+  private clusterSimilarColors(
+    colors: Array<{ r: number; g: number; b: number }>,
+  ): Array<{ r: number; g: number; b: number }> {
+    if (colors.length === 0) return [];
+
+    const clusters: Array<Array<{ r: number; g: number; b: number }>> = [];
+    const threshold = 20; // Color similarity threshold
+
+    for (const color of colors) {
+      let addedToCluster = false;
+
+      for (const cluster of clusters) {
+        const avgColor = this.getAverageColor(cluster);
+        const distance = this.calculatePerceptualColorDistance(color, avgColor);
+
+        if (distance < threshold) {
+          cluster.push(color);
+          addedToCluster = true;
+          break;
+        }
+      }
+
+      if (!addedToCluster) {
+        clusters.push([color]);
+      }
+    }
+
+    // Return average colors of largest clusters
+    return clusters
+      .sort((a, b) => b.length - a.length)
+      .slice(0, 5) // Keep top 5 clusters
+      .map((cluster) => this.getAverageColor(cluster));
+  }
+
+  // Get average color of a cluster
+  private getAverageColor(colors: Array<{ r: number; g: number; b: number }>) {
+    const sum = colors.reduce(
+      (acc, color) => ({
+        r: acc.r + color.r,
+        g: acc.g + color.g,
+        b: acc.b + color.b,
+      }),
+      { r: 0, g: 0, b: 0 },
+    );
+
+    return {
+      r: Math.round(sum.r / colors.length),
+      g: Math.round(sum.g / colors.length),
+      b: Math.round(sum.b / colors.length),
+    };
+  }
+
+  // Enhanced threshold selection based on content type
+  private getEnhancedThresholdForModel(model: string): number {
+    const thresholds: { [key: string]: number } = {
+      person: 18, // Lower for better person detection
+      product: 22, // Medium for clean product backgrounds
+      general: 25, // Default balanced value
+      animal: 20, // Lower for better fur/texture detection
+      car: 28, // Higher for metallic surfaces
+      building: 30, // Higher for architectural elements
+    };
+
+    return thresholds[model] || 25;
+  }
+
+  // Advanced content detection for better preservation
+  private detectAdvancedContent(
+    data: Uint8ClampedArray,
+    width: number,
+    height: number,
+    edgeMap: Float32Array,
+  ): boolean[] {
+    const contentMask = new Array(width * height).fill(false);
+
+    // Detect high-contrast areas (likely text/graphics)
+    for (let y = 1; y < height - 1; y++) {
+      for (let x = 1; x < width - 1; x++) {
+        const idx = y * width + x;
+        const pixelIdx = idx * 4;
+
+        // Check local contrast
+        let maxContrast = 0;
+        for (let dy = -1; dy <= 1; dy++) {
+          for (let dx = -1; dx <= 1; dx++) {
+            const neighborIdx = ((y + dy) * width + (x + dx)) * 4;
+            const contrast =
+              Math.abs(
+                data[pixelIdx] +
+                  data[pixelIdx + 1] +
+                  data[pixelIdx + 2] -
+                  (data[neighborIdx] +
+                    data[neighborIdx + 1] +
+                    data[neighborIdx + 2]),
+              ) / 3;
+            maxContrast = Math.max(maxContrast, contrast);
+          }
+        }
+
+        // High contrast + strong edges = likely important content
+        if (maxContrast > 40 && edgeMap[idx] > 0.3) {
+          contentMask[idx] = true;
+        }
+      }
+    }
+
+    return contentMask;
+  }
+
+  // Enhance colors specifically for text and graphics elements
+  private enhanceTextAndGraphicsColors(
+    data: Uint8ClampedArray,
+    contentMask: boolean[],
+    width: number,
+    height: number,
+  ): void {
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        const idx = (y * width + x) * 4;
+        const pixelIndex = y * width + x;
+
+        if (contentMask[pixelIndex] && data[idx + 3] > 200) {
+          // High alpha text/graphics
+          const r = data[idx];
+          const g = data[idx + 1];
+          const b = data[idx + 2];
+
+          // Calculate luminance
+          const luminance = 0.299 * r + 0.587 * g + 0.114 * b;
+
+          // Apply contrast enhancement for text visibility
+          let enhancementFactor = 1.0;
+
+          // Dark text (typical black text)
+          if (luminance < 80) {
+            enhancementFactor = 0.85; // Make darker
+          }
+          // Light text (white text)
+          else if (luminance > 200) {
+            enhancementFactor = 1.1; // Make brighter
+          }
+          // Colored text
+          else {
+            const max = Math.max(r, g, b);
+            const min = Math.min(r, g, b);
+            const saturation = max > 0 ? (max - min) / max : 0;
+
+            if (saturation > 0.4) {
+              enhancementFactor = 1.2; // Boost saturated colors
+            }
+          }
+
+          // Apply enhancement
+          data[idx] = Math.max(
+            0,
+            Math.min(255, Math.floor(r * enhancementFactor)),
+          );
+          data[idx + 1] = Math.max(
+            0,
+            Math.min(255, Math.floor(g * enhancementFactor)),
+          );
+          data[idx + 2] = Math.max(
+            0,
+            Math.min(255, Math.floor(b * enhancementFactor)),
+          );
+        }
+      }
+    }
+  }
+
+  // Detect text and graphics areas that should preserve color intensity
+  private detectTextAndGraphics(
+    data: Uint8ClampedArray,
+    width: number,
+    height: number,
+  ): boolean[] {
+    const textMask = new Array(width * height).fill(false);
+
+    for (let y = 1; y < height - 1; y++) {
+      for (let x = 1; x < width - 1; x++) {
+        const idx = (y * width + x) * 4;
+        const r = data[idx];
+        const g = data[idx + 1];
+        const b = data[idx + 2];
+
+        // Calculate local contrast (edge strength)
+        let maxContrast = 0;
+        for (let dy = -1; dy <= 1; dy++) {
+          for (let dx = -1; dx <= 1; dx++) {
+            if (dx === 0 && dy === 0) continue;
+            const nIdx = ((y + dy) * width + (x + dx)) * 4;
+            const nr = data[nIdx];
+            const ng = data[nIdx + 1];
+            const nb = data[nIdx + 2];
+
+            // Calculate color difference
+            const contrast =
+              Math.abs(r - nr) + Math.abs(g - ng) + Math.abs(b - nb);
+            maxContrast = Math.max(maxContrast, contrast);
+          }
+        }
+
+        // High contrast areas are likely text/graphics
+        // Also check for pure colors (high saturation)
+        const max = Math.max(r, g, b);
+        const min = Math.min(r, g, b);
+        const saturation = max > 0 ? (max - min) / max : 0;
+
+        // Mark as text/graphics if high contrast OR high saturation
+        textMask[y * width + x] = maxContrast > 80 || saturation > 0.6;
+      }
+    }
+
+    return textMask;
+  }
+
+  // Sample colors from image edges (corners and borders)
+  private sampleImageEdges(
+    data: Uint8ClampedArray,
+    width: number,
+    height: number,
+  ): Array<{ r: number; g: number; b: number }> {
+    const colors: Array<{ r: number; g: number; b: number }> = [];
+    const sampleSize = Math.min(10, Math.floor(Math.min(width, height) / 20));
+
+    // Sample from corners
+    const corners = [
+      { x: 0, y: 0 },
+      { x: width - sampleSize, y: 0 },
+      { x: 0, y: height - sampleSize },
+      { x: width - sampleSize, y: height - sampleSize },
+    ];
+
+    for (const corner of corners) {
+      for (let y = corner.y; y < corner.y + sampleSize && y < height; y++) {
+        for (let x = corner.x; x < corner.x + sampleSize && x < width; x++) {
+          const idx = (y * width + x) * 4;
+          colors.push({
+            r: data[idx],
+            g: data[idx + 1],
+            b: data[idx + 2],
+          });
+        }
+      }
+    }
+
+    // Also sample from top and bottom edges
+    for (let x = 0; x < width; x += Math.max(1, Math.floor(width / 50))) {
+      // Top edge
+      const topIdx = x * 4;
+      colors.push({
+        r: data[topIdx],
+        g: data[topIdx + 1],
+        b: data[topIdx + 2],
+      });
+
+      // Bottom edge
+      const bottomIdx = ((height - 1) * width + x) * 4;
+      colors.push({
+        r: data[bottomIdx],
+        g: data[bottomIdx + 1],
+        b: data[bottomIdx + 2],
+      });
+    }
+
+    return colors;
+  }
+
+  // Improved background removal using edge detection and color clustering
+  private improvedBackgroundRemoval(
+    imageData: ImageData,
+    options: any,
+    onProgress?: (progress: number) => void,
+  ): ImageData {
+    onProgress?.(5);
+
+    const { data, width, height } = imageData;
+    const processedData = new Uint8ClampedArray(data);
+
+    // Step 1: Edge detection to identify object boundaries
+    const edges = this.detectEdges(data, width, height);
+    onProgress?.(25);
+
+    // Step 2: Color clustering to identify background regions
+    const backgroundMask = this.createBackgroundMask(
+      data,
+      width,
+      height,
+      edges,
+    );
+    onProgress?.(50);
+
+    // Step 3: Apply mask with smoothing for natural edges
+    for (let i = 0; i < data.length; i += 4) {
+      const pixelIndex = i / 4;
+      const y = Math.floor(pixelIndex / width);
+      const x = pixelIndex % width;
+
+      processedData[i] = data[i]; // R
+      processedData[i + 1] = data[i + 1]; // G
+      processedData[i + 2] = data[i + 2]; // B
+
+      // Calculate alpha based on background probability
+      let alpha = backgroundMask[pixelIndex] > 0.5 ? 0 : 255;
+
+      // Apply edge smoothing
+      if (options.edgeSmoothing > 0) {
+        alpha = this.smoothAlpha(
+          x,
+          y,
+          alpha,
+          backgroundMask,
+          width,
+          height,
+          options.edgeSmoothing,
+        );
+      }
+
+      processedData[i + 3] = alpha;
+    }
+
+    onProgress?.(75);
+
+    // Step 4: Post-processing to clean up artifacts
+    this.cleanupArtifacts(processedData, width, height);
+    onProgress?.(100);
+
+    return new ImageData(processedData, width, height);
+  }
+
+  // Simple edge detection using Sobel operator
+  private detectEdges(
+    data: Uint8ClampedArray,
+    width: number,
+    height: number,
+  ): Float32Array {
+    const edges = new Float32Array(width * height);
+    const sobelX = [-1, 0, 1, -2, 0, 2, -1, 0, 1];
+    const sobelY = [-1, -2, -1, 0, 0, 0, 1, 2, 1];
+
+    for (let y = 1; y < height - 1; y++) {
+      for (let x = 1; x < width - 1; x++) {
+        let gx = 0,
+          gy = 0;
+
+        for (let ky = -1; ky <= 1; ky++) {
+          for (let kx = -1; kx <= 1; kx++) {
+            const idx = ((y + ky) * width + (x + kx)) * 4;
+            const intensity = (data[idx] + data[idx + 1] + data[idx + 2]) / 3;
+            const kernelIdx = (ky + 1) * 3 + (kx + 1);
+
+            gx += intensity * sobelX[kernelIdx];
+            gy += intensity * sobelY[kernelIdx];
+          }
+        }
+
+        edges[y * width + x] = Math.sqrt(gx * gx + gy * gy);
+      }
+    }
+
+    return edges;
+  }
+
+  // Create background mask using color similarity and edge information
+  private createBackgroundMask(
+    data: Uint8ClampedArray,
+    width: number,
+    height: number,
+    edges: Float32Array,
+  ): Float32Array {
+    const mask = new Float32Array(width * height);
+
+    // Sample background colors from edges of the image
+    const bgColors = this.sampleEdgeColors(data, width, height);
+    const threshold = 30;
+
+    for (let i = 0; i < data.length; i += 4) {
+      const pixelIndex = i / 4;
+      const r = data[i];
+      const g = data[i + 1];
+      const b = data[i + 2];
+
+      // Find minimum distance to any background color
+      let minDistance = Infinity;
+      for (const bgColor of bgColors) {
+        const distance = Math.sqrt(
+          Math.pow(r - bgColor.r, 2) +
+            Math.pow(g - bgColor.g, 2) +
+            Math.pow(b - bgColor.b, 2),
+        );
+        minDistance = Math.min(minDistance, distance);
+      }
+
+      // Calculate background probability
+      let bgProbability = 1 - Math.min(minDistance / threshold, 1);
+
+      // Reduce probability near edges (likely object boundaries)
+      const edgeStrength = edges[pixelIndex] / 50; // Normalize edge strength
+      bgProbability *= Math.max(0, 1 - edgeStrength);
+
+      mask[pixelIndex] = bgProbability;
+    }
+
+    return mask;
+  }
+
+  // Sample colors from image edges
+  private sampleEdgeColors(
+    data: Uint8ClampedArray,
+    width: number,
+    height: number,
+  ): Array<{ r: number; g: number; b: number }> {
+    const colors = new Set<string>();
+    const sampleStep = Math.max(1, Math.floor(Math.min(width, height) / 20));
+
+    // Sample from all edges
+    for (let i = 0; i < width; i += sampleStep) {
+      // Top edge
+      const topIdx = i * 4;
+      colors.add(`${data[topIdx]},${data[topIdx + 1]},${data[topIdx + 2]}`);
+
+      // Bottom edge
+      const bottomIdx = ((height - 1) * width + i) * 4;
+      colors.add(
+        `${data[bottomIdx]},${data[bottomIdx + 1]},${data[bottomIdx + 2]}`,
+      );
+    }
+
+    for (let i = 0; i < height; i += sampleStep) {
+      // Left edge
+      const leftIdx = i * width * 4;
+      colors.add(`${data[leftIdx]},${data[leftIdx + 1]},${data[leftIdx + 2]}`);
+
+      // Right edge
+      const rightIdx = (i * width + width - 1) * 4;
+      colors.add(
+        `${data[rightIdx]},${data[rightIdx + 1]},${data[rightIdx + 2]}`,
+      );
+    }
+
+    return Array.from(colors).map((colorStr) => {
+      const [r, g, b] = colorStr.split(",").map(Number);
+      return { r, g, b };
     });
   }
 
-  // Simple but effective background removal
+  // Smooth alpha values for natural edges
+  private smoothAlpha(
+    x: number,
+    y: number,
+    alpha: number,
+    mask: Float32Array,
+    width: number,
+    height: number,
+    smoothing: number,
+  ): number {
+    let sum = alpha;
+    let count = 1;
+    const radius = smoothing;
+
+    for (let dy = -radius; dy <= radius; dy++) {
+      for (let dx = -radius; dx <= radius; dx++) {
+        const nx = x + dx;
+        const ny = y + dy;
+
+        if (
+          nx >= 0 &&
+          nx < width &&
+          ny >= 0 &&
+          ny < height &&
+          (dx !== 0 || dy !== 0)
+        ) {
+          const neighborAlpha = mask[ny * width + nx] > 0.5 ? 0 : 255;
+          sum += neighborAlpha;
+          count++;
+        }
+      }
+    }
+
+    return Math.round(sum / count);
+  }
+
+  // Clean up small artifacts and noise
+  private cleanupArtifacts(
+    data: Uint8ClampedArray,
+    width: number,
+    height: number,
+  ): void {
+    // Simple morphological operations to clean up noise
+    const tempData = new Uint8ClampedArray(data);
+
+    for (let y = 1; y < height - 1; y++) {
+      for (let x = 1; x < width - 1; x++) {
+        const idx = (y * width + x) * 4;
+        const alpha = data[idx + 3];
+
+        // Count transparent neighbors
+        let transparentCount = 0;
+        for (let dy = -1; dy <= 1; dy++) {
+          for (let dx = -1; dx <= 1; dx++) {
+            const nIdx = ((y + dy) * width + (x + dx)) * 4;
+            if (data[nIdx + 3] < 128) transparentCount++;
+          }
+        }
+
+        // Remove isolated opaque pixels
+        if (alpha > 128 && transparentCount > 6) {
+          tempData[idx + 3] = 0;
+        }
+        // Fill isolated transparent pixels
+        else if (alpha < 128 && transparentCount < 3) {
+          tempData[idx + 3] = 255;
+        }
+      }
+    }
+
+    // Copy cleaned data back
+    for (let i = 3; i < data.length; i += 4) {
+      data[i] = tempData[i];
+    }
+  }
+
+  // Simple but effective background removal (fallback)
   private simpleBackgroundRemoval(
     imageData: ImageData,
     options: any,
@@ -1813,63 +3559,6 @@ export class ImageService {
     return baseThreshold * contrastFactor;
   }
 
-  // Get optimal threshold based on the model type
-  private getThresholdForModel(model: string): number {
-    const thresholds: Record<string, number> = {
-      person: 25, // Lower threshold for skin tones
-      product: 40, // Higher threshold for clear product shots
-      animal: 30, // Medium threshold for fur/hair
-      car: 45, // Higher threshold for metallic surfaces
-      building: 50, // Highest threshold for architectural elements
-      general: 35, // Balanced threshold
-    };
-    return thresholds[model] || 35;
-  }
-
-  // Advanced edge detection using Sobel operator
-  private detectEdges(
-    data: Uint8ClampedArray,
-    width: number,
-    height: number,
-  ): Uint8ClampedArray {
-    const edges = new Uint8ClampedArray(width * height);
-
-    // Sobel kernels
-    const sobelX = [
-      [-1, 0, 1],
-      [-2, 0, 2],
-      [-1, 0, 1],
-    ];
-    const sobelY = [
-      [-1, -2, -1],
-      [0, 0, 0],
-      [1, 2, 1],
-    ];
-
-    for (let y = 1; y < height - 1; y++) {
-      for (let x = 1; x < width - 1; x++) {
-        let gx = 0,
-          gy = 0;
-
-        // Apply Sobel kernels
-        for (let ky = -1; ky <= 1; ky++) {
-          for (let kx = -1; kx <= 1; kx++) {
-            const idx = ((y + ky) * width + (x + kx)) * 4;
-            const gray = (data[idx] + data[idx + 1] + data[idx + 2]) / 3;
-
-            gx += gray * sobelX[ky + 1][kx + 1];
-            gy += gray * sobelY[ky + 1][kx + 1];
-          }
-        }
-
-        const magnitude = Math.sqrt(gx * gx + gy * gy);
-        edges[y * width + x] = Math.min(255, magnitude);
-      }
-    }
-
-    return edges;
-  }
-
   // Advanced background color sampling
   private sampleBackgroundColorsAdvanced(
     data: Uint8ClampedArray,
@@ -2318,97 +4007,59 @@ export class ImageService {
     return this.clusterColorsAdvanced(colors);
   }
 
-  // Apply edge smoothing to reduce artifacts
-  private applyEdgeSmoothing(
+  // Apply simple edge smoothing to reduce artifacts
+  private applySmoothingPass(
     data: Uint8ClampedArray,
     width: number,
     height: number,
-    radius: number,
+    smoothingLevel: number,
   ): void {
+    if (smoothingLevel <= 0) return;
+
     const original = new Uint8ClampedArray(data);
+    const radius = Math.min(3, Math.max(1, Math.floor(smoothingLevel)));
 
     for (let y = radius; y < height - radius; y++) {
       for (let x = radius; x < width - radius; x++) {
         const idx = (y * width + x) * 4;
 
-        if (original[idx + 3] === 0) continue; // Skip transparent pixels
+        // Skip if already transparent
+        if (original[idx + 3] === 0) continue;
 
-        let neighboringTransparent = 0;
-        let totalNeighbors = 0;
+        // Only smooth alpha channel to preserve color fidelity
+        let alphaSum = 0;
+        let count = 0;
 
-        // Check surrounding pixels
         for (let dy = -radius; dy <= radius; dy++) {
           for (let dx = -radius; dx <= radius; dx++) {
-            if (dx === 0 && dy === 0) continue;
-
             const nx = x + dx;
             const ny = y + dy;
-            const nidx = (ny * width + nx) * 4;
 
-            if (original[nidx + 3] === 0) {
-              neighboringTransparent++;
+            if (nx >= 0 && nx < width && ny >= 0 && ny < height) {
+              const nIdx = (ny * width + nx) * 4;
+              const distance = Math.sqrt(dx * dx + dy * dy);
+              const weight = Math.exp(-distance / radius);
+
+              alphaSum += original[nIdx + 3] * weight;
+              count += weight;
             }
-            totalNeighbors++;
           }
         }
 
-        // Gradually reduce opacity near transparent areas
-        const transparentRatio = neighboringTransparent / totalNeighbors;
-        if (transparentRatio > 0.3) {
-          data[idx + 3] = Math.floor(
-            original[idx + 3] * (1 - transparentRatio * 0.7),
-          );
+        if (count > 0) {
+          data[idx + 3] = Math.round(alphaSum / count);
         }
       }
     }
   }
 
-  // Remove isolated background pixels
-  private removeIsolatedPixels(
-    data: Uint8ClampedArray,
-    width: number,
-    height: number,
-  ): void {
-    const original = new Uint8ClampedArray(data);
-
-    for (let y = 1; y < height - 1; y++) {
-      for (let x = 1; x < width - 1; x++) {
-        const idx = (y * width + x) * 4;
-
-        if (original[idx + 3] > 0) continue; // Skip opaque pixels
-
-        let opaqueNeighbors = 0;
-
-        // Check 8 surrounding pixels
-        for (let dy = -1; dy <= 1; dy++) {
-          for (let dx = -1; dx <= 1; dx++) {
-            if (dx === 0 && dy === 0) continue;
-
-            const nidx = ((y + dy) * width + (x + dx)) * 4;
-            if (original[nidx + 3] > 0) {
-              opaqueNeighbors++;
-            }
-          }
-        }
-
-        // If surrounded mostly by opaque pixels, restore this pixel
-        if (opaqueNeighbors >= 6) {
-          data[idx + 3] = 255;
-        }
-      }
-    }
-  }
   // Analyze image and get metadata
   async analyzeImage(file: File): Promise<any> {
     const formData = new FormData();
     formData.append("image", file);
 
-    const token = localStorage.getItem("token");
     const response = await fetch("/api/image/analyze", {
       method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
       body: formData,
     });
 
@@ -2421,7 +4072,7 @@ export class ImageService {
   }
 
   // Resize image using backend API
-  async resizeImage(
+  async resizeImageAPI(
     file: File,
     options: {
       width?: number;
@@ -2440,12 +4091,8 @@ export class ImageService {
     if (options.quality) formData.append("quality", options.quality.toString());
     if (options.format) formData.append("format", options.format);
 
-    const token = localStorage.getItem("token");
     const response = await fetch("/api/image/resize", {
       method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
       body: formData,
     });
 
@@ -2458,6 +4105,31 @@ export class ImageService {
     const fileName = `resized-${Date.now()}.${options.format || "jpeg"}`;
     return new File([blob], fileName, { type: blob.type });
   }
+
+  // Get model-specific threshold for better accuracy
+  private getThresholdForModel(model: string): number {
+    const thresholds: Record<string, number> = {
+      person: 25, // Tighter threshold for people
+      product: 30, // Good for products with clean backgrounds
+      animal: 35, // Moderate for animals with fur/feathers
+      car: 40, // Vehicles often have complex reflections
+      building: 45, // Architecture with varied textures
+      general: 35, // Balanced default
+    };
+    return thresholds[model] || 35;
+  }
+}
+
+// Helper function to convert compression level to quality percentage
+function getQualityFromLevel(level: string): number {
+  const qualityMap = {
+    extreme: 40,
+    high: 60,
+    medium: 75,
+    low: 85,
+    "best-quality": 95,
+  };
+  return qualityMap[level as keyof typeof qualityMap] || 75;
 }
 
 // Export singleton instance

@@ -507,7 +507,11 @@ const TestAllTools = () => {
             <Button asChild>
               <Link to="/merge">Test Merge PDF</Link>
             </Button>
-            <Button variant="outline" asChild>
+            <Button
+              variant="outline"
+              className="border-2 border-red-600 text-red-600 hover:bg-red-600 hover:text-white font-bold shadow-lg bg-red-50/80"
+              asChild
+            >
               <Link to="/pricing">View Pricing</Link>
             </Button>
             <Button variant="outline" asChild>

@@ -326,8 +326,10 @@ const Press = () => {
                 <span className="text-brand-red ml-2">press@pdfpage.com</span>
               </div>
               <div>
-                <span className="font-medium text-text-dark">Phone:</span>
-                <span className="text-text-medium ml-2">+91 9572377168</span>
+                <span className="font-medium text-text-dark">
+                  Response Time:
+                </span>
+                <span className="text-text-medium ml-2">Within 24 hours</span>
               </div>
             </div>
           </div>

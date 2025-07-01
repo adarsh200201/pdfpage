@@ -218,7 +218,7 @@ axios.post('https://api.pdfpage.com/v1/compress', form, {
                   dashboard.
                 </p>
                 <Button variant="outline" size="sm" asChild>
-                  <Link to="/dashboard">Get Started</Link>
+                  <Link to="/dashboard">Sign Up</Link>
                 </Button>
               </CardContent>
             </Card>
@@ -274,7 +274,7 @@ axios.post('https://api.pdfpage.com/v1/compress', form, {
                     Base URL
                   </h3>
                   <div className="bg-gray-100 p-3 rounded-lg font-mono text-sm mb-6">
-                    https://api.pdfpage.com/v1
+                    https://app.pdfpage.com/api/v1
                   </div>
 
                   <h3 className="text-xl font-semibold text-text-dark mb-4">
@@ -434,7 +434,7 @@ axios.post('https://api.pdfpage.com/v1/compress', form, {
                     asChild
                   >
                     <Link to="/pricing">
-                      {plan.plan === "Free" ? "Get Started" : "Upgrade"}
+                      {plan.plan === "Free" ? "Sign Up" : "Upgrade"}
                     </Link>
                   </Button>
                 </CardContent>

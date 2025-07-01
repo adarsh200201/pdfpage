@@ -3,7 +3,13 @@ import { Link } from "react-router-dom";
 import ImgHeader from "@/components/layout/ImgHeader";
 import FileUpload from "@/components/ui/file-upload";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -37,6 +43,7 @@ const ImgResize = () => {
   const [targetHeight, setTargetHeight] = useState("");
   const [maintainAspectRatio, setMaintainAspectRatio] = useState(true);
   const [resizedPreview, setResizedPreview] = useState<string | null>(null);
+  const [selectedPreset, setSelectedPreset] = useState<string | null>(null);
 
   const { toast } = useToast();
 
@@ -95,6 +102,7 @@ const ImgResize = () => {
 
   const handleWidthChange = (value: string) => {
     setTargetWidth(value);
+    setSelectedPreset(null); // Clear preset selection when manually changing
     if (maintainAspectRatio && image && value) {
       const aspectRatio = image.width / image.height;
       const newHeight = Math.round(parseInt(value) / aspectRatio);
@@ -104,6 +112,7 @@ const ImgResize = () => {
 
   const handleHeightChange = (value: string) => {
     setTargetHeight(value);
+    setSelectedPreset(null); // Clear preset selection when manually changing
     if (maintainAspectRatio && image && value) {
       const aspectRatio = image.width / image.height;
       const newWidth = Math.round(parseInt(value) * aspectRatio);
@@ -111,9 +120,14 @@ const ImgResize = () => {
     }
   };
 
-  const handlePresetSelect = (preset: { width: number; height: number }) => {
+  const handlePresetSelect = (preset: {
+    name: string;
+    width: number;
+    height: number;
+  }) => {
     setTargetWidth(preset.width.toString());
     setTargetHeight(preset.height.toString());
+    setSelectedPreset(preset.name);
   };
 
   const handleResize = async () => {
@@ -162,13 +176,14 @@ const ImgResize = () => {
     setTargetHeight("");
     setMaintainAspectRatio(true);
     setResizedPreview(null);
+    setSelectedPreset(null);
   };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
       <ImgHeader />
 
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
         {/* Header */}
         <div className="flex items-center mb-8">
           <Link
@@ -180,67 +195,85 @@ const ImgResize = () => {
           </Link>
         </div>
 
-        <div className="text-center mb-8">
-          <div className="bg-gradient-to-r from-green-600 to-emerald-600 p-4 rounded-2xl w-fit mx-auto mb-4">
-            <Move className="w-8 h-8 text-white" />
-          </div>
-          <h1 className="text-3xl font-bold text-gray-900 mb-4">
-            Resize Image
-          </h1>
-          <p className="text-gray-600 max-w-2xl mx-auto">
-            Change your image dimensions with precision. Perfect for social
-            media, web design, and print materials.
-          </p>
-        </div>
-
         {/* Main Content */}
         <div className="space-y-8">
           {!image ? (
-            <Card>
-              <CardContent className="p-8">
-                <FileUpload
-                  onFilesSelect={handleFilesSelect}
-                  acceptedFileTypes={{
-                    "image/*": [".jpg", ".jpeg", ".png", ".gif", ".webp"],
-                  }}
-                  maxFiles={1}
-                  maxSize={50}
-                  multiple={false}
-                  uploadText="Select image file or drop image file here"
-                  supportText="Supports JPG, PNG, GIF, WebP formats"
-                />
+            <div className="space-y-8">
+              {/* Mobile-First Upload Section - Priority */}
+              <Card className="mb-8">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Move className="w-5 h-5 text-green-600" />
+                    Upload Image
+                  </CardTitle>
+                  <CardDescription>
+                    Select an image file to resize (max 50MB)
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <FileUpload
+                    onFilesSelect={handleFilesSelect}
+                    acceptedFileTypes={{
+                      "image/*": [".jpg", ".jpeg", ".png", ".gif", ".webp"],
+                    }}
+                    maxFiles={1}
+                    maxSize={50}
+                    multiple={false}
+                    uploadText="Select image file or drop image file here"
+                    supportText="Supports JPG, PNG, GIF, WebP formats"
+                  />
+                </CardContent>
+              </Card>
 
-                <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="text-center p-4">
-                    <Maximize2 className="w-8 h-8 text-green-600 mx-auto mb-2" />
-                    <h3 className="font-semibold text-gray-900">
-                      Precise Control
-                    </h3>
-                    <p className="text-gray-600 text-sm">
-                      Set exact pixel dimensions or use preset sizes
-                    </p>
-                  </div>
-                  <div className="text-center p-4">
-                    <LinkIcon className="w-8 h-8 text-blue-600 mx-auto mb-2" />
-                    <h3 className="font-semibold text-gray-900">
-                      Aspect Ratio
-                    </h3>
-                    <p className="text-gray-600 text-sm">
-                      Maintain proportions or create custom ratios
-                    </p>
-                  </div>
-                  <div className="text-center p-4">
-                    <CheckCircle className="w-8 h-8 text-purple-600 mx-auto mb-2" />
-                    <h3 className="font-semibold text-gray-900">
-                      High Quality
-                    </h3>
-                    <p className="text-gray-600 text-sm">
-                      Professional scaling algorithms preserve image quality
-                    </p>
-                  </div>
+              {/* Tool Description */}
+              <div className="text-center mb-8">
+                <div className="bg-gradient-to-r from-green-600 to-emerald-600 p-4 rounded-2xl w-fit mx-auto mb-4">
+                  <Move className="w-8 h-8 text-white" />
                 </div>
-              </CardContent>
-            </Card>
+                <h1 className="text-3xl font-bold text-gray-900 mb-4">
+                  Resize Image
+                </h1>
+                <p className="text-gray-600 max-w-2xl mx-auto">
+                  Change your image dimensions with precision. Perfect for
+                  social media, web design, and print materials.
+                </p>
+              </div>
+
+              {/* Features */}
+              <Card>
+                <CardContent className="p-8">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="text-center p-4">
+                      <Maximize2 className="w-8 h-8 text-green-600 mx-auto mb-2" />
+                      <h3 className="font-semibold text-gray-900">
+                        Precise Control
+                      </h3>
+                      <p className="text-gray-600 text-sm">
+                        Set exact pixel dimensions or use preset sizes
+                      </p>
+                    </div>
+                    <div className="text-center p-4">
+                      <LinkIcon className="w-8 h-8 text-blue-600 mx-auto mb-2" />
+                      <h3 className="font-semibold text-gray-900">
+                        Aspect Ratio
+                      </h3>
+                      <p className="text-gray-600 text-sm">
+                        Maintain proportions or create custom ratios
+                      </p>
+                    </div>
+                    <div className="text-center p-4">
+                      <CheckCircle className="w-8 h-8 text-purple-600 mx-auto mb-2" />
+                      <h3 className="font-semibold text-gray-900">
+                        High Quality
+                      </h3>
+                      <p className="text-gray-600 text-sm">
+                        Professional scaling algorithms preserve image quality
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
           ) : (
             <div className="space-y-6">
               {/* Image Preview */}
@@ -272,6 +305,19 @@ const ImgResize = () => {
                       </div>
                       <div>
                         <span className="text-sm font-medium text-gray-600">
+                          Aspect Ratio:
+                        </span>
+                        <p className="text-gray-900">
+                          {(image.width / image.height).toFixed(2)}:1
+                          {image.width === image.height
+                            ? " (Square)"
+                            : image.width > image.height
+                              ? " (Landscape)"
+                              : " (Portrait)"}
+                        </p>
+                      </div>
+                      <div>
+                        <span className="text-sm font-medium text-gray-600">
                           File Size:
                         </span>
                         <p className="text-gray-900">
@@ -294,18 +340,32 @@ const ImgResize = () => {
                     <Label className="text-base font-medium">
                       Quick Presets
                     </Label>
-                    <div className="mt-2 grid grid-cols-2 md:grid-cols-4 gap-2">
+                    <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
                       {presetSizes.map((preset, index) => (
                         <Button
                           key={index}
-                          variant="outline"
+                          variant={
+                            selectedPreset === preset.name
+                              ? "default"
+                              : "outline"
+                          }
                           size="sm"
                           onClick={() => handlePresetSelect(preset)}
-                          className="text-xs p-2 h-auto"
+                          className={`text-xs p-2 h-auto transition-all ${
+                            selectedPreset === preset.name
+                              ? "bg-green-600 hover:bg-green-700 text-white border-green-600"
+                              : "hover:border-green-300 hover:bg-green-50"
+                          }`}
                         >
                           <div className="text-center">
                             <div className="font-medium">{preset.name}</div>
-                            <div className="text-gray-500">
+                            <div
+                              className={`text-xs ${
+                                selectedPreset === preset.name
+                                  ? "text-green-100"
+                                  : "text-gray-500"
+                              }`}
+                            >
                               {preset.width} × {preset.height}
                             </div>
                           </div>
@@ -327,7 +387,7 @@ const ImgResize = () => {
                       </Label>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div>
                         <Label htmlFor="width">Width (pixels)</Label>
                         <Input
@@ -361,19 +421,33 @@ const ImgResize = () => {
                           {targetHeight} pixels
                         </p>
                         {image && (
-                          <p className="text-sm text-blue-600 mt-1">
-                            Scale factor:{" "}
-                            {(
-                              (parseInt(targetWidth) / image.width) *
-                              100
-                            ).toFixed(1)}
-                            % width,{" "}
-                            {(
-                              (parseInt(targetHeight) / image.height) *
-                              100
-                            ).toFixed(1)}
-                            % height
-                          </p>
+                          <>
+                            <p className="text-sm text-blue-600 mt-1">
+                              New aspect ratio:{" "}
+                              {(
+                                parseInt(targetWidth) / parseInt(targetHeight)
+                              ).toFixed(2)}
+                              :1
+                              {parseInt(targetWidth) === parseInt(targetHeight)
+                                ? " (Square)"
+                                : parseInt(targetWidth) > parseInt(targetHeight)
+                                  ? " (Landscape)"
+                                  : " (Portrait)"}
+                            </p>
+                            <p className="text-sm text-blue-600">
+                              Scale factor:{" "}
+                              {(
+                                (parseInt(targetWidth) / image.width) *
+                                100
+                              ).toFixed(1)}
+                              % width,{" "}
+                              {(
+                                (parseInt(targetHeight) / image.height) *
+                                100
+                              ).toFixed(1)}
+                              % height
+                            </p>
+                          </>
                         )}
                       </div>
                     )}

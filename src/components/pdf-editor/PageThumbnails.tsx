@@ -3,12 +3,13 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import { AnyElement } from "@/types/pdf-editor";
 
 interface PageThumbnailsProps {
   file: File;
   currentPage: number;
-  totalPages: number;
-  onPageChange: (pageIndex: number) => void;
+  onPageSelect: (pageIndex: number) => void;
+  elements: AnyElement[];
   className?: string;
 }
 
@@ -21,12 +22,13 @@ interface ThumbnailData {
 export default function PageThumbnails({
   file,
   currentPage,
-  totalPages,
-  onPageChange,
+  onPageSelect,
+  elements,
   className,
 }: PageThumbnailsProps) {
   const [thumbnails, setThumbnails] = useState<ThumbnailData[]>([]);
   const [pdfDocument, setPdfDocument] = useState<any>(null);
+  const [totalPages, setTotalPages] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -72,6 +74,7 @@ export default function PageThumbnails({
 
         const pdf = await loadingTask.promise;
         setPdfDocument(pdf);
+        setTotalPages(pdf.numPages);
       } catch (err) {
         console.error("Error loading PDF for thumbnails:", err);
       } finally {
@@ -145,14 +148,14 @@ export default function PageThumbnails({
   // Navigate to previous page
   const goToPreviousPage = () => {
     if (currentPage > 0) {
-      onPageChange(currentPage - 1);
+      onPageSelect(currentPage - 1);
     }
   };
 
   // Navigate to next page
   const goToNextPage = () => {
     if (currentPage < totalPages - 1) {
-      onPageChange(currentPage + 1);
+      onPageSelect(currentPage + 1);
     }
   };
 
@@ -239,7 +242,7 @@ export default function PageThumbnails({
                   ? "border-blue-500 shadow-lg"
                   : "border-gray-200 hover:border-gray-300",
               )}
-              onClick={() => onPageChange(thumbnail.pageIndex)}
+              onClick={() => onPageSelect(thumbnail.pageIndex)}
             >
               {/* Thumbnail Canvas */}
               <div className="relative bg-white rounded-lg overflow-hidden">

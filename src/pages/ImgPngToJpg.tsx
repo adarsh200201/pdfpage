@@ -3,7 +3,13 @@ import { Link } from "react-router-dom";
 import ImgHeader from "@/components/layout/ImgHeader";
 import FileUpload from "@/components/ui/file-upload";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Slider } from "@/components/ui/slider";
 import {
   ArrowLeft,
@@ -218,67 +224,85 @@ const ImgPngToJpg = () => {
           </Link>
         </div>
 
-        <div className="text-center mb-8">
-          <div className="bg-gradient-to-r from-yellow-600 to-orange-600 p-4 rounded-2xl w-fit mx-auto mb-4">
-            <FileImage className="w-8 h-8 text-white" />
-          </div>
-          <h1 className="text-3xl font-bold text-gray-900 mb-4">
-            PNG to JPG Converter
-          </h1>
-          <p className="text-gray-600 max-w-2xl mx-auto">
-            Convert your PNG images to JPG format with custom background colors
-            and quality settings. Perfect for reducing file sizes.
-          </p>
-        </div>
-
         {/* Main Content */}
         <div className="space-y-8">
           {images.length === 0 ? (
-            <Card>
-              <CardContent className="p-8">
-                <FileUpload
-                  onFilesSelect={handleFilesSelect}
-                  acceptedFileTypes={{
-                    "image/png": [".png"],
-                  }}
-                  maxFiles={10}
-                  maxSize={50}
-                  multiple={true}
-                  uploadText="Select PNG files or drop PNG files here"
-                  supportText="Supports PNG format"
-                />
+            <div className="space-y-8">
+              {/* Mobile-First Upload Section - Priority */}
+              <Card className="mb-8">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <FileImage className="w-5 h-5 text-yellow-600" />
+                    Upload PNG Images
+                  </CardTitle>
+                  <CardDescription>
+                    Select PNG files to convert to JPG (max 50MB each)
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <FileUpload
+                    onFilesSelect={handleFilesSelect}
+                    acceptedFileTypes={{
+                      "image/png": [".png"],
+                    }}
+                    maxFiles={10}
+                    maxSize={50}
+                    multiple={true}
+                    uploadText="Select PNG files or drop PNG files here"
+                    supportText="Supports PNG format"
+                  />
+                </CardContent>
+              </Card>
 
-                <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="text-center p-4">
-                    <Minimize2 className="w-8 h-8 text-yellow-600 mx-auto mb-2" />
-                    <h3 className="font-semibold text-gray-900">
-                      Smaller Files
-                    </h3>
-                    <p className="text-gray-600 text-sm">
-                      JPG files are typically much smaller than PNG
-                    </p>
-                  </div>
-                  <div className="text-center p-4">
-                    <Palette className="w-8 h-8 text-blue-600 mx-auto mb-2" />
-                    <h3 className="font-semibold text-gray-900">
-                      Custom Background
-                    </h3>
-                    <p className="text-gray-600 text-sm">
-                      Choose background color for transparent areas
-                    </p>
-                  </div>
-                  <div className="text-center p-4">
-                    <CheckCircle className="w-8 h-8 text-green-600 mx-auto mb-2" />
-                    <h3 className="font-semibold text-gray-900">
-                      Quality Control
-                    </h3>
-                    <p className="text-gray-600 text-sm">
-                      Adjust compression quality to balance size and quality
-                    </p>
-                  </div>
+              {/* Tool Description */}
+              <div className="text-center mb-8">
+                <div className="bg-gradient-to-r from-yellow-600 to-orange-600 p-4 rounded-2xl w-fit mx-auto mb-4">
+                  <FileImage className="w-8 h-8 text-white" />
                 </div>
-              </CardContent>
-            </Card>
+                <h1 className="text-3xl font-bold text-gray-900 mb-4">
+                  PNG to JPG Converter
+                </h1>
+                <p className="text-gray-600 max-w-2xl mx-auto">
+                  Convert your PNG images to JPG format with custom background
+                  colors and quality settings. Perfect for reducing file sizes.
+                </p>
+              </div>
+
+              {/* Features */}
+              <Card>
+                <CardContent className="p-8">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="text-center p-4">
+                      <Minimize2 className="w-8 h-8 text-yellow-600 mx-auto mb-2" />
+                      <h3 className="font-semibold text-gray-900">
+                        Smaller Files
+                      </h3>
+                      <p className="text-gray-600 text-sm">
+                        JPG files are typically much smaller than PNG
+                      </p>
+                    </div>
+                    <div className="text-center p-4">
+                      <Palette className="w-8 h-8 text-blue-600 mx-auto mb-2" />
+                      <h3 className="font-semibold text-gray-900">
+                        Custom Background
+                      </h3>
+                      <p className="text-gray-600 text-sm">
+                        Choose background color for transparent areas
+                      </p>
+                    </div>
+                    <div className="text-center p-4">
+                      <CheckCircle className="w-8 h-8 text-green-600 mx-auto mb-2" />
+                      <h3 className="font-semibold text-gray-900">
+                        Quality Control
+                      </h3>
+                      <p className="text-gray-600 text-sm">
+                        Adjust compression quality to balance size and quality
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
           ) : (
             <div className="space-y-6">
               {/* Conversion Settings */}

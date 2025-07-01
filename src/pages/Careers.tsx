@@ -25,7 +25,7 @@ const Careers = () => {
     {
       title: "Senior Frontend Developer",
       department: "Engineering",
-      location: "patna, Bihar",
+      location: "Remote",
       type: "Full-time",
       salary: "$120k - $160k",
       description:
@@ -55,7 +55,7 @@ const Careers = () => {
     {
       title: "Product Manager",
       department: "Product",
-      location: "patna, Bihar",
+      location: "Remote",
       type: "Full-time",
       salary: "$130k - $170k",
       description:
@@ -85,7 +85,7 @@ const Careers = () => {
     {
       title: "DevOps Engineer",
       department: "Engineering",
-      location: "patna, Bihar",
+      location: "Remote",
       type: "Full-time",
       salary: "$105k - $140k",
       description:
@@ -100,7 +100,7 @@ const Careers = () => {
     {
       title: "Marketing Manager",
       department: "Marketing",
-      location: "patna, Bihar",
+      location: "Remote",
       type: "Full-time",
       salary: "$80k - $110k",
       description:

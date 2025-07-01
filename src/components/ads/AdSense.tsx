@@ -17,8 +17,8 @@ const AdSense: React.FC<AdSenseProps> = ({
   const { user } = useAuth();
 
   useEffect(() => {
-    // Only load ads for non-premium users
-    if (user?.isPremium) return;
+    // All tools are free - no ads needed
+    return;
 
     // Don't load AdSense in development environment
     if (process.env.NODE_ENV === "development") {
@@ -63,10 +63,8 @@ const AdSense: React.FC<AdSenseProps> = ({
     }
   }, [user?.isPremium]);
 
-  // Don't show ads for premium users
-  if (user?.isPremium) {
-    return null;
-  }
+  // Don't show ads - all tools are free
+  return null;
 
   // Show placeholder in development
   if (process.env.NODE_ENV === "development") {

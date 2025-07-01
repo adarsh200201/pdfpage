@@ -65,11 +65,6 @@ const ToolPlaceholder: React.FC<ToolPlaceholderProps> = ({
 
           <h1 className="text-heading-medium text-text-dark mb-4 flex items-center justify-center gap-3">
             {toolName}
-            {isNew && (
-              <span className="px-2 py-1 bg-green-500 text-white text-xs font-bold rounded-full">
-                NEW
-              </span>
-            )}
           </h1>
           <p className="text-body-large text-text-light max-w-2xl mx-auto mb-8">
             {toolDescription}

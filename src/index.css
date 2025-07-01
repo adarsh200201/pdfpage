@@ -2,6 +2,190 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Custom cropper cursor styles */
+.cropper-container {
+  touch-action: none;
+}
+
+.cropper-crop-box {
+  cursor: move !important;
+}
+
+.cropper-point {
+  cursor: crosshair !important;
+}
+
+.cropper-point.point-n {
+  cursor: n-resize !important;
+}
+
+.cropper-point.point-s {
+  cursor: s-resize !important;
+}
+
+.cropper-point.point-w {
+  cursor: w-resize !important;
+}
+
+.cropper-point.point-e {
+  cursor: e-resize !important;
+}
+
+.cropper-point.point-nw {
+  cursor: nw-resize !important;
+}
+
+.cropper-point.point-ne {
+  cursor: ne-resize !important;
+}
+
+.cropper-point.point-sw {
+  cursor: sw-resize !important;
+}
+
+.cropper-point.point-se {
+  cursor: se-resize !important;
+}
+
+/* Google Translate Custom Styling - Hide ALL Google Translate UI */
+.goog-te-banner-frame {
+  display: none !important;
+}
+
+.goog-te-banner-frame.skiptranslate {
+  display: none !important;
+}
+
+.goog-te-ftab {
+  display: none !important;
+}
+
+.goog-te-menu-frame {
+  display: none !important;
+}
+
+.goog-te-balloon-frame {
+  display: none !important;
+}
+
+.goog-te-ftab-frame {
+  display: none !important;
+}
+
+/* Hide the "Show original" and translate notification */
+.VIpgJd-ZVi9od-aZ2wEe-wOHMyf {
+  display: none !important;
+}
+
+.VIpgJd-ZVi9od-aZ2wEe-wOHMyf-ti6hGc {
+  display: none !important;
+}
+
+.goog-te-spinner-pos {
+  display: none !important;
+}
+
+/* Remove top margin that Google Translate adds to body */
+body {
+  top: 0px !important;
+  margin-top: 0px !important;
+}
+
+/* Hide any Google Translate tooltips or popups */
+.jfk-bubble {
+  display: none !important;
+}
+
+.goog-tooltip {
+  display: none !important;
+}
+
+/* Hide the translate combo dropdown (we're using our own) */
+.goog-te-combo {
+  display: none !important;
+}
+
+.goog-te-gadget {
+  display: none !important;
+}
+
+.goog-te-gadget > span {
+  display: none !important;
+}
+
+.goog-te-gadget > span > a {
+  display: none !important;
+}
+
+/* Hide Google Translate branding */
+.goog-logo-link {
+  display: none !important;
+}
+
+/* Hide any remaining Google Translate elements */
+[id^="goog-gt-"] {
+  display: none !important;
+}
+
+iframe[src*="translate.google"] {
+  display: none !important;
+}
+
+.skiptranslate {
+  display: none !important;
+}
+
+/* Ensure no space is taken by hidden Google Translate elements */
+body.goog-te-ftab-float #goog-gt-tt {
+  display: none !important;
+}
+
+/* Remove any notification bars */
+.goog-te-menu-frame div {
+  display: none !important;
+}
+
+/* Additional hiding for newer Google Translate versions */
+.VIpgJd-ZVi9od-l4eHX-hSRGPd {
+  display: none !important;
+}
+
+.VIpgJd-ZVi9od-l4eHX {
+  display: none !important;
+}
+
+.c58wS {
+  display: none !important;
+}
+
+.cropper-line {
+  cursor: move !important;
+}
+
+.cropper-line.line-n {
+  cursor: n-resize !important;
+}
+
+.cropper-line.line-s {
+  cursor: s-resize !important;
+}
+
+.cropper-line.line-w {
+  cursor: w-resize !important;
+}
+
+.cropper-line.line-e {
+  cursor: e-resize !important;
+}
+
+.cropper-canvas img {
+  cursor: grab !important;
+}
+
+.cropper-canvas img:active {
+  cursor: grabbing !important;
+}
+
 @layer base {
   /**
    * Tailwind CSS theme
@@ -103,4 +287,128 @@
   body {
     @apply bg-background text-foreground;
   }
+}
+
+/* Custom animations for modern hero section */
+@keyframes blob {
+  0% {
+    transform: translate(0px, 0px) scale(1);
+  }
+  33% {
+    transform: translate(30px, -50px) scale(1.1);
+  }
+  66% {
+    transform: translate(-20px, 20px) scale(0.9);
+  }
+  100% {
+    transform: translate(0px, 0px) scale(1);
+  }
+}
+
+@keyframes gradient-x {
+  0%,
+  100% {
+    background-size: 200% 200%;
+    background-position: left center;
+  }
+  50% {
+    background-size: 200% 200%;
+    background-position: right center;
+  }
+}
+
+@keyframes float-gentle {
+  0%,
+  100% {
+    transform: translateY(0px) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-10px) rotate(2deg);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% center;
+  }
+  100% {
+    background-position: 200% center;
+  }
+}
+
+@keyframes glow-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 20px rgba(229, 50, 45, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 40px rgba(229, 50, 45, 0.6);
+  }
+}
+
+@keyframes text-glow {
+  0%,
+  100% {
+    text-shadow: 0 0 10px rgba(229, 50, 45, 0.3);
+  }
+  50% {
+    text-shadow:
+      0 0 20px rgba(229, 50, 45, 0.6),
+      0 0 30px rgba(229, 50, 45, 0.4);
+  }
+}
+
+.animate-blob {
+  animation: blob 7s infinite;
+}
+
+.animate-gradient-x {
+  animation: gradient-x 3s ease infinite;
+  background-size: 200% 200%;
+}
+
+.animate-float-gentle {
+  animation: float-gentle 4s ease-in-out infinite;
+}
+
+.animate-shimmer {
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.4),
+    transparent
+  );
+  animation: shimmer 2s infinite;
+}
+
+.animate-glow-pulse {
+  animation: glow-pulse 2s ease-in-out infinite;
+}
+
+.animate-text-glow {
+  animation: text-glow 2s ease-in-out infinite;
+}
+
+.animation-delay-2000 {
+  animation-delay: 2s;
+}
+
+.animation-delay-4000 {
+  animation-delay: 4s;
+}
+
+/* Glass morphism effect */
+.glass-morphism {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+/* Hover effects */
+.hover-lift:hover {
+  transform: translateY(-4px);
+}
+
+.hover-glow:hover {
+  box-shadow: 0 10px 40px rgba(229, 50, 45, 0.2);
 }

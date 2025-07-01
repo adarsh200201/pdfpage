@@ -1,8 +1,8 @@
 const express = require("express");
-const multer = require("multer");
 const cloudinary = require("cloudinary").v2;
 const { body, validationResult } = require("express-validator");
 const { auth, requirePremium } = require("../middleware/auth");
+const { uploadAny, handleMulterError } = require("../config/multer");
 const router = express.Router();
 
 // Configure Cloudinary
@@ -12,23 +12,8 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
-// Configure multer
-const storage = multer.memoryStorage();
-const upload = multer({
-  storage: storage,
-  limits: {
-    fileSize: 100 * 1024 * 1024, // 100MB limit
-    files: 10,
-  },
-  fileFilter: (req, file, cb) => {
-    // Allow PDF files for premium users
-    if (file.mimetype === "application/pdf") {
-      cb(null, true);
-    } else {
-      cb(new Error("Only PDF files are allowed for upload"), false);
-    }
-  },
-});
+// Use the shared multer configuration for file uploads
+const upload = uploadAny;
 
 // @route   POST /api/upload/cloudinary
 // @desc    Upload file to Cloudinary (Premium feature)
@@ -307,31 +292,7 @@ function formatBytes(bytes, decimals = 2) {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + " " + sizes[i];
 }
 
-// Error handling for multer
-router.use((error, req, res, next) => {
-  if (error instanceof multer.MulterError) {
-    if (error.code === "LIMIT_FILE_SIZE") {
-      return res.status(400).json({
-        success: false,
-        message: "File too large. Maximum size is 100MB.",
-      });
-    }
-    if (error.code === "LIMIT_FILE_COUNT") {
-      return res.status(400).json({
-        success: false,
-        message: "Too many files. Maximum is 10 files.",
-      });
-    }
-  }
-
-  if (error.message === "Only PDF files are allowed for upload") {
-    return res.status(400).json({
-      success: false,
-      message: "Only PDF files are allowed.",
-    });
-  }
-
-  next(error);
-});
+// Use the shared multer error handler
+router.use(handleMulterError);
 
 module.exports = router;

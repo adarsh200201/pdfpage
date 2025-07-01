@@ -37,8 +37,12 @@ import {
 interface PropertiesPanelProps {
   selectedElements: AnyElement[];
   onElementUpdate: (id: string, updates: Partial<AnyElement>) => void;
-  onElementDelete: (ids: string[]) => void;
-  onElementCopy: () => void;
+  selectedColor: string;
+  onColorChange: (color: string) => void;
+  selectedStrokeWidth: number;
+  onStrokeWidthChange: (width: number) => void;
+  selectedFontSize: number;
+  onFontSizeChange: (size: number) => void;
   className?: string;
 }
 
@@ -67,8 +71,12 @@ const fontSizes = [8, 10, 12, 14, 16, 18, 20, 24, 28, 32, 36, 48];
 export default function PropertiesPanel({
   selectedElements,
   onElementUpdate,
-  onElementDelete,
-  onElementCopy,
+  selectedColor,
+  onColorChange,
+  selectedStrokeWidth,
+  onStrokeWidthChange,
+  selectedFontSize,
+  onFontSizeChange,
   className,
 }: PropertiesPanelProps) {
   const hasSelection = selectedElements.length > 0;
@@ -97,10 +105,6 @@ export default function PropertiesPanel({
     });
   };
 
-  const deleteSelected = () => {
-    onElementDelete(selectedElements.map((el) => el.id));
-  };
-
   if (!hasSelection) {
     return (
       <div
@@ -126,27 +130,7 @@ export default function PropertiesPanel({
     <div className={cn("w-80 bg-white border-l border-gray-200", className)}>
       {/* Header */}
       <div className="p-4 border-b border-gray-200">
-        <div className="flex items-center justify-between">
-          <h3 className="text-lg font-semibold text-gray-900">Properties</h3>
-          <div className="flex items-center space-x-1">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={onElementCopy}
-              className="h-8 w-8 p-0"
-            >
-              <Copy className="h-4 w-4" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={deleteSelected}
-              className="h-8 w-8 p-0 text-red-600 hover:text-red-700"
-            >
-              <Trash2 className="h-4 w-4" />
-            </Button>
-          </div>
-        </div>
+        <h3 className="text-lg font-semibold text-gray-900">Properties</h3>
         <p className="text-sm text-gray-500 mt-1">
           {selectedElements.length} element
           {selectedElements.length > 1 ? "s" : ""} selected
@@ -603,31 +587,6 @@ export default function PropertiesPanel({
             </div>
           </div>
         )}
-
-        {/* Actions */}
-        <div className="p-4">
-          <h4 className="text-sm font-semibold text-gray-900 mb-3">Actions</h4>
-          <div className="space-y-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={onElementCopy}
-              className="w-full"
-            >
-              <Copy className="h-4 w-4 mr-2" />
-              Copy
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={deleteSelected}
-              className="w-full text-red-600 hover:text-red-700"
-            >
-              <Trash2 className="h-4 w-4 mr-2" />
-              Delete
-            </Button>
-          </div>
-        </div>
       </div>
     </div>
   );

@@ -261,7 +261,7 @@ const FileUpload: React.FC<FileUploadProps> = ({
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         className={cn(
-          "relative border-2 border-dashed rounded-lg p-8 text-center transition-all duration-200",
+          "relative border-2 border-dashed rounded-lg p-4 sm:p-8 text-center transition-all duration-200",
           isDragOver
             ? "border-brand-red bg-red-50 animate-pulse-border"
             : "border-gray-300 hover:border-brand-red hover:bg-gray-50",
@@ -275,29 +275,29 @@ const FileUpload: React.FC<FileUploadProps> = ({
           className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
         />
 
-        <div className="flex flex-col items-center space-y-4">
+        <div className="flex flex-col items-center space-y-3 sm:space-y-4">
           <div
             className={cn(
-              "w-16 h-16 rounded-full flex items-center justify-center transition-colors duration-200",
+              "w-12 h-12 sm:w-16 sm:h-16 rounded-full flex items-center justify-center transition-colors duration-200",
               isDragOver
                 ? "bg-brand-red text-white"
                 : "bg-gray-100 text-gray-400",
             )}
           >
-            <Upload className="w-8 h-8" />
+            <Upload className="w-6 h-6 sm:w-8 sm:h-8" />
           </div>
 
-          <div>
-            <h3 className="text-heading-small text-text-dark mb-2">
+          <div className="w-full max-w-xs sm:max-w-sm md:max-w-none">
+            <h3 className="text-xs sm:text-sm md:text-base font-medium text-text-dark mb-2 leading-tight px-2 break-words text-center">
               {uploadText || "Select files"}
             </h3>
-            <p className="text-body-small text-text-light mb-4">
-              or drag and drop files here
+            <p className="text-xs sm:text-sm text-text-light mb-4 px-2 text-center">
+              or drag & drop
             </p>
 
             <Button
               type="button"
-              className="bg-brand-red hover:bg-red-600"
+              className="bg-brand-red hover:bg-red-600 text-xs sm:text-sm md:text-base px-3 sm:px-4 md:px-6 py-2 whitespace-nowrap"
               onClick={(e) => {
                 e.preventDefault();
                 const fileInput =
@@ -307,11 +307,28 @@ const FileUpload: React.FC<FileUploadProps> = ({
                 fileInput?.click();
               }}
             >
-              {uploadText || "Choose Files"}
+              <span className="hidden sm:inline">
+                {uploadText || "Choose Files"}
+              </span>
+              <span className="sm:hidden">
+                {acceptedFileTypes &&
+                Object.keys(acceptedFileTypes).some((key) =>
+                  key.startsWith("image"),
+                )
+                  ? "Select image"
+                  : allowedTypes.includes("pdf")
+                    ? "Select PDFs"
+                    : allowedTypes.includes("image")
+                      ? "Select image"
+                      : "Choose"}
+              </span>
             </Button>
 
-            <p className="text-xs text-text-light mt-2">
-              {finalSupportText} • Max file size: {maxSize}MB
+            <p className="text-xs text-text-light mt-2 leading-relaxed px-2 break-words text-center">
+              {finalSupportText}
+              <br className="sm:hidden" />
+              <span className="hidden sm:inline"> • </span>
+              Max file size: {maxSize}MB
             </p>
           </div>
         </div>
@@ -319,8 +336,8 @@ const FileUpload: React.FC<FileUploadProps> = ({
 
       {/* Uploaded Files List */}
       {uploadedFiles.length > 0 && (
-        <div className="mt-6 space-y-3">
-          <h4 className="text-heading-small text-text-dark">
+        <div className="mt-4 sm:mt-6 space-y-3">
+          <h4 className="text-sm sm:text-base font-medium text-text-dark">
             Uploaded Files ({uploadedFiles.length})
           </h4>
 
@@ -329,35 +346,35 @@ const FileUpload: React.FC<FileUploadProps> = ({
               <div
                 key={uploadedFile.id}
                 className={cn(
-                  "flex items-center justify-between p-3 rounded-lg border transition-colors duration-200",
+                  "flex items-center justify-between p-2 sm:p-3 rounded-lg border transition-colors duration-200",
                   uploadedFile.error
                     ? "border-red-200 bg-red-50"
                     : "border-gray-200 bg-white hover:bg-gray-50",
                 )}
               >
-                <div className="flex items-center space-x-3">
+                <div className="flex items-center space-x-2 sm:space-x-3 min-w-0 flex-1">
                   <div
                     className={cn(
-                      "w-10 h-10 rounded-lg flex items-center justify-center",
+                      "w-8 h-8 sm:w-10 sm:h-10 rounded-lg flex items-center justify-center flex-shrink-0",
                       uploadedFile.error ? "bg-red-100" : "bg-blue-100",
                     )}
                   >
                     {uploadedFile.error ? (
-                      <AlertCircle className="w-5 h-5 text-red-500" />
+                      <AlertCircle className="w-4 h-4 sm:w-5 sm:h-5 text-red-500" />
                     ) : (
-                      <FileText className="w-5 h-5 text-blue-500" />
+                      <FileText className="w-4 h-4 sm:w-5 sm:h-5 text-blue-500" />
                     )}
                   </div>
 
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-text-dark truncate">
+                    <p className="text-xs sm:text-sm font-medium text-text-dark truncate">
                       {uploadedFile.file.name}
                     </p>
                     <p className="text-xs text-text-light">
                       {formatFileSize(uploadedFile.file.size)}
                     </p>
                     {uploadedFile.error && (
-                      <p className="text-xs text-red-500 mt-1">
+                      <p className="text-xs text-red-500 mt-1 break-words">
                         {uploadedFile.error}
                       </p>
                     )}
@@ -369,7 +386,7 @@ const FileUpload: React.FC<FileUploadProps> = ({
                   variant="ghost"
                   size="sm"
                   onClick={() => removeFile(uploadedFile.id)}
-                  className="text-gray-400 hover:text-red-500"
+                  className="text-gray-400 hover:text-red-500 flex-shrink-0 p-1 sm:p-2"
                 >
                   <X className="w-4 h-4" />
                 </Button>

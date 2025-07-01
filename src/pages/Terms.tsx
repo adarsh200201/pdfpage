@@ -499,11 +499,9 @@ const Terms = () => {
                       <p className="text-text-medium">
                         PdfPage Inc.
                         <br />
-                        123 Market Street, Suite 300
+                        Global Remote Company
                         <br />
-                        patna, Bihar 843117
-                        <br />
-                        India
+                        Contact: hello@pdfpage.com
                       </p>
                     </div>
                   </div>

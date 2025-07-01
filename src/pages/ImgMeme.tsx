@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback } from "react";
+import { Link } from "react-router-dom";
 import ImgHeader from "../components/layout/ImgHeader";
 import { Button } from "../components/ui/button";
 import { Card, CardContent } from "../components/ui/card";
@@ -69,6 +70,7 @@ import {
   Pizza,
   Rocket,
   Crown,
+  ArrowLeft,
 } from "lucide-react";
 
 interface MemeSettings {
@@ -610,6 +612,79 @@ const ImgMeme = () => {
       </div>
 
       <div className="container mx-auto px-6 py-12">
+        {/* Header with Back Button */}
+        <div className="flex items-center mb-8">
+          <Link
+            to="/img"
+            className="flex items-center text-violet-600 hover:text-violet-700 mr-4"
+          >
+            <ArrowLeft className="w-5 h-5 mr-2" />
+            Back to ImgPage
+          </Link>
+        </div>
+
+        {/* Mobile-First Upload Section - TOP PRIORITY */}
+        <Card className="mb-8 border-0 shadow-lg bg-white/80 backdrop-blur-sm">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Upload className="w-5 h-5 text-violet-600" />
+              Upload Image or Use Template
+            </CardTitle>
+            <CardDescription>
+              Upload your own image or select from viral templates
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div
+              className={`border-2 border-dashed rounded-lg p-4 sm:p-8 text-center hover:border-violet-400 transition-colors cursor-pointer ${
+                isDragging
+                  ? "border-violet-500 bg-violet-50"
+                  : "border-gray-300"
+              }`}
+              onClick={() => fileInputRef.current?.click()}
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+            >
+              {selectedFile ? (
+                <div className="space-y-4">
+                  <ImageIcon className="w-8 h-8 sm:w-12 sm:h-12 mx-auto text-violet-600" />
+                  <div>
+                    <p className="font-medium text-sm sm:text-base">
+                      {selectedFile.name}
+                    </p>
+                    <p className="text-xs sm:text-sm text-gray-500">
+                      {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
+                    </p>
+                  </div>
+                  <Button variant="outline" size="sm">
+                    Change Image
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <Upload className="w-8 h-8 sm:w-12 sm:h-12 mx-auto text-gray-400" />
+                  <div>
+                    <p className="text-base sm:text-lg font-medium text-gray-700">
+                      Click to upload an image
+                    </p>
+                    <p className="text-xs sm:text-sm text-gray-500">
+                      or drag and drop your file here
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handleFileSelect}
+              className="hidden"
+            />
+          </CardContent>
+        </Card>
+
         {/* AI Mode Toggle & Quick Actions */}
         <div className="mb-8 space-y-6">
           <div className="flex items-center justify-between">
@@ -733,73 +808,6 @@ const ImgMeme = () => {
         <div className="grid lg:grid-cols-3 gap-8">
           {/* Main Meme Creation Area */}
           <div className="lg:col-span-2 space-y-6">
-            {/* Image Upload & Template Selection */}
-            <Card className="border-0 shadow-lg bg-white/80 backdrop-blur-sm">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Upload className="w-5 h-5 text-violet-600" />
-                  Upload Image or Use Template
-                </CardTitle>
-                <CardDescription>
-                  Upload your own image or select from viral templates
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="flex flex-col gap-4">
-                  <div
-                    className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-violet-400 transition-colors cursor-pointer"
-                    onClick={() => fileInputRef.current?.click()}
-                  >
-                    {selectedFile ? (
-                      <div className="space-y-4">
-                        <ImageIcon className="w-12 h-12 mx-auto text-violet-600" />
-                        <div>
-                          <p className="font-medium">{selectedFile.name}</p>
-                          <p className="text-sm text-gray-500">
-                            {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
-                          </p>
-                        </div>
-                        <Button variant="outline" size="sm">
-                          Change Image
-                        </Button>
-                      </div>
-                    ) : (
-                      <div className="space-y-4">
-                        <Upload className="w-12 h-12 mx-auto text-gray-400" />
-                        <div>
-                          <p className="text-lg font-medium text-gray-700">
-                            Click to upload an image
-                          </p>
-                          <p className="text-sm text-gray-500">
-                            or drag and drop your file here
-                          </p>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  {!showTemplates && (
-                    <Button
-                      variant="outline"
-                      onClick={() => setShowTemplates(true)}
-                      className="w-full"
-                    >
-                      <Wand2 className="w-4 h-4 mr-2" />
-                      Show Viral Templates
-                    </Button>
-                  )}
-                </div>
-
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*"
-                  onChange={handleFileSelect}
-                  className="hidden"
-                />
-              </CardContent>
-            </Card>
-
             {/* Meme Preview */}
             {(previewUrl || selectedTemplate) && (
               <Card className="border-0 shadow-lg bg-white/80 backdrop-blur-sm">

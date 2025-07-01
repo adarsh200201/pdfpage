@@ -149,10 +149,6 @@ const RealTimeToolLoader: React.FC<RealTimeToolLoaderProps> = ({
                 </span>
               </div>
               <div className="text-sm text-gray-600">Active Users</div>
-              <div className="flex items-center justify-center mt-1">
-                <Activity className="w-3 h-3 text-green-500 mr-1" />
-                <span className="text-xs text-green-600">Live</span>
-              </div>
             </CardContent>
           </Card>
 
@@ -327,9 +323,6 @@ const RealTimeToolLoader: React.FC<RealTimeToolLoaderProps> = ({
             <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
               <Globe className="w-5 h-5 text-blue-500" />
               Global Activity Feed
-              <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full ml-2">
-                LIVE
-              </span>
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {[

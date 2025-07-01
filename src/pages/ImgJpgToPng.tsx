@@ -3,7 +3,13 @@ import { Link } from "react-router-dom";
 import ImgHeader from "@/components/layout/ImgHeader";
 import FileUpload from "@/components/ui/file-upload";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import {
   ArrowLeft,
   Download,
@@ -170,67 +176,86 @@ const ImgJpgToPng = () => {
           </Link>
         </div>
 
-        <div className="text-center mb-8">
-          <div className="bg-gradient-to-r from-red-600 to-pink-600 p-4 rounded-2xl w-fit mx-auto mb-4">
-            <FileImage className="w-8 h-8 text-white" />
-          </div>
-          <h1 className="text-3xl font-bold text-gray-900 mb-4">
-            JPG to PNG Converter
-          </h1>
-          <p className="text-gray-600 max-w-2xl mx-auto">
-            Convert your JPG/JPEG images to PNG format with transparency
-            support. Perfect for web graphics and professional design work.
-          </p>
-        </div>
-
         {/* Main Content */}
         <div className="space-y-8">
           {images.length === 0 ? (
-            <Card>
-              <CardContent className="p-8">
-                <FileUpload
-                  onFilesSelect={handleFilesSelect}
-                  acceptedFileTypes={{
-                    "image/jpeg": [".jpg", ".jpeg"],
-                  }}
-                  maxFiles={10}
-                  maxSize={50}
-                  multiple={true}
-                  uploadText="Select JPG files or drop JPG files here"
-                  supportText="Supports JPG and JPEG formats"
-                />
+            <div className="space-y-8">
+              {/* Mobile-First Upload Section - Priority */}
+              <Card className="mb-8">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <FileImage className="w-5 h-5 text-red-600" />
+                    Upload JPG Images
+                  </CardTitle>
+                  <CardDescription>
+                    Select JPG/JPEG files to convert to PNG (max 50MB each)
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <FileUpload
+                    onFilesSelect={handleFilesSelect}
+                    acceptedFileTypes={{
+                      "image/jpeg": [".jpg", ".jpeg"],
+                    }}
+                    maxFiles={10}
+                    maxSize={50}
+                    multiple={true}
+                    uploadText="Select JPG files or drop JPG files here"
+                    supportText="Supports JPG and JPEG formats"
+                  />
+                </CardContent>
+              </Card>
 
-                <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="text-center p-4">
-                    <Layers className="w-8 h-8 text-red-600 mx-auto mb-2" />
-                    <h3 className="font-semibold text-gray-900">
-                      Transparency Support
-                    </h3>
-                    <p className="text-gray-600 text-sm">
-                      PNG format supports transparent backgrounds
-                    </p>
-                  </div>
-                  <div className="text-center p-4">
-                    <Palette className="w-8 h-8 text-blue-600 mx-auto mb-2" />
-                    <h3 className="font-semibold text-gray-900">
-                      Lossless Quality
-                    </h3>
-                    <p className="text-gray-600 text-sm">
-                      No compression artifacts, perfect quality
-                    </p>
-                  </div>
-                  <div className="text-center p-4">
-                    <CheckCircle className="w-8 h-8 text-green-600 mx-auto mb-2" />
-                    <h3 className="font-semibold text-gray-900">
-                      Batch Processing
-                    </h3>
-                    <p className="text-gray-600 text-sm">
-                      Convert multiple images at once
-                    </p>
-                  </div>
+              {/* Tool Description */}
+              <div className="text-center mb-8">
+                <div className="bg-gradient-to-r from-red-600 to-pink-600 p-4 rounded-2xl w-fit mx-auto mb-4">
+                  <FileImage className="w-8 h-8 text-white" />
                 </div>
-              </CardContent>
-            </Card>
+                <h1 className="text-3xl font-bold text-gray-900 mb-4">
+                  JPG to PNG Converter
+                </h1>
+                <p className="text-gray-600 max-w-2xl mx-auto">
+                  Convert your JPG/JPEG images to PNG format with transparency
+                  support. Perfect for web graphics and professional design
+                  work.
+                </p>
+              </div>
+
+              {/* Features */}
+              <Card>
+                <CardContent className="p-8">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="text-center p-4">
+                      <Layers className="w-8 h-8 text-red-600 mx-auto mb-2" />
+                      <h3 className="font-semibold text-gray-900">
+                        Transparency Support
+                      </h3>
+                      <p className="text-gray-600 text-sm">
+                        PNG format supports transparent backgrounds
+                      </p>
+                    </div>
+                    <div className="text-center p-4">
+                      <Palette className="w-8 h-8 text-blue-600 mx-auto mb-2" />
+                      <h3 className="font-semibold text-gray-900">
+                        Lossless Quality
+                      </h3>
+                      <p className="text-gray-600 text-sm">
+                        No compression artifacts, perfect quality
+                      </p>
+                    </div>
+                    <div className="text-center p-4">
+                      <CheckCircle className="w-8 h-8 text-green-600 mx-auto mb-2" />
+                      <h3 className="font-semibold text-gray-900">
+                        Batch Processing
+                      </h3>
+                      <p className="text-gray-600 text-sm">
+                        Convert multiple images at once
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
           ) : (
             <div className="space-y-6">
               {/* Original Images */}
@@ -242,15 +267,15 @@ const ImgJpgToPng = () => {
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
                     {images.map((image) => (
                       <div key={image.id} className="text-center">
                         <img
                           src={image.preview}
                           alt={image.name}
-                          className="w-full h-32 object-cover rounded-lg border"
+                          className="w-full h-24 sm:h-32 object-cover rounded-lg border"
                         />
-                        <p className="text-sm text-gray-600 mt-2 truncate">
+                        <p className="text-xs sm:text-sm text-gray-600 mt-2 truncate">
                           {image.name}
                         </p>
                         <p className="text-xs text-gray-500">
@@ -279,15 +304,15 @@ const ImgJpgToPng = () => {
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
                       {convertedImages.map((convertedImage, index) => (
                         <div key={index} className="text-center">
                           <img
                             src={convertedImage.preview}
                             alt={convertedImage.converted.name}
-                            className="w-full h-32 object-cover rounded-lg border"
+                            className="w-full h-24 sm:h-32 object-cover rounded-lg border"
                           />
-                          <p className="text-sm text-gray-600 mt-2 truncate">
+                          <p className="text-xs sm:text-sm text-gray-600 mt-2 truncate">
                             {convertedImage.converted.name}
                           </p>
                           <p className="text-xs text-gray-500 mb-2">
@@ -298,7 +323,7 @@ const ImgJpgToPng = () => {
                           <Button
                             size="sm"
                             onClick={() => handleDownload(convertedImage)}
-                            className="w-full"
+                            className="w-full text-xs"
                           >
                             <Download className="w-3 h-3 mr-1" />
                             Download

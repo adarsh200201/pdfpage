@@ -31,6 +31,10 @@ import { PDFService } from "@/services/pdfService";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import AuthModal from "@/components/auth/AuthModal";
+import SoftLimitModal from "@/components/modals/SoftLimitModal";
+import RewardBanner from "@/components/ui/RewardBanner";
+import { useSoftLimit, useRewardBanner } from "@/hooks/useSoftLimit";
+import { useFloatingPopup } from "@/contexts/FloatingPopupContext";
 
 const Merge = () => {
   const [files, setFiles] = useState<MergeFileItem[]>([]);
@@ -55,6 +59,13 @@ const Merge = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { user, isAuthenticated } = useAuth();
   const { toast } = useToast();
+
+  // Soft limit management
+  const softLimit = useSoftLimit("merge");
+  const rewardBanner = useRewardBanner();
+
+  // Floating popup tracking
+  const { trackToolUsage } = useFloatingPopup();
 
   const handleFilesSelect = (newFiles: File[]) => {
     const processedFiles: MergeFileItem[] = newFiles
@@ -248,14 +259,10 @@ const Merge = () => {
       return;
     }
 
-    // Check usage limits
-    const usageCheck = await PDFService.checkUsageLimit();
-    if (!usageCheck.canUpload) {
-      setUsageLimitReached(true);
-      if (!isAuthenticated) {
-        setShowAuthModal(true);
-      }
-      return;
+    // Check soft limit before proceeding
+    const canProceed = await softLimit.checkLimit();
+    if (!canProceed) {
+      return; // Soft limit modal will be shown
     }
 
     setIsProcessing(true);
@@ -272,12 +279,10 @@ const Merge = () => {
         description: `${pdfCount} PDFs + ${imageCount} images • Total size: ${formatFileSize(totalSize)}`,
       });
 
-      // Check file size limits (25MB for free users, 100MB for premium)
-      const maxSize = user?.isPremium ? 100 * 1024 * 1024 : 25 * 1024 * 1024;
+      // Check file size limits (100MB for all users)
+      const maxSize = 100 * 1024 * 1024;
       if (totalSize > maxSize) {
-        throw new Error(
-          `File size exceeds ${user?.isPremium ? "100MB" : "25MB"} limit`,
-        );
+        throw new Error(`File size exceeds 100MB limit`);
       }
 
       setProgress(10);
@@ -300,6 +305,11 @@ const Merge = () => {
 
       // Track usage
       await PDFService.trackUsage("merge", files.length, totalSize);
+
+      // Track for floating popup (only for anonymous users)
+      if (!isAuthenticated) {
+        trackToolUsage();
+      }
 
       // For premium users, upload to Cloudinary for sharing
       if (user?.isPremium) {
@@ -393,17 +403,17 @@ const Merge = () => {
 
         {/* Main Content */}
         {!isComplete ? (
-          <div className="space-y-8">
+          <div className="space-y-6 sm:space-y-8">
             {/* File Upload */}
             {files.length === 0 && (
-              <div className="bg-white rounded-xl p-8 shadow-sm border border-gray-100">
+              <div className="bg-white rounded-xl p-4 sm:p-8 shadow-sm border border-gray-100">
                 <FileUpload
                   onFilesSelect={handleFilesSelect}
                   multiple={true}
                   maxSize={25}
                   accept=".pdf,.jpg,.jpeg,.png"
                   allowedTypes={["pdf", "image"]}
-                  uploadText="Drop your PDF files and images here or click to browse"
+                  uploadText="Drop files here or click to browse"
                   supportText="Supported formats: PDF, JPG, PNG"
                 />
               </div>
@@ -411,24 +421,24 @@ const Merge = () => {
 
             {/* File List with Visual Previews */}
             {files.length > 0 && (
-              <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
-                <div className="flex items-center justify-between mb-6">
+              <div className="bg-white rounded-xl p-4 sm:p-6 shadow-sm border border-gray-100">
+                <div className="flex flex-col space-y-4 sm:flex-row sm:items-center sm:justify-between sm:space-y-0 mb-6">
                   <h3 className="text-heading-small text-text-dark">
                     Files to Merge ({files.length})
                   </h3>
-                  <div className="flex items-center space-x-3">
-                    <div className="text-sm text-gray-500">
+                  <div className="flex flex-col space-y-3 sm:flex-row sm:items-center sm:space-y-0 sm:space-x-3">
+                    <div className="text-sm text-gray-500 text-center sm:text-left">
                       {files.filter((f) => f.type === "pdf").length} PDFs,{" "}
                       {files.filter((f) => f.type === "image").length} Images
                     </div>
 
                     {/* View Mode Toggle */}
-                    <div className="flex bg-gray-100 rounded-lg p-1">
+                    <div className="flex bg-gray-100 rounded-lg p-1 w-full sm:w-auto">
                       <Button
                         variant={viewMode === "files" ? "default" : "ghost"}
                         size="sm"
                         onClick={() => setViewMode("files")}
-                        className="text-xs"
+                        className="text-xs flex-1 sm:flex-none"
                       >
                         File View
                       </Button>
@@ -436,7 +446,7 @@ const Merge = () => {
                         variant={viewMode === "pages" ? "default" : "ghost"}
                         size="sm"
                         onClick={() => setViewMode("pages")}
-                        className="text-xs"
+                        className="text-xs flex-1 sm:flex-none"
                       >
                         Page View
                       </Button>
@@ -445,6 +455,7 @@ const Merge = () => {
                     <Button
                       variant="outline"
                       onClick={() => fileInputRef.current?.click()}
+                      className="w-full sm:w-auto"
                     >
                       <Plus className="w-4 h-4 mr-2" />
                       Add More Files
@@ -516,12 +527,12 @@ const Merge = () => {
 
             {/* Merge Button */}
             {files.length >= 2 && (
-              <div className="text-center">
+              <div className="text-center px-4 sm:px-0">
                 <Button
                   size="lg"
                   onClick={handleMerge}
                   disabled={isProcessing}
-                  className="bg-blue-500 hover:bg-blue-600"
+                  className="bg-blue-500 hover:bg-blue-600 w-full sm:w-auto"
                 >
                   {isProcessing ? (
                     <>
@@ -583,16 +594,20 @@ const Merge = () => {
               {formatFileSize(mergedFileSize)})
             </p>
 
-            <div className="flex items-center justify-center space-x-4">
+            <div className="flex flex-col space-y-3 sm:flex-row sm:items-center sm:justify-center sm:space-y-0 sm:space-x-4 px-4 sm:px-0">
               <Button
                 size="lg"
                 onClick={downloadMergedFile}
-                className="bg-brand-red hover:bg-red-600"
+                className="bg-brand-red hover:bg-red-600 w-full sm:w-auto"
               >
                 <Download className="w-5 h-5 mr-2" />
                 Download Merged PDF
               </Button>
-              <Button variant="outline" onClick={resetTool}>
+              <Button
+                variant="outline"
+                onClick={resetTool}
+                className="w-full sm:w-auto"
+              >
                 Merge More Files
               </Button>
             </div>
@@ -600,40 +615,44 @@ const Merge = () => {
         )}
 
         {/* Features */}
-        <div className="mt-12 grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="text-center">
-            <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mx-auto mb-3">
-              <Combine className="w-6 h-6 text-blue-500" />
+        <div className="mt-8 sm:mt-12 px-4 sm:px-0">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="text-center px-2">
+              <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mx-auto mb-3">
+                <Combine className="w-6 h-6 text-blue-500" />
+              </div>
+              <h4 className="font-semibold text-text-dark mb-2 text-sm sm:text-base">
+                Flexible Positioning
+              </h4>
+              <p className="text-xs sm:text-sm text-text-light leading-relaxed max-w-xs mx-auto">
+                Insert files anywhere in the sequence with drag-and-drop or
+                insertion controls
+              </p>
             </div>
-            <h4 className="font-semibold text-text-dark mb-2">
-              Flexible Positioning
-            </h4>
-            <p className="text-body-small text-text-light">
-              Insert files anywhere in the sequence with drag-and-drop or
-              insertion controls
-            </p>
-          </div>
 
-          <div className="text-center">
-            <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center mx-auto mb-3">
-              <ImageIcon className="w-6 h-6 text-green-500" />
+            <div className="text-center px-2">
+              <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center mx-auto mb-3">
+                <ImageIcon className="w-6 h-6 text-green-500" />
+              </div>
+              <h4 className="font-semibold text-text-dark mb-2 text-sm sm:text-base">
+                PDF + Images
+              </h4>
+              <p className="text-xs sm:text-sm text-text-light leading-relaxed max-w-xs mx-auto">
+                Combine PDFs with JPG and PNG images into a single document
+              </p>
             </div>
-            <h4 className="font-semibold text-text-dark mb-2">PDF + Images</h4>
-            <p className="text-body-small text-text-light">
-              Combine PDFs with JPG and PNG images into a single document
-            </p>
-          </div>
 
-          <div className="text-center">
-            <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center mx-auto mb-3">
-              <Eye className="w-6 h-6 text-purple-500" />
+            <div className="text-center px-2">
+              <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center mx-auto mb-3">
+                <Eye className="w-6 h-6 text-purple-500" />
+              </div>
+              <h4 className="font-semibold text-text-dark mb-2 text-sm sm:text-base">
+                Visual Preview
+              </h4>
+              <p className="text-xs sm:text-sm text-text-light leading-relaxed max-w-xs mx-auto">
+                See thumbnail previews to easily decide where to insert content
+              </p>
             </div>
-            <h4 className="font-semibold text-text-dark mb-2">
-              Visual Preview
-            </h4>
-            <p className="text-body-small text-text-light">
-              See thumbnail previews to easily decide where to insert content
-            </p>
           </div>
         </div>
       </div>
@@ -651,6 +670,31 @@ const Merge = () => {
         isOpen={showAuthModal}
         onClose={() => setShowAuthModal(false)}
         defaultTab="register"
+      />
+
+      {/* Soft Limit Modal */}
+      <SoftLimitModal
+        isOpen={softLimit.showModal}
+        onClose={() => softLimit.setShowModal(false)}
+        onSuccess={softLimit.onAuthSuccess}
+        usageInfo={
+          softLimit.state.usageInfo
+            ? {
+                currentUsage: softLimit.state.usageInfo.currentUsage || 0,
+                maxUsage: softLimit.state.usageInfo.maxUsage || 2,
+                timeToReset: softLimit.state.usageInfo.timeToReset || "",
+              }
+            : undefined
+        }
+        toolName="merge"
+        redirectPath="/merge"
+      />
+
+      {/* Reward Banner */}
+      <RewardBanner
+        isVisible={rewardBanner.showBanner}
+        onClose={rewardBanner.closeBanner}
+        conversionInfo={rewardBanner.conversionInfo}
       />
     </div>
   );

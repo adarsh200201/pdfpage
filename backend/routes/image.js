@@ -1,33 +1,259 @@
 const express = require("express");
-const multer = require("multer");
 const sharp = require("sharp");
+const archiver = require("archiver");
 const { body, validationResult } = require("express-validator");
-const { auth } = require("../middleware/auth");
+const { auth, optionalAuth } = require("../middleware/auth");
+const { uploadImage, handleMulterError } = require("../config/multer");
 const router = express.Router();
 
-// Configure multer for image uploads
-const storage = multer.memoryStorage();
-const upload = multer({
-  storage: storage,
-  limits: {
-    fileSize: 10 * 1024 * 1024, // 10MB limit
-  },
-  fileFilter: (req, file, cb) => {
-    // Allow image files
-    if (file.mimetype.startsWith("image/")) {
-      cb(null, true);
-    } else {
-      cb(new Error("Only image files are allowed"), false);
+// Use the shared multer configuration for image uploads
+const upload = uploadImage;
+
+// @route   POST /api/image/compress
+// @desc    Compress image(s) with different compression levels
+// @access  Public
+router.post(
+  "/compress",
+  optionalAuth,
+  upload.array("images", 20), // Allow up to 20 images
+  [
+    body("level")
+      .optional()
+      .isIn(["extreme", "high", "medium", "low", "best-quality"])
+      .withMessage("Invalid compression level"),
+    body("format")
+      .optional()
+      .isIn(["jpeg", "png", "webp"])
+      .withMessage("Format must be jpeg, png, or webp"),
+    body("maxWidth")
+      .optional()
+      .isInt({ min: 100, max: 4000 })
+      .withMessage("Max width must be between 100-4000"),
+    body("maxHeight")
+      .optional()
+      .isInt({ min: 100, max: 4000 })
+      .withMessage("Max height must be between 100-4000"),
+  ],
+  async (req, res) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({
+          success: false,
+          message: "Validation failed",
+          errors: errors.array(),
+        });
+      }
+
+      const {
+        level = "medium",
+        format,
+        maxWidth = 2000,
+        maxHeight = 2000,
+      } = req.body;
+
+      const files = req.files;
+
+      if (!files || files.length === 0) {
+        return res.status(400).json({
+          success: false,
+          message: "At least one image file is required",
+        });
+      }
+
+      // Get compression settings based on level
+      const settings = getCompressionSettings(level);
+
+      const processedImages = [];
+      let totalOriginalSize = 0;
+      let totalCompressedSize = 0;
+
+      // Process each image
+      for (const file of files) {
+        try {
+          const originalMetadata = await sharp(file.buffer).metadata();
+          totalOriginalSize += file.size;
+
+          // Determine output format
+          let outputFormat =
+            format ||
+            (originalMetadata.format === "png" && originalMetadata.hasAlpha
+              ? "png"
+              : "jpeg");
+
+          // Convert PNG to JPEG if no transparency for better compression
+          if (
+            originalMetadata.format === "png" &&
+            !originalMetadata.hasAlpha &&
+            !format
+          ) {
+            outputFormat = "jpeg";
+          }
+
+          let imageProcessor = sharp(file.buffer);
+
+          // Auto-resize if image is too large
+          const shouldResize =
+            originalMetadata.width > maxWidth ||
+            originalMetadata.height > maxHeight;
+
+          if (shouldResize) {
+            imageProcessor = imageProcessor.resize({
+              width: parseInt(maxWidth),
+              height: parseInt(maxHeight),
+              fit: "inside",
+              withoutEnlargement: false,
+            });
+          }
+
+          // Apply compression based on format and level
+          switch (outputFormat) {
+            case "jpeg":
+              imageProcessor = imageProcessor.jpeg({
+                quality: settings.quality,
+                progressive: settings.progressive,
+                mozjpeg: settings.mozjpeg,
+              });
+              break;
+            case "png":
+              imageProcessor = imageProcessor.png({
+                quality: settings.quality,
+                compressionLevel: settings.pngCompression,
+                progressive: settings.progressive,
+              });
+              break;
+            case "webp":
+              imageProcessor = imageProcessor.webp({
+                quality: settings.quality,
+                effort: settings.effort,
+              });
+              break;
+          }
+
+          const processedBuffer = await imageProcessor.toBuffer();
+          const processedMetadata = await sharp(processedBuffer).metadata();
+
+          totalCompressedSize += processedBuffer.length;
+
+          // Generate filename
+          const originalName = file.originalname.split(".")[0];
+          const newFilename = `compressed_${originalName}.${outputFormat}`;
+
+          processedImages.push({
+            filename: newFilename,
+            buffer: processedBuffer,
+            originalSize: file.size,
+            compressedSize: processedBuffer.length,
+            compressionRatio: Math.round(
+              ((file.size - processedBuffer.length) / file.size) * 100,
+            ),
+            originalDimensions: {
+              width: originalMetadata.width,
+              height: originalMetadata.height,
+            },
+            compressedDimensions: {
+              width: processedMetadata.width,
+              height: processedMetadata.height,
+            },
+            format: outputFormat,
+            wasResized: shouldResize,
+          });
+        } catch (error) {
+          console.error(`Error processing image ${file.originalname}:`, error);
+          // Continue with other images
+        }
+      }
+
+      if (processedImages.length === 0) {
+        return res.status(500).json({
+          success: false,
+          message: "Failed to process any images",
+        });
+      }
+
+      // If single image, return the image directly
+      if (processedImages.length === 1) {
+        const image = processedImages[0];
+
+        res.set({
+          "Content-Type": `image/${image.format}`,
+          "Content-Length": image.buffer.length,
+          "Content-Disposition": `attachment; filename="${image.filename}"`,
+          "X-Original-Size": image.originalSize,
+          "X-Compressed-Size": image.compressedSize,
+          "X-Compression-Ratio": image.compressionRatio,
+          "X-Was-Resized": image.wasResized,
+        });
+
+        return res.send(image.buffer);
+      }
+
+      // For multiple images, create a ZIP archive
+      const archive = archiver("zip", {
+        zlib: { level: 9 }, // Maximum compression for ZIP
+      });
+
+      res.set({
+        "Content-Type": "application/zip",
+        "Content-Disposition": 'attachment; filename="compressed_images.zip"',
+        "X-Total-Original-Size": totalOriginalSize,
+        "X-Total-Compressed-Size": totalCompressedSize,
+        "X-Total-Images": processedImages.length,
+        "X-Overall-Compression-Ratio": Math.round(
+          ((totalOriginalSize - totalCompressedSize) / totalOriginalSize) * 100,
+        ),
+      });
+
+      archive.pipe(res);
+
+      // Add each processed image to the archive
+      processedImages.forEach((image) => {
+        archive.append(image.buffer, { name: image.filename });
+      });
+
+      // Add compression report
+      const report = {
+        compressionLevel: level,
+        totalImages: processedImages.length,
+        totalOriginalSize: formatBytes(totalOriginalSize),
+        totalCompressedSize: formatBytes(totalCompressedSize),
+        overallCompressionRatio: Math.round(
+          ((totalOriginalSize - totalCompressedSize) / totalOriginalSize) * 100,
+        ),
+        images: processedImages.map((img) => ({
+          filename: img.filename,
+          originalSize: formatBytes(img.originalSize),
+          compressedSize: formatBytes(img.compressedSize),
+          compressionRatio: img.compressionRatio,
+          originalDimensions: img.originalDimensions,
+          compressedDimensions: img.compressedDimensions,
+          wasResized: img.wasResized,
+          format: img.format,
+        })),
+      };
+
+      archive.append(JSON.stringify(report, null, 2), {
+        name: "compression_report.json",
+      });
+
+      await archive.finalize();
+    } catch (error) {
+      console.error("Image compression error:", error);
+      res.status(500).json({
+        success: false,
+        message: "Failed to compress images",
+        error: error.message,
+      });
     }
   },
-});
+);
 
 // @route   POST /api/image/crop
 // @desc    Crop image with specified coordinates and settings
-// @access  Private
+// @access  Public
 router.post(
   "/crop",
-  auth,
+  optionalAuth,
   upload.single("image"),
   [
     body("x")
@@ -79,9 +305,9 @@ router.post(
         y,
         width,
         height,
-        rotation = 0,
-        flipHorizontal = false,
-        flipVertical = false,
+        rotation,
+        flipHorizontal,
+        flipVertical,
         quality = 90,
         format = "jpeg",
       } = req.body;
@@ -101,12 +327,13 @@ router.post(
       const cropWidth = parseInt(width);
       const cropHeight = parseInt(height);
       const imageQuality = parseInt(quality);
-      const rotationAngle = parseFloat(rotation);
+      const rotationAngle = rotation ? parseFloat(rotation) : 0;
 
       // Process image with Sharp
       let imageProcessor = sharp(file.buffer);
 
-      // Get original image metadata
+      // Auto-rotate based on EXIF orientation and get metadata
+      imageProcessor = imageProcessor.rotate();
       const metadata = await imageProcessor.metadata();
 
       // Validate crop coordinates
@@ -120,26 +347,28 @@ router.post(
         });
       }
 
-      // Apply transformations
-      if (rotationAngle !== 0) {
-        imageProcessor = imageProcessor.rotate(rotationAngle);
-      }
-
-      if (flipHorizontal) {
-        imageProcessor = imageProcessor.flop();
-      }
-
-      if (flipVertical) {
-        imageProcessor = imageProcessor.flip();
-      }
-
-      // Extract crop area
+      // First extract crop area (before transformations)
       imageProcessor = imageProcessor.extract({
         left: cropX,
         top: cropY,
         width: cropWidth,
         height: cropHeight,
       });
+
+      // Apply additional rotation only if specified (beyond EXIF auto-rotation)
+      if (rotationAngle !== 0) {
+        imageProcessor = imageProcessor.rotate(rotationAngle, {
+          background: { r: 255, g: 255, b: 255, alpha: 0 },
+        });
+      }
+
+      if (flipHorizontal === true || flipHorizontal === "true") {
+        imageProcessor = imageProcessor.flop();
+      }
+
+      if (flipVertical === true || flipVertical === "true") {
+        imageProcessor = imageProcessor.flip();
+      }
 
       // Set output format and quality
       switch (format) {
@@ -183,10 +412,10 @@ router.post(
 
 // @route   POST /api/image/resize
 // @desc    Resize image while maintaining aspect ratio
-// @access  Private
+// @access  Public
 router.post(
   "/resize",
-  auth,
+  optionalAuth,
   upload.single("image"),
   [
     body("width")
@@ -294,98 +523,145 @@ router.post(
 
 // @route   POST /api/image/analyze
 // @desc    Analyze image and return metadata
-// @access  Private
-router.post("/analyze", auth, upload.single("image"), async (req, res) => {
-  try {
-    const file = req.file;
+// @access  Public
+router.post(
+  "/analyze",
+  optionalAuth,
+  upload.single("image"),
+  async (req, res) => {
+    try {
+      const file = req.file;
 
-    if (!file) {
-      return res.status(400).json({
+      if (!file) {
+        return res.status(400).json({
+          success: false,
+          message: "Image file is required",
+        });
+      }
+
+      // Analyze image with Sharp
+      const metadata = await sharp(file.buffer).metadata();
+      const stats = await sharp(file.buffer).stats();
+
+      // Calculate additional metrics
+      const aspectRatio = metadata.width / metadata.height;
+      const megapixels = (metadata.width * metadata.height) / 1000000;
+
+      // Detect if image is primarily dark or light
+      const averageBrightness =
+        stats.channels.reduce((sum, channel) => sum + channel.mean, 0) /
+        stats.channels.length;
+      const isDark = averageBrightness < 128;
+
+      // Calculate histogram for color analysis
+      const histogram = await sharp(file.buffer)
+        .resize(100, 100) // Reduce size for faster processing
+        .raw()
+        .toBuffer();
+
+      const analysis = {
+        dimensions: {
+          width: metadata.width,
+          height: metadata.height,
+          aspectRatio: Math.round(aspectRatio * 100) / 100,
+          megapixels: Math.round(megapixels * 100) / 100,
+        },
+        format: {
+          format: metadata.format,
+          space: metadata.space,
+          channels: metadata.channels,
+          depth: metadata.depth,
+          density: metadata.density,
+          hasAlpha: metadata.hasAlpha,
+          hasProfile: metadata.hasProfile,
+        },
+        quality: {
+          averageBrightness: Math.round(averageBrightness),
+          isDark,
+          isColor: metadata.channels >= 3,
+          fileSize: file.size,
+          fileSizeFormatted: formatBytes(file.size),
+        },
+        stats: {
+          channels: stats.channels.map((channel) => ({
+            min: channel.min,
+            max: channel.max,
+            sum: channel.sum,
+            squaresSum: channel.squaresSum,
+            mean: Math.round(channel.mean * 100) / 100,
+            stdev: Math.round(channel.stdev * 100) / 100,
+          })),
+          entropy: stats.entropy,
+          sharpness: stats.sharpness,
+        },
+        recommendations: {
+          suggestedFormats: getSuggestedFormats(metadata, stats),
+          cropSuggestions: getCropSuggestions(metadata),
+          qualityRecommendation: getQualityRecommendation(
+            metadata,
+            averageBrightness,
+          ),
+        },
+      };
+
+      res.json({
+        success: true,
+        analysis,
+      });
+    } catch (error) {
+      console.error("Image analysis error:", error);
+      res.status(500).json({
         success: false,
-        message: "Image file is required",
+        message: "Failed to analyze image",
+        error: error.message,
       });
     }
-
-    // Analyze image with Sharp
-    const metadata = await sharp(file.buffer).metadata();
-    const stats = await sharp(file.buffer).stats();
-
-    // Calculate additional metrics
-    const aspectRatio = metadata.width / metadata.height;
-    const megapixels = (metadata.width * metadata.height) / 1000000;
-
-    // Detect if image is primarily dark or light
-    const averageBrightness =
-      stats.channels.reduce((sum, channel) => sum + channel.mean, 0) /
-      stats.channels.length;
-    const isDark = averageBrightness < 128;
-
-    // Calculate histogram for color analysis
-    const histogram = await sharp(file.buffer)
-      .resize(100, 100) // Reduce size for faster processing
-      .raw()
-      .toBuffer();
-
-    const analysis = {
-      dimensions: {
-        width: metadata.width,
-        height: metadata.height,
-        aspectRatio: Math.round(aspectRatio * 100) / 100,
-        megapixels: Math.round(megapixels * 100) / 100,
-      },
-      format: {
-        format: metadata.format,
-        space: metadata.space,
-        channels: metadata.channels,
-        depth: metadata.depth,
-        density: metadata.density,
-        hasAlpha: metadata.hasAlpha,
-        hasProfile: metadata.hasProfile,
-      },
-      quality: {
-        averageBrightness: Math.round(averageBrightness),
-        isDark,
-        isColor: metadata.channels >= 3,
-        fileSize: file.size,
-        fileSizeFormatted: formatBytes(file.size),
-      },
-      stats: {
-        channels: stats.channels.map((channel) => ({
-          min: channel.min,
-          max: channel.max,
-          sum: channel.sum,
-          squaresSum: channel.squaresSum,
-          mean: Math.round(channel.mean * 100) / 100,
-          stdev: Math.round(channel.stdev * 100) / 100,
-        })),
-        entropy: stats.entropy,
-        sharpness: stats.sharpness,
-      },
-      recommendations: {
-        suggestedFormats: getSuggestedFormats(metadata, stats),
-        cropSuggestions: getCropSuggestions(metadata),
-        qualityRecommendation: getQualityRecommendation(
-          metadata,
-          averageBrightness,
-        ),
-      },
-    };
-
-    res.json({
-      success: true,
-      analysis,
-    });
-  } catch (error) {
-    console.error("Image analysis error:", error);
-    res.status(500).json({
-      success: false,
-      message: "Failed to analyze image",
-      error: error.message,
-    });
-  }
-});
+  },
+);
 
 // Helper functions
+function getCompressionSettings(level) {
+  const settings = {
+    extreme: {
+      quality: 40,
+      progressive: true,
+      mozjpeg: true,
+      pngCompression: 9,
+      effort: 6,
+    },
+    high: {
+      quality: 60,
+      progressive: true,
+      mozjpeg: true,
+      pngCompression: 8,
+      effort: 5,
+    },
+    medium: {
+      quality: 75,
+      progressive: true,
+      mozjpeg: false,
+      pngCompression: 6,
+      effort: 4,
+    },
+    low: {
+      quality: 85,
+      progressive: false,
+      mozjpeg: false,
+      pngCompression: 4,
+      effort: 3,
+    },
+    "best-quality": {
+      quality: 95,
+      progressive: false,
+      mozjpeg: false,
+      pngCompression: 2,
+      effort: 2,
+    },
+  };
+
+  return settings[level] || settings["medium"];
+}
+
 function formatBytes(bytes, decimals = 2) {
   if (bytes === 0) return "0 Bytes";
   const k = 1024;
@@ -489,25 +765,7 @@ function getQualityReasoning(quality, metadata, averageBrightness) {
   return "Standard quality for balanced file size and visual quality";
 }
 
-// Error handling for multer
-router.use((error, req, res, next) => {
-  if (error instanceof multer.MulterError) {
-    if (error.code === "LIMIT_FILE_SIZE") {
-      return res.status(400).json({
-        success: false,
-        message: "File too large. Maximum size is 10MB.",
-      });
-    }
-  }
-
-  if (error.message === "Only image files are allowed") {
-    return res.status(400).json({
-      success: false,
-      message: "Only image files are allowed.",
-    });
-  }
-
-  next(error);
-});
+// Use the shared multer error handler
+router.use(handleMulterError);
 
 module.exports = router;

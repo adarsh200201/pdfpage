@@ -442,7 +442,7 @@ const Cookies = () => {
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Button asChild className="bg-brand-red hover:bg-red-700">
-                <Link to="/contact">Contact Support</Link>
+                <a href="mailto:support@pdfpage.com">Contact Support</a>
               </Button>
               <Button variant="outline" asChild>
                 <Link to="/privacy">Privacy Policy</Link>

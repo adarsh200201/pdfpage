@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import {
   Globe,
@@ -13,330 +14,262 @@ import {
   Type,
   Smile,
   Sparkles,
+  ArrowRight,
+  CheckCircle,
+  Palette,
+  Download,
+  Crop,
 } from "lucide-react";
 
 const FaviconFooter = () => {
   const currentYear = new Date().getFullYear();
+  const [email, setEmail] = useState("");
+  const [isNewsletterSubmitted, setIsNewsletterSubmitted] = useState(false);
+  const [showBackToTop, setShowBackToTop] = useState(false);
 
-  const faviconTools = [
-    {
-      id: "image-favicon-footer",
-      label: "Image to Favicon",
-      href: "/img/favicon",
-    },
-    {
-      id: "text-favicon-footer",
-      label: "Text to Favicon",
-      href: "/img/favicon",
-    },
-    {
-      id: "emoji-favicon-footer",
-      label: "Emoji to Favicon",
-      href: "/img/favicon",
-    },
-    {
-      id: "logo-favicon-footer",
-      label: "Logo to Favicon",
-      href: "/img/favicon",
-    },
-    {
-      id: "favicon-sizes-footer",
-      label: "Favicon Sizes",
-      href: "/img/favicon",
-    },
-    {
-      id: "ico-converter-footer",
-      label: "ICO Converter",
-      href: "/img/favicon",
-    },
+  // Popular favicon tools data
+  const popularTools = [
+    { name: "Image to Favicon", icon: Image, href: "/img/favicon" },
+    { name: "Text to Favicon", icon: Type, href: "/favicon/text" },
+    { name: "Emoji to Favicon", icon: Smile, href: "/favicon/emoji" },
+    { name: "Logo to Favicon", icon: Sparkles, href: "/favicon/logo" },
+    { name: "Download Favicon", icon: Download, href: "/favicon/download" },
   ];
 
-  const faviconFormats = [
-    { id: "16x16-favicon", label: "16x16 Favicon", href: "/img/favicon" },
-    { id: "32x32-favicon", label: "32x32 Favicon", href: "/img/favicon" },
-    { id: "48x48-favicon", label: "48x48 Favicon", href: "/img/favicon" },
-    { id: "64x64-favicon", label: "64x64 Favicon", href: "/img/favicon" },
-    { id: "apple-touch-icon", label: "Apple Touch Icon", href: "/img/favicon" },
-    { id: "android-icon", label: "Android Icon", href: "/img/favicon" },
+  // Resources links
+  const resources = [
+    { name: "Blog", href: "/blog" },
+    { name: "API Documentation", href: "/api-docs" },
+    { name: "Security", href: "/security" },
+    { name: "Enterprise", href: "/enterprise" },
   ];
 
-  const company = [
-    { label: "About Us", href: "/about" },
-    { label: "Blog", href: "/blog" },
-    { label: "Press", href: "/press" },
-    { label: "Careers", href: "/careers" },
-    { label: "Contact", href: "/contact" },
-    { label: "Affiliate Program", href: "/affiliate" },
-  ];
-
+  // Support links
   const support = [
-    { label: "Help Center", href: "/help" },
-    { label: "Contact Support", href: "/contact" },
-    { label: "API Documentation", href: "/api-docs" },
-    { label: "System Status", href: "/status" },
-    { label: "FAQ", href: "/faq" },
-    { label: "Tutorials", href: "/tutorials" },
+    { name: "Contact Us", href: "/contact" },
+    { name: "Report Bug", href: "/report-bug" },
+    { name: "Feature Request", href: "/feature-request" },
+    { name: "Privacy Policy", href: "/privacy" },
+    { name: "Terms of Service", href: "/terms" },
   ];
 
-  const legal = [
-    { label: "Privacy Policy", href: "/privacy" },
-    { label: "Terms of Service", href: "/terms" },
-    { label: "Cookie Policy", href: "/cookies" },
-    { label: "GDPR", href: "/gdpr" },
-  ];
+  const handleNewsletterSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (email) {
+      setIsNewsletterSubmitted(true);
+      setEmail("");
+      setTimeout(() => setIsNewsletterSubmitted(false), 3000);
+    }
+  };
 
-  const relatedTools = [
-    { label: "PDF Tools", href: "/" },
-    { label: "Image Tools", href: "/img" },
-    { label: "Compress Image", href: "/img/compress" },
-    { label: "Resize Image", href: "/img/resize" },
-    { label: "Convert Images", href: "/img/convert" },
-    { label: "Add Watermark", href: "/img/watermark" },
-  ];
+  const scrollToTop = () => {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  // Listen for scroll to show back to top button
+  useEffect(() => {
+    const handleScroll = () => {
+      setShowBackToTop(window.scrollY > 300);
+    };
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
 
   return (
-    <footer className="bg-gray-900 text-white">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        {/* Main Footer Content */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-8">
-          {/* Brand Column */}
-          <div className="lg:col-span-2">
-            <div className="flex items-center space-x-2 mb-4">
-              <div className="w-8 h-8 bg-gradient-to-br from-purple-600 to-blue-600 rounded-lg flex items-center justify-center">
-                <Globe className="text-white font-bold text-sm w-5 h-5" />
-              </div>
-              <span className="font-bold text-xl">
-                Favicon<span className="text-purple-400">Generator</span>
-              </span>
-            </div>
-            <p className="text-gray-300 mb-6 max-w-sm">
-              Create professional favicons for your website with our
-              comprehensive favicon generator. Convert images, text, emojis, and
-              logos into perfect favicon files.
-            </p>
+    <>
+      <footer className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white relative overflow-hidden">
+        {/* Background Pattern */}
+        <div
+          className={
+            'absolute inset-0 bg-[url(\'data:image/svg+xml,%3Csvg width="60" height="60" viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg"%3E%3Cg fill="none" fill-rule="evenodd"%3E%3Cg fill="%23ffffff" fill-opacity="0.03"%3E%3Ccircle cx="30" cy="30" r="2"/%3E%3C/g%3E%3C/g%3E%3C/svg%3E\')] opacity-50'
+          }
+        ></div>
 
-            {/* Contact Info */}
-            <div className="space-y-2 mb-6">
-              <div className="flex items-center text-gray-400">
-                <Mail className="w-4 h-4 mr-2" />
-                <span className="text-sm">support@favicongen.com</span>
-              </div>
-              <div className="flex items-center text-gray-400">
-                <Phone className="w-4 h-4 mr-2" />
-                <span className="text-sm">+1 (555) 123-4567</span>
-              </div>
-              <div className="flex items-center text-gray-400">
-                <MapPin className="w-4 h-4 mr-2" />
-                <span className="text-sm">San Francisco, CA</span>
-              </div>
-            </div>
+        <div className="relative z-10">
+          {/* Main Footer Content */}
+          <div className="py-8">
+            <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+                {/* Brand & About Column */}
+                <div>
+                  <Link
+                    to="/favicon"
+                    className="inline-flex items-center space-x-2 mb-4 group"
+                  >
+                    <div className="w-10 h-10 bg-gradient-to-br from-purple-600 to-purple-700 rounded-lg flex items-center justify-center transform group-hover:scale-105 transition-transform duration-200">
+                      <Sparkles className="h-5 w-5 text-white" />
+                    </div>
+                    <div>
+                      <span className="font-bold text-xl text-white">
+                        Favicon<span className="text-purple-400">Page</span>
+                      </span>
+                    </div>
+                  </Link>
 
-            {/* Social Links */}
-            <div className="flex space-x-4">
-              <a
-                href="https://twitter.com"
-                className="text-gray-400 hover:text-blue-400 transition-colors"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                <Twitter className="w-5 h-5" />
-              </a>
-              <a
-                href="https://facebook.com"
-                className="text-gray-400 hover:text-blue-600 transition-colors"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                <Facebook className="w-5 h-5" />
-              </a>
-              <a
-                href="https://linkedin.com"
-                className="text-gray-400 hover:text-blue-500 transition-colors"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                <Linkedin className="w-5 h-5" />
-              </a>
-              <a
-                href="https://instagram.com"
-                className="text-gray-400 hover:text-pink-500 transition-colors"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                <Instagram className="w-5 h-5" />
-              </a>
-              <a
-                href="https://youtube.com"
-                className="text-gray-400 hover:text-red-500 transition-colors"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                <Youtube className="w-5 h-5" />
-              </a>
+                  <p className="text-gray-300 mb-4 text-sm leading-relaxed">
+                    Create professional favicons for your website in seconds.
+                    Fast, easy-to-use tools for developers and designers.
+                  </p>
+
+                  {/* Contact Info */}
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2 text-sm text-gray-300">
+                      <Mail className="h-4 w-4" />
+                      <a
+                        href="mailto:hello@faviconpage.com"
+                        className="hover:text-purple-400 transition-colors"
+                      >
+                        hello@faviconpage.com
+                      </a>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Popular Tools Column */}
+                <div>
+                  <h4 className="font-bold text-lg mb-4 text-white">
+                    Popular Tools
+                  </h4>
+                  <div className="space-y-2">
+                    {popularTools.map((tool) => (
+                      <Link
+                        key={tool.name}
+                        to={tool.href}
+                        className="flex items-center gap-2 text-sm text-gray-300 hover:text-purple-400 transition-all duration-200 group"
+                      >
+                        <tool.icon className="h-4 w-4 text-purple-400 group-hover:scale-110 transition-transform" />
+                        <span className="group-hover:translate-x-1 transition-transform">
+                          {tool.name}
+                        </span>
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Support Column */}
+                <div>
+                  <h4 className="font-bold text-lg mb-4 text-white">Support</h4>
+                  <div className="space-y-2">
+                    {support.map((link) => (
+                      <Link
+                        key={link.name}
+                        to={link.href}
+                        className="block text-sm text-gray-300 hover:text-purple-400 transition-colors duration-200 hover:translate-x-1 transform"
+                      >
+                        {link.name}
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Social Column */}
+                <div>
+                  <h4 className="font-bold text-lg mb-4 text-white">
+                    Follow Us
+                  </h4>
+                  <div className="flex flex-wrap gap-3">
+                    {[
+                      {
+                        icon: Twitter,
+                        href: "https://twitter.com/faviconpage",
+                        label: "Twitter",
+                      },
+                      {
+                        icon: Facebook,
+                        href: "https://facebook.com/faviconpage",
+                        label: "Facebook",
+                      },
+                      {
+                        icon: Linkedin,
+                        href: "https://linkedin.com/company/faviconpage",
+                        label: "LinkedIn",
+                      },
+                      {
+                        icon: Instagram,
+                        href: "https://instagram.com/faviconpage",
+                        label: "Instagram",
+                      },
+                      {
+                        icon: Youtube,
+                        href: "https://youtube.com/faviconpage",
+                        label: "YouTube",
+                      },
+                    ].map((social) => (
+                      <a
+                        key={social.label}
+                        href={social.href}
+                        className="text-gray-400 hover:text-purple-400 transition-all duration-200 transform hover:scale-110"
+                        aria-label={social.label}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        <social.icon className="h-5 w-5" />
+                      </a>
+                    ))}
+                  </div>
+
+                  {/* Additional Page Links */}
+                  <div className="mt-6 pt-4 border-t border-gray-700">
+                    <h5 className="font-semibold text-white mb-3 text-sm">
+                      Resources
+                    </h5>
+                    <div className="space-y-2">
+                      {resources.slice(0, 3).map((resource) => (
+                        <Link
+                          key={resource.name}
+                          to={resource.href}
+                          className="block text-xs text-gray-400 hover:text-purple-400 transition-colors"
+                        >
+                          {resource.name}
+                        </Link>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
 
-          {/* Favicon Tools */}
-          <div className="lg:col-span-1">
-            <h3 className="text-gray-100 font-semibold mb-4">Favicon Tools</h3>
-            <ul className="space-y-2">
-              {faviconTools.map((tool) => (
-                <li key={tool.id}>
-                  <Link
-                    to={tool.href}
-                    className="text-gray-400 hover:text-purple-400 transition-colors text-sm"
-                  >
-                    {tool.label}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </div>
+          {/* Bottom Section */}
+          <div className="border-t border-gray-700 py-6">
+            <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+              <div className="flex flex-col md:flex-row justify-between items-center">
+                <div className="text-gray-400 text-sm">
+                  © {currentYear} FaviconPage. All rights reserved.
+                </div>
 
-          {/* Favicon Formats */}
-          <div className="lg:col-span-1">
-            <h3 className="text-gray-100 font-semibold mb-4">
-              Favicon Formats
-            </h3>
-            <ul className="space-y-2">
-              {faviconFormats.map((format) => (
-                <li key={format.id}>
-                  <Link
-                    to={format.href}
-                    className="text-gray-400 hover:text-purple-400 transition-colors text-sm"
-                  >
-                    {format.label}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          {/* Related Tools */}
-          <div className="lg:col-span-1">
-            <h3 className="text-gray-100 font-semibold mb-4">Related Tools</h3>
-            <ul className="space-y-2">
-              {relatedTools.map((tool) => (
-                <li key={tool.href}>
-                  <Link
-                    to={tool.href}
-                    className="text-gray-400 hover:text-blue-400 transition-colors text-sm"
-                  >
-                    {tool.label}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          {/* Support & Legal */}
-          <div className="lg:col-span-1">
-            <h3 className="text-gray-100 font-semibold mb-4">Support</h3>
-            <ul className="space-y-2 mb-6">
-              {support.map((item) => (
-                <li key={item.href}>
-                  <Link
-                    to={item.href}
-                    className="text-gray-400 hover:text-purple-400 transition-colors text-sm"
-                  >
-                    {item.label}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-
-            <h3 className="text-gray-100 font-semibold mb-4">Legal</h3>
-            <ul className="space-y-2">
-              {legal.map((item) => (
-                <li key={item.href}>
-                  <Link
-                    to={item.href}
-                    className="text-gray-400 hover:text-purple-400 transition-colors text-sm"
-                  >
-                    {item.label}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </div>
-        </div>
-
-        {/* Key Features Section */}
-        <div className="border-t border-gray-800 mt-8 pt-8">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-            <div className="text-center">
-              <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-blue-600 rounded-full flex items-center justify-center mx-auto mb-3">
-                <Image className="w-6 h-6 text-white" />
+                {/* Trust Badges */}
+                <div className="mt-4 md:mt-0 flex items-center space-x-6 text-xs text-gray-500">
+                  <div className="flex items-center">
+                    <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
+                    SSL Encrypted
+                  </div>
+                  <div className="flex items-center">
+                    <div className="w-2 h-2 bg-blue-500 rounded-full mr-2"></div>
+                    GDPR Compliant
+                  </div>
+                  <div className="flex items-center">
+                    <div className="w-2 h-2 bg-purple-500 rounded-full mr-2"></div>
+                    Developer Friendly
+                  </div>
+                </div>
               </div>
-              <h4 className="text-white font-semibold mb-2">From Image</h4>
-              <p className="text-gray-400 text-sm">
-                Convert any image to professional favicon
-              </p>
-            </div>
-            <div className="text-center">
-              <div className="w-12 h-12 bg-gradient-to-r from-green-500 to-green-600 rounded-full flex items-center justify-center mx-auto mb-3">
-                <Type className="w-6 h-6 text-white" />
-              </div>
-              <h4 className="text-white font-semibold mb-2">From Text</h4>
-              <p className="text-gray-400 text-sm">
-                Create custom text-based favicons
-              </p>
-            </div>
-            <div className="text-center">
-              <div className="w-12 h-12 bg-gradient-to-r from-yellow-500 to-yellow-600 rounded-full flex items-center justify-center mx-auto mb-3">
-                <Smile className="w-6 h-6 text-white" />
-              </div>
-              <h4 className="text-white font-semibold mb-2">From Emoji</h4>
-              <p className="text-gray-400 text-sm">
-                Turn emojis into fun favicons
-              </p>
-            </div>
-            <div className="text-center">
-              <div className="w-12 h-12 bg-gradient-to-r from-purple-500 to-purple-600 rounded-full flex items-center justify-center mx-auto mb-3">
-                <Sparkles className="w-6 h-6 text-white" />
-              </div>
-              <h4 className="text-white font-semibold mb-2">From Logo</h4>
-              <p className="text-gray-400 text-sm">
-                Optimize logos for perfect favicons
-              </p>
             </div>
           </div>
         </div>
+      </footer>
 
-        {/* Bottom Footer */}
-        <div className="border-t border-gray-800 pt-8">
-          <div className="flex flex-col md:flex-row justify-between items-center">
-            <div className="flex items-center space-x-6 mb-4 md:mb-0">
-              <p className="text-gray-400 text-sm">
-                © {currentYear} FaviconGenerator. All rights reserved.
-              </p>
-              <div className="flex items-center space-x-4">
-                <span className="text-gray-400 text-sm">Powered by</span>
-                <Link
-                  to="/"
-                  className="text-red-400 hover:text-red-300 text-sm font-semibold"
-                >
-                  PdfPage
-                </Link>
-                <span className="text-gray-400">•</span>
-                <Link
-                  to="/img"
-                  className="text-blue-400 hover:text-blue-300 text-sm font-semibold"
-                >
-                  ImgPage
-                </Link>
-              </div>
-            </div>
-
-            <div className="flex items-center space-x-4">
-              <span className="text-gray-400 text-sm">
-                Made with ❤️ for developers
-              </span>
-            </div>
-          </div>
-        </div>
-      </div>
-    </footer>
+      {/* Back to Top Button */}
+      {showBackToTop && (
+        <button
+          onClick={scrollToTop}
+          className="fixed bottom-8 right-8 bg-purple-600 hover:bg-purple-700 text-white p-3 rounded-full shadow-lg transition-all duration-300 transform hover:scale-110 z-50"
+          aria-label="Back to top"
+        >
+          <ArrowRight className="h-5 w-5 rotate-[-90deg]" />
+        </button>
+      )}
+    </>
   );
 };
 

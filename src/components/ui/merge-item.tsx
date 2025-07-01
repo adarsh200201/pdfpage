@@ -85,7 +85,7 @@ export const MergeItem: React.FC<MergeItemProps> = ({
         onDragOver={(e) => onDragOver(e, index)}
         onDragEnd={onDragEnd}
         className={cn(
-          "flex items-center space-x-4 p-4 rounded-lg border transition-all duration-200 cursor-move bg-white",
+          "flex items-center space-x-2 sm:space-x-4 p-3 sm:p-4 rounded-lg border transition-all duration-200 cursor-move bg-white",
           isDragging
             ? "border-brand-red bg-red-50 shadow-lg scale-105"
             : isInsertionTarget
@@ -94,7 +94,7 @@ export const MergeItem: React.FC<MergeItemProps> = ({
         )}
       >
         {/* Drag Handle */}
-        <div className="flex-shrink-0">
+        <div className="flex-shrink-0 hidden sm:block">
           <GripVertical className="w-5 h-5 text-gray-400" />
         </div>
 
@@ -105,7 +105,7 @@ export const MergeItem: React.FC<MergeItemProps> = ({
             showFileName={false}
             maxWidth={60}
             maxHeight={80}
-            className="w-16 h-20"
+            className="w-12 h-16 sm:w-16 sm:h-20"
           />
         </div>
 
@@ -128,12 +128,12 @@ export const MergeItem: React.FC<MergeItemProps> = ({
         </div>
 
         {/* Actions */}
-        <div className="flex items-center space-x-2 flex-shrink-0">
+        <div className="flex items-center space-x-1 sm:space-x-2 flex-shrink-0">
           <Button
             variant="ghost"
             size="sm"
             onClick={() => onPreview(item)}
-            className="opacity-60 hover:opacity-100"
+            className="opacity-60 hover:opacity-100 p-1 sm:p-2"
           >
             <Eye className="w-4 h-4" />
           </Button>
@@ -143,7 +143,7 @@ export const MergeItem: React.FC<MergeItemProps> = ({
               variant="ghost"
               size="sm"
               onClick={() => onRotate(item.id)}
-              className="opacity-60 hover:opacity-100"
+              className="opacity-60 hover:opacity-100 p-1 sm:p-2"
             >
               <RotateCw className="w-4 h-4" />
             </Button>
@@ -153,7 +153,7 @@ export const MergeItem: React.FC<MergeItemProps> = ({
             variant="ghost"
             size="sm"
             onClick={() => onRemove(item.id)}
-            className="text-red-500 hover:text-red-700 opacity-60 hover:opacity-100"
+            className="text-red-500 hover:text-red-700 opacity-60 hover:opacity-100 p-1 sm:p-2"
           >
             <Trash2 className="w-4 h-4" />
           </Button>

@@ -38,8 +38,6 @@ const FaviconHeader = () => {
 
   const faviconNavItems = [
     { id: "image-favicon", label: "Image to Favicon", href: "/img/favicon" },
-    { id: "text-favicon", label: "Text to Favicon", href: "/img/favicon" },
-    { id: "emoji-favicon", label: "Emoji to Favicon", href: "/img/favicon" },
     { id: "logo-favicon", label: "Logo to Favicon", href: "/img/favicon" },
   ];
 
@@ -53,24 +51,7 @@ const FaviconHeader = () => {
       description: "Convert any image to favicon",
       isNew: false,
     },
-    {
-      id: "text-favicon-tool",
-      title: "Text to Favicon",
-      href: "/img/favicon",
-      icon: Type,
-      color: "from-green-500 to-green-600",
-      description: "Create favicon from text",
-      isNew: false,
-    },
-    {
-      id: "emoji-favicon-tool",
-      title: "Emoji to Favicon",
-      href: "/img/favicon",
-      icon: Smile,
-      color: "from-yellow-500 to-yellow-600",
-      description: "Make favicon from emoji",
-      isNew: false,
-    },
+
     {
       id: "logo-favicon-tool",
       title: "Logo to Favicon",
@@ -134,14 +115,6 @@ const FaviconHeader = () => {
             >
               Back to PdfPage
             </Link>
-
-            {/* Get Premium */}
-            <Link
-              to="/pricing"
-              className="text-body-medium text-text-medium hover:text-purple-600 transition-colors duration-200"
-            >
-              Get Premium
-            </Link>
           </nav>
 
           {/* Right Side Actions */}
@@ -200,12 +173,7 @@ const FaviconHeader = () => {
                       Settings
                     </Link>
                   </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link to="/pricing" className="flex items-center">
-                      <Crown className="w-4 h-4 mr-2" />
-                      Get Premium
-                    </Link>
-                  </DropdownMenuItem>
+
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
                     onClick={logout}
@@ -261,11 +229,6 @@ const FaviconHeader = () => {
                         <h3 className="font-semibold text-gray-900 group-hover:text-purple-600">
                           {tool.title}
                         </h3>
-                        {tool.isNew && (
-                          <span className="inline-block bg-purple-100 text-purple-600 text-xs px-2 py-1 rounded-full mt-1">
-                            New
-                          </span>
-                        )}
                       </div>
                     </div>
                     <p className="text-sm text-gray-600">{tool.description}</p>
@@ -304,13 +267,7 @@ const FaviconHeader = () => {
               >
                 Back to PdfPage
               </Link>
-              <Link
-                to="/pricing"
-                className="block px-3 py-2 text-base font-medium text-text-medium hover:text-purple-600 hover:bg-gray-50 rounded-md"
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                Get Premium
-              </Link>
+
               {!isAuthenticated && (
                 <Link
                   to="/login"

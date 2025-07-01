@@ -115,10 +115,6 @@ const RealTimeFeaturesShowcase = () => {
                 </span>
               </div>
               <div className="text-sm text-gray-600">Processing Now</div>
-              <div className="flex items-center justify-center mt-1">
-                <div className="w-2 h-2 bg-orange-500 rounded-full animate-pulse mr-1"></div>
-                <span className="text-xs text-orange-600">Live</span>
-              </div>
             </CardContent>
           </Card>
 

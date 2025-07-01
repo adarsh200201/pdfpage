@@ -19,12 +19,19 @@ import { PDFService } from "@/services/pdfService";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import AuthModal from "@/components/auth/AuthModal";
+import {
+  validatePDFForRotation,
+  testPDFRotation,
+} from "@/utils/pdf-rotation-test";
 
 interface ProcessedFile {
   id: string;
   file: File;
   name: string;
   size: number;
+  previewUrl?: string;
+  previewLoading?: boolean;
+  previewError?: boolean;
 }
 
 const Rotate = () => {
@@ -38,17 +45,127 @@ const Rotate = () => {
   const { user, isAuthenticated } = useAuth();
   const { toast } = useToast();
 
-  const handleFilesSelect = (files: File[]) => {
+  // Generate PDF preview
+  const generatePDFPreview = async (file: File): Promise<string | null> => {
+    try {
+      const pdfjsLib = await import("pdfjs-dist");
+
+      if (!pdfjsLib.GlobalWorkerOptions.workerSrc) {
+        pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdn.jsdelivr.net/npm/pdfjs-dist@4.8.69/build/pdf.worker.min.mjs`;
+      }
+
+      const arrayBuffer = await file.arrayBuffer();
+      const loadingTask = pdfjsLib.getDocument({
+        data: arrayBuffer,
+        verbosity: 0,
+      });
+
+      const pdf = await loadingTask.promise;
+      const page = await pdf.getPage(1); // First page preview
+
+      const scale = 0.3; // Small scale for preview
+      const viewport = page.getViewport({ scale });
+
+      const canvas = document.createElement("canvas");
+      const context = canvas.getContext("2d");
+
+      if (!context) throw new Error("Could not get canvas context");
+
+      canvas.width = viewport.width;
+      canvas.height = viewport.height;
+
+      await page.render({
+        canvasContext: context,
+        viewport: viewport,
+      }).promise;
+
+      const previewDataUrl = canvas.toDataURL("image/png", 0.7);
+      canvas.remove();
+
+      return previewDataUrl;
+    } catch (error) {
+      console.warn("Failed to generate PDF preview:", error);
+      return null;
+    }
+  };
+
+  const handleFilesSelect = async (files: File[]) => {
     if (files.length > 0) {
       const selectedFile = files[0];
-      setFile({
-        id: Math.random().toString(36).substr(2, 9),
+      const fileId = Math.random().toString(36).substr(2, 9);
+
+      const fileData = {
+        id: fileId,
         file: selectedFile,
         name: selectedFile.name,
         size: selectedFile.size,
-      });
+        previewLoading: true,
+        previewError: false,
+      };
+
+      setFile(fileData);
       setIsComplete(false);
       setRotation(0);
+
+      // Validate and generate preview asynchronously
+      try {
+        // Quick validation
+        const validation = await validatePDFForRotation(selectedFile);
+        if (!validation.valid) {
+          toast({
+            title: "Invalid PDF",
+            description:
+              validation.error || "This PDF file cannot be processed",
+            variant: "destructive",
+          });
+          setFile(null);
+          return;
+        }
+
+        console.log(
+          `✅ PDF loaded: ${validation.pageCount} pages, has content: ${validation.hasContent}`,
+        );
+
+        // Generate preview
+        const previewUrl = await generatePDFPreview(selectedFile);
+        setFile((prev) =>
+          prev
+            ? {
+                ...prev,
+                previewUrl,
+                previewLoading: false,
+                previewError: !previewUrl,
+              }
+            : null,
+        );
+
+        if (!previewUrl) {
+          toast({
+            title: "Preview unavailable",
+            description:
+              "PDF is valid but preview generation failed. Rotation will still work.",
+            variant: "default",
+          });
+        }
+      } catch (error) {
+        console.error("PDF processing failed:", error);
+        setFile((prev) =>
+          prev
+            ? {
+                ...prev,
+                previewLoading: false,
+                previewError: true,
+              }
+            : null,
+        );
+
+        toast({
+          title: "Preview Error",
+          description:
+            "Could not generate preview, but rotation may still work",
+          variant: "default",
+        });
+      }
     }
   };
 
@@ -84,6 +201,36 @@ const Rotate = () => {
         );
       }
 
+      console.log("🔍 Validating PDF before rotation...");
+
+      // Validate PDF before rotation
+      const validation = await validatePDFForRotation(file.file);
+      if (!validation.valid) {
+        throw new Error(`PDF validation failed: ${validation.error}`);
+      }
+
+      console.log(
+        `✅ PDF validation passed: ${validation.pageCount} pages, content: ${validation.hasContent}`,
+      );
+
+      // Test rotation before applying
+      console.log("🔄 Testing PDF rotation...");
+      const rotationTest = await testPDFRotation(file.file, rotation);
+      if (!rotationTest.success) {
+        console.warn("⚠️ Rotation test failed:", rotationTest.error);
+        // Continue anyway, but log the warning
+        toast({
+          title: "Warning",
+          description:
+            "PDF structure may be complex. Proceeding with rotation...",
+          variant: "default",
+        });
+      } else {
+        console.log("✅ Rotation test passed");
+      }
+
+      // Perform actual rotation
+      console.log("🔄 Applying PDF rotation...");
       const rotatedPdfBytes = await PDFService.rotatePDF(file.file, rotation);
 
       // Track usage
@@ -216,10 +363,48 @@ const Rotate = () => {
                     <div className="flex justify-center mb-6">
                       <div className="relative">
                         <div
-                          className={`w-24 h-32 bg-gradient-to-br from-teal-100 to-teal-200 border-2 border-teal-300 rounded-lg flex items-center justify-center transform transition-transform duration-300`}
+                          className={`w-32 h-40 bg-white border-2 border-teal-300 rounded-lg overflow-hidden shadow-lg transform transition-transform duration-300`}
                           style={{ transform: `rotate(${rotation}deg)` }}
                         >
-                          <FileText className="w-8 h-8 text-teal-600" />
+                          {file.previewUrl ? (
+                            <img
+                              src={file.previewUrl}
+                              alt="PDF Preview"
+                              className="w-full h-full object-contain bg-white"
+                              style={{
+                                imageRendering: "-webkit-optimize-contrast",
+                              }}
+                            />
+                          ) : file.previewLoading ? (
+                            <div className="w-full h-full flex items-center justify-center bg-teal-50">
+                              <div className="text-center">
+                                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-teal-500 mx-auto mb-2"></div>
+                                <div className="text-xs text-teal-600">
+                                  Loading...
+                                </div>
+                              </div>
+                            </div>
+                          ) : file.previewError ? (
+                            <div className="w-full h-full flex items-center justify-center bg-gray-50">
+                              <div className="text-center text-gray-500">
+                                <FileText className="w-8 h-8 mx-auto mb-2" />
+                                <div className="text-xs">
+                                  Preview unavailable
+                                </div>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-teal-100 to-teal-200">
+                              <FileText className="w-8 h-8 text-teal-600" />
+                            </div>
+                          )}
+
+                          {/* Rotation indicator overlay */}
+                          {rotation !== 0 && (
+                            <div className="absolute top-1 right-1 bg-teal-500 text-white text-xs px-1 py-0.5 rounded font-medium">
+                              {rotation}°
+                            </div>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -373,39 +558,43 @@ const Rotate = () => {
         )}
 
         {/* Features */}
-        <div className="mt-12 grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="text-center">
-            <div className="w-12 h-12 bg-teal-100 rounded-lg flex items-center justify-center mx-auto mb-3">
-              <RotateCw className="w-6 h-6 text-teal-500" />
+        <div className="mt-8 sm:mt-12 px-4 sm:px-0">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="text-center px-2">
+              <div className="w-12 h-12 bg-teal-100 rounded-lg flex items-center justify-center mx-auto mb-3">
+                <RotateCw className="w-6 h-6 text-teal-500" />
+              </div>
+              <h4 className="font-semibold text-text-dark mb-2 text-sm sm:text-base">
+                Precise Rotation
+              </h4>
+              <p className="text-xs sm:text-sm text-text-light leading-relaxed max-w-xs mx-auto">
+                Rotate PDFs in 90° increments with perfect accuracy
+              </p>
             </div>
-            <h4 className="font-semibold text-text-dark mb-2">
-              Precise Rotation
-            </h4>
-            <p className="text-body-small text-text-light">
-              Rotate PDFs in 90° increments with perfect accuracy
-            </p>
-          </div>
 
-          <div className="text-center">
-            <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mx-auto mb-3">
-              <CheckCircle className="w-6 h-6 text-blue-500" />
+            <div className="text-center px-2">
+              <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mx-auto mb-3">
+                <CheckCircle className="w-6 h-6 text-blue-500" />
+              </div>
+              <h4 className="font-semibold text-text-dark mb-2 text-sm sm:text-base">
+                High Quality
+              </h4>
+              <p className="text-xs sm:text-sm text-text-light leading-relaxed max-w-xs mx-auto">
+                Maintain original quality and formatting after rotation
+              </p>
             </div>
-            <h4 className="font-semibold text-text-dark mb-2">High Quality</h4>
-            <p className="text-body-small text-text-light">
-              Maintain original quality and formatting after rotation
-            </p>
-          </div>
 
-          <div className="text-center">
-            <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center mx-auto mb-3">
-              <FileText className="w-6 h-6 text-purple-500" />
+            <div className="text-center px-2">
+              <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center mx-auto mb-3">
+                <FileText className="w-6 h-6 text-purple-500" />
+              </div>
+              <h4 className="font-semibold text-text-dark mb-2 text-sm sm:text-base">
+                All Page Sizes
+              </h4>
+              <p className="text-xs sm:text-sm text-text-light leading-relaxed max-w-xs mx-auto">
+                Works with any PDF page size and orientation
+              </p>
             </div>
-            <h4 className="font-semibold text-text-dark mb-2">
-              All Page Sizes
-            </h4>
-            <p className="text-body-small text-text-light">
-              Works with any PDF page size and orientation
-            </p>
           </div>
         </div>
       </div>

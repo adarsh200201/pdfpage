@@ -399,6 +399,15 @@ const Gdpr = () => {
                   extend this period by an additional 60 days with proper
                   notification.
                 </p>
+                <p className="mt-2">
+                  For urgent matters, contact us directly at{" "}
+                  <a
+                    href="mailto:support@pdfpage.com"
+                    className="text-brand-red hover:underline"
+                  >
+                    support@pdfpage.com
+                  </a>
+                </p>
               </div>
             </CardContent>
           </Card>
@@ -489,8 +498,8 @@ const Gdpr = () => {
                     </a>
                   </p>
                   <p>
-                    <strong>Address:</strong> Data Protection Officer, PdfPage
-                    Inc., 123 Market Street, Suite 300, patna, Bihar 843117
+                    <strong>Contact:</strong> Data Protection Officer, PdfPage
+                    Inc., Email: privacy@pdfpage.com
                   </p>
                   <p>
                     <strong>Response Time:</strong> Within 30 days

@@ -1,213 +1,307 @@
 import { Link } from "react-router-dom";
+import { useState, useEffect } from "react";
 import {
-  Globe,
   Mail,
-  Phone,
-  MapPin,
   Twitter,
   Facebook,
   Linkedin,
   Instagram,
   Youtube,
+  ArrowRight,
+  ChevronUp,
+  Star,
+  Download,
+  FileText,
+  Scissors,
+  RotateCw,
+  Merge,
+  SplitSquareHorizontal,
+  Shield,
+  Zap,
+  Users,
+  Heart,
+  MapPin,
+  Phone,
+  CheckCircle,
+  Image,
+  Star as Favicon,
 } from "lucide-react";
 
 const Footer = () => {
+  const [email, setEmail] = useState("");
+  const [isNewsletterSubmitted, setIsNewsletterSubmitted] = useState(false);
+  const [showBackToTop, setShowBackToTop] = useState(false);
   const currentYear = new Date().getFullYear();
 
-  const pdfTools = [
-    { label: "Merge PDF", href: "/merge" },
-    { label: "Split PDF", href: "/split" },
-    { label: "Compress PDF", href: "/compress" },
-    { label: "PDF to Word", href: "/pdf-to-word" },
-    { label: "Word to PDF", href: "/word-to-pdf" },
-    { label: "PDF to JPG", href: "/pdf-to-jpg" },
+  // Popular tools data
+  const popularTools = [
+    { name: "Merge PDF", icon: Merge, href: "/merge" },
+    { name: "Split PDF", icon: SplitSquareHorizontal, href: "/split" },
+    { name: "Compress PDF", icon: Download, href: "/compress" },
+    { name: "PDF to Word", icon: FileText, href: "/pdf-to-word" },
+    { name: "Crop PDF", icon: Scissors, href: "/crop" },
   ];
 
+  // Resources links
+  const resources = [
+    { name: "Blog", href: "/blog" },
+    { name: "API Documentation", href: "/api-docs" },
+    { name: "User Guide", href: "/guide" },
+    { name: "Video Tutorials", href: "/tutorials" },
+    { name: "FAQ", href: "/faq" },
+    { name: "System Status", href: "/status" },
+  ];
+
+  // Company links
   const company = [
-    { label: "About Us", href: "/about" },
-    { label: "Blog", href: "/blog" },
-    { label: "Press", href: "/press" },
-    { label: "Careers", href: "/careers" },
-    { label: "Contact", href: "/contact" },
-    { label: "Affiliate Program", href: "/affiliate" },
+    { name: "About Us", href: "/about" },
+    { name: "Careers", href: "/careers" },
+    { name: "Security", href: "/security" },
+    { name: "Enterprise", href: "/enterprise" },
   ];
 
+  // Support links
   const support = [
-    { label: "Help Center", href: "/help" },
-    { label: "Contact Support", href: "/contact" },
-    { label: "API Documentation", href: "/api-docs" },
-    { label: "System Status", href: "/status" },
-    { label: "Feature Requests", href: "/feature-requests" },
+    { name: "Contact Us", href: "/contact" },
+    { name: "Report Bug", href: "/report-bug" },
+    { name: "Feature Request", href: "/feature-request" },
+    { name: "Privacy Policy", href: "/privacy" },
+    { name: "Terms of Service", href: "/terms" },
   ];
 
-  const legal = [
-    { label: "Privacy Policy", href: "/privacy" },
-    { label: "Terms of Service", href: "/terms" },
-    { label: "Cookie Policy", href: "/cookies" },
-    { label: "GDPR", href: "/gdpr" },
-    { label: "Security", href: "/security" },
+  // Customer testimonials
+  const testimonials = [
+    {
+      name: "Sarah Chen",
+      role: "Product Manager",
+      text: "PdfPage has streamlined our document workflow immensely!",
+      rating: 5,
+    },
+    {
+      name: "Michael Rodriguez",
+      role: "Freelancer",
+      text: "Fast, reliable, and exactly what I needed for my PDFs.",
+      rating: 5,
+    },
+    {
+      name: "Emily Watson",
+      role: "Student",
+      text: "The merge tool saved me hours on my research project.",
+      rating: 5,
+    },
   ];
+
+  const handleNewsletterSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (email) {
+      setIsNewsletterSubmitted(true);
+      setEmail("");
+      setTimeout(() => setIsNewsletterSubmitted(false), 3000);
+    }
+  };
+
+  const scrollToTop = () => {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  // Listen for scroll to show back to top button
+  useEffect(() => {
+    const handleScroll = () => {
+      setShowBackToTop(window.scrollY > 300);
+    };
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
 
   return (
-    <footer className="bg-gray-900 text-white">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-8">
-          {/* Company Info */}
-          <div className="lg:col-span-2">
-            <Link to="/" className="flex items-center space-x-2 mb-4">
-              <div className="w-8 h-8 bg-gradient-to-br from-brand-red to-red-600 rounded-lg flex items-center justify-center">
-                <span className="text-white font-bold text-sm">PP</span>
-              </div>
-              <span className="font-bold text-xl">
-                Pdf<span className="text-brand-red">Page</span>
-              </span>
-            </Link>
-            <p className="text-gray-300 mb-6 leading-relaxed">
-              The ultimate PDF toolkit for all your document processing needs.
-              Fast, secure, and easy to use - trusted by millions worldwide.
-            </p>
-            <div className="space-y-2 text-sm text-gray-400">
-              <div className="flex items-center gap-2">
-                <Mail className="h-4 w-4" />
-                <span>hello@pdfpage.com</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Phone className="h-4 w-4" />
-                <span>+91 9572377168</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <MapPin className="h-4 w-4" />
-                <span>patna, Bihar</span>
+    <>
+      <footer className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white relative overflow-hidden">
+        {/* Background Pattern */}
+        <div
+          className={
+            'absolute inset-0 bg-[url(\'data:image/svg+xml,%3Csvg width="60" height="60" viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg"%3E%3Cg fill="none" fill-rule="evenodd"%3E%3Cg fill="%23ffffff" fill-opacity="0.03"%3E%3Ccircle cx="30" cy="30" r="2"/%3E%3C/g%3E%3C/g%3E%3C/svg%3E\')] opacity-50'
+          }
+        ></div>
+
+        <div className="relative z-10">
+          {/* Main Footer Content */}
+          <div className="py-8">
+            <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+                {/* Brand & About Column */}
+                <div>
+                  <Link
+                    to="/"
+                    className="inline-flex items-center space-x-2 mb-4 group"
+                  >
+                    <div className="w-10 h-10 bg-gradient-to-br from-brand-red to-red-600 rounded-lg flex items-center justify-center transform group-hover:scale-105 transition-transform duration-200">
+                      <span className="text-white font-bold">PP</span>
+                    </div>
+                    <div>
+                      <span className="font-bold text-xl text-white">
+                        Pdf<span className="text-brand-red">Page</span>
+                      </span>
+                    </div>
+                  </Link>
+
+                  <p className="text-gray-300 mb-4 text-sm leading-relaxed">
+                    The ultimate PDF toolkit trusted by millions worldwide.
+                    Fast, secure, and privacy-focused document processing.
+                  </p>
+
+                  {/* Contact Info */}
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2 text-sm text-gray-300">
+                      <Mail className="h-4 w-4" />
+                      <a
+                        href="mailto:hello@pdfpage.com"
+                        className="hover:text-brand-red transition-colors"
+                      >
+                        hello@pdfpage.com
+                      </a>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Popular Tools Column */}
+                <div>
+                  <h4 className="font-bold text-lg mb-4 text-white">
+                    Popular Tools
+                  </h4>
+                  <div className="space-y-2">
+                    {popularTools.map((tool) => (
+                      <Link
+                        key={tool.name}
+                        to={tool.href}
+                        className="flex items-center gap-2 text-sm text-gray-300 hover:text-brand-red transition-all duration-200 group"
+                      >
+                        <tool.icon className="h-4 w-4 text-brand-red group-hover:scale-110 transition-transform" />
+                        <span className="group-hover:translate-x-1 transition-transform">
+                          {tool.name}
+                        </span>
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Support Column */}
+                <div>
+                  <h4 className="font-bold text-lg mb-4 text-white">Support</h4>
+                  <div className="space-y-2">
+                    {support.map((link) => (
+                      <Link
+                        key={link.name}
+                        to={link.href}
+                        className="block text-sm text-gray-300 hover:text-brand-red transition-colors duration-200 hover:translate-x-1 transform"
+                      >
+                        {link.name}
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Social Column */}
+                <div>
+                  <h4 className="font-bold text-lg mb-4 text-white">
+                    Follow Us
+                  </h4>
+                  <div className="flex flex-wrap gap-3">
+                    {[
+                      {
+                        icon: Twitter,
+                        href: "https://twitter.com/pdfpage",
+                        label: "Twitter",
+                      },
+                      {
+                        icon: Facebook,
+                        href: "https://facebook.com/pdfpage",
+                        label: "Facebook",
+                      },
+                      {
+                        icon: Linkedin,
+                        href: "https://linkedin.com/company/pdfpage",
+                        label: "LinkedIn",
+                      },
+                      {
+                        icon: Instagram,
+                        href: "https://instagram.com/pdfpage",
+                        label: "Instagram",
+                      },
+                      {
+                        icon: Youtube,
+                        href: "https://youtube.com/pdfpage",
+                        label: "YouTube",
+                      },
+                    ].map((social) => (
+                      <a
+                        key={social.label}
+                        href={social.href}
+                        className="text-gray-400 hover:text-brand-red transition-all duration-200 transform hover:scale-110"
+                        aria-label={social.label}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        <social.icon className="h-5 w-5" />
+                      </a>
+                    ))}
+                  </div>
+
+                  {/* Additional Page Links */}
+                  <div className="mt-6 pt-4 border-t border-gray-700">
+                    <h5 className="font-semibold text-white mb-3 text-sm">
+                      Tools
+                    </h5>
+                    <div className="space-y-2">
+                      <Link
+                        to="/img"
+                        className="flex items-center gap-2 text-sm text-gray-300 hover:text-brand-red transition-colors duration-200 group"
+                      >
+                        <Image className="h-4 w-4 text-brand-red group-hover:scale-110 transition-transform" />
+                        <span className="group-hover:translate-x-1 transition-transform">
+                          Image Tools
+                        </span>
+                      </Link>
+                      <Link
+                        to="/favicon"
+                        className="flex items-center gap-2 text-sm text-gray-300 hover:text-brand-red transition-colors duration-200 group"
+                      >
+                        <Favicon className="h-4 w-4 text-brand-red group-hover:scale-110 transition-transform" />
+                        <span className="group-hover:translate-x-1 transition-transform">
+                          Favicon Generator
+                        </span>
+                      </Link>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
 
-          {/* PDF Tools */}
-          <div>
-            <h3 className="font-semibold text-lg mb-4">Popular Tools</h3>
-            <ul className="space-y-3">
-              {pdfTools.map((tool) => (
-                <li key={tool.href}>
-                  <Link
-                    to={tool.href}
-                    className="text-gray-300 hover:text-white transition-colors text-sm"
-                  >
-                    {tool.label}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          {/* Company */}
-          <div>
-            <h3 className="font-semibold text-lg mb-4">Company</h3>
-            <ul className="space-y-3">
-              {company.map((item) => (
-                <li key={item.href}>
-                  <Link
-                    to={item.href}
-                    className="text-gray-300 hover:text-white transition-colors text-sm"
-                  >
-                    {item.label}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          {/* Support */}
-          <div>
-            <h3 className="font-semibold text-lg mb-4">Support</h3>
-            <ul className="space-y-3">
-              {support.map((item) => (
-                <li key={item.href}>
-                  <Link
-                    to={item.href}
-                    className="text-gray-300 hover:text-white transition-colors text-sm"
-                  >
-                    {item.label}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          {/* Legal */}
-          <div>
-            <h3 className="font-semibold text-lg mb-4">Legal</h3>
-            <ul className="space-y-3">
-              {legal.map((item) => (
-                <li key={item.href}>
-                  <Link
-                    to={item.href}
-                    className="text-gray-300 hover:text-white transition-colors text-sm"
-                  >
-                    {item.label}
-                  </Link>
-                </li>
-              ))}
-            </ul>
+          {/* Bottom Bar */}
+          <div className="border-t border-gray-700 bg-slate-900/50">
+            <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+              <div className="text-center lg:text-left">
+                {/* Copyright */}
+                <div className="text-gray-400 text-sm">
+                  © {currentYear} PdfPage. All rights reserved.
+                </div>
+              </div>
+            </div>
           </div>
         </div>
+      </footer>
 
-        {/* Social Media & Bottom */}
-        <div className="border-t border-gray-800 mt-12 pt-8">
-          <div className="flex flex-col lg:flex-row justify-between items-center gap-4">
-            <div className="text-sm text-gray-400">
-              © {currentYear} PdfPage. All rights reserved.
-            </div>
-
-            <div className="flex items-center gap-4">
-              {/* Language Selector */}
-              <div className="flex items-center gap-2 text-sm text-gray-400">
-                <Globe className="h-4 w-4" />
-                <span>English</span>
-              </div>
-
-              {/* Social Media Links */}
-              <div className="flex items-center gap-3">
-                <a
-                  href="https://twitter.com/pdfpage"
-                  className="text-gray-400 hover:text-white transition-colors"
-                  aria-label="Twitter"
-                >
-                  <Twitter className="h-5 w-5" />
-                </a>
-                <a
-                  href="https://facebook.com/pdfpage"
-                  className="text-gray-400 hover:text-white transition-colors"
-                  aria-label="Facebook"
-                >
-                  <Facebook className="h-5 w-5" />
-                </a>
-                <a
-                  href="https://linkedin.com/company/pdfpage"
-                  className="text-gray-400 hover:text-white transition-colors"
-                  aria-label="LinkedIn"
-                >
-                  <Linkedin className="h-5 w-5" />
-                </a>
-                <a
-                  href="https://instagram.com/pdfpage"
-                  className="text-gray-400 hover:text-white transition-colors"
-                  aria-label="Instagram"
-                >
-                  <Instagram className="h-5 w-5" />
-                </a>
-                <a
-                  href="https://youtube.com/pdfpage"
-                  className="text-gray-400 hover:text-white transition-colors"
-                  aria-label="YouTube"
-                >
-                  <Youtube className="h-5 w-5" />
-                </a>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </footer>
+      {/* Back to Top Button */}
+      {showBackToTop && (
+        <button
+          onClick={scrollToTop}
+          className="fixed bottom-6 right-6 z-50 w-12 h-12 bg-brand-red hover:bg-red-600 text-white rounded-full shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105 flex items-center justify-center group"
+          aria-label="Back to top"
+        >
+          <ChevronUp className="h-5 w-5 group-hover:-translate-y-1 transition-transform" />
+        </button>
+      )}
+    </>
   );
 };
 

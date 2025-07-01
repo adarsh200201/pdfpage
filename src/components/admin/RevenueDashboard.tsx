@@ -88,10 +88,6 @@ export function RevenueDashboard() {
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-900">Revenue Dashboard</h1>
-        <div className="flex items-center space-x-2">
-          <Activity className="w-5 h-5 text-green-500" />
-          <span className="text-sm text-green-600 font-medium">Live Data</span>
-        </div>
       </div>
 
       {/* Key Metrics */}
@@ -298,11 +294,6 @@ export function RevenueDashboard() {
                       tool.status === "live" ? "bg-green-500" : "bg-gray-400"
                     }`}
                   />
-                  {tool.isNew && (
-                    <span className="text-xs bg-red-500 text-white px-2 py-1 rounded-full">
-                      NEW
-                    </span>
-                  )}
                 </div>
                 <p className="font-medium text-sm">{tool.name}</p>
                 <p

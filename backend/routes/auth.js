@@ -8,6 +8,9 @@ const {
   sendPasswordResetConfirmation,
 } = require("../services/emailService");
 const passport = require("../config/passport");
+const { markConversionFromSoftLimit } = require("../utils/ipUsageUtils");
+const { getRealIPAddress } = require("../utils/ipUtils");
+const logger = require("../utils/logger");
 const router = express.Router();
 
 // Helper function to generate JWT token
@@ -91,7 +94,7 @@ router.post(
         });
       }
 
-      const { name, email, password } = req.body;
+      const { name, email, password, signupSource, sessionId } = req.body;
 
       // Check if user already exists
       console.log(
@@ -107,7 +110,14 @@ router.post(
         });
       }
 
-      console.log("🔄 [REGISTER] Creating new user:", { name, email });
+      console.log("🔄 [REGISTER] Creating new user:", {
+        name,
+        email,
+        signupSource,
+      });
+
+      // Get IP address for conversion tracking
+      const ipAddress = getRealIPAddress(req);
 
       // Create user with a generated username if not provided
       const username =
@@ -121,11 +131,37 @@ router.post(
         email,
         username, // Add the generated username
         password,
+        ipAddress,
+        conversionTracking: {
+          referredFromIP: ipAddress,
+          signupSource: signupSource || "direct",
+          conversionSessionId: sessionId || req.sessionID,
+        },
       });
 
       console.log("💾 [REGISTER] Saving user to database...");
       await user.save();
       console.log("✅ [REGISTER] User saved successfully");
+
+      // Check for soft limit conversion tracking
+      console.log("🔄 [REGISTER] Checking for soft limit conversion...");
+      const conversionResult = await markConversionFromSoftLimit(
+        ipAddress,
+        user._id,
+        sessionId || req.sessionID,
+      );
+
+      if (conversionResult.converted) {
+        console.log("🎯 [REGISTER] Soft limit conversion tracked:", {
+          tool: conversionResult.softLimitTool,
+          timeSinceLimit: conversionResult.timeSinceLimit,
+        });
+
+        // Update user's conversion tracking
+        user.conversionTracking.hitSoftLimitBefore = true;
+        user.conversionTracking.softLimitTool = conversionResult.softLimitTool;
+        user.conversionTracking.signupSource = "soft_limit";
+      }
 
       // Update login stats
       user.loginCount += 1;
@@ -133,7 +169,39 @@ router.post(
       await user.save();
 
       console.log("🔑 [REGISTER] Generating JWT token...");
-      sendTokenResponse(user, 201, res);
+
+      // Enhanced response with conversion info
+      const token = generateToken(user._id);
+      const userData = {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        isPremium: user.isPremiumActive,
+        premiumPlan: user.premiumPlan,
+        premiumExpiryDate: user.premiumExpiryDate,
+        dailyUploads: user.dailyUploads,
+        maxDailyUploads: user.maxDailyUploads,
+        totalUploads: user.totalUploads,
+        premiumDaysRemaining: user.premiumDaysRemaining,
+      };
+
+      res.status(201).json({
+        success: true,
+        token,
+        user: userData,
+        conversion: conversionResult.converted
+          ? {
+              fromSoftLimit: true,
+              limitTool: conversionResult.softLimitTool,
+              showWelcomeReward: true,
+              unlockedFeatures: [
+                "PDF to Word conversion",
+                "Advanced compression",
+                "Priority processing",
+              ],
+            }
+          : null,
+      });
     } catch (error) {
       console.error("🔴 [REGISTER] Error:", error);
       res.status(500).json({

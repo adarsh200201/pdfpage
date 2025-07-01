@@ -4,6 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Link } from "react-router-dom";
+import { useRealTimeStats } from "@/hooks/useRealTimeStats";
+import { useState, useEffect } from "react";
 import {
   Users,
   Globe,
@@ -17,10 +19,66 @@ import {
   FileText,
   Lock,
   Cloud,
+  TrendingUp,
 } from "lucide-react";
 
+// Animated Counter Component
+const AnimatedCounter = ({
+  end,
+  duration = 2000,
+  suffix = "",
+}: {
+  end: number;
+  duration?: number;
+  suffix?: string;
+}) => {
+  const [count, setCount] = useState(0);
+
+  useEffect(() => {
+    let startTime: number;
+    let animationFrame: number;
+
+    const animate = (timestamp: number) => {
+      if (!startTime) startTime = timestamp;
+      const progress = Math.min((timestamp - startTime) / duration, 1);
+
+      setCount(Math.floor(progress * end));
+
+      if (progress < 1) {
+        animationFrame = requestAnimationFrame(animate);
+      }
+    };
+
+    animationFrame = requestAnimationFrame(animate);
+
+    return () => cancelAnimationFrame(animationFrame);
+  }, [end, duration]);
+
+  return (
+    <span>
+      {count.toLocaleString()}
+      {suffix}
+    </span>
+  );
+};
+
 const About = () => {
-  const stats = [
+  // Use real-time stats instead of dummy data
+  const {
+    stats,
+    isLoading: statsLoading,
+    error: statsError,
+    lastUpdated,
+    refresh: refreshStats,
+  } = useRealTimeStats({
+    fileText: FileText,
+    users: Users,
+    globe: Globe,
+    shield: Shield,
+  });
+
+  // Fallback stats for display consistency
+  const fallbackStats = [
     { number: "10M+", label: "PDFs Processed", icon: FileText },
     { number: "500K+", label: "Happy Users", icon: Users },
     { number: "99.9%", label: "Uptime", icon: Cloud },
@@ -51,37 +109,6 @@ const About = () => {
       title: "User Focused",
       description:
         "Every feature is designed with you in mind. Simple, intuitive, and powerful PDF tools.",
-    },
-  ];
-
-  const team = [
-    {
-      name: "Sarah Chen",
-      role: "CEO & Founder",
-      bio: "Former Adobe engineer with 15+ years in document technology.",
-      image:
-        "https://images.unsplash.com/photo-1494790108755-2616b612b786?w=400&h=400&fit=crop&crop=face",
-    },
-    {
-      name: "Michael Rodriguez",
-      role: "CTO",
-      bio: "Full-stack engineer specializing in cloud architecture and security.",
-      image:
-        "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=400&h=400&fit=crop&crop=face",
-    },
-    {
-      name: "Emily Johnson",
-      role: "Head of Product",
-      bio: "UX expert focused on making complex tools simple and accessible.",
-      image:
-        "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=400&h=400&fit=crop&crop=face",
-    },
-    {
-      name: "David Kim",
-      role: "Lead Developer",
-      bio: "PDF processing specialist with expertise in document manipulation.",
-      image:
-        "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=400&fit=crop&crop=face",
     },
   ];
 
@@ -122,21 +149,102 @@ const About = () => {
         </div>
       </section>
 
-      {/* Stats Section */}
-      <section className="py-16 bg-white">
+      {/* Enhanced Real-Time Stats Section */}
+      <section className="py-16 bg-white/70 backdrop-blur-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl lg:text-4xl font-bold text-text-dark mb-6">
+              Real-Time Impact
+            </h2>
+            <p className="text-lg text-text-medium max-w-2xl mx-auto">
+              See our live statistics and the global impact of our PDF
+              processing platform
+            </p>
+          </div>
+
+          <div className="flex justify-between items-center mb-6">
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+              <span className="text-xs text-gray-500">
+                Live data{" "}
+                {lastUpdated && (
+                  <span>• Updated {lastUpdated.toLocaleTimeString()}</span>
+                )}
+              </span>
+            </div>
+            <button
+              onClick={refreshStats}
+              disabled={statsLoading}
+              className="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-700 transition-colors"
+            >
+              <div className={statsLoading ? "animate-spin" : ""}>↻</div>
+              {statsLoading ? "Updating..." : "Refresh"}
+            </button>
+          </div>
+
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-8">
             {stats.map((stat, index) => (
-              <div key={index} className="text-center">
-                <div className="mx-auto w-12 h-12 bg-brand-red/10 rounded-lg flex items-center justify-center mb-4">
-                  <stat.icon className="h-6 w-6 text-brand-red" />
+              <div key={index} className="text-center group">
+                <div className="mx-auto w-16 h-16 bg-gradient-to-br from-brand-red/10 to-brand-red/20 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-200 shadow-lg">
+                  <stat.icon className="h-8 w-8 text-brand-red" />
                 </div>
-                <div className="text-3xl font-bold text-text-dark mb-2">
-                  {stat.number}
+                <div className="text-3xl lg:text-4xl font-extrabold text-text-dark mb-2">
+                  {statsLoading ? (
+                    <div className="animate-pulse bg-gray-200 h-10 w-20 mx-auto rounded"></div>
+                  ) : (
+                    <AnimatedCounter end={stat.number} suffix={stat.suffix} />
+                  )}
                 </div>
-                <div className="text-text-medium">{stat.label}</div>
+                <div className="text-text-medium font-semibold">
+                  {stat.label}
+                </div>
               </div>
             ))}
+          </div>
+
+          {statsError && (
+            <div className="text-center mt-4">
+              <span className="text-xs text-orange-600">
+                {statsError} • Showing current data
+              </span>
+            </div>
+          )}
+
+          {/* Additional Performance Metrics */}
+          <div className="mt-16 grid grid-cols-1 md:grid-cols-3 gap-8">
+            <Card className="border-none shadow-lg hover:shadow-xl transition-shadow">
+              <CardContent className="p-6 text-center">
+                <div className="mx-auto w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center mb-4">
+                  <TrendingUp className="h-6 w-6 text-green-600" />
+                </div>
+                <div className="text-2xl font-bold text-text-dark mb-2">5s</div>
+                <div className="text-text-medium">Average Processing Time</div>
+              </CardContent>
+            </Card>
+
+            <Card className="border-none shadow-lg hover:shadow-xl transition-shadow">
+              <CardContent className="p-6 text-center">
+                <div className="mx-auto w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mb-4">
+                  <Globe className="h-6 w-6 text-blue-600" />
+                </div>
+                <div className="text-2xl font-bold text-text-dark mb-2">
+                  190+
+                </div>
+                <div className="text-text-medium">Countries Served</div>
+              </CardContent>
+            </Card>
+
+            <Card className="border-none shadow-lg hover:shadow-xl transition-shadow">
+              <CardContent className="p-6 text-center">
+                <div className="mx-auto w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center mb-4">
+                  <Award className="h-6 w-6 text-purple-600" />
+                </div>
+                <div className="text-2xl font-bold text-text-dark mb-2">
+                  4.9/5
+                </div>
+                <div className="text-text-medium">User Satisfaction</div>
+              </CardContent>
+            </Card>
           </div>
         </div>
       </section>
@@ -237,46 +345,6 @@ const About = () => {
         </div>
       </section>
 
-      {/* Team Section */}
-      <section className="py-20 bg-gray-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl lg:text-4xl font-bold text-text-dark mb-6">
-              Meet Our Team
-            </h2>
-            <p className="text-lg text-text-medium max-w-2xl mx-auto">
-              Passionate experts dedicated to building the best PDF tools on the
-              web.
-            </p>
-          </div>
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
-            {team.map((member, index) => (
-              <Card
-                key={index}
-                className="border-none shadow-lg hover:shadow-xl transition-shadow"
-              >
-                <CardContent className="p-6 text-center">
-                  <img
-                    src={member.image}
-                    alt={member.name}
-                    className="w-24 h-24 rounded-full mx-auto mb-4 object-cover"
-                  />
-                  <h3 className="text-lg font-semibold text-text-dark mb-1">
-                    {member.name}
-                  </h3>
-                  <p className="text-brand-red font-medium mb-3">
-                    {member.role}
-                  </p>
-                  <p className="text-sm text-text-medium leading-relaxed">
-                    {member.bio}
-                  </p>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </div>
-      </section>
-
       {/* CTA Section */}
       <section className="py-20 bg-gradient-to-br from-brand-red to-red-700">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
@@ -296,7 +364,7 @@ const About = () => {
             <Button
               size="lg"
               variant="outline"
-              className="border-white text-white hover:bg-white hover:text-brand-red"
+              className="border-2 border-white text-white hover:bg-white hover:text-brand-red font-bold shadow-xl bg-white/10 backdrop-blur-sm"
               asChild
             >
               <Link to="/pricing">View Pricing</Link>

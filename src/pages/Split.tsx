@@ -201,10 +201,10 @@ const Split = () => {
 
         {/* Main Content */}
         {!isComplete ? (
-          <div className="space-y-8">
+          <div className="space-y-6 sm:space-y-8">
             {/* File Upload */}
             {!file && (
-              <div className="bg-white rounded-xl p-8 shadow-sm border border-gray-100">
+              <div className="bg-white rounded-xl p-4 sm:p-8 shadow-sm border border-gray-100">
                 <FileUpload
                   onFilesSelect={handleFilesSelect}
                   multiple={false}
@@ -215,12 +215,16 @@ const Split = () => {
 
             {/* File Display */}
             {file && (
-              <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
-                <div className="flex items-center justify-between mb-6">
+              <div className="bg-white rounded-xl p-4 sm:p-6 shadow-sm border border-gray-100">
+                <div className="flex flex-col space-y-4 sm:flex-row sm:items-center sm:justify-between sm:space-y-0 mb-6">
                   <h3 className="text-heading-small text-text-dark">
                     PDF File to Split
                   </h3>
-                  <Button variant="outline" onClick={() => setFile(null)}>
+                  <Button
+                    variant="outline"
+                    onClick={() => setFile(null)}
+                    className="w-full sm:w-auto"
+                  >
                     Choose Different File
                   </Button>
                 </div>
@@ -246,27 +250,30 @@ const Split = () => {
                   onValueChange={(value) => setSplitMode(value as any)}
                   className="mb-6"
                 >
-                  <TabsList className="grid w-full grid-cols-3">
+                  <TabsList className="grid w-full grid-cols-3 h-auto">
                     <TabsTrigger
                       value="pages"
-                      className="flex items-center gap-2"
+                      className="flex flex-col sm:flex-row items-center gap-1 sm:gap-2 py-2 sm:py-1.5 text-xs sm:text-sm"
                     >
                       <Layers className="w-4 h-4" />
-                      Extract Pages
+                      <span className="hidden sm:inline">Extract Pages</span>
+                      <span className="sm:hidden">Extract</span>
                     </TabsTrigger>
                     <TabsTrigger
                       value="ranges"
-                      className="flex items-center gap-2"
+                      className="flex flex-col sm:flex-row items-center gap-1 sm:gap-2 py-2 sm:py-1.5 text-xs sm:text-sm"
                     >
                       <SeparatorHorizontal className="w-4 h-4" />
-                      Split Ranges
+                      <span className="hidden sm:inline">Split Ranges</span>
+                      <span className="sm:hidden">Ranges</span>
                     </TabsTrigger>
                     <TabsTrigger
                       value="bulk"
-                      className="flex items-center gap-2"
+                      className="flex flex-col sm:flex-row items-center gap-1 sm:gap-2 py-2 sm:py-1.5 text-xs sm:text-sm"
                     >
                       <Grid className="w-4 h-4" />
-                      Fixed Intervals
+                      <span className="hidden sm:inline">Fixed Intervals</span>
+                      <span className="sm:hidden">Intervals</span>
                     </TabsTrigger>
                   </TabsList>
 
@@ -637,37 +644,43 @@ const Split = () => {
         )}
 
         {/* Features */}
-        <div className="mt-12 grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="text-center">
-            <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center mx-auto mb-3">
-              <Scissors className="w-6 h-6 text-green-500" />
+        <div className="mt-8 sm:mt-12 px-4 sm:px-0">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="text-center px-2">
+              <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center mx-auto mb-3">
+                <Scissors className="w-6 h-6 text-green-500" />
+              </div>
+              <h4 className="font-semibold text-text-dark mb-2 text-sm sm:text-base">
+                Precise Splitting
+              </h4>
+              <p className="text-xs sm:text-sm text-text-light leading-relaxed max-w-xs mx-auto">
+                Extract individual pages or page ranges with perfect accuracy
+              </p>
             </div>
-            <h4 className="font-semibold text-text-dark mb-2">
-              Precise Splitting
-            </h4>
-            <p className="text-body-small text-text-light">
-              Extract individual pages or page ranges with perfect accuracy
-            </p>
-          </div>
 
-          <div className="text-center">
-            <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mx-auto mb-3">
-              <CheckCircle className="w-6 h-6 text-blue-500" />
+            <div className="text-center px-2">
+              <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mx-auto mb-3">
+                <CheckCircle className="w-6 h-6 text-blue-500" />
+              </div>
+              <h4 className="font-semibold text-text-dark mb-2 text-sm sm:text-base">
+                High Quality
+              </h4>
+              <p className="text-xs sm:text-sm text-text-light leading-relaxed max-w-xs mx-auto">
+                Maintain original quality and formatting in each split file
+              </p>
             </div>
-            <h4 className="font-semibold text-text-dark mb-2">High Quality</h4>
-            <p className="text-body-small text-text-light">
-              Maintain original quality and formatting in each split file
-            </p>
-          </div>
 
-          <div className="text-center">
-            <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center mx-auto mb-3">
-              <FileText className="w-6 h-6 text-purple-500" />
+            <div className="text-center px-2">
+              <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center mx-auto mb-3">
+                <FileText className="w-6 h-6 text-purple-500" />
+              </div>
+              <h4 className="font-semibold text-text-dark mb-2 text-sm sm:text-base">
+                Easy Download
+              </h4>
+              <p className="text-xs sm:text-sm text-text-light leading-relaxed max-w-xs mx-auto">
+                Download individual pages or all files at once
+              </p>
             </div>
-            <h4 className="font-semibold text-text-dark mb-2">Easy Download</h4>
-            <p className="text-body-small text-text-light">
-              Download individual pages or all files at once
-            </p>
           </div>
         </div>
       </div>

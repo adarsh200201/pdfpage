@@ -131,9 +131,7 @@ const Pricing = () => {
               variant="outline"
               disabled={isAuthenticated && !user?.isPremium}
             >
-              {isAuthenticated && !user?.isPremium
-                ? "Current Plan"
-                : "Get Started"}
+              {isAuthenticated && !user?.isPremium ? "Current Plan" : "Sign Up"}
             </Button>
           </div>
 

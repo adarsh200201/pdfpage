@@ -91,10 +91,11 @@ export interface ShapeElement extends EditorElement {
 export interface ImageElement extends EditorElement {
   type: "image";
   properties: {
-    src: string;
-    alt: string;
+    imageUrl: string;
+    originalWidth: number;
+    originalHeight: number;
     opacity: number;
-    rotation: number;
+    rotation?: number;
   };
 }
 

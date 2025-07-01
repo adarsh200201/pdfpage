@@ -195,10 +195,6 @@ const AvailableTools = () => {
                 {(1247 + Math.floor(Math.random() * 500)).toLocaleString()}
               </div>
               <div className="text-white/80 text-sm">Active Users</div>
-              <div className="flex items-center justify-center mt-1">
-                <Activity className="w-4 h-4 mr-1" />
-                <span className="text-xs">Live Now</span>
-              </div>
             </div>
             <div className="text-center text-white">
               <div className="text-3xl font-bold mb-2">

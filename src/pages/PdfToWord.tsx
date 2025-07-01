@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useRef } from "react";
 import { Link } from "react-router-dom";
 import Header from "@/components/layout/Header";
 import FileUpload from "@/components/ui/file-upload";
@@ -11,8 +11,8 @@ import { PDFService } from "@/services/pdfService";
 import { useToast } from "@/hooks/use-toast";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
-import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
+import { cn } from "@/lib/utils";
 import {
   ArrowLeft,
   Download,
@@ -22,6 +22,8 @@ import {
   Star,
   CheckCircle,
   Settings,
+  RotateCcw,
+  Loader2,
   Clock,
   Zap,
   RefreshCw,
@@ -30,6 +32,11 @@ import {
   FileCheck,
   Activity,
   BarChart3,
+  Upload,
+  Layers,
+  Type,
+  Image,
+  Info,
 } from "lucide-react";
 
 interface FileWithStatus {
@@ -39,6 +46,10 @@ interface FileWithStatus {
   pages?: number;
   textLength?: number;
   errorMessage?: string;
+  processingTime?: number;
+  conversionType?: string;
+  downloadUrl?: string;
+  processingProgress?: number;
 }
 
 interface ConversionStats {
@@ -51,27 +62,25 @@ interface ConversionStats {
 
 const PdfToWord = () => {
   const [files, setFiles] = useState<FileWithStatus[]>([]);
-  const [convertedFiles, setConvertedFiles] = useState<
-    {
-      name: string;
-      url: string;
-      size: string;
-      pages: number;
-      textLength: number;
-    }[]
-  >([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isComplete, setIsComplete] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
-  const [conversionMode, setConversionMode] = useState<"editable" | "layout">(
-    "editable",
-  );
+  const [showAdvancedSettings, setShowAdvancedSettings] = useState(false);
+
+  // Conversion settings
+  const [conversionSettings, setConversionSettings] = useState({
+    extractImages: false,
+    preserveFormatting: true,
+    includeMetadata: true,
+  });
 
   // Real-time features state
   const [progress, setProgress] = useState(0);
   const [currentProcessingFile, setCurrentProcessingFile] =
     useState<string>("");
-  const [processingTime, setProcessingTime] = useState(0);
+  const [downloadingFiles, setDownloadingFiles] = useState<Set<string>>(
+    new Set(),
+  );
   const [conversionStats, setConversionStats] = useState<ConversionStats>({
     totalFiles: 0,
     processedFiles: 0,
@@ -79,445 +88,332 @@ const PdfToWord = () => {
     extractedTextLength: 0,
     averageProcessingTime: 0,
   });
-  const [showAdvancedSettings, setShowAdvancedSettings] = useState(false);
-  const [qualitySettings, setQualitySettings] = useState({
-    extractImages: false,
-    preserveFormatting: true,
-    includeMetadata: true,
-    compressionLevel: 80,
-  });
-  const [livePreview, setLivePreview] = useState(true);
 
   const { isAuthenticated, user } = useAuth();
   const { toast } = useToast();
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Real-time PDF analysis
-  const analyzePdfFile = useCallback(
-    async (file: File): Promise<{ pages: number; textLength: number }> => {
-      try {
-        const pdfjsLib = await import("pdfjs-dist");
+  // Handle file selection
+  const handleFilesSelect = useCallback(
+    async (selectedFiles: File[]) => {
+      if (selectedFiles.length === 0) return;
 
-        if (!pdfjsLib.GlobalWorkerOptions.workerSrc) {
-          pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdn.jsdelivr.net/npm/pdfjs-dist@4.8.69/build/pdf.worker.min.mjs`;
+      // All tools are completely free - no authentication required
+
+      // Validate files
+      const validFiles = selectedFiles.filter((file) => {
+        if (file.type !== "application/pdf") {
+          toast({
+            title: "Invalid file type",
+            description: `${file.name} is not a PDF file.`,
+            variant: "destructive",
+          });
+          return false;
         }
-
-        const arrayBuffer = await file.arrayBuffer();
-        const pdf = await pdfjsLib.getDocument({
-          data: arrayBuffer,
-          disableWorker: false,
-          disableStream: true,
-          disableAutoFetch: true,
-        }).promise;
-
-        let totalTextLength = 0;
-
-        // Quick analysis of first few pages
-        const pagesToAnalyze = Math.min(pdf.numPages, 3);
-        for (let i = 1; i <= pagesToAnalyze; i++) {
-          const page = await pdf.getPage(i);
-          const textContent = await page.getTextContent();
-          if (textContent?.items) {
-            totalTextLength += textContent.items.reduce(
-              (acc: number, item: any) => acc + (item.str?.length || 0),
-              0,
-            );
-          }
+        if (file.size > 100 * 1024 * 1024) {
+          // 100MB limit for all users
+          toast({
+            title: "File too large",
+            description: `${file.name} exceeds the 100MB limit.`,
+            variant: "destructive",
+          });
+          return false;
         }
+        return true;
+      });
 
-        // Estimate total text length
-        const estimatedTextLength = Math.round(
-          (totalTextLength * pdf.numPages) / pagesToAnalyze,
-        );
+      if (validFiles.length === 0) return;
 
-        return { pages: pdf.numPages, textLength: estimatedTextLength };
-      } catch (error) {
-        console.error("Error analyzing PDF:", error);
-        return { pages: 0, textLength: 0 };
+      // Add files to processing queue
+      const newFiles: FileWithStatus[] = validFiles.map((file) => ({
+        file,
+        id: Math.random().toString(36).substr(2, 9),
+        status: "uploaded",
+      }));
+
+      setFiles((prev) => [...prev, ...newFiles]);
+      setIsComplete(false);
+
+      // Auto-start conversion for single file
+      if (newFiles.length === 1) {
+        setTimeout(() => handleConvert([newFiles[0]]), 500);
       }
     },
-    [],
+    [isAuthenticated, user, toast],
   );
 
-  const handleFileUpload = async (uploadedFiles: File[]) => {
-    toast({
-      title: "📂 Analyzing PDF files...",
-      description: `Scanning ${uploadedFiles.length} file(s) for conversion readiness`,
-    });
+  // Convert files
+  const handleConvert = async (filesToConvert?: FileWithStatus[]) => {
+    const targetFiles =
+      filesToConvert || files.filter((f) => f.status === "uploaded");
 
-    const filesWithStatus: FileWithStatus[] = await Promise.all(
-      uploadedFiles.map(async (file) => {
-        const analysis = await analyzePdfFile(file);
-        return {
-          file,
-          id: Math.random().toString(36).substr(2, 9),
-          status: "uploaded" as const,
-          pages: analysis.pages,
-          textLength: analysis.textLength,
-        };
-      }),
-    );
-
-    setFiles(filesWithStatus);
-    setIsComplete(false);
-    setConvertedFiles([]);
-
-    // Update stats
-    const totalPages = filesWithStatus.reduce(
-      (sum, f) => sum + (f.pages || 0),
-      0,
-    );
-    const totalTextLength = filesWithStatus.reduce(
-      (sum, f) => sum + (f.textLength || 0),
-      0,
-    );
-
-    setConversionStats((prev) => ({
-      ...prev,
-      totalFiles: filesWithStatus.length,
-      totalPages,
-      extractedTextLength: totalTextLength,
-    }));
-
-    toast({
-      title: "✅ Analysis complete!",
-      description: `Found ${totalPages} pages across ${filesWithStatus.length} file(s)`,
-    });
-  };
-
-  const handleRemoveFile = (id: string) => {
-    const newFiles = files.filter((f) => f.id !== id);
-    setFiles(newFiles);
-
-    // Update stats
-    const totalPages = newFiles.reduce((sum, f) => sum + (f.pages || 0), 0);
-    const totalTextLength = newFiles.reduce(
-      (sum, f) => sum + (f.textLength || 0),
-      0,
-    );
-
-    setConversionStats((prev) => ({
-      ...prev,
-      totalFiles: newFiles.length,
-      totalPages,
-      extractedTextLength: totalTextLength,
-    }));
-  };
-
-  const handleConvert = async () => {
-    if (files.length === 0) {
+    if (targetFiles.length === 0) {
       toast({
-        title: "No files selected",
-        description: "Please select PDF files to convert.",
+        title: "No files to convert",
+        description: "Please upload PDF files first.",
         variant: "destructive",
       });
       return;
     }
 
-    // Check usage limits
-    try {
-      const usageCheck = await PDFService.checkUsageLimit();
-      if (!usageCheck.canUpload) {
-        setShowAuthModal(true);
-        return;
-      }
-    } catch (error) {
-      console.error("Error checking usage limit:", error);
-    }
-
     setIsProcessing(true);
     setProgress(0);
+
+    // Show real conversion start notification
+    toast({
+      title: "🚀 Starting Real Conversion",
+      description: `Converting ${targetFiles.length} PDF file(s) to Word format using server-side processing.`,
+      duration: 3000,
+    });
+
     const startTime = Date.now();
+    let completedFiles = 0;
+    let totalPages = 0;
+    let totalTextLength = 0;
+    let totalProcessingTime = 0;
 
-    try {
-      const convertedDocs: {
-        name: string;
-        url: string;
-        size: string;
-        pages: number;
-        textLength: number;
-      }[] = [];
+    for (const fileStatus of targetFiles) {
+      let progressInterval: NodeJS.Timeout | null = null;
 
-      let successCount = 0;
-      let errorCount = 0;
-      let totalProcessingTime = 0;
+      try {
+        setCurrentProcessingFile(fileStatus.file.name);
 
-      for (let index = 0; index < files.length; index++) {
-        const fileWithStatus = files[index];
-        const fileName = fileWithStatus.file.name;
+        // Update file status to processing with progress indicator
+        setFiles((prev) =>
+          prev.map((f) =>
+            f.id === fileStatus.id
+              ? { ...f, status: "processing", processingProgress: 0 }
+              : f,
+          ),
+        );
 
-        try {
-          console.log(`Converting ${fileName}...`);
-          setCurrentProcessingFile(fileName);
-
-          // Update file status to processing
+        // Show real-time progress
+        progressInterval = setInterval(() => {
           setFiles((prev) =>
             prev.map((f) =>
-              f.id === fileWithStatus.id
-                ? { ...f, status: "processing" as const }
-                : f,
-            ),
-          );
-
-          const fileStartTime = Date.now();
-          const convertedDoc = await convertPdfToWordWithProgress(
-            fileWithStatus.file,
-            conversionMode,
-          );
-          const fileProcessingTime = Date.now() - fileStartTime;
-          totalProcessingTime += fileProcessingTime;
-
-          if (convertedDoc && convertedDoc.size > 0) {
-            const docSize = `${(convertedDoc.size / 1024 / 1024).toFixed(2)} MB`;
-            const docUrl = URL.createObjectURL(convertedDoc);
-
-            convertedDocs.push({
-              name: fileName.replace(".pdf", ".docx"),
-              url: docUrl,
-              size: docSize,
-              pages: fileWithStatus.pages || 0,
-              textLength: fileWithStatus.textLength || 0,
-            });
-            successCount++;
-
-            // Update file status to completed
-            setFiles((prev) =>
-              prev.map((f) =>
-                f.id === fileWithStatus.id
-                  ? { ...f, status: "completed" as const }
-                  : f,
-              ),
-            );
-          } else {
-            throw new Error("Generated document is empty");
-          }
-        } catch (error) {
-          errorCount++;
-          console.error(`Error converting ${fileName}:`, error);
-
-          // Update file status to error
-          setFiles((prev) =>
-            prev.map((f) =>
-              f.id === fileWithStatus.id
+              f.id === fileStatus.id && f.status === "processing"
                 ? {
                     ...f,
-                    status: "error" as const,
-                    errorMessage:
-                      error instanceof Error ? error.message : "Unknown error",
+                    processingProgress: Math.min(
+                      (f.processingProgress || 0) + Math.random() * 15,
+                      90,
+                    ),
                   }
                 : f,
             ),
           );
+        }, 500);
 
-          toast({
-            title: `Error converting ${fileName}`,
-            description:
-              error instanceof Error
-                ? error.message
-                : "This PDF file could not be converted. Please try another file.",
-            variant: "destructive",
-          });
-        }
+        console.log(`🔄 Starting REAL conversion for: ${fileStatus.file.name}`);
+        console.log(
+          `📄 File size: ${(fileStatus.file.size / 1024 / 1024).toFixed(2)} MB`,
+        );
+        console.log(`⚙️ Conversion settings:`, conversionSettings);
+        console.log(
+          `🌐 API endpoint: ${import.meta.env.VITE_API_URL}/pdf/to-word`,
+        );
 
-        // Update progress
-        const fileProgress = ((index + 1) / files.length) * 90;
-        setProgress(fileProgress);
-      }
+        // Convert using backend API with REAL conversion (not demo)
+        const conversionStartTime = Date.now();
+        const result = await PDFService.convertPdfToWordAPI(
+          fileStatus.file,
+          conversionSettings,
+        );
+        const conversionEndTime = Date.now();
 
-      setProgress(95);
-      setCurrentProcessingFile("Finalizing conversion...");
+        console.log(
+          `⏱️ Actual conversion time: ${conversionEndTime - conversionStartTime}ms`,
+        );
 
-      if (convertedDocs.length > 0) {
-        setConvertedFiles(convertedDocs);
-        setIsComplete(true);
-        setProcessingTime(Date.now() - startTime);
+        // Clear progress interval
+        clearInterval(progressInterval);
 
-        // Update final stats
-        setConversionStats((prev) => ({
-          ...prev,
-          processedFiles: successCount,
-          averageProcessingTime: totalProcessingTime / files.length,
-        }));
+        console.log(`✅ Conversion completed for: ${fileStatus.file.name}`);
+        console.log(`📊 Stats:`, {
+          pages: result.stats.originalPages,
+          textLength: result.stats.textLength,
+          processingTime: result.stats.processingTime,
+          conversionType: result.stats.conversionType,
+          outputSize: `${(result.file.size / 1024 / 1024).toFixed(2)} MB`,
+        });
 
-        // Track usage for revenue analytics
-        await PDFService.trackUsage(
-          "pdf-to-word",
-          files.length,
-          files.reduce(
-            (sum, fileWithStatus) => sum + fileWithStatus.file.size,
-            0,
+        // Create download URL for real converted file
+        const downloadUrl = URL.createObjectURL(result.file);
+
+        // Update file status with real conversion results
+        setFiles((prev) =>
+          prev.map((f) =>
+            f.id === fileStatus.id
+              ? {
+                  ...f,
+                  status: "completed",
+                  pages: result.stats.originalPages,
+                  textLength: result.stats.textLength,
+                  processingTime: result.stats.processingTime,
+                  conversionType: result.stats.conversionType,
+                  downloadUrl,
+                  processingProgress: 100,
+                }
+              : f,
           ),
         );
 
-        const message =
-          errorCount > 0
-            ? `Successfully converted ${successCount} of ${files.length} PDF(s). ${errorCount} file(s) failed.`
-            : `Successfully converted all ${successCount} PDF(s) to Word document(s) in ${Math.round((Date.now() - startTime) / 1000)}s`;
+        // Update stats
+        completedFiles++;
+        totalPages += result.stats.originalPages;
+        totalTextLength += result.stats.textLength;
+        totalProcessingTime += result.stats.processingTime;
+
+        // Update progress
+        setProgress((completedFiles / targetFiles.length) * 100);
 
         toast({
-          title: "🎉 Conversion completed!",
-          description: message,
+          title: "Conversion completed",
+          description: `${fileStatus.file.name} has been converted to Word format.`,
         });
-      } else {
-        // Provide specific guidance instead of generic error
-        const errorMessage =
-          files.length === 1
-            ? "The PDF file could not be processed. It might be corrupted, password-protected, or contain only images."
-            : `None of the ${files.length} PDF files could be converted. They might be corrupted, password-protected, or contain only images.`;
+      } catch (error) {
+        // Clear progress interval on error
+        if (progressInterval) {
+          clearInterval(progressInterval);
+        }
+
+        console.error(`❌ Error converting ${fileStatus.file.name}:`, error);
+
+        // Update file status with error and clear progress
+        setFiles((prev) =>
+          prev.map((f) =>
+            f.id === fileStatus.id
+              ? {
+                  ...f,
+                  status: "error",
+                  processingProgress: 0,
+                  errorMessage:
+                    error instanceof Error
+                      ? error.message
+                      : "Conversion failed",
+                }
+              : f,
+          ),
+        );
 
         toast({
-          title: "Conversion failed",
-          description: errorMessage,
+          title: "❌ Conversion Failed",
+          description: `${fileStatus.file.name}: ${error instanceof Error ? error.message : "Unknown error"}`,
           variant: "destructive",
+          duration: 6000,
         });
-
-        setProgress(0);
-        setIsProcessing(false);
-        return;
       }
+    }
 
-      setProgress(100);
-    } catch (error) {
-      console.error("Error converting PDF to Word:", error);
+    // Update final stats
+    setConversionStats({
+      totalFiles: targetFiles.length,
+      processedFiles: completedFiles,
+      totalPages,
+      extractedTextLength: totalTextLength,
+      averageProcessingTime:
+        completedFiles > 0
+          ? Math.round(totalProcessingTime / completedFiles)
+          : 0,
+    });
+
+    setIsProcessing(false);
+    setIsComplete(completedFiles > 0);
+    setCurrentProcessingFile("");
+    setProgress(100);
+  };
+
+  // Download converted file
+  const downloadFile = async (fileStatus: FileWithStatus) => {
+    if (!fileStatus.downloadUrl) {
       toast({
-        title: "Conversion failed",
+        title: "Download Error",
         description:
-          "There was an error converting your PDF files. Please try again.",
+          "File not ready for download. Please try converting again.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Set downloading state
+    setDownloadingFiles((prev) => new Set(prev).add(fileStatus.id));
+
+    try {
+      // Generate descriptive filename
+      const originalName = fileStatus.file.name.replace(/\.pdf$/i, "");
+      const timestamp = new Date().toISOString().slice(0, 10);
+      const fileName = `${originalName}_converted_${timestamp}.docx`;
+
+      // Add small delay for better UX (show loading state)
+      await new Promise((resolve) => setTimeout(resolve, 500));
+
+      const link = document.createElement("a");
+      link.href = fileStatus.downloadUrl;
+      link.download = fileName;
+      link.style.display = "none";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      // Show success feedback
+      toast({
+        title: "✅ Download Started",
+        description: `${fileName} is being downloaded to your device.`,
+        duration: 4000,
+      });
+
+      // Track download analytics (optional)
+      console.log("File downloaded:", {
+        originalName: fileStatus.file.name,
+        downloadName: fileName,
+        fileSize: fileStatus.file.size,
+        conversionType: fileStatus.conversionType,
+      });
+    } catch (error) {
+      console.error("Download failed:", error);
+      toast({
+        title: "Download Failed",
+        description:
+          "There was an error downloading the file. Please try again.",
         variant: "destructive",
       });
     } finally {
-      setIsProcessing(false);
-      setCurrentProcessingFile("");
+      // Remove downloading state
+      setDownloadingFiles((prev) => {
+        const next = new Set(prev);
+        next.delete(fileStatus.id);
+        return next;
+      });
     }
   };
 
-  // Format bytes utility
-  const formatBytes = (bytes: number) => {
-    if (bytes === 0) return "0 B";
-    const k = 1024;
-    const sizes = ["B", "KB", "MB", "GB"];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
-  };
+  // Remove file
+  const removeFile = (id: string) => {
+    setFiles((prev) => {
+      const updatedFiles = prev.filter((f) => f.id !== id);
 
-  const convertPdfToWordWithProgress = async (
-    file: File,
-    mode: "editable" | "layout",
-  ): Promise<Blob> => {
-    const pdfjsLib = await import("pdfjs-dist");
-
-    // Ensure worker is configured
-    if (!pdfjsLib.GlobalWorkerOptions.workerSrc) {
-      pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdn.jsdelivr.net/npm/pdfjs-dist@4.8.69/build/pdf.worker.min.mjs`;
-    }
-
-    const arrayBuffer = await file.arrayBuffer();
-    const pdf = await pdfjsLib.getDocument({
-      data: arrayBuffer,
-      disableWorker: false, // Enable worker
-      disableStream: true,
-      disableAutoFetch: true,
-    }).promise;
-
-    let extractedText = "";
-    let totalTextLength = 0;
-
-    // Extract text from all pages
-    for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber++) {
-      try {
-        const page = await pdf.getPage(pageNumber);
-        const textContent = await page.getTextContent();
-
-        let pageText = "";
-        if (textContent && textContent.items) {
-          textContent.items.forEach((item: any) => {
-            if (item.str && typeof item.str === "string") {
-              pageText += item.str + " ";
-            }
-          });
-        }
-
-        const cleanPageText = pageText.trim();
-        if (cleanPageText.length > 0) {
-          extractedText += `\n\n--- Page ${pageNumber} ---\n\n${cleanPageText}`;
-          totalTextLength += cleanPageText.length;
-        } else {
-          extractedText += `\n\n--- Page ${pageNumber} ---\n\n[This page appears to be empty or contains only images]`;
-        }
-      } catch (pageError) {
-        console.warn(`Error processing page ${pageNumber}:`, pageError);
-        extractedText += `\n\n--- Page ${pageNumber} ---\n\n[Error reading this page]`;
+      // Clean up download URLs
+      const fileToRemove = prev.find((f) => f.id === id);
+      if (fileToRemove?.downloadUrl) {
+        URL.revokeObjectURL(fileToRemove.downloadUrl);
       }
-    }
 
-    // Check if we extracted any meaningful text
-    if (totalTextLength < 10) {
-      throw new Error(
-        "PDF contains no readable text - it may be an image-based PDF that requires OCR",
-      );
-    }
-
-    // Create a simple HTML document that can be opened as Word
-    const htmlContent = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <meta charset="UTF-8">
-        <title>Converted from PDF</title>
-        <style>
-          body {
-            font-family: 'Times New Roman', serif;
-            line-height: 1.6;
-            margin: 1in;
-            font-size: 12pt;
-          }
-          .page-break { page-break-before: always; }
-          h1 { font-size: 16pt; font-weight: bold; }
-          h2 { font-size: 14pt; font-weight: bold; }
-          p { margin-bottom: 12pt; }
-        </style>
-      </head>
-      <body>
-        <h1>Converted from: ${file.name}</h1>
-        <p><strong>Conversion Mode:</strong> ${mode === "editable" ? "Editable Text" : "Layout Preserving"}</p>
-        <div>
-          ${extractedText
-            .split("\n\n--- Page")
-            .map((pageContent, index) => {
-              if (index === 0) return `<p>${pageContent}</p>`;
-              return `<div class="page-break"><h2>Page ${pageContent.split(" ---")[0]}</h2><p>${pageContent.split(" ---\n\n")[1] || ""}</p></div>`;
-            })
-            .join("")}
-        </div>
-      </body>
-      </html>
-    `;
-
-    // Create blob that will be recognized as a Word document
-    return new Blob([htmlContent], {
-      type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      return updatedFiles;
     });
   };
 
-  const downloadFile = (fileUrl: string, fileName: string) => {
-    const link = document.createElement("a");
-    link.href = fileUrl;
-    link.download = fileName;
-    link.click();
-  };
-
-  const downloadAll = () => {
-    convertedFiles.forEach((file, index) => {
-      setTimeout(() => downloadFile(file.url, file.name), index * 100);
+  // Reset all
+  const resetAll = () => {
+    // Clean up download URLs
+    files.forEach((file) => {
+      if (file.downloadUrl) {
+        URL.revokeObjectURL(file.downloadUrl);
+      }
     });
-  };
 
-  const reset = () => {
     setFiles([]);
-    setConvertedFiles([]);
     setIsComplete(false);
     setProgress(0);
-    setCurrentProcessingFile("");
-    setProcessingTime(0);
     setConversionStats({
       totalFiles: 0,
       processedFiles: 0,
@@ -527,593 +423,558 @@ const PdfToWord = () => {
     });
   };
 
+  const uploadedFiles = files.filter((f) => f.status === "uploaded").length;
+  const completedFiles = files.filter((f) => f.status === "completed").length;
+  const errorFiles = files.filter((f) => f.status === "error").length;
+
   return (
-    <div className="min-h-screen bg-bg-light">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
       <Header />
 
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <PromoBanner className="mb-8" />
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-8">
+          <div className="flex items-center">
+            <Link
+              to="/"
+              className="flex items-center text-blue-600 hover:text-blue-700 mr-4"
+            >
+              <ArrowLeft className="w-5 h-5 mr-2" />
+              Back to Tools
+            </Link>
+          </div>
 
-        {/* Navigation */}
-        <div className="flex items-center space-x-2 mb-8">
-          <Link
-            to="/"
-            className="text-body-medium text-text-light hover:text-brand-red"
-          >
-            <ArrowLeft className="w-4 h-4 mr-1 inline" />
-            Back to Home
-          </Link>
+          <div className="flex items-center space-x-2">
+            <Badge variant="secondary" className="flex items-center">
+              <Clock className="w-3 h-3 mr-1" />
+              {isProcessing ? "Converting..." : `${completedFiles} completed`}
+            </Badge>
+            {/* All features are free - no upgrade needed */}
+          </div>
         </div>
 
-        {/* Header */}
+        {/* Hero Section */}
         <div className="text-center mb-8">
-          <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
+          <div className="bg-gradient-to-r from-blue-600 to-purple-600 p-4 rounded-2xl w-fit mx-auto mb-4">
             <FileText className="w-8 h-8 text-white" />
           </div>
-          <h1 className="text-heading-medium text-text-dark mb-4">
-            PDF to Word
+          <h1 className="text-3xl font-bold text-gray-900 mb-4">
+            PDF to Word Converter
           </h1>
-          <p className="text-body-large text-text-light max-w-2xl mx-auto">
-            Convert PDF files to editable Word documents. Extract text and
-            maintain formatting for easy editing.
+          <p className="text-gray-600 max-w-2xl mx-auto">
+            Convert your PDF documents to editable Word (.docx) files while
+            preserving formatting, text structure, and layout. Perfect for
+            editing and collaboration.
           </p>
         </div>
 
-        {/* Real-time Statistics */}
-        {files.length > 0 && (
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-            <Card>
-              <CardContent className="p-4">
-                <div className="flex items-center space-x-2">
-                  <FileText className="w-5 h-5 text-blue-500" />
-                  <div>
-                    <p className="text-sm font-medium">
-                      {conversionStats.totalFiles} Files
-                    </p>
-                    <p className="text-xs text-gray-500">
-                      {conversionStats.totalPages} pages total
-                    </p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardContent className="p-4">
-                <div className="flex items-center space-x-2">
-                  <Activity className="w-5 h-5 text-green-500" />
-                  <div>
-                    <p className="text-sm font-medium">
-                      {formatBytes(conversionStats.extractedTextLength * 2)}
-                    </p>
-                    <p className="text-xs text-gray-500">Est. Word size</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardContent className="p-4">
-                <div className="flex items-center space-x-2">
-                  <Settings className="w-5 h-5 text-purple-500" />
-                  <div>
-                    <p className="text-sm font-medium">{conversionMode}</p>
-                    <p className="text-xs text-gray-500">conversion mode</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardContent className="p-4">
-                <div className="flex items-center space-x-2">
-                  <Clock className="w-5 h-5 text-orange-500" />
-                  <div>
-                    <p className="text-sm font-medium">
-                      {processingTime > 0
-                        ? `${Math.round(processingTime / 1000)}s`
-                        : "~5-15s"}
-                    </p>
-                    <p className="text-xs text-gray-500">processing time</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+        {/* Features */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+          <div className="text-center p-4">
+            <Type className="w-8 h-8 text-blue-600 mx-auto mb-2" />
+            <h3 className="font-semibold text-gray-900">Preserve Text</h3>
+            <p className="text-gray-600 text-sm">
+              Maintains original text formatting and structure
+            </p>
           </div>
-        )}
-
-        {/* Advanced Settings Panel */}
-        {files.length > 0 && (
-          <Card className="mb-6">
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle className="flex items-center">
-                  <Settings className="w-5 h-5 mr-2" />
-                  Advanced Settings
-                </CardTitle>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setShowAdvancedSettings(!showAdvancedSettings)}
-                >
-                  {showAdvancedSettings ? "Hide" : "Show"} Settings
-                </Button>
-              </div>
-            </CardHeader>
-
-            {showAdvancedSettings && (
-              <CardContent className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <label className="text-sm font-medium">
-                        Extract Images
-                      </label>
-                      <Switch
-                        checked={qualitySettings.extractImages}
-                        onCheckedChange={(checked) =>
-                          setQualitySettings((prev) => ({
-                            ...prev,
-                            extractImages: checked,
-                          }))
-                        }
-                      />
-                    </div>
-
-                    <div className="flex items-center justify-between">
-                      <label className="text-sm font-medium">
-                        Preserve Formatting
-                      </label>
-                      <Switch
-                        checked={qualitySettings.preserveFormatting}
-                        onCheckedChange={(checked) =>
-                          setQualitySettings((prev) => ({
-                            ...prev,
-                            preserveFormatting: checked,
-                          }))
-                        }
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <label className="text-sm font-medium">
-                        Include Metadata
-                      </label>
-                      <Switch
-                        checked={qualitySettings.includeMetadata}
-                        onCheckedChange={(checked) =>
-                          setQualitySettings((prev) => ({
-                            ...prev,
-                            includeMetadata: checked,
-                          }))
-                        }
-                      />
-                    </div>
-
-                    <div>
-                      <label className="text-sm font-medium mb-2 block">
-                        Compression Level: {qualitySettings.compressionLevel}%
-                      </label>
-                      <Slider
-                        value={[qualitySettings.compressionLevel]}
-                        onValueChange={([value]) =>
-                          setQualitySettings((prev) => ({
-                            ...prev,
-                            compressionLevel: value,
-                          }))
-                        }
-                        max={100}
-                        min={50}
-                        step={10}
-                        className="w-full"
-                      />
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            )}
-          </Card>
-        )}
+          <div className="text-center p-4">
+            <Layers className="w-8 h-8 text-green-600 mx-auto mb-2" />
+            <h3 className="font-semibold text-gray-900">Layout Intact</h3>
+            <p className="text-gray-600 text-sm">
+              Preserves document layout and paragraphs
+            </p>
+          </div>
+          <div className="text-center p-4">
+            <Zap className="w-8 h-8 text-purple-600 mx-auto mb-2" />
+            <h3 className="font-semibold text-gray-900">Fast Processing</h3>
+            <p className="text-gray-600 text-sm">
+              Quick conversion with real-time progress
+            </p>
+          </div>
+          <div className="text-center p-4">
+            <FileCheck className="w-8 h-8 text-orange-600 mx-auto mb-2" />
+            <h3 className="font-semibold text-gray-900">High Quality</h3>
+            <p className="text-gray-600 text-sm">
+              Professional-grade conversion results
+            </p>
+          </div>
+        </div>
 
         {/* Main Content */}
-        {!isComplete ? (
-          <div className="space-y-8">
-            {/* File Upload */}
-            {files.length === 0 && (
-              <div className="bg-white rounded-xl p-8 shadow-sm border border-gray-100">
-                <FileUpload
-                  onFilesSelect={handleFileUpload}
-                  accept=".pdf"
-                  multiple={true}
-                  maxSize={50}
-                  allowedTypes={["pdf"]}
-                />
-              </div>
-            )}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Upload Section */}
+          <div className="lg:col-span-2 space-y-6">
+            {files.length === 0 ? (
+              <Card>
+                <CardContent className="p-8">
+                  <FileUpload
+                    onFilesSelect={handleFilesSelect}
+                    acceptedFileTypes={{
+                      "application/pdf": [".pdf"],
+                    }}
+                    maxFiles={10}
+                    maxSize={100}
+                    multiple={true}
+                    uploadText="Select PDF files or drop them here"
+                    supportText="Supports PDF documents up to 25MB (100MB for premium users)"
+                  />
 
-            {/* Enhanced File List */}
-            {files.length > 0 && (
-              <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-semibold text-text-dark">
-                    Selected Files ({files.length})
-                  </h3>
-                  <div className="flex items-center space-x-2">
-                    <Badge variant="outline" className="flex items-center">
-                      <Eye className="w-3 h-3 mr-1" />
-                      Live Analysis
-                    </Badge>
-                  </div>
-                </div>
-
-                {/* Progress Bar */}
-                {isProcessing && (
-                  <div className="mb-6 space-y-2">
-                    <div className="flex items-center justify-between text-sm">
-                      <span>Converting PDF files to Word...</span>
-                      <span>{Math.round(progress)}%</span>
+                  {!isAuthenticated && (
+                    <div className="mt-6 p-4 bg-orange-50 rounded-lg border border-orange-200">
+                      <div className="flex items-start">
+                        <Crown className="w-5 h-5 text-orange-600 mt-0.5 mr-3" />
+                        <div>
+                          <h4 className="font-medium text-orange-900">
+                            Unlock Premium Features
+                          </h4>
+                          <p className="text-sm text-orange-700 mt-1">
+                            Sign up to convert multiple files, access advanced
+                            settings, and get priority processing.
+                          </p>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="mt-2 text-orange-600 border-orange-300"
+                            onClick={() => setShowAuthModal(true)}
+                          >
+                            Sign Up Free
+                          </Button>
+                        </div>
+                      </div>
                     </div>
-                    <Progress value={progress} className="w-full" />
-                    {currentProcessingFile && (
-                      <p className="text-xs text-gray-500">
-                        Processing: {currentProcessingFile}
-                      </p>
-                    )}
-                  </div>
+                  )}
+                </CardContent>
+              </Card>
+            ) : (
+              <>
+                {/* File List */}
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between">
+                    <CardTitle className="flex items-center">
+                      <FileText className="w-5 h-5 mr-2" />
+                      Files ({files.length})
+                    </CardTitle>
+                    <div className="flex items-center space-x-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={isProcessing}
+                      >
+                        <Upload className="w-4 h-4 mr-1" />
+                        Add More
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={resetAll}
+                        disabled={isProcessing}
+                      >
+                        <RefreshCw className="w-4 h-4 mr-1" />
+                        Reset
+                      </Button>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-3">
+                      {files.map((fileStatus) => (
+                        <div
+                          key={fileStatus.id}
+                          className={cn(
+                            "flex items-center p-4 rounded-lg border",
+                            fileStatus.status === "completed" &&
+                              "bg-green-50 border-green-200",
+                            fileStatus.status === "error" &&
+                              "bg-red-50 border-red-200",
+                            fileStatus.status === "processing" &&
+                              "bg-blue-50 border-blue-200",
+                            fileStatus.status === "uploaded" &&
+                              "bg-gray-50 border-gray-200",
+                          )}
+                        >
+                          <div className="flex items-center flex-1 min-w-0">
+                            <FileText className="w-5 h-5 text-gray-400 mr-3 flex-shrink-0" />
+                            <div className="flex-1 min-w-0 mr-4">
+                              <div className="flex items-center space-x-2">
+                                <p className="font-medium text-gray-900 truncate">
+                                  {fileStatus.file.name}
+                                </p>
+                                {fileStatus.status === "completed" && (
+                                  <Badge
+                                    variant="secondary"
+                                    className="bg-green-100 text-green-800 animate-pulse"
+                                  >
+                                    <CheckCircle className="w-3 h-3 mr-1" />
+                                    Ready to Download
+                                  </Badge>
+                                )}
+                                {fileStatus.status === "processing" && (
+                                  <Badge
+                                    variant="secondary"
+                                    className="bg-blue-100 text-blue-800 relative overflow-hidden"
+                                  >
+                                    <div
+                                      className="absolute inset-0 bg-blue-200 transition-all duration-300"
+                                      style={{
+                                        width: `${fileStatus.processingProgress || 0}%`,
+                                      }}
+                                    />
+                                    <div className="relative flex items-center">
+                                      <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                                      Converting...{" "}
+                                      {Math.round(
+                                        fileStatus.processingProgress || 0,
+                                      )}
+                                      %
+                                    </div>
+                                  </Badge>
+                                )}
+                                {fileStatus.status === "uploaded" && (
+                                  <Badge
+                                    variant="secondary"
+                                    className="bg-gray-100 text-gray-800"
+                                  >
+                                    <FileText className="w-3 h-3 mr-1" />
+                                    Ready
+                                  </Badge>
+                                )}
+                                {fileStatus.status === "error" && (
+                                  <Badge
+                                    variant="destructive"
+                                    className="bg-red-100 text-red-800"
+                                  >
+                                    <span className="w-3 h-3 mr-1">⚠️</span>
+                                    Failed
+                                  </Badge>
+                                )}
+                                {fileStatus.status === "error" && (
+                                  <Badge
+                                    variant="secondary"
+                                    className="bg-red-100 text-red-800"
+                                  >
+                                    <AlertCircle className="w-3 h-3 mr-1" />
+                                    Failed
+                                  </Badge>
+                                )}
+                              </div>
+                              <div className="flex items-center space-x-4 mt-1">
+                                <p className="text-sm text-gray-500">
+                                  {(
+                                    fileStatus.file.size /
+                                    (1024 * 1024)
+                                  ).toFixed(1)}{" "}
+                                  MB
+                                </p>
+                                {fileStatus.pages && (
+                                  <p className="text-sm text-gray-500">
+                                    {fileStatus.pages} pages
+                                  </p>
+                                )}
+                                {fileStatus.textLength && (
+                                  <p className="text-sm text-gray-500">
+                                    {fileStatus.textLength.toLocaleString()}{" "}
+                                    characters
+                                  </p>
+                                )}
+                                {fileStatus.processingTime && (
+                                  <p className="text-sm text-gray-500">
+                                    {fileStatus.processingTime}ms
+                                  </p>
+                                )}
+                              </div>
+                              {fileStatus.errorMessage && (
+                                <p className="text-sm text-red-600 mt-1">
+                                  {fileStatus.errorMessage}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex items-center space-x-2 flex-shrink-0">
+                            {fileStatus.status === "completed" && (
+                              <Button
+                                size="sm"
+                                onClick={() => downloadFile(fileStatus)}
+                                disabled={downloadingFiles.has(fileStatus.id)}
+                                className={cn(
+                                  "relative overflow-hidden group text-white border-0 shadow-md hover:shadow-lg transition-all duration-200 px-3 py-2",
+                                  downloadingFiles.has(fileStatus.id)
+                                    ? "bg-gradient-to-r from-blue-500 to-blue-600 cursor-not-allowed"
+                                    : "bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 hover:scale-102",
+                                )}
+                              >
+                                <div className="flex items-center">
+                                  {downloadingFiles.has(fileStatus.id) ? (
+                                    <>
+                                      <Loader2 className="w-4 h-4 mr-1.5 animate-spin" />
+                                      <span className="font-medium text-sm">
+                                        Downloading...
+                                      </span>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Download className="w-4 h-4 mr-1.5 group-hover:animate-bounce" />
+                                      <span className="font-medium text-sm">
+                                        Download DOCX
+                                      </span>
+                                    </>
+                                  )}
+                                </div>
+                              </Button>
+                            )}
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => removeFile(fileStatus.id)}
+                              disabled={isProcessing}
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Individual download buttons are available for each file in the list above */}
+
+                {/* Real-Time Processing Progress */}
+                {isProcessing && (
+                  <Card className="border-blue-200 bg-gradient-to-r from-blue-50 to-indigo-50">
+                    <CardContent className="p-6">
+                      <div className="space-y-4">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center space-x-2">
+                            <Loader2 className="w-5 h-5 text-blue-600 animate-spin" />
+                            <h3 className="font-medium text-gray-900">
+                              Real-Time PDF → Word Conversion
+                            </h3>
+                          </div>
+                          <Badge
+                            variant="secondary"
+                            className="bg-blue-100 text-blue-800"
+                          >
+                            {Math.round(progress)}% Complete
+                          </Badge>
+                        </div>
+                        <Progress value={progress} className="w-full" />
+                        {currentProcessingFile && (
+                          <div className="bg-white rounded-lg p-3 border">
+                            <div className="flex items-center space-x-2">
+                              <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse" />
+                              <p className="text-sm font-medium text-gray-900">
+                                Processing: {currentProcessingFile}
+                              </p>
+                            </div>
+                            <p className="text-xs text-gray-500 mt-1">
+                              Converting PDF content to editable Word format...
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
                 )}
 
-                <div className="space-y-3">
-                  {files.map((fileWithStatus) => (
-                    <div
-                      key={fileWithStatus.id}
-                      className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+                {/* Conversion Actions */}
+                {uploadedFiles > 0 && (
+                  <div className="flex flex-col sm:flex-row gap-4">
+                    <Button
+                      onClick={() => handleConvert()}
+                      disabled={isProcessing}
+                      className="flex-1 bg-blue-600 hover:bg-blue-700"
+                      size="lg"
                     >
-                      <div className="flex items-center space-x-3">
-                        <div className="relative">
-                          <FileText className="w-5 h-5 text-blue-500" />
-
-                          {/* Status indicator */}
-                          <div className="absolute -top-1 -right-1">
-                            {fileWithStatus.status === "processing" && (
-                              <div className="w-4 h-4 bg-blue-500 rounded-full flex items-center justify-center">
-                                <RefreshCw className="w-2 h-2 text-white animate-spin" />
-                              </div>
-                            )}
-                            {fileWithStatus.status === "completed" && (
-                              <div className="w-4 h-4 bg-green-500 rounded-full flex items-center justify-center">
-                                <CheckCircle className="w-2 h-2 text-white" />
-                              </div>
-                            )}
-                            {fileWithStatus.status === "error" && (
-                              <div className="w-4 h-4 bg-red-500 rounded-full flex items-center justify-center">
-                                <AlertCircle className="w-2 h-2 text-white" />
-                              </div>
-                            )}
-                          </div>
-                        </div>
-
-                        <div>
-                          <p className="font-medium text-text-dark">
-                            {fileWithStatus.file.name}
-                          </p>
-                          <div className="text-sm text-text-light space-y-1">
-                            <p>{formatBytes(fileWithStatus.file.size)}</p>
-                            {fileWithStatus.pages && (
-                              <p>
-                                {fileWithStatus.pages} pages • ~
-                                {Math.round(
-                                  (fileWithStatus.textLength || 0) / 1000,
-                                )}
-                                k characters
-                              </p>
-                            )}
-                            {fileWithStatus.errorMessage && (
-                              <p className="text-red-500 text-xs">
-                                {fileWithStatus.errorMessage}
-                              </p>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center space-x-2">
-                        <Badge
-                          variant={
-                            fileWithStatus.status === "completed"
-                              ? "default"
-                              : fileWithStatus.status === "processing"
-                                ? "secondary"
-                                : fileWithStatus.status === "error"
-                                  ? "destructive"
-                                  : "outline"
-                          }
-                        >
-                          {fileWithStatus.status === "uploaded" && (
-                            <Zap className="w-3 h-3 mr-1" />
-                          )}
-                          {fileWithStatus.status === "processing" && (
-                            <RefreshCw className="w-3 h-3 mr-1 animate-spin" />
-                          )}
-                          {fileWithStatus.status === "completed" && (
-                            <CheckCircle className="w-3 h-3 mr-1" />
-                          )}
-                          {fileWithStatus.status === "error" && (
-                            <AlertCircle className="w-3 h-3 mr-1" />
-                          )}
-                          {fileWithStatus.status.charAt(0).toUpperCase() +
-                            fileWithStatus.status.slice(1)}
-                        </Badge>
-
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleRemoveFile(fileWithStatus.id)}
-                          disabled={isProcessing}
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Conversion Mode */}
-                <div className="mt-6">
-                  <label className="block text-sm font-medium text-text-dark mb-3">
-                    Conversion Mode
-                  </label>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div
-                      className={`p-4 border-2 rounded-lg cursor-pointer transition-colors ${
-                        conversionMode === "editable"
-                          ? "border-blue-500 bg-blue-50"
-                          : "border-gray-200 hover:border-gray-300"
-                      }`}
-                      onClick={() => setConversionMode("editable")}
-                    >
-                      <div className="flex items-center justify-between mb-2">
-                        <h4 className="font-medium text-text-dark">
-                          Editable Text
-                        </h4>
-                        {conversionMode === "editable" && (
-                          <CheckCircle className="w-5 h-5 text-blue-500" />
-                        )}
-                      </div>
-                      <p className="text-sm text-text-light">
-                        Extract all text for easy editing. Best for text-based
-                        documents.
-                      </p>
-                    </div>
-
-                    <div
-                      className={`p-4 border-2 rounded-lg cursor-pointer transition-colors ${
-                        conversionMode === "layout"
-                          ? "border-blue-500 bg-blue-50"
-                          : "border-gray-200 hover:border-gray-300"
-                      }`}
-                      onClick={() => setConversionMode("layout")}
-                    >
-                      <div className="flex items-center justify-between mb-2">
-                        <h4 className="font-medium text-text-dark">
-                          Layout Preserving
-                        </h4>
-                        {conversionMode === "layout" && (
-                          <CheckCircle className="w-5 h-5 text-blue-500" />
-                        )}
-                      </div>
-                      <p className="text-sm text-text-light">
-                        Maintain original layout and formatting. Best for
-                        complex documents.
-                      </p>
-                    </div>
+                      {isProcessing ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          Converting{" "}
+                          {
+                            files.filter((f) => f.status === "processing")
+                              .length
+                          }{" "}
+                          files...
+                        </>
+                      ) : (
+                        <>
+                          <FileText className="w-4 h-4 mr-2" />
+                          Convert {uploadedFiles} file
+                          {uploadedFiles !== 1 ? "s" : ""} to Word
+                        </>
+                      )}
+                    </Button>
                   </div>
-                </div>
-
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-                  <div className="flex items-start space-x-2">
-                    <BarChart3 className="w-5 h-5 text-blue-500 mt-0.5" />
-                    <div className="text-sm">
-                      <p className="font-medium text-blue-900 mb-1">
-                        Real-time Analysis Features
-                      </p>
-                      <ul className="text-blue-700 space-y-1 text-xs">
-                        <li>• Live PDF text extraction preview</li>
-                        <li>• Page count and content analysis</li>
-                        <li>• Estimated conversion time</li>
-                        <li>• Progress tracking per file</li>
-                      </ul>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Action Buttons */}
-                <div className="flex flex-col sm:flex-row gap-3 mt-6">
-                  <Button
-                    onClick={handleConvert}
-                    disabled={isProcessing}
-                    className="flex-1"
-                  >
-                    {isProcessing ? (
-                      <>
-                        <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-                        Converting... ({Math.round(progress)}%)
-                      </>
-                    ) : (
-                      <>
-                        <FileText className="w-4 h-4 mr-2" />
-                        Convert to Word
-                      </>
-                    )}
-                  </Button>
-                  <Button
-                    variant="outline"
-                    onClick={() => setFiles([])}
-                    disabled={isProcessing}
-                  >
-                    Clear Files
-                  </Button>
-                  <Button
-                    variant="outline"
-                    onClick={() =>
-                      setShowAdvancedSettings(!showAdvancedSettings)
-                    }
-                    disabled={isProcessing}
-                  >
-                    <Settings className="w-4 h-4 mr-2" />
-                    Settings
-                  </Button>
-                </div>
-              </div>
+                )}
+              </>
             )}
 
-            {/* Premium Features */}
-            {!user?.isPremium && (
-              <Card className="border-brand-yellow bg-gradient-to-r from-yellow-50 to-orange-50">
+            {/* Hidden file input for adding more files */}
+            <input
+              ref={fileInputRef}
+              type="file"
+              multiple={isAuthenticated}
+              accept=".pdf"
+              className="hidden"
+              onChange={(e) => {
+                const selectedFiles = Array.from(e.target.files || []);
+                if (selectedFiles.length > 0) {
+                  handleFilesSelect(selectedFiles);
+                }
+                e.target.value = ""; // Reset input
+              }}
+            />
+          </div>
+
+          {/* Settings & Stats Panel */}
+          <div className="space-y-6">
+            {/* Conversion Settings */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center">
+                  <Settings className="w-5 h-5 mr-2" />
+                  Conversion Settings
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-1">
+                    <p className="font-medium text-gray-900">
+                      Preserve Formatting
+                    </p>
+                    <p className="text-sm text-gray-500">
+                      Maintain text styles and structure
+                    </p>
+                  </div>
+                  <Switch
+                    checked={conversionSettings.preserveFormatting}
+                    onCheckedChange={(checked) =>
+                      setConversionSettings((prev) => ({
+                        ...prev,
+                        preserveFormatting: checked,
+                      }))
+                    }
+                    disabled={isProcessing}
+                  />
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <div className="space-y-1">
+                    <p className="font-medium text-gray-900">
+                      Include Metadata
+                    </p>
+                    <p className="text-sm text-gray-500">
+                      Add document information
+                    </p>
+                  </div>
+                  <Switch
+                    checked={conversionSettings.includeMetadata}
+                    onCheckedChange={(checked) =>
+                      setConversionSettings((prev) => ({
+                        ...prev,
+                        includeMetadata: checked,
+                      }))
+                    }
+                    disabled={isProcessing}
+                  />
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <div className="space-y-1">
+                    <p className="font-medium text-gray-900">Extract Images</p>
+                    <p className="text-sm text-gray-500">
+                      Include embedded images
+                    </p>
+                    <Badge variant="outline" className="text-xs">
+                      Premium
+                    </Badge>
+                  </div>
+                  <Switch
+                    checked={conversionSettings.extractImages}
+                    onCheckedChange={(checked) =>
+                      setConversionSettings((prev) => ({
+                        ...prev,
+                        extractImages: checked,
+                      }))
+                    }
+                    disabled={isProcessing}
+                  />
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Conversion Stats */}
+            {(isComplete || isProcessing) && (
+              <Card>
                 <CardHeader>
-                  <CardTitle className="flex items-center text-orange-800">
-                    <Crown className="w-5 h-5 mr-2 text-brand-yellow" />
-                    Unlock Premium Features
+                  <CardTitle className="flex items-center">
+                    <BarChart3 className="w-5 h-5 mr-2" />
+                    Conversion Stats
                   </CardTitle>
                 </CardHeader>
-                <CardContent>
-                  <ul className="space-y-2 text-sm text-orange-700 mb-4">
-                    <li className="flex items-center">
-                      <Star className="w-4 h-4 mr-2 text-brand-yellow" />
-                      OCR for scanned PDFs
-                    </li>
-                    <li className="flex items-center">
-                      <Star className="w-4 h-4 mr-2 text-brand-yellow" />
-                      Advanced formatting preservation
-                    </li>
-                    <li className="flex items-center">
-                      <Star className="w-4 h-4 mr-2 text-brand-yellow" />
-                      Table and image extraction
-                    </li>
-                    <li className="flex items-center">
-                      <Star className="w-4 h-4 mr-2 text-brand-yellow" />
-                      Batch processing up to 50 files
-                    </li>
-                  </ul>
-                  <Button className="bg-brand-yellow text-black hover:bg-yellow-400">
-                    <Crown className="w-4 h-4 mr-2" />
-                    Get Premium
-                  </Button>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="text-center p-3 bg-blue-50 rounded-lg">
+                      <p className="text-sm text-gray-600">Total Files</p>
+                      <p className="text-lg font-semibold text-blue-600">
+                        {conversionStats.totalFiles}
+                      </p>
+                    </div>
+                    <div className="text-center p-3 bg-green-50 rounded-lg">
+                      <p className="text-sm text-gray-600">Completed</p>
+                      <p className="text-lg font-semibold text-green-600">
+                        {conversionStats.processedFiles}
+                      </p>
+                    </div>
+                    <div className="text-center p-3 bg-purple-50 rounded-lg">
+                      <p className="text-sm text-gray-600">Total Pages</p>
+                      <p className="text-lg font-semibold text-purple-600">
+                        {conversionStats.totalPages}
+                      </p>
+                    </div>
+                    <div className="text-center p-3 bg-orange-50 rounded-lg">
+                      <p className="text-sm text-gray-600">Avg Time</p>
+                      <p className="text-lg font-semibold text-orange-600">
+                        {conversionStats.averageProcessingTime}ms
+                      </p>
+                    </div>
+                  </div>
+
+                  {conversionStats.extractedTextLength > 0 && (
+                    <div className="text-center p-3 bg-gray-50 rounded-lg">
+                      <p className="text-sm text-gray-600">Text Extracted</p>
+                      <p className="text-lg font-semibold text-gray-700">
+                        {conversionStats.extractedTextLength.toLocaleString()}{" "}
+                        characters
+                      </p>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             )}
+
+            {/* All features are completely free */}
           </div>
-        ) : (
-          /* Results */
-          <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
-            <div className="text-center mb-6">
-              <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <FileText className="w-8 h-8 text-green-600" />
-              </div>
-              <h3 className="text-xl font-semibold text-text-dark mb-2">
-                Conversion Complete!
-              </h3>
-              <p className="text-text-light">
-                Successfully converted {files.length} PDF(s) to{" "}
-                {convertedFiles.length} Word document(s)
-              </p>
-            </div>
+        </div>
 
-            {/* Enhanced File List with Statistics */}
-            <div className="space-y-3 mb-6">
-              {convertedFiles.map((file, index) => (
-                <div
-                  key={index}
-                  className="flex items-center justify-between p-4 bg-gray-50 rounded-lg"
-                >
-                  <div className="flex items-center space-x-3">
-                    <div className="relative">
-                      <FileText className="w-6 h-6 text-blue-500" />
-                      <div className="absolute -top-1 -right-1">
-                        <div className="w-4 h-4 bg-green-500 rounded-full flex items-center justify-center">
-                          <FileCheck className="w-2 h-2 text-white" />
-                        </div>
-                      </div>
-                    </div>
-                    <div>
-                      <p className="font-medium text-text-dark">{file.name}</p>
-                      <div className="text-sm text-text-light space-y-1">
-                        <p>
-                          {file.size} • {file.pages} pages
-                        </p>
-                        <p>
-                          ~{Math.round(file.textLength / 1000)}k characters
-                          extracted
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                  <Button
-                    size="sm"
-                    onClick={() => downloadFile(file.url, file.name)}
-                  >
-                    <Download className="w-4 h-4 mr-1" />
-                    Download
-                  </Button>
-                </div>
-              ))}
-            </div>
-
-            {/* Conversion Statistics */}
-            <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
-              <h4 className="font-medium text-green-900 mb-2">
-                Conversion Summary
-              </h4>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                <div>
-                  <p className="text-green-700">Files Processed</p>
-                  <p className="font-medium text-green-900">
-                    {conversionStats.processedFiles} /{" "}
-                    {conversionStats.totalFiles}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-green-700">Total Pages</p>
-                  <p className="font-medium text-green-900">
-                    {conversionStats.totalPages}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-green-700">Processing Time</p>
-                  <p className="font-medium text-green-900">
-                    {Math.round(processingTime / 1000)}s
-                  </p>
-                </div>
-                <div>
-                  <p className="text-green-700">Average per File</p>
-                  <p className="font-medium text-green-900">
-                    {Math.round(conversionStats.averageProcessingTime / 1000)}s
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* Action Buttons */}
-            <div className="flex flex-col sm:flex-row gap-3">
-              <Button onClick={downloadAll} className="flex-1">
-                <Download className="w-4 h-4 mr-2" />
-                Download All Documents
-              </Button>
-              <Button variant="outline" onClick={reset}>
-                Convert More Files
-              </Button>
-            </div>
-          </div>
-        )}
+        {/* Promo Banner */}
+        <div className="mt-12">
+          <PromoBanner
+            title="Need More PDF Tools?"
+            description="Explore our complete suite of PDF tools for merging, splitting, compressing, and more."
+            buttonText="View All Tools"
+            buttonLink="/"
+            className="bg-gradient-to-r from-purple-600 to-blue-600"
+          />
+        </div>
       </div>
 
       {/* Auth Modal */}
-      <AuthModal
-        isOpen={showAuthModal}
-        onClose={() => setShowAuthModal(false)}
-        defaultTab="register"
-      />
+      {showAuthModal && (
+        <AuthModal
+          isOpen={showAuthModal}
+          onClose={() => setShowAuthModal(false)}
+        />
+      )}
     </div>
   );
 };

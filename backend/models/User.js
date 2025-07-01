@@ -9,6 +9,11 @@ const userSchema = new mongoose.Schema(
       trim: true,
       maxlength: [50, "Name cannot exceed 50 characters"],
     },
+    fullName: {
+      type: String,
+      trim: true,
+      maxlength: [100, "Full name cannot exceed 100 characters"],
+    },
     username: {
       type: String,
       required: false, // We'll generate it if not provided
@@ -29,6 +34,16 @@ const userSchema = new mongoose.Schema(
         /^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/,
         "Please enter a valid email",
       ],
+    },
+    country: {
+      type: String,
+      trim: true,
+      maxlength: [100, "Country name cannot exceed 100 characters"],
+    },
+    preferredLanguage: {
+      type: String,
+      default: "en",
+      enum: ["en", "es", "fr", "de", "it", "pt", "zh", "ja", "ko", "ar"],
     },
     password: {
       type: String,
@@ -57,8 +72,8 @@ const userSchema = new mongoose.Schema(
     },
     premiumPlan: {
       type: String,
-      enum: ["monthly", "yearly", null],
-      default: null,
+      enum: ["free", "monthly", "yearly", null],
+      default: "free",
     },
     premiumStartDate: {
       type: Date,
@@ -68,18 +83,14 @@ const userSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
-    dailyUploads: {
-      type: Number,
-      default: 0,
+    planStatus: {
+      type: String,
+      enum: ["active", "expired", "trial", "canceled"],
+      default: function () {
+        return this.isPremium ? "active" : "active";
+      },
     },
-    maxDailyUploads: {
-      type: Number,
-      default: 3,
-    },
-    lastUploadDate: {
-      type: Date,
-      default: null,
-    },
+    // Removed daily upload limits - now using lifetime anonymous usage limit
     totalUploads: {
       type: Number,
       default: 0,
@@ -87,6 +98,11 @@ const userSchema = new mongoose.Schema(
     totalFileSize: {
       type: Number,
       default: 0,
+    },
+    toolStats: {
+      type: Map,
+      of: Number,
+      default: () => new Map(),
     },
     paymentHistory: [
       {
@@ -113,6 +129,39 @@ const userSchema = new mongoose.Schema(
     loginCount: {
       type: Number,
       default: 0,
+    },
+    referrerURL: {
+      type: String,
+      trim: true,
+    },
+    ipAddress: {
+      type: String,
+      trim: true,
+      default: "not_fetched",
+    },
+    // Conversion tracking from soft limit
+    conversionTracking: {
+      referredFromIP: {
+        type: String,
+        trim: true,
+      },
+      hitSoftLimitBefore: {
+        type: Boolean,
+        default: false,
+      },
+      softLimitTool: {
+        type: String,
+        trim: true,
+      },
+      conversionSessionId: {
+        type: String,
+        trim: true,
+      },
+      signupSource: {
+        type: String,
+        enum: ["direct", "soft_limit", "premium_prompt", "tool_redirect"],
+        default: "direct",
+      },
     },
   },
   {
@@ -168,6 +217,22 @@ userSchema.pre("save", function (next) {
   next();
 });
 
+// Middleware to auto-update plan status based on expiry date
+userSchema.pre("save", function (next) {
+  if (this.isPremium && this.premiumExpiryDate) {
+    const now = new Date();
+    if (now > this.premiumExpiryDate) {
+      this.planStatus = "expired";
+      this.isPremium = false;
+    } else if (this.isPremium && this.planStatus !== "active") {
+      this.planStatus = "active";
+    }
+  } else if (!this.isPremium && this.premiumPlan === "free") {
+    this.planStatus = "active";
+  }
+  next();
+});
+
 // Method to compare password
 userSchema.methods.comparePassword = async function (candidatePassword) {
   // If user signed up with Google OAuth and has no password, return false
@@ -175,27 +240,56 @@ userSchema.methods.comparePassword = async function (candidatePassword) {
   return await bcrypt.compare(candidatePassword, this.password);
 };
 
-// Method to check if user can upload
-userSchema.methods.canUpload = function () {
-  if (this.isPremiumActive) return true;
-
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-
-  // Reset daily uploads if it's a new day
-  if (!this.lastUploadDate || this.lastUploadDate < today) {
-    this.dailyUploads = 0;
-  }
-
-  return this.dailyUploads < this.maxDailyUploads;
-};
-
-// Method to increment upload count
-userSchema.methods.incrementUpload = function (fileSize = 0) {
-  this.dailyUploads += 1;
+// Method to increment usage count for authenticated users
+userSchema.methods.incrementUsage = function (toolName, fileSize = 0) {
   this.totalUploads += 1;
   this.totalFileSize += fileSize;
-  this.lastUploadDate = new Date();
+  this.lastActiveAt = new Date();
+
+  // Update tool stats
+  this.updateToolStats(toolName);
+};
+
+// Method to update tool statistics
+userSchema.methods.updateToolStats = function (toolName) {
+  if (!this.toolStats) {
+    this.toolStats = new Map();
+  }
+
+  const currentCount = this.toolStats.get(toolName) || 0;
+  this.toolStats.set(toolName, currentCount + 1);
+
+  // Mark the field as modified for Mongoose to save the Map changes
+  this.markModified("toolStats");
+};
+
+// Method to get tool statistics as a plain object
+userSchema.methods.getToolStats = function () {
+  if (!this.toolStats) {
+    return {};
+  }
+
+  // Convert Map to plain object for easier JSON serialization
+  const statsObject = {};
+  for (const [tool, count] of this.toolStats) {
+    statsObject[tool] = count;
+  }
+  return statsObject;
+};
+
+// Method to get most used tools
+userSchema.methods.getMostUsedTools = function (limit = 5) {
+  if (!this.toolStats || this.toolStats.size === 0) {
+    return [];
+  }
+
+  // Convert Map to array and sort by usage count
+  const toolsArray = Array.from(this.toolStats.entries())
+    .map(([tool, count]) => ({ tool, count }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, limit);
+
+  return toolsArray;
 };
 
 // Method to upgrade to premium
@@ -203,6 +297,7 @@ userSchema.methods.upgradeToPremium = function (planType, paymentData) {
   this.isPremium = true;
   this.premiumPlan = planType;
   this.premiumStartDate = new Date();
+  this.planStatus = "active";
 
   // Set expiry date based on plan
   const expiryDate = new Date();
@@ -222,8 +317,9 @@ userSchema.methods.upgradeToPremium = function (planType, paymentData) {
 // Method to cancel premium
 userSchema.methods.cancelPremium = function () {
   this.isPremium = false;
-  this.premiumPlan = null;
+  this.premiumPlan = "free";
   this.premiumExpiryDate = null;
+  this.planStatus = "canceled";
 };
 
 // Static method to find users with expired premium

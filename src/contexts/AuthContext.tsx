@@ -7,18 +7,38 @@ interface User {
   email: string;
   name: string;
   isPremium: boolean;
-  dailyUploads: number;
-  maxDailyUploads: number;
   premiumExpiryDate?: string;
+  totalUploads?: number;
+}
+
+interface ConversionInfo {
+  fromSoftLimit: boolean;
+  limitTool: string;
+  showWelcomeReward: boolean;
+  unlockedFeatures: string[];
+}
+
+interface AuthResponse {
+  user: User;
+  conversion?: ConversionInfo | null;
 }
 
 interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
   isLoading: boolean;
-  login: (email: string, password: string) => Promise<void>;
-  register: (name: string, email: string, password: string) => Promise<void>;
-  loginWithGoogle: () => void;
+  login: (email: string, password: string) => Promise<AuthResponse>;
+  register: (
+    name: string,
+    email: string,
+    password: string,
+    options?: {
+      signupSource?: string;
+      toolName?: string;
+      sessionId?: string;
+    },
+  ) => Promise<AuthResponse>;
+  loginWithGoogle: () => Promise<AuthResponse>;
   logout: () => void;
   updateUser: (userData: Partial<User>) => void;
 }
@@ -87,10 +107,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       );
 
       if (response.ok) {
-        const { token, user } = await response.json();
-        Cookies.set("token", token, { expires: 30 });
+        const data = await response.json();
+        const { token, user, conversion } = data;
+        Cookies.set("token", token, { expires: 365 }); // 1 year for persistent login
         setUser(user);
         console.log("✅ [FRONTEND] Login successful");
+        return { user, conversion: conversion || null };
       } else {
         const error = await response.json().catch(() => ({}));
         throw new Error(error.message || "Login failed");
@@ -101,11 +123,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   };
 
-  const register = async (name: string, email: string, password: string) => {
+  const register = async (
+    name: string,
+    email: string,
+    password: string,
+    options?: {
+      signupSource?: string;
+      toolName?: string;
+      sessionId?: string;
+    },
+  ) => {
     try {
       console.log("🔵 [FRONTEND] Attempting to register user:", {
         name,
         email,
+        options,
       });
 
       const response = await fetch(
@@ -115,7 +147,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({ name, email, password }),
+          body: JSON.stringify({
+            name,
+            email,
+            password,
+            signupSource: options?.signupSource,
+            sessionId: options?.sessionId,
+          }),
         },
       );
 
@@ -123,9 +161,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
       if (response.ok) {
         console.log("✅ [FRONTEND] Registration successful");
-        const { token, user } = responseData;
-        Cookies.set("token", token, { expires: 30 });
+        const { token, user, conversion } = responseData;
+        Cookies.set("token", token, { expires: 365 }); // 1 year for persistent login
         setUser(user);
+        return { user, conversion: conversion || null };
       } else {
         console.error("🔴 [FRONTEND] Registration failed:", {
           status: response.status,
@@ -139,14 +178,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         );
       }
     } catch (error: any) {
-      console.error("🔴 [FRONTEND] Registration error:", error);
+      console.error("���� [FRONTEND] Registration error:", error);
       throw new Error(error.message || "An error occurred during registration");
     }
   };
 
-  const loginWithGoogle = () => {
+  const loginWithGoogle = async () => {
     console.log("🔵 [FRONTEND] Initiating Google OAuth login");
-    authService.loginWithGoogle();
+    try {
+      const result = await authService.loginWithGoogle();
+      // Assuming authService.loginWithGoogle() returns user data
+      if (result && result.user) {
+        setUser(result.user);
+        return { user: result.user, conversion: result.conversion || null };
+      }
+      throw new Error("Google login failed");
+    } catch (error: any) {
+      console.error("🔴 [FRONTEND] Google login error:", error);
+      throw new Error(error.message || "Google authentication failed");
+    }
   };
 
   const logout = () => {

@@ -26,5 +26,6 @@
       "@/*": ["./src/*"]
     }
   },
-  "include": ["src"]
+  "include": ["src", "node_modules/pdfjs-dist/types/pdf.d.ts"],
+  "exclude": ["node_modules"]
 }

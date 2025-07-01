@@ -1,5 +1,14 @@
-import { useState, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useState, useEffect, useRef } from "react";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
 import {
   Users,
   FileText,
@@ -9,345 +18,1194 @@ import {
   Crown,
   Calendar,
   Activity,
+  Monitor,
+  RefreshCw,
+  AlertCircle,
+  CheckCircle,
+  Play,
+  Square,
+  LogOut,
+  User,
 } from "lucide-react";
+import RealTimeMonitoring from "./RealTimeMonitoring";
+import { Button } from "@/components/ui/button";
 
 interface AdminStats {
   totalUsers: number;
   premiumUsers: number;
   totalOperations: number;
-  monthlyRevenue: number;
+  totalFileSize: number;
+  averageFileSize: number;
   dailyActiveUsers: number;
   popularTools: Array<{
     tool: string;
     count: number;
+    uniqueUserCount?: number;
+    avgProcessingTime?: number;
   }>;
   recentSignups: Array<{
+    id: string;
     name: string;
     email: string;
-    date: string;
+    createdAt: string;
     isPremium: boolean;
+    loginCount: number;
+  }>;
+  conversionStats: {
+    totalIPs: number;
+    ipsHitSoftLimit: number;
+    ipsConverted: number;
+    conversionRate: number;
+    softLimitRate: number;
+  };
+  deviceStats: Array<{
+    deviceType: string;
+    count: number;
+    percentage: number;
   }>;
 }
 
-const AdminDashboard = () => {
+interface RealTimeStatus {
+  timestamp: string;
+  ipAddress: string;
+  realTimeTracking: {
+    active: boolean;
+    ipUsageTracked: boolean;
+    currentUsage: number;
+    shouldShowSoftLimit: boolean;
+    lastActivity: string | null;
+    sessionActive: boolean;
+  };
+  recentActivity: {
+    totalRecentUsage: number;
+    activeSessions: number;
+    todayConversions: number;
+    lastToolUsed: string | null;
+    lastActivity: string | null;
+  };
+  systemHealth: {
+    schemasOperational: boolean;
+    databaseConnected: boolean;
+    realTimeTrackingLatency: string;
+    averageResponseTime: string;
+  };
+}
+
+interface AdminDashboardProps {
+  onLogout?: () => void;
+}
+
+const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
   const [stats, setStats] = useState<AdminStats>({
     totalUsers: 0,
     premiumUsers: 0,
     totalOperations: 0,
-    monthlyRevenue: 0,
+    totalFileSize: 0,
+    averageFileSize: 0,
     dailyActiveUsers: 0,
     popularTools: [],
     recentSignups: [],
+    conversionStats: {
+      totalIPs: 0,
+      ipsHitSoftLimit: 0,
+      ipsConverted: 0,
+      conversionRate: 0,
+      softLimitRate: 0,
+    },
+    deviceStats: [],
   });
 
+  const [realTimeStatus, setRealTimeStatus] = useState<RealTimeStatus | null>(
+    null,
+  );
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
+  const [isLiveMode, setIsLiveMode] = useState(false);
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Fetch real data from backend
+  const fetchRealData = async () => {
+    try {
+      setError(null);
+
+      // Fetch multiple endpoints in parallel
+      const [
+        usageStatsResponse,
+        popularToolsResponse,
+        recentUsersResponse,
+        conversionStatsResponse,
+        deviceStatsResponse,
+        realTimeStatusResponse,
+      ] = await Promise.all([
+        // User statistics
+        fetch("/api/users/stats", {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+        }),
+
+        // Popular tools - fetch all data without time filtering
+        fetch("/api/usage/popular-tools", {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+        }),
+
+        // Recent users
+        fetch("/api/users/recent?limit=10", {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+        }),
+
+        // Conversion analytics
+        fetch("/api/analytics/conversion-funnel?days=30", {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+        }),
+
+        // Device statistics
+        fetch("/api/usage/device-stats?days=30", {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+        }),
+
+        // Real-time status
+        fetch("/api/schema-test/real-time-status"),
+      ]);
+
+      // Process user stats
+      let userStats = {
+        totalUsers: 0,
+        premiumUsers: 0,
+        totalUploads: 0,
+        totalFileSize: 0,
+      };
+      if (usageStatsResponse.ok) {
+        const usageData = await usageStatsResponse.json();
+        if (usageData.success) {
+          userStats = usageData.stats;
+        }
+      }
+
+      // Process popular tools
+      let popularTools = [];
+      if (popularToolsResponse.ok) {
+        const toolsData = await popularToolsResponse.json();
+        if (toolsData.success) {
+          popularTools = toolsData.tools || [];
+        }
+      }
+
+      // Process recent users
+      let recentSignups = [];
+      if (recentUsersResponse.ok) {
+        const usersData = await recentUsersResponse.json();
+        if (usersData.success) {
+          recentSignups = usersData.users || [];
+        }
+      }
+
+      // Process conversion stats
+      let conversionStats = {
+        totalIPs: 0,
+        ipsHitSoftLimit: 0,
+        ipsConverted: 0,
+        conversionRate: 0,
+        softLimitRate: 0,
+      };
+      if (conversionStatsResponse.ok) {
+        const conversionData = await conversionStatsResponse.json();
+        if (conversionData.success && conversionData.data.overview) {
+          const rawStats = conversionData.data.overview;
+          conversionStats = {
+            totalIPs: Number(rawStats.totalIPs) || 0,
+            ipsHitSoftLimit: Number(rawStats.ipsHitSoftLimit) || 0,
+            ipsConverted: Number(rawStats.ipsConverted) || 0,
+            conversionRate: Number(rawStats.conversionRate) || 0,
+            softLimitRate: Number(rawStats.softLimitRate) || 0,
+          };
+        }
+      }
+
+      // Process device stats
+      let deviceStats = [];
+      if (deviceStatsResponse.ok) {
+        const deviceData = await deviceStatsResponse.json();
+        if (deviceData.success) {
+          deviceStats = (deviceData.stats || []).map((device: any) => ({
+            deviceType: device.deviceType || "Unknown",
+            count: Number(device.count) || 0,
+            percentage: Number(device.percentage) || 0,
+          }));
+        }
+      }
+
+      // Process real-time status
+      if (realTimeStatusResponse.ok) {
+        const statusData = await realTimeStatusResponse.json();
+        if (statusData.success) {
+          setRealTimeStatus(statusData.status);
+        }
+      }
+
+      // Update stats with real data
+      setStats({
+        totalUsers: userStats.totalUsers || 0,
+        premiumUsers: userStats.premiumUsers || 0,
+        totalOperations:
+          userStats.totalUsageRecords ||
+          userStats.successfulOperations ||
+          userStats.totalUploads ||
+          0,
+        totalFileSize: userStats.totalFileSize || 0,
+        averageFileSize:
+          (userStats.totalUsageRecords ||
+            userStats.successfulOperations ||
+            userStats.totalUploads) > 0
+            ? Math.round(
+                userStats.totalFileSize /
+                  (userStats.totalUsageRecords ||
+                    userStats.successfulOperations ||
+                    userStats.totalUploads),
+              )
+            : 0,
+        dailyActiveUsers: realTimeStatus?.recentActivity.activeSessions || 0,
+        popularTools: popularTools.slice(0, 15),
+        recentSignups: recentSignups.slice(0, 10),
+        conversionStats,
+        deviceStats,
+      });
+
+      setLastUpdate(new Date());
+    } catch (error) {
+      console.error("Error fetching admin data:", error);
+      setError(`Failed to fetch real-time data: ${error}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Initial data load
   useEffect(() => {
-    // In a real app, fetch from admin API
-    // This is mock data to show what MongoDB stores
-    setStats({
-      totalUsers: 1247,
-      premiumUsers: 156,
-      totalOperations: 12456,
-      monthlyRevenue: 46644, // ₹46,644
-      dailyActiveUsers: 89,
-      popularTools: [
-        { tool: "merge", count: 4567 },
-        { tool: "compress", count: 3456 },
-        { tool: "split", count: 2345 },
-        { tool: "pdf-to-word", count: 1234 },
-      ],
-      recentSignups: [
-        {
-          name: "Rahul Sharma",
-          email: "rahul@example.com",
-          date: "2025-01-18",
-          isPremium: true,
-        },
-        {
-          name: "Priya Patel",
-          email: "priya@example.com",
-          date: "2025-01-18",
-          isPremium: false,
-        },
-        {
-          name: "Amit Kumar",
-          email: "amit@example.com",
-          date: "2025-01-17",
-          isPremium: true,
-        },
-      ],
-    });
+    fetchRealData();
   }, []);
 
-  const premiumConversionRate = (
-    (stats.premiumUsers / stats.totalUsers) *
-    100
-  ).toFixed(1);
+  // Live mode updates
+  useEffect(() => {
+    if (isLiveMode) {
+      intervalRef.current = setInterval(fetchRealData, 5000); // Update every 5 seconds
+    } else {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+    }
+
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+      }
+    };
+  }, [isLiveMode]);
+
+  const toggleLiveMode = () => {
+    setIsLiveMode(!isLiveMode);
+  };
+
+  const formatBytes = (bytes: number) => {
+    if (bytes === 0) return "0 Bytes";
+    const k = 1024;
+    const sizes = ["Bytes", "KB", "MB", "GB"];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
+  };
+
+  const formatTimeAgo = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMins / 60);
+    const diffDays = Math.floor(diffHours / 24);
+
+    if (diffDays > 0) return `${diffDays}d ago`;
+    if (diffHours > 0) return `${diffHours}h ago`;
+    if (diffMins > 0) return `${diffMins}m ago`;
+    return "Just now";
+  };
+
+  const premiumConversionRate = (() => {
+    try {
+      return stats?.totalUsers > 0
+        ? (
+            ((Number(stats.premiumUsers) || 0) /
+              (Number(stats.totalUsers) || 1)) *
+            100
+          ).toFixed(1)
+        : "0";
+    } catch (error) {
+      console.warn("Error calculating premium conversion rate:", error);
+      return "0";
+    }
+  })();
+
+  if (loading) {
+    return (
+      <div className="p-6 space-y-6 bg-bg-light min-h-screen">
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="flex items-center space-x-2">
+            <RefreshCw className="h-6 w-6 animate-spin" />
+            <span>Loading database data...</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Safety check for stats object
+  if (!stats || !stats.conversionStats) {
+    return (
+      <div className="p-6 space-y-6 bg-bg-light min-h-screen">
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="flex items-center space-x-2 text-yellow-600">
+            <AlertCircle className="h-6 w-6" />
+            <span>Stats data not available. Please refresh the page.</span>
+            <Button onClick={fetchRealData} variant="outline">
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Retry
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 space-y-6 bg-bg-light min-h-screen">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-text-dark mb-2">
-          MongoDB Data Dashboard
-        </h1>
-        <p className="text-text-light">
-          Real-time insights from your PDF processing business
-        </p>
+      <div className="flex items-center justify-between mb-8">
+        <div>
+          <h1 className="text-3xl font-bold text-text-dark mb-2">
+            Admin Dashboard - Live Database Data
+          </h1>
+          <p className="text-text-light">
+            Real data from MongoDB database - No sample/script data
+          </p>
+          {lastUpdate && (
+            <p className="text-sm text-gray-500">
+              Last updated: {lastUpdate.toLocaleTimeString()}
+            </p>
+          )}
+        </div>
+
+        <div className="flex items-center space-x-4">
+          {/* Admin User Info */}
+          <div className="flex items-center space-x-2 bg-white rounded-lg px-3 py-2 shadow-sm border">
+            <User className="h-4 w-4 text-gray-600" />
+            <span className="text-sm font-medium text-gray-700">
+              {JSON.parse(localStorage.getItem("user") || "{}").name || "Admin"}
+            </span>
+            <Badge variant="secondary" className="text-xs">
+              Admin
+            </Badge>
+          </div>
+
+          {/* Logout Button */}
+          {onLogout && (
+            <Button
+              onClick={onLogout}
+              variant="outline"
+              size="sm"
+              className="text-red-600 hover:text-red-700 hover:bg-red-50"
+            >
+              <LogOut className="h-4 w-4 mr-2" />
+              Logout
+            </Button>
+          )}
+        </div>
       </div>
 
-      {/* Key Metrics */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Users</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.totalUsers}</div>
-            <p className="text-xs text-muted-foreground">
-              +12% from last month
-            </p>
-          </CardContent>
-        </Card>
+      <div className="flex items-center justify-between mb-6">
+        <div></div>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Premium Users</CardTitle>
-            <Crown className="h-4 w-4 text-yellow-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.premiumUsers}</div>
-            <p className="text-xs text-muted-foreground">
-              {premiumConversionRate}% conversion rate
-            </p>
-          </CardContent>
-        </Card>
+        <div className="flex items-center space-x-4">
+          {error && (
+            <Alert variant="destructive" className="max-w-md">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription className="text-sm">{error}</AlertDescription>
+            </Alert>
+          )}
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Monthly Revenue
-            </CardTitle>
-            <DollarSign className="h-4 w-4 text-green-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">₹{stats.monthlyRevenue}</div>
-            <p className="text-xs text-muted-foreground">
-              +23% from last month
-            </p>
-          </CardContent>
-        </Card>
+          <Button onClick={fetchRealData} variant="outline" disabled={loading}>
+            <RefreshCw
+              className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`}
+            />
+            Refresh Data
+          </Button>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Total Operations
-            </CardTitle>
-            <FileText className="h-4 w-4 text-blue-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.totalOperations}</div>
-            <p className="text-xs text-muted-foreground">
-              +18% from last month
-            </p>
-          </CardContent>
-        </Card>
-      </div>
+          <Button
+            onClick={toggleLiveMode}
+            variant={isLiveMode ? "destructive" : "default"}
+          >
+            {isLiveMode ? (
+              <>
+                <Square className="h-4 w-4 mr-2" />
+                Stop Live Updates
+              </>
+            ) : (
+              <>
+                <Play className="h-4 w-4 mr-2" />
+                Start Live Updates
+              </>
+            )}
+          </Button>
 
-      {/* MongoDB Collections Overview */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center">
-              <Database className="w-5 h-5 mr-2 text-green-500" />
-              MongoDB Collections
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
-                <div>
-                  <h4 className="font-medium">Users Collection</h4>
-                  <p className="text-sm text-gray-600">
-                    User profiles, premium status, payment history
-                  </p>
-                </div>
-                <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-sm">
-                  {stats.totalUsers} docs
-                </span>
-              </div>
-
-              <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
-                <div>
-                  <h4 className="font-medium">Usage Collection</h4>
-                  <p className="text-sm text-gray-600">
-                    Tool usage, analytics, daily limits tracking
-                  </p>
-                </div>
-                <span className="bg-green-100 text-green-800 px-2 py-1 rounded text-sm">
-                  {stats.totalOperations} docs
-                </span>
-              </div>
-
-              <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
-                <div>
-                  <h4 className="font-medium">Payments Collection</h4>
-                  <p className="text-sm text-gray-600">
-                    Razorpay transactions, subscription data
-                  </p>
-                </div>
-                <span className="bg-yellow-100 text-yellow-800 px-2 py-1 rounded text-sm">
-                  {stats.premiumUsers} docs
-                </span>
-              </div>
+          {isLiveMode && (
+            <div className="flex items-center text-sm text-green-600">
+              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse mr-2" />
+              Live Mode Active
             </div>
-          </CardContent>
-        </Card>
+          )}
+        </div>
+      </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center">
-              <TrendingUp className="w-5 h-5 mr-2 text-blue-500" />
-              Popular Tools
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {stats.popularTools.map((tool, index) => (
-                <div key={tool.tool} className="flex items-center space-x-3">
-                  <span className="w-6 h-6 bg-blue-100 text-blue-800 rounded-full flex items-center justify-center text-xs font-medium">
-                    {index + 1}
-                  </span>
-                  <div className="flex-1">
-                    <div className="flex justify-between">
-                      <span className="font-medium capitalize">
-                        {tool.tool.replace("-", " ")}
-                      </span>
-                      <span className="text-sm text-gray-600">
-                        {tool.count} uses
+      <Tabs defaultValue="overview" className="space-y-6">
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="overview" className="flex items-center">
+            <Database className="h-4 w-4 mr-2" />
+            Database Overview
+          </TabsTrigger>
+          <TabsTrigger value="monitoring" className="flex items-center">
+            <Monitor className="h-4 w-4 mr-2" />
+            Database Monitoring
+          </TabsTrigger>
+          <TabsTrigger value="analytics" className="flex items-center">
+            <Activity className="h-4 w-4 mr-2" />
+            Database Analytics
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="overview" className="space-y-6">
+          {/* Database Key Metrics */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">
+                  Total Users (Database)
+                </CardTitle>
+                <Users className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">
+                  {stats.totalUsers.toLocaleString()}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {premiumConversionRate}% premium conversion
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">
+                  Premium Users (Database)
+                </CardTitle>
+                <Crown className="h-4 w-4 text-yellow-500" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">
+                  {stats.premiumUsers.toLocaleString()}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Active subscriptions
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">
+                  Total Operations (Database)
+                </CardTitle>
+                <FileText className="h-4 w-4 text-blue-500" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-blue-600">
+                  {stats.totalOperations.toLocaleString()}
+                </div>
+                <div className="space-y-1 mt-2">
+                  <p className="text-xs text-muted-foreground flex items-center">
+                    <span className="w-2 h-2 bg-green-500 rounded-full mr-2 animate-pulse"></span>
+                    {formatBytes(stats.totalFileSize)} processed
+                  </p>
+                  <p className="text-xs text-blue-600 font-medium">
+                    Database tracking active
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">
+                  Active Sessions (Database)
+                </CardTitle>
+                <Activity className="h-4 w-4 text-green-500" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">
+                  {realTimeStatus?.recentActivity.activeSessions || 0}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Current active users
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Database System Status */}
+          {realTimeStatus && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center">
+                  <Monitor className="w-5 h-5 mr-2 text-green-500" />
+                  Database System Health
+                  <Badge variant="default" className="ml-2">
+                    Database
+                  </Badge>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm">Database Status:</span>
+                      <Badge
+                        variant={
+                          realTimeStatus.systemHealth.databaseConnected
+                            ? "default"
+                            : "destructive"
+                        }
+                      >
+                        {realTimeStatus.systemHealth.databaseConnected
+                          ? "Connected"
+                          : "Error"}
+                      </Badge>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm">Schemas:</span>
+                      <Badge
+                        variant={
+                          realTimeStatus.systemHealth.schemasOperational
+                            ? "default"
+                            : "destructive"
+                        }
+                      >
+                        {realTimeStatus.systemHealth.schemasOperational
+                          ? "Operational"
+                          : "Error"}
+                      </Badge>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm">IP Tracking:</span>
+                      <Badge
+                        variant={
+                          realTimeStatus.realTimeTracking.ipUsageTracked
+                            ? "default"
+                            : "secondary"
+                        }
+                      >
+                        {realTimeStatus.realTimeTracking.ipUsageTracked
+                          ? "Active"
+                          : "Inactive"}
+                      </Badge>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm">Session Tracking:</span>
+                      <Badge
+                        variant={
+                          realTimeStatus.realTimeTracking.sessionActive
+                            ? "default"
+                            : "secondary"
+                        }
+                      >
+                        {realTimeStatus.realTimeTracking.sessionActive
+                          ? "Active"
+                          : "Inactive"}
+                      </Badge>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm">Response Time:</span>
+                      <span className="text-sm font-medium text-green-600">
+                        {realTimeStatus.systemHealth.averageResponseTime}
                       </span>
                     </div>
-                    <div className="w-full bg-gray-200 rounded-full h-2 mt-1">
-                      <div
-                        className="bg-blue-500 h-2 rounded-full"
-                        style={{
-                          width: `${(tool.count / stats.popularTools[0].count) * 100}%`,
-                        }}
-                      ></div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm">Latency:</span>
+                      <span className="text-sm font-medium text-green-600">
+                        {realTimeStatus.systemHealth.realTimeTrackingLatency}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm">Today's Conversions:</span>
+                      <span className="text-sm font-medium text-blue-600">
+                        {realTimeStatus.recentActivity.todayConversions}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm">Recent Usage:</span>
+                      <span className="text-sm font-medium text-purple-600">
+                        {realTimeStatus.recentActivity.totalRecentUsage}
+                      </span>
                     </div>
                   </div>
                 </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+              </CardContent>
+            </Card>
+          )}
 
-      {/* Recent Activity */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center">
-            <Activity className="w-5 h-5 mr-2 text-purple-500" />
-            Recent User Signups
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-3">
-            {stats.recentSignups.map((user, index) => (
-              <div
-                key={index}
-                className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
-              >
-                <div className="flex items-center space-x-3">
-                  <div className="w-8 h-8 bg-gradient-to-br from-brand-red to-red-600 rounded-full flex items-center justify-center">
-                    <span className="text-white text-sm font-medium">
-                      {user.name.charAt(0)}
-                    </span>
+          {/* Conversion Funnel (Database) */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center">
+                <TrendingUp className="w-5 h-5 mr-2 text-blue-500" />
+                Conversion Funnel (Database)
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid gap-4 md:grid-cols-4">
+                <div className="text-center p-4 bg-blue-50 rounded-lg">
+                  <div className="text-2xl font-bold text-blue-600">
+                    {stats.conversionStats.totalIPs}
                   </div>
-                  <div>
-                    <p className="font-medium">{user.name}</p>
-                    <p className="text-sm text-gray-600">{user.email}</p>
-                  </div>
+                  <div className="text-sm text-gray-600">Total IPs</div>
                 </div>
-                <div className="text-right">
-                  <div className="flex items-center space-x-2">
-                    {user.isPremium && (
-                      <Crown className="w-4 h-4 text-yellow-500" />
+                <div className="text-center p-4 bg-yellow-50 rounded-lg">
+                  <div className="text-2xl font-bold text-yellow-600">
+                    {stats.conversionStats.ipsHitSoftLimit}
+                  </div>
+                  <div className="text-sm text-gray-600">Hit Soft Limit</div>
+                  <div className="text-xs text-gray-500">
+                    {Number(stats.conversionStats.softLimitRate || 0).toFixed(
+                      1,
                     )}
-                    <span
-                      className={`px-2 py-1 rounded text-xs ${
-                        user.isPremium
-                          ? "bg-yellow-100 text-yellow-800"
-                          : "bg-gray-100 text-gray-800"
-                      }`}
-                    >
-                      {user.isPremium ? "Premium" : "Free"}
-                    </span>
+                    % rate
                   </div>
-                  <p className="text-xs text-gray-500 mt-1">{user.date}</p>
+                </div>
+                <div className="text-center p-4 bg-green-50 rounded-lg">
+                  <div className="text-2xl font-bold text-green-600">
+                    {stats.conversionStats.ipsConverted}
+                  </div>
+                  <div className="text-sm text-gray-600">Converted</div>
+                  <div className="text-xs text-gray-500">
+                    {Number(stats.conversionStats.conversionRate || 0).toFixed(
+                      1,
+                    )}
+                    % rate
+                  </div>
+                </div>
+                <div className="text-center p-4 bg-purple-50 rounded-lg">
+                  <div className="text-2xl font-bold text-purple-600">
+                    {stats.conversionStats.totalIPs > 0
+                      ? (
+                          (Number(stats.conversionStats.ipsConverted || 0) /
+                            Number(stats.conversionStats.totalIPs || 1)) *
+                          100
+                        ).toFixed(1)
+                      : "0.0"}
+                    %
+                  </div>
+                  <div className="text-sm text-gray-600">Overall Rate</div>
                 </div>
               </div>
-            ))}
+            </CardContent>
+          </Card>
+
+          {/* Tool Usage by Category (Database Data) */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* PDF Tools */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center">
+                  <FileText className="w-5 h-5 mr-2 text-red-500" />
+                  Popular PDF Tools (Database)
+                </CardTitle>
+                <CardDescription>
+                  Real PDF tool usage from database
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {stats.popularTools
+                    .filter(
+                      (tool) =>
+                        // PDF tools - look for common PDF tool patterns
+                        tool.tool.includes("pdf") ||
+                        tool.tool.includes("merge") ||
+                        tool.tool.includes("split") ||
+                        tool.tool.includes("word-to") ||
+                        tool.tool.includes("to-word") ||
+                        tool.tool.includes("jpg-to") ||
+                        tool.tool.includes("to-jpg") ||
+                        tool.tool.includes("png-to") ||
+                        tool.tool.includes("to-png") ||
+                        tool.tool.includes("excel-to") ||
+                        tool.tool.includes("to-excel") ||
+                        tool.tool.includes("powerpoint-to") ||
+                        tool.tool.includes("to-powerpoint") ||
+                        tool.tool.includes("watermark") ||
+                        tool.tool.includes("protect") ||
+                        tool.tool.includes("unlock") ||
+                        tool.tool.includes("rotate"),
+                    )
+                    .slice(0, 10).length > 0 ? (
+                    stats.popularTools
+                      .filter(
+                        (tool) =>
+                          // PDF tools - look for common PDF tool patterns
+                          tool.tool.includes("pdf") ||
+                          tool.tool.includes("merge") ||
+                          tool.tool.includes("split") ||
+                          tool.tool.includes("word-to") ||
+                          tool.tool.includes("to-word") ||
+                          tool.tool.includes("jpg-to") ||
+                          tool.tool.includes("to-jpg") ||
+                          tool.tool.includes("png-to") ||
+                          tool.tool.includes("to-png") ||
+                          tool.tool.includes("excel-to") ||
+                          tool.tool.includes("to-excel") ||
+                          tool.tool.includes("powerpoint-to") ||
+                          tool.tool.includes("to-powerpoint") ||
+                          tool.tool.includes("watermark") ||
+                          tool.tool.includes("protect") ||
+                          tool.tool.includes("unlock") ||
+                          tool.tool.includes("rotate"),
+                      )
+                      .slice(0, 10)
+                      .map((tool, index) => (
+                        <div
+                          key={tool.tool}
+                          className="flex items-center space-x-3"
+                        >
+                          <span className="w-6 h-6 bg-red-100 text-red-800 rounded-full flex items-center justify-center text-xs font-medium">
+                            {index + 1}
+                          </span>
+                          <div className="flex-1">
+                            <div className="flex justify-between">
+                              <span className="font-medium capitalize">
+                                {tool.tool.replace("-", " ")}
+                              </span>
+                              <span className="text-sm text-gray-600">
+                                {tool.count} uses
+                              </span>
+                            </div>
+                            <div className="w-full bg-gray-200 rounded-full h-2 mt-1">
+                              <div
+                                className="bg-red-500 h-2 rounded-full"
+                                style={{
+                                  width: `${(tool.count / (stats.popularTools.filter((t) => t.tool.includes("pdf") || t.tool.includes("merge") || t.tool.includes("split") || t.tool.includes("word-to") || t.tool.includes("to-word") || t.tool.includes("jpg-to") || t.tool.includes("to-jpg") || t.tool.includes("png-to") || t.tool.includes("to-png") || t.tool.includes("excel-to") || t.tool.includes("to-excel") || t.tool.includes("powerpoint-to") || t.tool.includes("to-powerpoint") || t.tool.includes("watermark") || t.tool.includes("protect") || t.tool.includes("unlock") || t.tool.includes("rotate"))[0]?.count || 1)) * 100}%`,
+                                }}
+                              ></div>
+                            </div>
+                            {tool.uniqueUserCount && (
+                              <div className="text-xs text-gray-500 mt-1">
+                                {tool.uniqueUserCount} unique users
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      ))
+                  ) : (
+                    <div className="text-center text-gray-500 py-4">
+                      <div className="flex flex-col items-center space-y-2">
+                        <FileText className="h-8 w-8 text-gray-400" />
+                        <span>No PDF tool usage data available</span>
+                        <p className="text-xs text-gray-400">
+                          Real usage data from database
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Image Tools */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center">
+                  <TrendingUp className="w-5 h-5 mr-2 text-green-500" />
+                  Popular Image Tools (Database)
+                </CardTitle>
+                <CardDescription>
+                  Real image tool usage from database
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {stats.popularTools
+                    .filter(
+                      (tool) =>
+                        tool.tool.includes("img-") ||
+                        [
+                          "compress",
+                          "convert",
+                          "crop",
+                          "resize",
+                          "background-removal",
+                          "meme",
+                        ].includes(tool.tool),
+                    )
+                    .slice(0, 10).length > 0 ? (
+                    stats.popularTools
+                      .filter(
+                        (tool) =>
+                          tool.tool.includes("img-") ||
+                          [
+                            "compress",
+                            "convert",
+                            "crop",
+                            "resize",
+                            "background-removal",
+                            "meme",
+                          ].includes(tool.tool),
+                      )
+                      .slice(0, 10)
+                      .map((tool, index) => (
+                        <div
+                          key={tool.tool}
+                          className="flex items-center space-x-3"
+                        >
+                          <span className="w-6 h-6 bg-green-100 text-green-800 rounded-full flex items-center justify-center text-xs font-medium">
+                            {index + 1}
+                          </span>
+                          <div className="flex-1">
+                            <div className="flex justify-between">
+                              <span className="font-medium capitalize">
+                                {tool.tool}
+                              </span>
+                              <span className="text-sm text-gray-600">
+                                {tool.count} uses
+                              </span>
+                            </div>
+                            <div className="w-full bg-gray-200 rounded-full h-2 mt-1">
+                              <div
+                                className="bg-green-500 h-2 rounded-full"
+                                style={{
+                                  width: `${(tool.count / (stats.popularTools.filter((t) => t.tool.includes("img-") || ["compress", "convert", "crop", "resize", "background-removal", "meme"].includes(t.tool))[0]?.count || 1)) * 100}%`,
+                                }}
+                              ></div>
+                            </div>
+                            {tool.uniqueUserCount && (
+                              <div className="text-xs text-gray-500 mt-1">
+                                {tool.uniqueUserCount} unique users
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      ))
+                  ) : (
+                    <div className="text-center text-gray-500 py-4">
+                      <div className="flex flex-col items-center space-y-2">
+                        <TrendingUp className="h-8 w-8 text-gray-400" />
+                        <span>No image tool usage data available</span>
+                        <p className="text-xs text-gray-400">
+                          Real usage data from database
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Favicon Tools */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center">
+                  <Activity className="w-5 h-5 mr-2 text-blue-500" />
+                  Popular Favicon Tools (Database)
+                </CardTitle>
+                <CardDescription>
+                  Real favicon tool usage from database
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {stats.popularTools
+                    .filter(
+                      (tool) =>
+                        tool.tool.includes("favicon") ||
+                        tool.tool.includes("image-to-favicon"),
+                    )
+                    .slice(0, 10).length > 0 ? (
+                    stats.popularTools
+                      .filter(
+                        (tool) =>
+                          tool.tool.includes("favicon") ||
+                          tool.tool.includes("image-to-favicon"),
+                      )
+                      .slice(0, 10)
+                      .map((tool, index) => (
+                        <div
+                          key={tool.tool}
+                          className="flex items-center space-x-3"
+                        >
+                          <span className="w-6 h-6 bg-blue-100 text-blue-800 rounded-full flex items-center justify-center text-xs font-medium">
+                            {index + 1}
+                          </span>
+                          <div className="flex-1">
+                            <div className="flex justify-between">
+                              <span className="font-medium capitalize">
+                                {tool.tool
+                                  .replace("favicon-", "")
+                                  .replace("-", " ")}
+                              </span>
+                              <span className="text-sm text-gray-600">
+                                {tool.count} uses
+                              </span>
+                            </div>
+                            <div className="w-full bg-gray-200 rounded-full h-2 mt-1">
+                              <div
+                                className="bg-blue-500 h-2 rounded-full"
+                                style={{
+                                  width: `${(tool.count / (stats.popularTools.filter((t) => t.tool.includes("favicon") || t.tool.includes("image-to-favicon"))[0]?.count || 1)) * 100}%`,
+                                }}
+                              ></div>
+                            </div>
+                            {tool.uniqueUserCount && (
+                              <div className="text-xs text-gray-500 mt-1">
+                                {tool.uniqueUserCount} unique users
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      ))
+                  ) : (
+                    <div className="text-center text-gray-500 py-4">
+                      <div className="flex flex-col items-center space-y-2">
+                        <Activity className="h-8 w-8 text-gray-400" />
+                        <span>No favicon tool usage data available</span>
+                        <p className="text-xs text-gray-400">
+                          Real usage data from database
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
           </div>
-        </CardContent>
-      </Card>
 
-      {/* MongoDB Benefits */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Why MongoDB is Perfect for PDF Business</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <h4 className="font-semibold mb-3 text-green-600">
-                💰 Revenue Tracking
-              </h4>
-              <ul className="space-y-2 text-sm">
-                <li>• Payment history per user</li>
-                <li>• Subscription status tracking</li>
-                <li>• Revenue analytics by plan</li>
-                <li>• Churn rate calculations</li>
-              </ul>
-            </div>
+          {/* Device Distribution and Database Summary */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Device Distribution (Database) */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center">
+                  <Monitor className="w-5 h-5 mr-2 text-green-500" />
+                  Device Distribution (Database)
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {stats.deviceStats.length > 0 ? (
+                    stats.deviceStats.map((device) => (
+                      <div
+                        key={device.deviceType}
+                        className="flex items-center justify-between"
+                      >
+                        <div className="flex items-center space-x-2">
+                          <span className="text-sm font-medium capitalize">
+                            {device.deviceType}
+                          </span>
+                          <Badge variant="outline">{device.count}</Badge>
+                        </div>
+                        <span className="text-sm text-gray-600">
+                          {Number(device.percentage || 0).toFixed(1)}%
+                        </span>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="text-center text-gray-500 py-4">
+                      No device data available
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
 
-            <div>
-              <h4 className="font-semibold mb-3 text-blue-600">
-                📊 Usage Analytics
-              </h4>
-              <ul className="space-y-2 text-sm">
-                <li>• Tool popularity metrics</li>
-                <li>• Daily/monthly active users</li>
-                <li>• File processing statistics</li>
-                <li>• Performance monitoring</li>
-              </ul>
-            </div>
+            {/* Database Summary */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center">
+                  <Database className="w-5 h-5 mr-2 text-purple-500" />
+                  Database Summary
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="text-center p-3 bg-blue-50 rounded-lg">
+                      <div className="text-lg font-bold text-blue-600">
+                        {stats.totalOperations.toLocaleString()}
+                      </div>
+                      <div className="text-xs text-blue-600">
+                        Total Operations
+                      </div>
+                    </div>
+                    <div className="text-center p-3 bg-green-50 rounded-lg">
+                      <div className="text-lg font-bold text-green-600">
+                        {formatBytes(stats.totalFileSize)}
+                      </div>
+                      <div className="text-xs text-green-600">
+                        Files Processed
+                      </div>
+                    </div>
+                  </div>
 
-            <div>
-              <h4 className="font-semibold mb-3 text-purple-600">
-                👥 User Management
-              </h4>
-              <ul className="space-y-2 text-sm">
-                <li>• User profiles and preferences</li>
-                <li>• Authentication and security</li>
-                <li>• Premium vs free user tracking</li>
-                <li>• Support ticket history</li>
-              </ul>
-            </div>
-
-            <div>
-              <h4 className="font-semibold mb-3 text-orange-600">
-                🚀 Business Growth
-              </h4>
-              <ul className="space-y-2 text-sm">
-                <li>• Conversion rate optimization</li>
-                <li>• Feature usage insights</li>
-                <li>• User behavior patterns</li>
-                <li>• Marketing campaign tracking</li>
-              </ul>
-            </div>
+                  <div className="text-sm text-gray-600 bg-gray-50 p-3 rounded-lg">
+                    <p className="font-medium mb-1">📊 Database Status:</p>
+                    <ul className="text-xs space-y-1">
+                      <li>• All data shown is from live MongoDB database</li>
+                      <li>
+                        • Real data shows actual PDF, Image, and Favicon tool
+                        usage
+                      </li>
+                      <li>
+                        • Switch to "Database Monitoring" for detailed analytics
+                      </li>
+                      <li>• Use "Live Updates" to see real-time changes</li>
+                    </ul>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
           </div>
-        </CardContent>
-      </Card>
+
+          {/* Recent Activity (Database) */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center">
+                <Activity className="w-5 h-5 mr-2 text-purple-500" />
+                Recent User Signups (Database)
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {stats.recentSignups.length > 0 ? (
+                  stats.recentSignups.map((user) => (
+                    <div
+                      key={user.id}
+                      className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+                    >
+                      <div className="flex items-center space-x-3">
+                        <div className="w-8 h-8 bg-gradient-to-br from-brand-red to-red-600 rounded-full flex items-center justify-center">
+                          <span className="text-white text-sm font-medium">
+                            {user.name.charAt(0)}
+                          </span>
+                        </div>
+                        <div>
+                          <p className="font-medium">{user.name}</p>
+                          <p className="text-sm text-gray-600">
+                            {user.email.replace(/(.{3}).*(@.*)/, "$1***$2")}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="flex items-center space-x-2">
+                          {user.isPremium && (
+                            <Crown className="w-4 h-4 text-yellow-500" />
+                          )}
+                          <span
+                            className={`px-2 py-1 rounded text-xs ${
+                              user.isPremium
+                                ? "bg-yellow-100 text-yellow-800"
+                                : "bg-gray-100 text-gray-800"
+                            }`}
+                          >
+                            {user.isPremium ? "Premium" : "Free"}
+                          </span>
+                        </div>
+                        <p className="text-xs text-gray-500 mt-1">
+                          {formatTimeAgo(user.createdAt)}
+                        </p>
+                        <p className="text-xs text-gray-400">
+                          {user.loginCount} logins
+                        </p>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-center text-gray-500 py-4">
+                    No recent signups available
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="monitoring">
+          <RealTimeMonitoring />
+        </TabsContent>
+
+        <TabsContent value="analytics" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Database Analytics Summary</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="text-center p-4 border rounded-lg">
+                  <div className="text-3xl font-bold text-blue-600">
+                    {stats.totalUsers}
+                  </div>
+                  <div className="text-sm text-gray-600">Total Users</div>
+                  <div className="text-xs text-gray-500">
+                    {stats.premiumUsers} premium ({premiumConversionRate}%)
+                  </div>
+                </div>
+
+                <div className="text-center p-4 border rounded-lg">
+                  <div className="text-3xl font-bold text-green-600">
+                    {stats.totalOperations.toLocaleString()}
+                  </div>
+                  <div className="text-sm text-gray-600">Total Operations</div>
+                  <div className="text-xs text-gray-500">
+                    Avg: {formatBytes(stats.averageFileSize)}
+                  </div>
+                </div>
+
+                <div className="text-center p-4 border rounded-lg">
+                  <div className="text-3xl font-bold text-purple-600">
+                    {Number(stats.conversionStats.conversionRate || 0).toFixed(
+                      1,
+                    )}
+                    %
+                  </div>
+                  <div className="text-sm text-gray-600">Conversion Rate</div>
+                  <div className="text-xs text-gray-500">
+                    {stats.conversionStats.ipsConverted} conversions
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };

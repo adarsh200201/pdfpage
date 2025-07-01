@@ -1261,37 +1261,43 @@ const CropPdf = () => {
         )}
 
         {/* Features */}
-        <div className="mt-12 grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="text-center">
-            <div className="w-12 h-12 bg-emerald-100 rounded-lg flex items-center justify-center mx-auto mb-3">
-              <Target className="w-6 h-6 text-emerald-500" />
+        <div className="mt-8 sm:mt-12 px-4 sm:px-0">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="text-center px-2">
+              <div className="w-12 h-12 bg-emerald-100 rounded-lg flex items-center justify-center mx-auto mb-3">
+                <Target className="w-6 h-6 text-emerald-500" />
+              </div>
+              <h4 className="font-semibold text-text-dark mb-2 text-sm sm:text-base">
+                Interactive Cropping
+              </h4>
+              <p className="text-xs sm:text-sm text-text-light leading-relaxed max-w-xs mx-auto">
+                Drag and resize crop areas with real-time visual feedback
+              </p>
             </div>
-            <h4 className="font-semibold text-text-dark mb-2">
-              Interactive Cropping
-            </h4>
-            <p className="text-body-small text-text-light">
-              Drag and resize crop areas with real-time visual feedback
-            </p>
-          </div>
 
-          <div className="text-center">
-            <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mx-auto mb-3">
-              <Eye className="w-6 h-6 text-blue-500" />
+            <div className="text-center px-2">
+              <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mx-auto mb-3">
+                <Eye className="w-6 h-6 text-blue-500" />
+              </div>
+              <h4 className="font-semibold text-text-dark mb-2 text-sm sm:text-base">
+                Live Preview
+              </h4>
+              <p className="text-xs sm:text-sm text-text-light leading-relaxed max-w-xs mx-auto">
+                See exactly how your cropped PDF will look before processing
+              </p>
             </div>
-            <h4 className="font-semibold text-text-dark mb-2">Live Preview</h4>
-            <p className="text-body-small text-text-light">
-              See exactly how your cropped PDF will look before processing
-            </p>
-          </div>
 
-          <div className="text-center">
-            <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center mx-auto mb-3">
-              <CheckCircle className="w-6 h-6 text-purple-500" />
+            <div className="text-center px-2">
+              <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center mx-auto mb-3">
+                <CheckCircle className="w-6 h-6 text-purple-500" />
+              </div>
+              <h4 className="font-semibold text-text-dark mb-2 text-sm sm:text-base">
+                Smart Presets
+              </h4>
+              <p className="text-xs sm:text-sm text-text-light leading-relaxed max-w-xs mx-auto">
+                Quick presets for common tasks like removing margins and headers
+              </p>
             </div>
-            <h4 className="font-semibold text-text-dark mb-2">Smart Presets</h4>
-            <p className="text-body-small text-text-light">
-              Quick presets for common tasks like removing margins and headers
-            </p>
           </div>
         </div>
       </div>

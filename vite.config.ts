@@ -6,16 +6,20 @@ import { createRequire } from "module";
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
   server: {
-    host: "::",
+    host: "localhost",
     port: 3000,
-    // Disabled proxy to avoid CORS issues - using client-side compression only
-    // proxy: {
-    //   "/api": {
-    //     target: "https://pdfpage.onrender.com",
-    //     changeOrigin: true,
-    //     secure: true,
-    //   },
-    // },
+    hmr: {
+      port: 24678, // Use a different port for HMR WebSocket
+      host: "localhost",
+      clientPort: 24678, // Ensure client connects to the right port
+    },
+    proxy: {
+      "/api": {
+        target: "http://localhost:5000",
+        changeOrigin: true,
+        secure: false,
+      },
+    },
   },
   plugins: [react()],
   ssr: {

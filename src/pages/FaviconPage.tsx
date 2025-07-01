@@ -158,135 +158,93 @@ const FaviconPage = () => {
       <FaviconHeader />
 
       {/* Enhanced Hero Section */}
-      <section className="relative py-20 lg:py-32 overflow-hidden">
+      <section className="relative py-4 sm:py-6 lg:py-10 overflow-hidden">
         {/* Background Elements */}
         <div className="absolute inset-0 overflow-hidden">
-          <div className="absolute top-20 left-10 opacity-10">
+          <div className="absolute top-20 left-10 opacity-10 hidden sm:block">
             <FloatingElement delay={0}>
-              <Globe className="h-24 w-24 text-blue-600" />
+              <Globe className="h-16 w-16 sm:h-20 sm:w-20 lg:h-24 lg:w-24 text-blue-600" />
             </FloatingElement>
           </div>
-          <div className="absolute top-40 right-20 opacity-10">
+          <div className="absolute top-40 right-20 opacity-10 hidden sm:block">
             <FloatingElement delay={1}>
-              <Smartphone className="h-20 w-20 text-green-600" />
+              <Smartphone className="h-14 w-14 sm:h-16 sm:w-16 lg:h-20 lg:w-20 text-green-600" />
             </FloatingElement>
           </div>
-          <div className="absolute bottom-20 left-20 opacity-10">
+          <div className="absolute bottom-20 left-20 opacity-10 hidden lg:block">
             <FloatingElement delay={2}>
-              <Monitor className="h-28 w-28 text-purple-600" />
+              <Monitor className="h-20 w-20 lg:h-28 lg:w-28 text-purple-600" />
             </FloatingElement>
           </div>
         </div>
 
-        <div className="container mx-auto px-4 relative z-10">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
           <div className="text-center max-w-4xl mx-auto">
-            <div className="inline-flex items-center gap-2 bg-gradient-to-r from-blue-100 to-purple-100 text-blue-800 px-6 py-3 rounded-full text-sm font-medium mb-6">
-              <Globe className="h-4 w-4" />
-              Professional Favicon Generator Suite
+            <div className="inline-flex items-center gap-2 bg-gradient-to-r from-blue-100 to-purple-100 text-blue-800 px-3 sm:px-4 lg:px-6 py-2 sm:py-3 rounded-full text-xs sm:text-sm font-medium mb-4">
+              <Globe className="h-3 w-3 sm:h-4 sm:w-4" />
+              <span className="hidden sm:inline">
+                Professional Favicon Generator Suite
+              </span>
+              <span className="sm:hidden">Favicon Generator</span>
             </div>
 
-            <h1 className="text-5xl lg:text-7xl font-bold bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent mb-6">
+            <h1 className="text-3xl sm:text-4xl lg:text-6xl xl:text-7xl font-bold bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent mb-3">
               Create Perfect Favicons
             </h1>
 
-            <p className="text-xl lg:text-2xl text-gray-600 mb-8 leading-relaxed">
+            <p className="text-base sm:text-lg lg:text-xl xl:text-2xl text-gray-600 mb-4 leading-relaxed px-4 sm:px-0">
               Generate professional favicon files from images, text, emojis, or
               logos.
-              <br />
+              <br className="hidden sm:block" />
+              <span className="sm:hidden"> </span>
               Get all sizes for web, iOS, and Android in seconds.
             </p>
-
-            <div className="flex flex-col sm:flex-row gap-4 justify-center mb-12">
-              <Link to="/img/favicon">
-                <Button
-                  size="lg"
-                  className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-8 py-4 text-lg"
-                >
-                  <Sparkles className="mr-2 h-5 w-5" />
-                  Start Creating Favicons
-                  <ArrowRight className="ml-2 h-5 w-5" />
-                </Button>
-              </Link>
-              <Link to="#features">
-                <Button
-                  variant="outline"
-                  size="lg"
-                  className="px-8 py-4 text-lg border-2"
-                >
-                  Learn More
-                </Button>
-              </Link>
-            </div>
-
-            {/* Stats */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-6 max-w-2xl mx-auto">
-              <div className="text-center">
-                <div className="text-3xl font-bold text-blue-600 mb-1">
-                  <StatsCounter end={8} />
-                </div>
-                <div className="text-sm text-gray-600">Favicon Sizes</div>
-              </div>
-              <div className="text-center">
-                <div className="text-3xl font-bold text-green-600 mb-1">
-                  <StatsCounter end={4} />
-                </div>
-                <div className="text-sm text-gray-600">Input Methods</div>
-              </div>
-              <div className="text-center">
-                <div className="text-3xl font-bold text-purple-600 mb-1">
-                  <StatsCounter end={3} />
-                </div>
-                <div className="text-sm text-gray-600">Platforms</div>
-              </div>
-              <div className="text-center">
-                <div className="text-3xl font-bold text-pink-600 mb-1">
-                  <StatsCounter end={100} suffix="%" />
-                </div>
-                <div className="text-sm text-gray-600">Free to Use</div>
-              </div>
-            </div>
           </div>
         </div>
       </section>
 
       {/* Favicon Tools Section */}
-      <section className="py-20 bg-white">
-        <div className="container mx-auto px-4">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold text-gray-900 mb-4">
-              Choose Your Favicon Creation Method
-            </h2>
-            <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-              Multiple ways to create perfect favicons for your website. All
-              methods generate the complete set of favicon files you need.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-16">
+      <section className="py-4 sm:py-6 bg-white">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 lg:gap-8 mb-8">
             {faviconTools.map((tool, index) => (
               <Link key={tool.title} to={tool.path}>
-                <Card className="group hover:shadow-xl transition-all duration-300 hover:-translate-y-2 border-0 bg-gradient-to-br from-white to-gray-50">
-                  <CardContent className="p-8 text-center">
-                    <div
-                      className={`w-16 h-16 ${tool.bgColor} rounded-2xl flex items-center justify-center mx-auto mb-6 group-hover:scale-110 transition-transform duration-300`}
-                    >
-                      <tool.icon className={`w-8 h-8 ${tool.color}`} />
+                <Card className="group hover:shadow-2xl transition-all duration-500 hover:-translate-y-1 sm:hover:-translate-y-3 border-2 border-gray-200 hover:border-blue-300 bg-gradient-to-br from-white to-gray-50/30 hover:from-white hover:to-blue-50/20 relative overflow-hidden">
+                  {/* Subtle gradient overlay on hover */}
+                  <div className="absolute inset-0 bg-gradient-to-br from-transparent to-blue-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+
+                  <CardContent className="p-4 sm:p-6 lg:p-8 text-center relative z-10">
+                    {/* Enhanced icon container with glow effect */}
+                    <div className="relative mb-4 sm:mb-6">
+                      <div
+                        className={`w-12 h-12 sm:w-16 sm:h-16 lg:w-18 lg:h-18 ${tool.bgColor} rounded-2xl sm:rounded-3xl flex items-center justify-center mx-auto group-hover:scale-110 transition-all duration-500 shadow-lg group-hover:shadow-xl`}
+                      >
+                        <tool.icon
+                          className={`w-6 h-6 sm:w-8 sm:h-8 lg:w-10 lg:h-10 ${tool.color} group-hover:scale-110 transition-transform duration-300`}
+                        />
+                      </div>
+                      {/* Glow effect */}
+                      <div
+                        className={`absolute inset-0 w-12 h-12 sm:w-16 sm:h-16 lg:w-18 lg:h-18 ${tool.bgColor} rounded-2xl sm:rounded-3xl mx-auto opacity-0 group-hover:opacity-20 blur-xl transition-opacity duration-500`}
+                      ></div>
                     </div>
 
-                    <h3 className="text-xl font-bold text-gray-900 mb-3 group-hover:text-blue-600 transition-colors">
+                    <h3 className="text-lg sm:text-xl font-bold text-gray-900 mb-3 sm:mb-4 group-hover:text-blue-600 transition-colors duration-300 px-2 sm:px-0">
                       {tool.title}
                     </h3>
 
-                    <p className="text-gray-600 text-sm leading-relaxed mb-4">
+                    <p className="text-gray-600 text-xs sm:text-sm leading-relaxed mb-4 sm:mb-6 group-hover:text-gray-700 transition-colors duration-300 px-2 sm:px-0">
                       {tool.description}
                     </p>
 
-                    <Badge
-                      variant="secondary"
-                      className="text-xs font-medium capitalize"
-                    >
-                      {tool.category}
-                    </Badge>
+                    <div className="flex items-center justify-center">
+                      <Badge
+                        variant="secondary"
+                        className={`text-xs font-semibold capitalize px-3 sm:px-4 py-1 sm:py-2 ${tool.color.replace("text-", "border-")} ${tool.bgColor} group-hover:shadow-md transition-all duration-300`}
+                      >
+                        {tool.category}
+                      </Badge>
+                    </div>
                   </CardContent>
                 </Card>
               </Link>
@@ -298,11 +256,11 @@ const FaviconPage = () => {
       {/* Features Section */}
       <section
         id="features"
-        className="py-20 bg-gradient-to-br from-gray-50 to-white"
+        className="py-6 bg-gradient-to-br from-gray-50 to-white"
       >
         <div className="container mx-auto px-4">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold text-gray-900 mb-4">
+          <div className="text-center mb-8">
+            <h2 className="text-4xl font-bold text-gray-900 mb-2">
               Why Choose Our Favicon Generator?
             </h2>
             <p className="text-xl text-gray-600 max-w-3xl mx-auto">
@@ -330,10 +288,10 @@ const FaviconPage = () => {
       </section>
 
       {/* Supported Formats Section */}
-      <section className="py-20 bg-white">
+      <section className="py-6 bg-white">
         <div className="container mx-auto px-4">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold text-gray-900 mb-4">
+          <div className="text-center mb-8">
+            <h2 className="text-4xl font-bold text-gray-900 mb-2">
               Complete Favicon Package
             </h2>
             <p className="text-xl text-gray-600 max-w-3xl mx-auto">
@@ -342,7 +300,7 @@ const FaviconPage = () => {
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-16">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
             <div className="text-center p-6 bg-gradient-to-br from-blue-50 to-blue-100 rounded-2xl">
               <Globe className="w-12 h-12 text-blue-600 mx-auto mb-4" />
               <h3 className="text-xl font-bold text-gray-900 mb-3">
@@ -384,13 +342,13 @@ const FaviconPage = () => {
           </div>
 
           <div className="text-center">
-            <Link to="/img/favicon">
+            <Link to="/register">
               <Button
                 size="lg"
                 className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-8 py-4 text-lg"
               >
                 <Sparkles className="mr-2 h-5 w-5" />
-                Get Started Now
+                Sign Up Now
                 <ArrowRight className="ml-2 h-5 w-5" />
               </Button>
             </Link>
@@ -399,9 +357,9 @@ const FaviconPage = () => {
       </section>
 
       {/* CTA Section */}
-      <section className="py-20 bg-gradient-to-r from-blue-600 to-purple-600">
+      <section className="py-6 bg-gradient-to-r from-blue-600 to-purple-600">
         <div className="container mx-auto px-4 text-center">
-          <h2 className="text-4xl font-bold text-white mb-4">
+          <h2 className="text-4xl font-bold text-white mb-2">
             Ready to Create Your Perfect Favicon?
           </h2>
           <p className="text-xl text-blue-100 mb-8 max-w-2xl mx-auto">
@@ -423,7 +381,7 @@ const FaviconPage = () => {
               <Button
                 size="lg"
                 variant="outline"
-                className="px-8 py-4 text-lg border-white text-white hover:bg-white hover:text-blue-600"
+                className="px-8 py-4 text-lg text-blue-600 hover:text-blue-600"
               >
                 <Image className="mr-2 h-5 w-5" />
                 Browse All Image Tools

@@ -512,10 +512,10 @@ const Privacy = () => {
                     <div>
                       <p className="font-medium text-text-dark">Email</p>
                       <a
-                        href="mailto:privacy@pdfpage.com"
+                        href="mailto:support@pdfpage.com"
                         className="text-brand-red hover:underline"
                       >
-                        privacy@pdfpage.com
+                        support@pdfpage.com
                       </a>
                     </div>
                   </div>
@@ -523,15 +523,13 @@ const Privacy = () => {
                   <div className="flex items-start gap-3">
                     <Globe className="h-5 w-5 text-brand-red mt-1" />
                     <div>
-                      <p className="font-medium text-text-dark">Address</p>
+                      <p className="font-medium text-text-dark">Company</p>
                       <p className="text-text-medium">
-                        PdfPage Inc.
+                        PdfPage
                         <br />
-                        123 Market Street, Suite 300
+                        PDF Processing Platform
                         <br />
-                        patna, Bihar 94105
-                        <br />
-                        India
+                        Email: support@pdfpage.com
                       </p>
                     </div>
                   </div>

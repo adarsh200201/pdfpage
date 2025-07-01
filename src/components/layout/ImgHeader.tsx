@@ -28,6 +28,8 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useTranslation } from "@/hooks/useTranslation";
+import MobileMenu from "./MobileMenu";
+import MobileMenuButton from "../ui/mobile-menu-button";
 
 const ImgHeader = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -38,8 +40,6 @@ const ImgHeader = () => {
   const { t } = useTranslation();
 
   const imageNavItems = [
-    { label: t("img.compressImage"), href: "/img/compress" },
-    { label: t("img.resizeImage"), href: "/img/resize" },
     { label: t("img.jpgToPng"), href: "/img/jpg-to-png" },
     { label: t("img.pngToJpg"), href: "/img/png-to-jpg" },
   ];
@@ -253,122 +253,18 @@ const ImgHeader = () => {
             )}
 
             {/* Mobile Menu Button */}
-            <button
+            <MobileMenuButton
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="md:hidden"
-            >
-              {mobileMenuOpen ? (
-                <X className="w-6 h-6 text-text-dark" />
-              ) : (
-                <Menu className="w-6 h-6 text-text-dark" />
-              )}
-            </button>
+            />
           </div>
         </div>
-
-        {/* Mobile Menu */}
-        {mobileMenuOpen && (
-          <div className="md:hidden border-t border-gray-100 py-4">
-            {imageNavItems.map((item) => (
-              <Link
-                key={item.href}
-                to={item.href}
-                className="text-body-medium text-text-medium hover:text-blue-600 transition-colors duration-200 block py-2"
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                {item.label}
-              </Link>
-            ))}
-            <div className="flex flex-col space-y-2 pt-4 border-t border-gray-100 mt-4">
-              {!isAuthenticated ? (
-                <>
-                  <Link to="/login" onClick={() => setMobileMenuOpen(false)}>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="w-full justify-start"
-                    >
-                      <User className="w-4 h-4 mr-2" />
-                      {t("nav.login")}
-                    </Button>
-                  </Link>
-                  <Link to="/register" onClick={() => setMobileMenuOpen(false)}>
-                    <Button
-                      size="sm"
-                      className="w-full justify-start bg-blue-600 hover:bg-blue-700"
-                    >
-                      <Crown className="w-4 h-4 mr-2" />
-                      {t("nav.getStarted")}
-                    </Button>
-                  </Link>
-                </>
-              ) : (
-                <>
-                  <Link
-                    to="/dashboard"
-                    onClick={() => setMobileMenuOpen(false)}
-                  >
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="w-full justify-start"
-                    >
-                      <User className="w-4 h-4 mr-2" />
-                      {t("nav.dashboard")}
-                    </Button>
-                  </Link>
-                  <Button
-                    onClick={() => {
-                      logout();
-                      setMobileMenuOpen(false);
-                    }}
-                    variant="outline"
-                    size="sm"
-                    className="w-full justify-start text-red-600"
-                  >
-                    <LogOut className="w-4 h-4 mr-2" />
-                    {t("nav.logout")}
-                  </Button>
-                </>
-              )}
-
-              {/* Mobile Language Selector */}
-              <div className="pt-4 border-t border-gray-100 mt-4">
-                <div className="flex items-center mb-2">
-                  <Globe className="w-4 h-4 mr-2 text-text-medium" />
-                  <span className="text-sm font-medium text-text-dark">
-                    {t("nav.language")}
-                  </span>
-                </div>
-                <div className="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto">
-                  {languages.map((language) => (
-                    <button
-                      key={language.code}
-                      onClick={() => {
-                        setLanguage(language);
-                        setMobileMenuOpen(false);
-                      }}
-                      className={`flex items-center p-2 rounded-lg text-left transition-colors duration-200 ${
-                        currentLanguage.code === language.code
-                          ? "bg-blue-50 text-blue-600"
-                          : "hover:bg-gray-50"
-                      }`}
-                    >
-                      <span className="mr-2 text-sm">{language.flag}</span>
-                      <span className="text-xs truncate flex-1">
-                        {language.nativeName}
-                      </span>
-                      {currentLanguage.code === language.code && (
-                        <span className="text-blue-600 text-xs ml-1">✓</span>
-                      )}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
+
+      {/* Modern Mobile Menu */}
+      <MobileMenu
+        isOpen={mobileMenuOpen}
+        onClose={() => setMobileMenuOpen(false)}
+      />
 
       {/* Mega Menu Overlay for Image Tools */}
       {showMegaMenu && (
@@ -395,11 +291,6 @@ const ImgHeader = () => {
                           <span className="text-sm font-medium text-text-dark group-hover:text-blue-600 transition-colors duration-200">
                             {tool.title}
                           </span>
-                          {tool.isNew && (
-                            <span className="ml-2 px-2 py-1 text-xs bg-green-100 text-green-800 rounded-full">
-                              New
-                            </span>
-                          )}
                         </div>
                       </div>
                     </div>

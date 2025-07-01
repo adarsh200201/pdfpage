@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from "react";
+import { Link } from "react-router-dom";
 import Cropper from "react-cropper";
 import "cropperjs/dist/cropper.css";
 import ImgHeader from "../components/layout/ImgHeader";
@@ -28,7 +29,6 @@ import {
 import { CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { imageService } from "../services/imageService";
 import { useToast } from "../hooks/use-toast";
-import { useAuth } from "../contexts/AuthContext";
 import {
   Upload,
   Download,
@@ -63,6 +63,7 @@ import {
   Circle,
   Lock,
   Unlock,
+  ArrowLeft,
 } from "lucide-react";
 
 interface CropSettings {
@@ -115,7 +116,6 @@ const ImgCrop = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cropperRef = useRef<HTMLImageElement>(null);
   const { toast } = useToast();
-  const { user } = useAuth();
 
   const [settings, setSettings] = useState<CropSettings>({
     aspectRatio: "free",
@@ -339,15 +339,6 @@ const ImgCrop = () => {
       return;
     }
 
-    if (!user) {
-      toast({
-        title: "Authentication required",
-        description: "Please sign in to use the crop feature.",
-        variant: "destructive",
-      });
-      return;
-    }
-
     const cropData = getCropData();
     if (!cropData) {
       toast({
@@ -371,12 +362,13 @@ const ImgCrop = () => {
 
       const startTime = Date.now();
 
-      // Prepare crop parameters
+      // Prepare crop parameters - only include rotation if it's not 0
+      const normalizedRotation = settings.rotation % 360;
       const cropParams = {
         ...cropData,
-        rotation: settings.rotation,
-        flipHorizontal: settings.flipHorizontal,
-        flipVertical: settings.flipVertical,
+        ...(normalizedRotation !== 0 && { rotation: normalizedRotation }),
+        ...(settings.flipHorizontal && { flipHorizontal: true }),
+        ...(settings.flipVertical && { flipVertical: true }),
         quality: settings.quality,
         format: settings.format,
       };
@@ -548,7 +540,7 @@ const ImgCrop = () => {
           }
         ></div>
 
-        <div className="relative container mx-auto px-6 py-20">
+        <div className="relative container mx-auto px-6 py-20 hidden sm:block">
           <div className="max-w-4xl">
             <div className="flex items-center gap-4 mb-6">
               <div className="p-4 bg-white/20 backdrop-blur-sm rounded-2xl">
@@ -604,56 +596,22 @@ const ImgCrop = () => {
         </div>
       </div>
 
-      <div className="container mx-auto px-6 py-12">
-        {/* Crop Presets */}
-        <div className="mb-8">
-          <Card className="border-0 shadow-lg bg-white/80 backdrop-blur-sm">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Grid3X3 className="w-5 h-5 text-purple-600" />
-                Crop Presets
-              </CardTitle>
-              <CardDescription>
-                Choose from optimized crop ratios for different platforms and
-                use cases
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3">
-                {cropPresets.map((preset) => (
-                  <Card
-                    key={preset.id}
-                    className={`cursor-pointer transition-all duration-200 hover:shadow-md border-2 ${
-                      selectedPreset === preset.id
-                        ? "border-purple-500 bg-purple-50"
-                        : "border-gray-200 hover:border-purple-300"
-                    }`}
-                    onClick={() => handlePresetSelect(preset.id)}
-                  >
-                    <CardContent className="p-3 text-center">
-                      <preset.icon className="w-6 h-6 mx-auto mb-2 text-purple-600" />
-                      <h3 className="font-semibold text-xs mb-1">
-                        {preset.name}
-                      </h3>
-                      <p className="text-xs text-gray-600 mb-1">
-                        {preset.ratio ? `${preset.ratio.toFixed(2)}:1` : "Free"}
-                      </p>
-                      <Badge variant="outline" className="text-xs">
-                        {preset.category}
-                      </Badge>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+      <div className="container mx-auto px-4 sm:px-6 py-8 sm:py-12">
+        {/* Header with Back Button */}
+        <div className="flex items-center mb-8">
+          <Link
+            to="/img"
+            className="flex items-center text-purple-600 hover:text-purple-700 mr-4"
+          >
+            <ArrowLeft className="w-5 h-5 mr-2" />
+            Back to ImgPage
+          </Link>
         </div>
 
-        <div className="grid lg:grid-cols-3 gap-8">
-          {/* Main Crop Area */}
-          <div className="lg:col-span-2 space-y-6">
-            {/* File Upload */}
-            <Card className="border-0 shadow-lg bg-white/80 backdrop-blur-sm">
+        {!selectedFile ? (
+          <div className="space-y-8">
+            {/* Mobile-First Upload Section - TOP PRIORITY */}
+            <Card className="mb-8 border-0 shadow-lg bg-white/80 backdrop-blur-sm">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Upload className="w-5 h-5 text-purple-600" />
@@ -665,7 +623,7 @@ const ImgCrop = () => {
               </CardHeader>
               <CardContent>
                 <div
-                  className={`border-2 border-dashed rounded-lg p-8 text-center hover:border-purple-400 transition-colors cursor-pointer ${
+                  className={`border-2 border-dashed rounded-lg p-4 sm:p-8 text-center hover:border-purple-400 transition-colors cursor-pointer ${
                     isDragging
                       ? "border-purple-500 bg-purple-50"
                       : "border-gray-300"
@@ -675,34 +633,19 @@ const ImgCrop = () => {
                   onDragLeave={handleDragLeave}
                   onDrop={handleDrop}
                 >
-                  {selectedFile ? (
-                    <div className="space-y-4">
-                      <ImageIcon className="w-12 h-12 mx-auto text-purple-600" />
-                      <div>
-                        <p className="font-medium">{selectedFile.name}</p>
-                        <p className="text-sm text-gray-500">
-                          {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
-                        </p>
-                      </div>
-                      <Button variant="outline" size="sm">
-                        Change Image
-                      </Button>
+                  <div className="space-y-4">
+                    <Upload className="w-8 h-8 sm:w-12 sm:h-12 mx-auto text-gray-400" />
+                    <div>
+                      <p className="text-base sm:text-lg font-medium text-gray-700">
+                        {isDragging
+                          ? "Drop your image here"
+                          : "Click to upload or drag & drop"}
+                      </p>
+                      <p className="text-xs sm:text-sm text-gray-500">
+                        Support for JPG, PNG, WebP formats
+                      </p>
                     </div>
-                  ) : (
-                    <div className="space-y-4">
-                      <Upload className="w-12 h-12 mx-auto text-gray-400" />
-                      <div>
-                        <p className="text-lg font-medium text-gray-700">
-                          {isDragging
-                            ? "Drop your image here"
-                            : "Click to upload or drag & drop"}
-                        </p>
-                        <p className="text-sm text-gray-500">
-                          Support for JPG, PNG, WebP formats
-                        </p>
-                      </div>
-                    </div>
-                  )}
+                  </div>
                 </div>
                 <input
                   ref={fileInputRef}
@@ -714,55 +657,195 @@ const ImgCrop = () => {
               </CardContent>
             </Card>
 
+            {/* Tool Description - Only shown before upload */}
+            <div className="text-center mb-8">
+              <div className="bg-gradient-to-r from-purple-600 to-pink-600 p-4 rounded-2xl w-fit mx-auto mb-4">
+                <Scissors className="w-8 h-8 text-white" />
+              </div>
+              <h1 className="text-3xl font-bold text-gray-900 mb-4">
+                Crop Image
+              </h1>
+              <p className="text-gray-600 max-w-2xl mx-auto">
+                Crop and resize images with precision using our interactive
+                cropping tool with real-time preview, zoom, rotate, and flip.
+              </p>
+            </div>
+
+            {/* Features - Only shown before upload */}
+            <Card>
+              <CardContent className="p-8">
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                  <div className="text-center p-4">
+                    <Target className="w-8 h-8 text-purple-600 mx-auto mb-2" />
+                    <h3 className="font-semibold text-gray-900">
+                      Precision Tools
+                    </h3>
+                    <p className="text-gray-600 text-sm">
+                      Exact crop positioning and sizing
+                    </p>
+                  </div>
+                  <div className="text-center p-4">
+                    <Eye className="w-8 h-8 text-blue-600 mx-auto mb-2" />
+                    <h3 className="font-semibold text-gray-900">
+                      Live Preview
+                    </h3>
+                    <p className="text-gray-600 text-sm">
+                      Real-time crop preview
+                    </p>
+                  </div>
+                  <div className="text-center p-4">
+                    <Grid3X3 className="w-8 h-8 text-green-600 mx-auto mb-2" />
+                    <h3 className="font-semibold text-gray-900">
+                      Smart Presets
+                    </h3>
+                    <p className="text-gray-600 text-sm">
+                      Platform-optimized ratios
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        ) : (
+          <div className="space-y-6">
+            {/* File Info */}
+            <Card className="mb-6 border-0 shadow-lg bg-white/80 backdrop-blur-sm">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <ImageIcon className="w-8 h-8 text-purple-600" />
+                    <div>
+                      <p className="font-medium text-sm sm:text-base">
+                        {selectedFile.name}
+                      </p>
+                      <p className="text-xs sm:text-sm text-gray-500">
+                        {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
+                      </p>
+                    </div>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setSelectedFile(null);
+                      setPreviewUrl("");
+                      setCropperReady(false);
+                    }}
+                  >
+                    Change Image
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Crop Presets - Shown after upload */}
+            <Card className="border-0 shadow-lg bg-white/80 backdrop-blur-sm">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Grid3X3 className="w-5 h-5 text-purple-600" />
+                  Crop Presets
+                </CardTitle>
+                <CardDescription>
+                  Choose from optimized crop ratios for different platforms and
+                  use cases
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-2 sm:gap-3">
+                  {cropPresets.map((preset) => (
+                    <Card
+                      key={preset.id}
+                      className={`cursor-pointer transition-all duration-200 hover:shadow-md border-2 ${
+                        selectedPreset === preset.id
+                          ? "border-purple-500 bg-purple-50"
+                          : "border-gray-200 hover:border-purple-300"
+                      }`}
+                      onClick={() => handlePresetSelect(preset.id)}
+                    >
+                      <CardContent className="p-2 sm:p-3 text-center">
+                        <preset.icon className="w-4 h-4 sm:w-6 sm:h-6 mx-auto mb-1 sm:mb-2 text-purple-600" />
+                        <h3 className="font-semibold text-xs mb-1">
+                          {preset.name}
+                        </h3>
+                        <p className="text-xs text-gray-600 mb-1">
+                          {preset.ratio
+                            ? `${preset.ratio.toFixed(2)}:1`
+                            : "Free"}
+                        </p>
+                        <Badge variant="outline" className="text-xs">
+                          {preset.category}
+                        </Badge>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        <div className="grid lg:grid-cols-3 gap-8">
+          {/* Main Crop Area */}
+          <div className="lg:col-span-2 space-y-6">
             {/* Image Preview & Crop Area */}
             {previewUrl && (
               <Card className="border-0 shadow-lg bg-white/80 backdrop-blur-sm">
                 <CardHeader>
-                  <div className="flex items-center justify-between">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                     <CardTitle className="flex items-center gap-2">
                       <Eye className="w-5 h-5 text-blue-600" />
-                      Interactive Crop Editor
+                      <span className="hidden sm:inline">
+                        Interactive Crop Editor
+                      </span>
+                      <span className="sm:hidden">Crop Editor</span>
                       {cropperReady && (
                         <Badge variant="outline" className="ml-2">
                           Ready
                         </Badge>
                       )}
                     </CardTitle>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1 sm:gap-2 overflow-x-auto">
                       <Button
                         variant="outline"
                         size="sm"
                         onClick={() => handleZoom(0.1)}
                         disabled={!cropperReady}
+                        className="flex-shrink-0"
                       >
                         <ZoomIn className="w-4 h-4" />
+                        <span className="ml-1 hidden sm:inline">In</span>
                       </Button>
                       <Button
                         variant="outline"
                         size="sm"
                         onClick={() => handleZoom(-0.1)}
                         disabled={!cropperReady}
+                        className="flex-shrink-0"
                       >
                         <ZoomOut className="w-4 h-4" />
+                        <span className="ml-1 hidden sm:inline">Out</span>
                       </Button>
                       <Button
                         variant="outline"
                         size="sm"
                         onClick={() => setShowGrid(!showGrid)}
+                        className="flex-shrink-0"
                       >
-                        <Grid3X3 className="w-4 h-4 mr-2" />
-                        Grid
+                        <Grid3X3 className="w-4 h-4 sm:mr-2" />
+                        <span className="hidden sm:inline">Grid</span>
                       </Button>
                       <Button
                         variant="outline"
                         size="sm"
                         onClick={() => setAspectRatioLocked(!aspectRatioLocked)}
+                        className="flex-shrink-0"
                       >
                         {aspectRatioLocked ? (
                           <Lock className="w-4 h-4" />
                         ) : (
                           <Unlock className="w-4 h-4" />
                         )}
+                        <span className="ml-1 hidden sm:inline">Lock</span>
                       </Button>
                     </div>
                   </div>
@@ -793,6 +876,9 @@ const ImgCrop = () => {
                       responsive={true}
                       restore={false}
                       checkCrossOrigin={false}
+                      cropBoxMovable={true}
+                      cropBoxResizable={true}
+                      toggleDragModeOnDblclick={false}
                       ready={onCropperReady}
                       crop={onCrop}
                     />

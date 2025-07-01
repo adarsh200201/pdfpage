@@ -94,15 +94,7 @@ const BasePDFTool = ({
   const handleProcess = async () => {
     if (files.length === 0) return;
 
-    // Check usage limits
-    const usageCheck = await PDFService.checkUsageLimit();
-    if (!usageCheck.canUpload) {
-      setUsageLimitReached(true);
-      if (!isAuthenticated) {
-        setShowAuthModal(true);
-      }
-      return;
-    }
+    // All tools are completely free - skip usage limit checks
 
     setIsProcessing(true);
     setProgress(0);
@@ -222,50 +214,10 @@ const BasePDFTool = ({
               </div>
             )}
 
-            {/* Usage Limit Warning */}
-            {usageLimitReached && !isAuthenticated && (
-              <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-6 text-center">
-                <AlertTriangle className="w-12 h-12 text-yellow-500 mx-auto mb-4" />
-                <h3 className="text-heading-small text-text-dark mb-2">
-                  Daily Limit Reached
-                </h3>
-                <p className="text-body-medium text-text-light mb-4">
-                  You've used your 3 free PDF operations today. Sign up to
-                  continue!
-                </p>
-                <Button
-                  onClick={() => setShowAuthModal(true)}
-                  className="bg-brand-red hover:bg-red-600"
-                >
-                  Sign Up Free
-                </Button>
-              </div>
-            )}
-
-            {usageLimitReached && isAuthenticated && !user?.isPremium && (
-              <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-6 text-center">
-                <Crown className="w-12 h-12 text-yellow-500 mx-auto mb-4" />
-                <h3 className="text-heading-small text-text-dark mb-2">
-                  Upgrade to Premium
-                </h3>
-                <p className="text-body-medium text-text-light mb-4">
-                  You've reached your daily limit. Upgrade to Premium for
-                  unlimited access!
-                </p>
-                <Button
-                  className="bg-brand-yellow text-black hover:bg-yellow-400"
-                  asChild
-                >
-                  <Link to="/pricing">
-                    <Crown className="w-4 h-4 mr-2" />
-                    Upgrade Now
-                  </Link>
-                </Button>
-              </div>
-            )}
+            {/* All tools are completely free - no usage limits */}
 
             {/* Process Button */}
-            {files.length > 0 && !usageLimitReached && (
+            {files.length > 0 && (
               <div className="text-center">
                 <Button
                   size="lg"
@@ -892,53 +844,237 @@ export const RepairPdf = () => {
 };
 
 export const PageNumbers = () => {
-  const [position, setPosition] = useState("bottom-right");
+  const [position, setPosition] = useState<
+    | "top-left"
+    | "top-right"
+    | "top-center"
+    | "bottom-left"
+    | "bottom-right"
+    | "bottom-center"
+  >("bottom-right");
   const [startNumber, setStartNumber] = useState(1);
+  const [fontSize, setFontSize] = useState(12);
+  const [fontColor, setFontColor] = useState("#000000");
+  const [margin, setMargin] = useState(50);
 
   const handleProcess = async (files: ProcessedFile[]) => {
     const file = files[0];
-    // Add page numbers using service
-    const result = await PDFService.compressPDF(file.file); // Placeholder logic
-    PDFService.downloadFile(result, `numbered-${file.name}`);
-    await PDFService.trackUsage("page-numbers", 1, file.size);
+    try {
+      // Add page numbers using the new service
+      const result = await PDFService.addPageNumbers(file.file, {
+        position,
+        startNumber,
+        fontSize,
+        fontColor,
+        margin,
+      });
+
+      PDFService.downloadFile(result, `numbered-${file.name}`);
+      await PDFService.trackUsage("page-numbers", 1, file.size);
+    } catch (error) {
+      console.error("Page numbering failed:", error);
+      throw error;
+    }
   };
 
   return (
     <BasePDFTool
       toolName="Add Page Numbers"
-      description="Add page numbers to your PDF documents with customizable positioning."
+      description="Add page numbers to your PDF documents with customizable positioning and styling."
       icon={Hash}
       color="purple"
       onProcess={handleProcess}
     >
-      <div className="space-y-4">
+      <div className="space-y-6">
+        {/* Position Selection */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label className="block text-sm font-medium text-gray-700 mb-3">
             Position
           </label>
-          <select
-            value={position}
-            onChange={(e) => setPosition(e.target.value)}
-            className="w-full p-2 border border-gray-300 rounded-md"
-          >
-            <option value="top-left">Top Left</option>
-            <option value="top-right">Top Right</option>
-            <option value="bottom-left">Bottom Left</option>
-            <option value="bottom-right">Bottom Right</option>
-            <option value="bottom-center">Bottom Center</option>
-          </select>
+          <div className="grid grid-cols-3 gap-3">
+            {/* Top Row */}
+            <button
+              type="button"
+              onClick={() => setPosition("top-left")}
+              className={`p-3 border-2 rounded-lg text-center text-sm font-medium transition-all duration-200 ${
+                position === "top-left"
+                  ? "border-purple-500 bg-purple-50 text-purple-700"
+                  : "border-gray-200 bg-white text-gray-700 hover:border-gray-300"
+              }`}
+            >
+              <div className="w-8 h-6 mx-auto mb-1 border border-gray-300 rounded relative">
+                <div className="absolute top-0 left-0 w-2 h-1 bg-current rounded-sm"></div>
+              </div>
+              Top Left
+            </button>
+            <button
+              type="button"
+              onClick={() => setPosition("top-center")}
+              className={`p-3 border-2 rounded-lg text-center text-sm font-medium transition-all duration-200 ${
+                position === "top-center"
+                  ? "border-purple-500 bg-purple-50 text-purple-700"
+                  : "border-gray-200 bg-white text-gray-700 hover:border-gray-300"
+              }`}
+            >
+              <div className="w-8 h-6 mx-auto mb-1 border border-gray-300 rounded relative">
+                <div className="absolute top-0 left-1/2 transform -translate-x-1/2 w-2 h-1 bg-current rounded-sm"></div>
+              </div>
+              Top Center
+            </button>
+            <button
+              type="button"
+              onClick={() => setPosition("top-right")}
+              className={`p-3 border-2 rounded-lg text-center text-sm font-medium transition-all duration-200 ${
+                position === "top-right"
+                  ? "border-purple-500 bg-purple-50 text-purple-700"
+                  : "border-gray-200 bg-white text-gray-700 hover:border-gray-300"
+              }`}
+            >
+              <div className="w-8 h-6 mx-auto mb-1 border border-gray-300 rounded relative">
+                <div className="absolute top-0 right-0 w-2 h-1 bg-current rounded-sm"></div>
+              </div>
+              Top Right
+            </button>
+
+            {/* Bottom Row */}
+            <button
+              type="button"
+              onClick={() => setPosition("bottom-left")}
+              className={`p-3 border-2 rounded-lg text-center text-sm font-medium transition-all duration-200 ${
+                position === "bottom-left"
+                  ? "border-purple-500 bg-purple-50 text-purple-700"
+                  : "border-gray-200 bg-white text-gray-700 hover:border-gray-300"
+              }`}
+            >
+              <div className="w-8 h-6 mx-auto mb-1 border border-gray-300 rounded relative">
+                <div className="absolute bottom-0 left-0 w-2 h-1 bg-current rounded-sm"></div>
+              </div>
+              Bottom Left
+            </button>
+            <button
+              type="button"
+              onClick={() => setPosition("bottom-center")}
+              className={`p-3 border-2 rounded-lg text-center text-sm font-medium transition-all duration-200 ${
+                position === "bottom-center"
+                  ? "border-purple-500 bg-purple-50 text-purple-700"
+                  : "border-gray-200 bg-white text-gray-700 hover:border-gray-300"
+              }`}
+            >
+              <div className="w-8 h-6 mx-auto mb-1 border border-gray-300 rounded relative">
+                <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 w-2 h-1 bg-current rounded-sm"></div>
+              </div>
+              Bottom Center
+            </button>
+            <button
+              type="button"
+              onClick={() => setPosition("bottom-right")}
+              className={`p-3 border-2 rounded-lg text-center text-sm font-medium transition-all duration-200 ${
+                position === "bottom-right"
+                  ? "border-purple-500 bg-purple-50 text-purple-700"
+                  : "border-gray-200 bg-white text-gray-700 hover:border-gray-300"
+              }`}
+            >
+              <div className="w-8 h-6 mx-auto mb-1 border border-gray-300 rounded relative">
+                <div className="absolute bottom-0 right-0 w-2 h-1 bg-current rounded-sm"></div>
+              </div>
+              Bottom Right
+            </button>
+          </div>
         </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Start Number
-          </label>
-          <input
-            type="number"
-            value={startNumber}
-            onChange={(e) => setStartNumber(parseInt(e.target.value))}
-            min="1"
-            className="w-full p-2 border border-gray-300 rounded-md"
-          />
+
+        {/* Settings */}
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Start Number
+            </label>
+            <input
+              type="number"
+              value={startNumber}
+              onChange={(e) => setStartNumber(parseInt(e.target.value) || 1)}
+              min="1"
+              className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Font Size
+            </label>
+            <input
+              type="range"
+              min="8"
+              max="24"
+              value={fontSize}
+              onChange={(e) => setFontSize(parseInt(e.target.value))}
+              className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+            />
+            <div className="text-center text-sm text-gray-600 mt-1">
+              {fontSize}px
+            </div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Font Color
+            </label>
+            <div className="flex items-center space-x-2">
+              <input
+                type="color"
+                value={fontColor}
+                onChange={(e) => setFontColor(e.target.value)}
+                className="w-12 h-10 border border-gray-300 rounded cursor-pointer"
+              />
+              <input
+                type="text"
+                value={fontColor}
+                onChange={(e) => setFontColor(e.target.value)}
+                className="flex-1 p-2 border border-gray-300 rounded-md text-sm"
+                placeholder="#000000"
+              />
+            </div>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Margin from Edge
+            </label>
+            <input
+              type="range"
+              min="20"
+              max="100"
+              value={margin}
+              onChange={(e) => setMargin(parseInt(e.target.value))}
+              className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+            />
+            <div className="text-center text-sm text-gray-600 mt-1">
+              {margin}px
+            </div>
+          </div>
+        </div>
+
+        {/* Preview */}
+        <div className="bg-gray-50 p-4 rounded-lg">
+          <div className="text-sm font-medium text-gray-700 mb-2">Preview</div>
+          <div className="w-32 h-20 mx-auto border-2 border-gray-300 rounded relative bg-white">
+            <div
+              className="absolute text-xs font-medium"
+              style={{
+                color: fontColor,
+                fontSize: `${Math.max(8, fontSize * 0.5)}px`,
+                ...(position.includes("top")
+                  ? { top: `${(margin / 100) * 20}px` }
+                  : { bottom: `${(margin / 100) * 20}px` }),
+                ...(position.includes("left")
+                  ? { left: `${(margin / 100) * 32}px` }
+                  : position.includes("right")
+                    ? { right: `${(margin / 100) * 32}px` }
+                    : { left: "50%", transform: "translateX(-50%)" }),
+              }}
+            >
+              {startNumber}
+            </div>
+          </div>
         </div>
       </div>
     </BasePDFTool>

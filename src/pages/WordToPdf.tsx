@@ -1,509 +1,310 @@
-import { useState } from "react";
+import React from "react";
 import { Link } from "react-router-dom";
 import Header from "@/components/layout/Header";
-import FileUpload from "@/components/ui/file-upload";
+import Footer from "@/components/layout/Footer";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { PromoBanner } from "@/components/ui/promo-banner";
-import AuthModal from "@/components/auth/AuthModal";
-import { useAuth } from "@/contexts/AuthContext";
-import { PDFService } from "@/services/pdfService";
-import { useToast } from "@/hooks/use-toast";
+import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 import {
-  ArrowLeft,
-  Download,
   FileText,
-  Trash2,
-  Crown,
+  ArrowLeft,
+  Clock,
   Star,
+  Zap,
+  Shield,
+  Globe,
+  Crown,
+  Bell,
+  Mail,
   CheckCircle,
 } from "lucide-react";
 
 const WordToPdf = () => {
-  const [files, setFiles] = useState<File[]>([]);
-  const [convertedFiles, setConvertedFiles] = useState<
-    { name: string; data: Uint8Array; size: string }[]
-  >([]);
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [isComplete, setIsComplete] = useState(false);
-  const [showAuthModal, setShowAuthModal] = useState(false);
-  const [pageFormat, setPageFormat] = useState<"A4" | "Letter">("A4");
-
-  const { isAuthenticated, user } = useAuth();
-  const { toast } = useToast();
-
-  const handleFileUpload = (uploadedFiles: File[]) => {
-    // Filter for Word documents
-    const wordFiles = uploadedFiles.filter(
-      (file) =>
-        file.type.includes(
-          "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-        ) ||
-        file.type.includes("application/msword") ||
-        file.name.toLowerCase().endsWith(".docx") ||
-        file.name.toLowerCase().endsWith(".doc"),
-    );
-
-    if (wordFiles.length !== uploadedFiles.length) {
-      toast({
-        title: "Invalid files detected",
-        description: "Please select only Word document files (.doc, .docx).",
-        variant: "destructive",
-      });
-    }
-
-    setFiles(wordFiles);
-    setIsComplete(false);
-    setConvertedFiles([]);
-  };
-
-  const handleRemoveFile = (index: number) => {
-    const newFiles = files.filter((_, i) => i !== index);
-    setFiles(newFiles);
-  };
-
-  const handleConvert = async () => {
-    if (files.length === 0) {
-      toast({
-        title: "No files selected",
-        description: "Please select Word document files to convert.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    // Check usage limits
-    try {
-      const usageCheck = await PDFService.checkUsageLimit();
-      if (!usageCheck.canUpload) {
-        setShowAuthModal(true);
-        return;
-      }
-    } catch (error) {
-      console.error("Error checking usage limit:", error);
-    }
-
-    setIsProcessing(true);
-
-    try {
-      const convertedPdfs: { name: string; data: Uint8Array; size: string }[] =
-        [];
-
-      for (const file of files) {
-        try {
-          // Convert Word to PDF
-          const pdfData = await convertWordToPdf(file, pageFormat);
-          const pdfSize = (pdfData.length / 1024).toFixed(2) + " KB";
-
-          convertedPdfs.push({
-            name: file.name.replace(/\.(doc|docx)$/i, ".pdf"),
-            data: pdfData,
-            size: pdfSize,
-          });
-        } catch (error) {
-          console.error(`Error converting ${file.name}:`, error);
-          toast({
-            title: `Error converting ${file.name}`,
-            description:
-              "This Word file could not be converted. Please try another file.",
-            variant: "destructive",
-          });
-        }
-      }
-
-      if (convertedPdfs.length > 0) {
-        setConvertedFiles(convertedPdfs);
-        setIsComplete(true);
-
-        // Track usage for revenue analytics
-        await PDFService.trackUsage(
-          "word-to-pdf",
-          files.length,
-          files.reduce((sum, file) => sum + file.size, 0),
-        );
-
-        toast({
-          title: "Conversion completed!",
-          description: `Successfully converted ${files.length} Word document(s) to PDF.`,
-        });
-      } else {
-        throw new Error("No PDFs were generated");
-      }
-    } catch (error) {
-      console.error("Error converting Word to PDF:", error);
-      toast({
-        title: "Conversion failed",
-        description:
-          "There was an error converting your Word files. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsProcessing(false);
-    }
-  };
-
-  const convertWordToPdf = async (
-    file: File,
-    format: "A4" | "Letter",
-  ): Promise<Uint8Array> => {
-    const { PDFDocument, StandardFonts, rgb } = await import("pdf-lib");
-
-    // Read the Word file as text (simplified approach)
-    const text = await extractTextFromWordFile(file);
-
-    // Create PDF document
-    const pdfDoc = await PDFDocument.create();
-    const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
-
-    // Page dimensions
-    const pageWidth = format === "A4" ? 595 : 612;
-    const pageHeight = format === "A4" ? 842 : 792;
-    const margin = 50;
-    const maxWidth = pageWidth - margin * 2;
-    const fontSize = 12;
-    const lineHeight = fontSize * 1.2;
-
-    // Split text into lines
-    const words = text.split(/\s+/);
-    const lines: string[] = [];
-    let currentLine = "";
-
-    for (const word of words) {
-      const testLine = currentLine ? `${currentLine} ${word}` : word;
-      const testWidth = font.widthOfTextAtSize(testLine, fontSize);
-
-      if (testWidth <= maxWidth) {
-        currentLine = testLine;
-      } else {
-        if (currentLine) lines.push(currentLine);
-        currentLine = word;
-      }
-    }
-    if (currentLine) lines.push(currentLine);
-
-    // Create pages and add text
-    let currentPage = pdfDoc.addPage([pageWidth, pageHeight]);
-    let yPosition = pageHeight - margin;
-
-    for (const line of lines) {
-      if (yPosition < margin + lineHeight) {
-        currentPage = pdfDoc.addPage([pageWidth, pageHeight]);
-        yPosition = pageHeight - margin;
-      }
-
-      currentPage.drawText(line, {
-        x: margin,
-        y: yPosition,
-        size: fontSize,
-        font: font,
-        color: rgb(0, 0, 0),
-      });
-
-      yPosition -= lineHeight;
-    }
-
-    // Add metadata
-    pdfDoc.setTitle(`Converted from ${file.name}`);
-    pdfDoc.setCreator("PdfPage - Word to PDF Converter");
-    pdfDoc.setProducer("PdfPage");
-
-    const pdfBytes = await pdfDoc.save();
-    return pdfBytes;
-  };
-
-  const extractTextFromWordFile = async (file: File): Promise<string> => {
-    try {
-      // Try to read as text for basic extraction
-      const text = await file.text();
-
-      // If it's a binary file, extract basic readable content
-      if (text.includes("PK") || text.includes("\x00")) {
-        // For DOCX files, extract readable text portions
-        const readableText = text
-          .replace(/[^\x20-\x7E\n\r\t]/g, " ")
-          .replace(/\s+/g, " ")
-          .trim();
-
-        if (readableText.length > 50) {
-          return readableText;
-        }
-
-        // Fallback content
-        return `Document: ${file.name}\n\nThis Word document has been converted to PDF.\n\nNote: For advanced text extraction and formatting preservation, upgrade to Premium for full OCR and layout recognition capabilities.\n\nThe original document contained formatted content that requires specialized processing to maintain the exact layout and styling.`;
-      }
-
-      return text;
-    } catch {
-      return `Document: ${file.name}\n\nThis Word document has been converted to PDF.\n\nThe file format requires advanced processing. Upgrade to Premium for full document conversion with layout preservation, images, tables, and complex formatting.`;
-    }
-  };
-
-  const downloadFile = (fileName: string, data: Uint8Array) => {
-    PDFService.downloadFile(data, fileName);
-  };
-
-  const downloadAll = () => {
-    convertedFiles.forEach((file, index) => {
-      setTimeout(() => downloadFile(file.name, file.data), index * 100);
-    });
-  };
-
-  const reset = () => {
-    setFiles([]);
-    setConvertedFiles([]);
-    setIsComplete(false);
-  };
-
   return (
-    <div className="min-h-screen bg-bg-light">
+    <div className="min-h-screen bg-[rgb(245,245,250)]">
       <Header />
 
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <PromoBanner className="mb-8" />
-
-        {/* Navigation */}
-        <div className="flex items-center space-x-2 mb-8">
-          <Link
-            to="/"
-            className="text-body-medium text-text-light hover:text-brand-red"
-          >
-            <ArrowLeft className="w-4 h-4 mr-1 inline" />
-            Back to Home
-          </Link>
-        </div>
-
-        {/* Header */}
-        <div className="text-center mb-8">
-          <div className="w-16 h-16 bg-gradient-to-br from-blue-600 to-blue-700 rounded-2xl flex items-center justify-center mx-auto mb-4">
-            <FileText className="w-8 h-8 text-white" />
+      <main className="pt-16">
+        {/* Coming Soon Section */}
+        <div className="min-h-[740px] bg-[rgb(245,245,250)] flex flex-col items-center justify-center px-6 py-12">
+          {/* Navigation */}
+          <div className="w-full max-w-6xl mb-8">
+            <Link
+              to="/"
+              className="flex items-center text-[rgb(229,50,45)] hover:text-[rgb(200,40,35)] transition-colors group"
+            >
+              <ArrowLeft className="h-5 w-5 mr-2 group-hover:-translate-x-1 transition-transform" />
+              Back to Home
+            </Link>
           </div>
-          <h1 className="text-heading-medium text-text-dark mb-4">
-            Word to PDF
-          </h1>
-          <p className="text-body-large text-text-light max-w-2xl mx-auto">
-            Convert Word documents (DOC, DOCX) to high-quality PDF files with
-            preserved formatting and layout.
-          </p>
-        </div>
 
-        {/* Main Content */}
-        {!isComplete ? (
-          <div className="space-y-8">
-            {/* File Upload */}
-            {files.length === 0 && (
-              <div className="bg-white rounded-xl p-8 shadow-sm border border-gray-100">
-                <FileUpload
-                  onFilesSelect={handleFileUpload}
-                  accept=".doc,.docx"
-                  multiple={true}
-                  maxSize={50}
-                />
-              </div>
-            )}
-
-            {/* File List */}
-            {files.length > 0 && (
-              <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
-                <h3 className="text-lg font-semibold text-text-dark mb-4">
-                  Selected Files ({files.length})
-                </h3>
-                <div className="space-y-3">
-                  {files.map((file, index) => (
-                    <div
-                      key={index}
-                      className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
-                    >
-                      <div className="flex items-center space-x-3">
-                        <FileText className="w-5 h-5 text-blue-600" />
-                        <div>
-                          <p className="font-medium text-text-dark">
-                            {file.name}
-                          </p>
-                          <p className="text-sm text-text-light">
-                            {(file.size / 1024 / 1024).toFixed(2)} MB
-                          </p>
-                        </div>
-                      </div>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleRemoveFile(index)}
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Page Format Selection */}
-                <div className="mt-6">
-                  <label className="block text-sm font-medium text-text-dark mb-3">
-                    Page Format
-                  </label>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div
-                      className={`p-4 border-2 rounded-lg cursor-pointer transition-colors ${
-                        pageFormat === "A4"
-                          ? "border-blue-500 bg-blue-50"
-                          : "border-gray-200 hover:border-gray-300"
-                      }`}
-                      onClick={() => setPageFormat("A4")}
-                    >
-                      <div className="flex items-center justify-between mb-2">
-                        <h4 className="font-medium text-text-dark">A4</h4>
-                        {pageFormat === "A4" && (
-                          <CheckCircle className="w-5 h-5 text-blue-500" />
-                        )}
-                      </div>
-                      <p className="text-sm text-text-light">
-                        210 × 297 mm (International Standard)
-                      </p>
-                    </div>
-
-                    <div
-                      className={`p-4 border-2 rounded-lg cursor-pointer transition-colors ${
-                        pageFormat === "Letter"
-                          ? "border-blue-500 bg-blue-50"
-                          : "border-gray-200 hover:border-gray-300"
-                      }`}
-                      onClick={() => setPageFormat("Letter")}
-                    >
-                      <div className="flex items-center justify-between mb-2">
-                        <h4 className="font-medium text-text-dark">Letter</h4>
-                        {pageFormat === "Letter" && (
-                          <CheckCircle className="w-5 h-5 text-blue-500" />
-                        )}
-                      </div>
-                      <p className="text-sm text-text-light">
-                        8.5 × 11 inches (US Standard)
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Action Buttons */}
-                <div className="flex flex-col sm:flex-row gap-3 mt-6">
-                  <Button
-                    onClick={handleConvert}
-                    disabled={isProcessing}
-                    className="flex-1"
-                  >
-                    {isProcessing ? (
-                      <>
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                        Converting...
-                      </>
-                    ) : (
-                      <>
-                        <FileText className="w-4 h-4 mr-2" />
-                        Convert to PDF
-                      </>
-                    )}
-                  </Button>
-                  <Button variant="outline" onClick={() => setFiles([])}>
-                    Clear Files
-                  </Button>
+          {/* Main Content */}
+          <div className="text-center max-w-4xl">
+            <div className="flex items-center justify-center mb-8">
+              <div className="w-20 h-20 bg-[rgb(229,50,45)] rounded-xl flex items-center justify-center mr-6 relative">
+                <FileText className="h-10 w-10 text-white" />
+                <div className="absolute -top-2 -right-2 w-8 h-8 bg-orange-500 rounded-full flex items-center justify-center">
+                  <Clock className="h-4 w-4 text-white" />
                 </div>
               </div>
-            )}
-
-            {/* Premium Features */}
-            {!user?.isPremium && (
-              <Card className="border-brand-yellow bg-gradient-to-r from-yellow-50 to-orange-50">
-                <CardHeader>
-                  <CardTitle className="flex items-center text-orange-800">
-                    <Crown className="w-5 h-5 mr-2 text-brand-yellow" />
-                    Unlock Premium Features
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <ul className="space-y-2 text-sm text-orange-700 mb-4">
-                    <li className="flex items-center">
-                      <Star className="w-4 h-4 mr-2 text-brand-yellow" />
-                      Perfect formatting preservation
-                    </li>
-                    <li className="flex items-center">
-                      <Star className="w-4 h-4 mr-2 text-brand-yellow" />
-                      Images and tables conversion
-                    </li>
-                    <li className="flex items-center">
-                      <Star className="w-4 h-4 mr-2 text-brand-yellow" />
-                      Headers, footers, and styles
-                    </li>
-                    <li className="flex items-center">
-                      <Star className="w-4 h-4 mr-2 text-brand-yellow" />
-                      Batch processing up to 100 files
-                    </li>
-                  </ul>
-                  <Button className="bg-brand-yellow text-black hover:bg-yellow-400">
-                    <Crown className="w-4 h-4 mr-2" />
-                    Get Premium
-                  </Button>
-                </CardContent>
-              </Card>
-            )}
-          </div>
-        ) : (
-          /* Results */
-          <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
-            <div className="text-center mb-6">
-              <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <FileText className="w-8 h-8 text-green-600" />
+              <div className="text-left">
+                <h1 className="text-[42px] font-semibold text-[rgb(51,51,59)] leading-[52px] mb-2">
+                  Word to PDF
+                </h1>
+                <Badge className="bg-orange-100 text-orange-700 text-lg px-4 py-2">
+                  <Clock className="h-4 w-4 mr-2" />
+                  Coming Soon
+                </Badge>
               </div>
-              <h3 className="text-xl font-semibold text-text-dark mb-2">
-                Conversion Complete!
-              </h3>
-              <p className="text-text-light">
-                Successfully converted {files.length} Word document(s) to{" "}
-                {convertedFiles.length} PDF(s)
-              </p>
             </div>
 
-            {/* File List */}
-            <div className="space-y-3 mb-6">
-              {convertedFiles.map((file, index) => (
+            <p className="text-[24px] leading-8 text-gray-700 mb-8 max-w-3xl mx-auto">
+              We're building the most advanced Word to PDF converter with
+              professional-grade features and perfect formatting preservation.
+            </p>
+
+            {/* Features Preview */}
+            <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
+              {[
+                {
+                  icon: Shield,
+                  title: "Perfect Formatting",
+                  description: "Preserve all fonts, styles, and layouts",
+                  color: "bg-blue-500",
+                },
+                {
+                  icon: Zap,
+                  title: "Lightning Fast",
+                  description: "Convert documents in seconds",
+                  color: "bg-green-500",
+                },
+                {
+                  icon: Globe,
+                  title: "Batch Processing",
+                  description: "Convert multiple files at once",
+                  color: "bg-purple-500",
+                },
+                {
+                  icon: Crown,
+                  title: "Premium Quality",
+                  description: "Enterprise-grade conversion",
+                  color: "bg-orange-500",
+                },
+              ].map((feature, index) => (
                 <div
                   key={index}
-                  className="flex items-center justify-between p-4 bg-gray-50 rounded-lg"
+                  className="bg-white rounded-xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 group"
                 >
-                  <div className="flex items-center space-x-3">
-                    <FileText className="w-6 h-6 text-red-500" />
-                    <div>
-                      <p className="font-medium text-text-dark">{file.name}</p>
-                      <p className="text-sm text-text-light">{file.size}</p>
-                    </div>
-                  </div>
-                  <Button
-                    size="sm"
-                    onClick={() => downloadFile(file.name, file.data)}
+                  <div
+                    className={`w-12 h-12 ${feature.color} rounded-lg flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform`}
                   >
-                    <Download className="w-4 h-4 mr-1" />
-                    Download
-                  </Button>
+                    <feature.icon className="h-6 w-6 text-white" />
+                  </div>
+                  <h3 className="text-lg font-semibold text-[rgb(51,51,59)] mb-2">
+                    {feature.title}
+                  </h3>
+                  <p className="text-gray-600 text-sm">{feature.description}</p>
                 </div>
               ))}
             </div>
 
-            {/* Action Buttons */}
-            <div className="flex flex-col sm:flex-row gap-3">
-              <Button onClick={downloadAll} className="flex-1">
-                <Download className="w-4 h-4 mr-2" />
-                Download All PDFs
+            {/* Expected Features */}
+            <div className="bg-white rounded-xl p-8 shadow-lg mb-12">
+              <h2 className="text-2xl font-bold text-[rgb(51,51,59)] mb-6">
+                What to Expect
+              </h2>
+              <div className="grid md:grid-cols-2 gap-6 text-left">
+                {[
+                  "Complete text extraction and formatting",
+                  "Image and graphics preservation",
+                  "Table and layout maintenance",
+                  "Font and style preservation",
+                  "Multiple file format support",
+                  "Advanced compression options",
+                  "Password protection",
+                  "Cloud storage integration",
+                ].map((feature, index) => (
+                  <div key={index} className="flex items-center space-x-3">
+                    <CheckCircle className="h-5 w-5 text-green-500 flex-shrink-0" />
+                    <span className="text-gray-700">{feature}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Notification Signup */}
+            <div className="bg-gradient-to-r from-[rgb(229,50,45)] to-[rgb(255,100,95)] rounded-xl p-8 text-white mb-8">
+              <h3 className="text-2xl font-bold mb-4">Get Notified</h3>
+              <p className="text-lg mb-6 opacity-90">
+                Be the first to know when our Word to PDF converter launches!
+              </p>
+              <div className="flex flex-col sm:flex-row gap-4 max-w-md mx-auto">
+                <div className="flex-1">
+                  <input
+                    type="email"
+                    placeholder="Enter your email"
+                    className="w-full px-4 py-3 rounded-lg text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-white"
+                  />
+                </div>
+                <Button className="bg-white text-[rgb(229,50,45)] hover:bg-gray-100 px-6 py-3 font-semibold">
+                  <Bell className="h-4 w-4 mr-2" />
+                  Notify Me
+                </Button>
+              </div>
+            </div>
+
+            {/* Alternative Tools */}
+            <div className="text-center">
+              <p className="text-gray-600 mb-4">
+                In the meantime, try our other PDF tools:
+              </p>
+              <div className="flex flex-wrap justify-center gap-3">
+                <Link to="/pdf-to-word">
+                  <Button
+                    variant="outline"
+                    className="border-[rgb(229,50,45)] text-[rgb(229,50,45)] hover:bg-[rgb(229,50,45)] hover:text-white"
+                  >
+                    PDF to Word
+                  </Button>
+                </Link>
+                <Link to="/merge">
+                  <Button
+                    variant="outline"
+                    className="border-[rgb(229,50,45)] text-[rgb(229,50,45)] hover:bg-[rgb(229,50,45)] hover:text-white"
+                  >
+                    Merge PDF
+                  </Button>
+                </Link>
+                <Link to="/split">
+                  <Button
+                    variant="outline"
+                    className="border-[rgb(229,50,45)] text-[rgb(229,50,45)] hover:bg-[rgb(229,50,45)] hover:text-white"
+                  >
+                    Split PDF
+                  </Button>
+                </Link>
+                <Link to="/compress">
+                  <Button
+                    variant="outline"
+                    className="border-[rgb(229,50,45)] text-[rgb(229,50,45)] hover:bg-[rgb(229,50,45)] hover:text-white"
+                  >
+                    Compress PDF
+                  </Button>
+                </Link>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Timeline Section */}
+        <div className="bg-white py-20">
+          <div className="container mx-auto px-6">
+            <div className="text-center mb-16">
+              <h2 className="text-3xl font-bold text-[rgb(51,51,59)] mb-4">
+                Development Timeline
+              </h2>
+              <p className="text-lg text-gray-600">
+                Here's what we're working on and when you can expect it
+              </p>
+            </div>
+
+            <div className="max-w-4xl mx-auto">
+              <div className="relative">
+                {/* Timeline line */}
+                <div className="absolute left-8 top-0 bottom-0 w-0.5 bg-gray-200"></div>
+
+                {/* Timeline items */}
+                {[
+                  {
+                    phase: "Phase 1",
+                    title: "Core Conversion Engine",
+                    status: "In Progress",
+                    date: "January 2025",
+                    description:
+                      "Building the foundational Word document parsing and PDF generation system.",
+                    color: "bg-blue-500",
+                  },
+                  {
+                    phase: "Phase 2",
+                    title: "Advanced Formatting",
+                    status: "Coming Soon",
+                    date: "February 2025",
+                    description:
+                      "Enhanced formatting preservation, image handling, and layout optimization.",
+                    color: "bg-orange-500",
+                  },
+                  {
+                    phase: "Phase 3",
+                    title: "Premium Features",
+                    status: "Planned",
+                    date: "March 2025",
+                    description:
+                      "Batch processing, cloud integration, and professional-grade options.",
+                    color: "bg-gray-400",
+                  },
+                ].map((item, index) => (
+                  <div key={index} className="relative flex items-start mb-12">
+                    <div
+                      className={`w-16 h-16 ${item.color} rounded-full flex items-center justify-center text-white font-bold text-lg z-10`}
+                    >
+                      {index + 1}
+                    </div>
+                    <div className="ml-8 flex-1">
+                      <div className="flex items-center space-x-3 mb-2">
+                        <h3 className="text-xl font-semibold text-[rgb(51,51,59)]">
+                          {item.title}
+                        </h3>
+                        <Badge
+                          className={cn(
+                            "text-white",
+                            item.status === "In Progress" && "bg-blue-500",
+                            item.status === "Coming Soon" && "bg-orange-500",
+                            item.status === "Planned" && "bg-gray-500",
+                          )}
+                        >
+                          {item.status}
+                        </Badge>
+                      </div>
+                      <p className="text-gray-600 mb-2">{item.description}</p>
+                      <p className="text-sm font-medium text-[rgb(229,50,45)]">
+                        {item.date}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Contact Section */}
+        <div className="bg-[rgb(245,245,250)] py-20">
+          <div className="container mx-auto px-6 text-center">
+            <h2 className="text-3xl font-bold text-[rgb(51,51,59)] mb-4">
+              Have Questions?
+            </h2>
+            <p className="text-lg text-gray-600 mb-8 max-w-2xl mx-auto">
+              We'd love to hear from you! Reach out with feature requests,
+              questions, or feedback.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              <Button className="bg-[rgb(229,50,45)] hover:bg-[rgb(200,40,35)] text-white px-8 py-3">
+                <Mail className="h-5 w-5 mr-2" />
+                Contact Support
               </Button>
-              <Button variant="outline" onClick={reset}>
-                Convert More Files
+              <Button
+                variant="outline"
+                className="border-[rgb(229,50,45)] text-[rgb(229,50,45)] hover:bg-[rgb(229,50,45)] hover:text-white px-8 py-3"
+              >
+                <Star className="h-5 w-5 mr-2" />
+                Request Feature
               </Button>
             </div>
           </div>
-        )}
-      </div>
+        </div>
+      </main>
 
-      {/* Auth Modal */}
-      <AuthModal
-        isOpen={showAuthModal}
-        onClose={() => setShowAuthModal(false)}
-        defaultTab="register"
-      />
+      <Footer />
     </div>
   );
 };

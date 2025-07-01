@@ -252,25 +252,25 @@ const ImgPage = () => {
       <ImgHeader />
 
       {/* Enhanced Hero Section */}
-      <section className="relative py-20 lg:py-32 overflow-hidden">
+      <section className="relative py-4 sm:py-6 lg:py-10 overflow-hidden">
         {/* Background Elements */}
         <div className="absolute inset-0 overflow-hidden">
-          <div className="absolute top-20 left-10 opacity-10">
+          <div className="absolute top-20 left-10 opacity-10 hidden sm:block">
             <FloatingElement delay={0}>
               <ImageIcon className="w-16 h-16 text-blue-600" />
             </FloatingElement>
           </div>
-          <div className="absolute top-40 right-20 opacity-10">
+          <div className="absolute top-40 right-20 opacity-10 hidden sm:block">
             <FloatingElement delay={1}>
               <Palette className="w-12 h-12 text-purple-500" />
             </FloatingElement>
           </div>
-          <div className="absolute bottom-20 left-1/4 opacity-10">
+          <div className="absolute bottom-20 left-1/4 opacity-10 hidden lg:block">
             <FloatingElement delay={2}>
               <Zap className="w-14 h-14 text-pink-500" />
             </FloatingElement>
           </div>
-          <div className="absolute top-1/2 right-1/4 opacity-10">
+          <div className="absolute top-1/2 right-1/4 opacity-10 hidden lg:block">
             <FloatingElement delay={1.5}>
               <Sparkles className="w-10 h-10 text-yellow-500" />
             </FloatingElement>
@@ -278,119 +278,70 @@ const ImgPage = () => {
         </div>
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
-          <div className="text-center mb-16">
-            <Badge className="mb-6 bg-gradient-to-r from-blue-600/10 to-purple-600/10 text-blue-600 border-blue-600/20 text-sm px-4 py-2">
-              <Sparkles className="w-4 h-4 mr-2" />
-              🎨 Professional Image Tools
-            </Badge>
-
-            <div className="flex items-center justify-center mb-8">
-              <div className="relative">
-                <div className="absolute inset-0 bg-gradient-to-r from-blue-600 to-purple-600 rounded-3xl blur-lg opacity-30 animate-pulse"></div>
-                <div className="relative bg-gradient-to-r from-blue-600 to-purple-600 p-6 rounded-3xl shadow-2xl">
-                  <ImageIcon className="w-16 h-16 text-white" />
+          <div className="text-center mb-1">
+            <h1 className="text-3xl sm:text-4xl lg:text-6xl xl:text-7xl font-bold mb-3 leading-tight">
+              <div className="flex items-start justify-center gap-1">
+                <div className="relative mt-1 sm:mt-2">
+                  <div className="relative bg-gradient-to-r from-blue-600 to-purple-600 p-1 sm:p-1.5 rounded-lg shadow-lg">
+                    <ImageIcon className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
+                  </div>
+                </div>
+                <div>
+                  <span className="bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
+                    {t("img.pageTitle")}
+                  </span>
                 </div>
               </div>
-            </div>
-
-            <h1 className="text-5xl lg:text-7xl font-bold mb-8 leading-tight">
-              <span className="bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
-                {t("img.pageTitle")}
-              </span>
-              <span className="block text-4xl lg:text-5xl text-gray-900 mt-4">
+              <span className="block text-2xl sm:text-3xl lg:text-4xl xl:text-5xl text-gray-900 mt-2 sm:mt-3">
                 {t("img.subtitle")}
               </span>
             </h1>
 
-            <p className="text-xl lg:text-2xl text-gray-600 max-w-4xl mx-auto mb-12 leading-relaxed">
+            <p className="text-base sm:text-lg lg:text-xl xl:text-2xl text-gray-600 max-w-4xl mx-auto mb-4 leading-relaxed px-4 sm:px-0">
               {t("img.description")}
               lightning-fast, and secure processing for all your image needs.
             </p>
 
-            <div className="flex flex-wrap items-center justify-center gap-6 mb-12">
+            <div className="flex flex-wrap items-center justify-center gap-3 sm:gap-4 lg:gap-6 mb-1 px-4 sm:px-0">
               <Badge
                 variant="secondary"
-                className="flex items-center gap-2 px-4 py-2 text-base"
+                className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 lg:px-4 py-1 sm:py-2 text-xs sm:text-sm lg:text-base"
               >
-                <CheckCircle className="w-5 h-5 text-green-500" />
-                12+ Image Tools
+                <CheckCircle className="w-3 h-3 sm:w-4 sm:h-4 lg:w-5 lg:h-5 text-green-500" />
+                <span className="hidden sm:inline">12+ Image Tools</span>
+                <span className="sm:hidden">12+ Tools</span>
               </Badge>
               <Badge
                 variant="secondary"
-                className="flex items-center gap-2 px-4 py-2 text-base"
+                className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 lg:px-4 py-1 sm:py-2 text-xs sm:text-sm lg:text-base"
               >
-                <Zap className="w-5 h-5 text-yellow-500" />
-                Lightning Fast
+                <Zap className="w-3 h-3 sm:w-4 sm:h-4 lg:w-5 lg:h-5 text-yellow-500" />
+                <span className="hidden sm:inline">Lightning Fast</span>
+                <span className="sm:hidden">Fast</span>
               </Badge>
               <Badge
                 variant="secondary"
-                className="flex items-center gap-2 px-4 py-2 text-base"
+                className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 lg:px-4 py-1 sm:py-2 text-xs sm:text-sm lg:text-base"
               >
-                <Shield className="w-5 h-5 text-blue-500" />
-                100% Secure
+                <Shield className="w-3 h-3 sm:w-4 sm:h-4 lg:w-5 lg:h-5 text-blue-500" />
+                Secure
               </Badge>
               <Badge
                 variant="secondary"
-                className="flex items-center gap-2 px-4 py-2 text-base"
+                className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 lg:px-4 py-1 sm:py-2 text-xs sm:text-sm lg:text-base"
               >
-                <Clock className="w-5 h-5 text-purple-500" />
-                No Registration
+                <Clock className="w-3 h-3 sm:w-4 sm:h-4 lg:w-5 lg:h-5 text-purple-500" />
+                <span className="hidden sm:inline">No Registration</span>
+                <span className="sm:hidden">No Signup</span>
               </Badge>
-            </div>
-
-            {/* CTA Buttons */}
-            <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-16">
-              <Button
-                size="lg"
-                className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-8 py-4 text-lg"
-              >
-                <Play className="w-5 h-5 mr-2" />
-                Start Processing Images
-              </Button>
-              <Button
-                variant="outline"
-                size="lg"
-                className="px-8 py-4 text-lg border-2"
-              >
-                <Globe className="w-5 h-5 mr-2" />
-                View All Tools
-              </Button>
-            </div>
-
-            {/* Stats Section */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-8 max-w-4xl mx-auto">
-              <div className="text-center">
-                <div className="text-3xl lg:text-4xl font-bold text-blue-600 mb-2">
-                  <StatsCounter end={2500000} suffix="+" />
-                </div>
-                <p className="text-gray-600">Images Processed</p>
-              </div>
-              <div className="text-center">
-                <div className="text-3xl lg:text-4xl font-bold text-purple-600 mb-2">
-                  <StatsCounter end={12} suffix="+" />
-                </div>
-                <p className="text-gray-600">Tools Available</p>
-              </div>
-              <div className="text-center">
-                <div className="text-3xl lg:text-4xl font-bold text-pink-600 mb-2">
-                  <StatsCounter end={99} suffix="%" />
-                </div>
-                <p className="text-gray-600">User Satisfaction</p>
-              </div>
-              <div className="text-center">
-                <div className="text-3xl lg:text-4xl font-bold text-green-600 mb-2">
-                  <StatsCounter end={150} suffix="+" />
-                </div>
-                <p className="text-gray-600">Countries Served</p>
-              </div>
             </div>
           </div>
         </div>
       </section>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-20">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-6">
         {/* AdSense */}
-        <div className="mb-12">
+        <div className="mb-3">
           <AdSense
             slot="1234567890"
             style={{ display: "block", textAlign: "center" }}
@@ -398,77 +349,12 @@ const ImgPage = () => {
           />
         </div>
 
-        {/* Favicon Tools Promotion */}
-        <div className="mb-16">
-          <Card className="bg-gradient-to-r from-blue-50 to-purple-50 border-0 shadow-xl overflow-hidden">
-            <CardContent className="p-8">
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
-                <div>
-                  <div className="flex items-center gap-2 mb-4">
-                    <Globe className="w-6 h-6 text-blue-600" />
-                    <Badge className="bg-blue-100 text-blue-800">
-                      New Feature
-                    </Badge>
-                  </div>
-                  <h3 className="text-3xl font-bold text-gray-900 mb-4">
-                    Professional Favicon Generator
-                  </h3>
-                  <p className="text-lg text-gray-600 mb-6 leading-relaxed">
-                    Create perfect favicons from images, text, emojis, or logos.
-                    Generate all sizes for web, iOS, and Android with one click.
-                  </p>
-                  <div className="flex flex-col sm:flex-row gap-3">
-                    <Link to="/favicon">
-                      <Button className="bg-blue-600 hover:bg-blue-700">
-                        <Globe className="w-4 h-4 mr-2" />
-                        Explore Favicon Tools
-                      </Button>
-                    </Link>
-                    <Link to="/img/favicon">
-                      <Button variant="outline">
-                        <Sparkles className="w-4 h-4 mr-2" />
-                        Start Creating
-                      </Button>
-                    </Link>
-                  </div>
-                </div>
-                <div className="grid grid-cols-4 gap-4">
-                  <div className="text-center">
-                    <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mb-2 mx-auto">
-                      <ImageIcon className="w-6 h-6 text-blue-600" />
-                    </div>
-                    <span className="text-xs text-gray-600">Image</span>
-                  </div>
-                  <div className="text-center">
-                    <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center mb-2 mx-auto">
-                      <Type className="w-6 h-6 text-green-600" />
-                    </div>
-                    <span className="text-xs text-gray-600">Text</span>
-                  </div>
-                  <div className="text-center">
-                    <div className="w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center mb-2 mx-auto">
-                      <Sparkles className="w-6 h-6 text-yellow-600" />
-                    </div>
-                    <span className="text-xs text-gray-600">Emoji</span>
-                  </div>
-                  <div className="text-center">
-                    <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center mb-2 mx-auto">
-                      <Star className="w-6 h-6 text-purple-600" />
-                    </div>
-                    <span className="text-xs text-gray-600">Logo</span>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
         {/* Tools Grid */}
-        <div className="mb-16">
-          <h2 className="text-3xl font-bold text-gray-900 mb-4 text-center">
+        <div className="mb-8">
+          <h2 className="text-3xl font-bold text-gray-900 mb-2 text-center">
             Choose Your Image Tool
           </h2>
-          <p className="text-xl text-gray-600 mb-12 text-center max-w-3xl mx-auto">
+          <p className="text-xl text-gray-600 mb-6 text-center max-w-3xl mx-auto">
             Professional-grade image processing tools designed for creators,
             businesses, and individuals
           </p>
@@ -581,11 +467,11 @@ const ImgPage = () => {
         </div>
 
         {/* Features Section */}
-        <div className="mb-16">
-          <h2 className="text-3xl font-bold text-gray-900 mb-4 text-center">
+        <div className="mb-8">
+          <h2 className="text-3xl font-bold text-gray-900 mb-2 text-center">
             Why Choose ImgPage?
           </h2>
-          <p className="text-xl text-gray-600 mb-12 text-center max-w-3xl mx-auto">
+          <p className="text-xl text-gray-600 mb-6 text-center max-w-3xl mx-auto">
             Built for professionals, designed for everyone. Experience the
             difference with our advanced image processing platform.
           </p>
@@ -662,12 +548,12 @@ const ImgPage = () => {
         </div>
 
         {/* Testimonials Section */}
-        <section className="py-20 bg-white rounded-3xl shadow-xl mb-16">
+        <section className="py-6 bg-white rounded-3xl shadow-xl mb-4">
           <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-            <h2 className="text-3xl font-bold text-gray-900 mb-4">
+            <h2 className="text-3xl font-bold text-gray-900 mb-2">
               Loved by Creators Worldwide
             </h2>
-            <p className="text-xl text-gray-600 mb-12">
+            <p className="text-xl text-gray-600 mb-6">
               See what professionals are saying about our image processing tools
             </p>
 
@@ -729,7 +615,7 @@ const ImgPage = () => {
         </section>
 
         {/* Final CTA Section */}
-        <section className="py-20 bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 text-white rounded-3xl shadow-2xl mb-16 relative overflow-hidden">
+        <section className="py-6 bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 text-white rounded-3xl shadow-2xl mb-4 relative overflow-hidden">
           <div className="absolute inset-0 bg-black/10" />
           <div className="relative max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
             <h2 className="text-4xl lg:text-5xl font-bold mb-6">
