@@ -33,7 +33,7 @@ const Pricing = () => {
     setProcessingPlan(planType);
 
     try {
-      const amount = planType === "yearly" ? 299900 : 29900; // in paise
+      const amount = planType === "yearly" ? 29900 : 4900; // in paise
       const planName =
         planType === "yearly" ? "Yearly Premium" : "Monthly Premium";
 

@@ -88,6 +88,21 @@ const availableTools = [
     popularity: 96,
   },
   {
+    id: "advanced-pdf-editor",
+    name: "Advanced PDF Editor",
+    description: "AI-powered professional PDF editing suite",
+    icon: Edit,
+    gradient: "from-purple-600 to-pink-600",
+    status: "available",
+    features: [
+      "AI OCR",
+      "Real-time collaboration",
+      "Form builder",
+      "Digital signatures",
+    ],
+    popularity: 98,
+  },
+  {
     id: "watermark-pdf",
     name: "PDF Watermark Pro",
     description: "Add professional watermarks",

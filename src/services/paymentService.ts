@@ -66,7 +66,7 @@ export const processPayment = async (
   return new Promise((resolve, reject) => {
     const options = {
       key: import.meta.env.VITE_RAZORPAY_KEY_ID,
-      amount: planType === "yearly" ? 299900 : 29900, // in paise
+      amount: planType === "yearly" ? 29900 : 4900, // in paise
       currency: "INR",
       name: "PdfPage Premium",
       description: `${planType === "yearly" ? "Yearly" : "Monthly"} Premium Subscription`,

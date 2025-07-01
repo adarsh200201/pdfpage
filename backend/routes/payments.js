@@ -38,7 +38,7 @@ router.post(
       const { planType, amount } = req.body;
 
       // Validate amount based on plan type
-      const expectedAmount = planType === "yearly" ? 299900 : 29900; // in paise
+      const expectedAmount = planType === "yearly" ? 29900 : 4900; // in paise
       if (amount !== expectedAmount) {
         return res.status(400).json({
           success: false,

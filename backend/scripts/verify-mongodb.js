@@ -119,7 +119,7 @@ async function verifyMongoDB() {
             {
               orderId: "order_sample123",
               paymentId: "pay_sample123",
-              amount: 299900, // ₹2999
+              amount: 29900, // ₹299
               currency: "INR",
               status: "captured",
               planType: "yearly",

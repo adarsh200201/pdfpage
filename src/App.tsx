@@ -88,6 +88,7 @@ import JpgToPdf from "./pages/JpgToPdf";
 
 // Import the comprehensive PDF editor
 import SignPdf from "./pages/SignPdf";
+import AdvancedPDFEditor from "./pages/AdvancedPDFEditor";
 
 import NotFound from "./pages/NotFound";
 import Settings from "./pages/Settings";
@@ -226,8 +227,15 @@ const App = () => {
 
                   {/* PDF Enhancement Tools - ALL WORKING */}
                   <Route path="/edit-pdf" element={<EditPdf />} />
-                  <Route path="/enhanced-edit-pdf" element={<EnhancedEditPdf />} />
+                  <Route
+                    path="/enhanced-edit-pdf"
+                    element={<EnhancedEditPdf />}
+                  />
                   <Route path="/sign-pdf" element={<SignPdf />} />
+                  <Route
+                    path="/advanced-pdf-editor"
+                    element={<AdvancedPDFEditor />}
+                  />
                   <Route path="/watermark" element={<Watermark />} />
                   <Route path="/protect-pdf" element={<ProtectPdf />} />
                   <Route path="/unlock-pdf" element={<UnlockPdf />} />
