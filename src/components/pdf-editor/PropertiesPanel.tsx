@@ -110,18 +110,7 @@ export default function PropertiesPanel({
       <div
         className={cn("w-80 bg-white border-l border-gray-200 p-4", className)}
       >
-        <div className="text-center text-gray-500">
-          <div className="mb-4">
-            <Move className="h-12 w-12 mx-auto text-gray-300" />
-          </div>
-          <h3 className="text-lg font-medium text-gray-900 mb-2">
-            No Selection
-          </h3>
-          <p className="text-sm">
-            Select an element to edit its properties, or use the toolbar to add
-            new elements.
-          </p>
-        </div>
+        {/* Properties panel only shows when element is selected */}
       </div>
     );
   }

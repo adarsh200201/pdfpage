@@ -37,6 +37,17 @@ export async function exportPDFWithEdits(
       {} as Record<number, AnyElement[]>,
     );
 
+    // For text replacement workflow:
+    // 1. Hide/remove original text that was replaced
+    // 2. Add only the new text elements
+    const textReplacements = elements.filter(
+      (el) => el.type === "text" && (el as any).properties?.isReplacement,
+    );
+
+    console.log(
+      `📝 Processing ${elements.length} elements, ${textReplacements.length} text replacements`,
+    );
+
     // Process each page
     for (
       let pageIndex = 0;
@@ -48,10 +59,31 @@ export async function exportPDFWithEdits(
 
       const { width: pageWidth, height: pageHeight } = page.getSize();
 
-      for (const element of pageElements) {
+      // For text replacements, we need to handle them specially:
+      // 1. Original text is already hidden in the UI
+      // 2. We only render the new text
+      const elementsToRender = pageElements.filter((element) => {
+        // Skip empty text elements (deleted text)
+        if (element.type === "text" && !(element as any).properties?.text) {
+          return false;
+        }
+        return true;
+      });
+
+      console.log(
+        `📄 Page ${pageIndex + 1}: Rendering ${elementsToRender.length} elements`,
+      );
+
+      for (const element of elementsToRender) {
         await addElementToPage(page, element, pageWidth, pageHeight, pdfDoc);
       }
     }
+
+    // Add metadata about the editing session
+    pdfDoc.setSubject(`Edited PDF - ${elements.length} modifications applied`);
+    pdfDoc.setCreator("PdfPage - Real-time Text Editor");
+    pdfDoc.setProducer("PdfPage Enhanced PDF Editor");
+    pdfDoc.setModificationDate(new Date());
 
     // Serialize the PDF
     return await pdfDoc.save();
@@ -84,11 +116,21 @@ async function addElementToPage(
     case "circle":
       await addCircleElement(page, element as ShapeElement, x, y);
       break;
+    case "arrow":
+      await addArrowElement(page, element as ShapeElement, x, y);
+      break;
     case "draw":
+    case "drawing":
       await addDrawElement(page, element as DrawElement, pageHeight);
       break;
     case "image":
       await addImageElement(page, element as any, x, y, pdfDoc);
+      break;
+    case "signature":
+      await addSignatureElement(page, element as any, x, y, pdfDoc);
+      break;
+    case "note":
+      await addNoteElement(page, element as any, x, y, pdfDoc);
       break;
     default:
       console.warn(`Unsupported element type: ${element.type}`);
@@ -97,7 +139,7 @@ async function addElementToPage(
 
 async function addTextElement(
   page: any,
-  element: TextElement,
+  element: TextElement | any,
   x: number,
   y: number,
   pdfDoc: PDFDocument,
@@ -105,27 +147,74 @@ async function addTextElement(
   try {
     const { properties } = element;
 
-    // Get font
+    // Skip empty text (deleted text)
+    if (!properties.text || properties.text.trim() === "") {
+      console.log("⏭️ Skipping empty text element");
+      return;
+    }
+
+    // Enhanced font selection based on fontFamily
     let font;
     try {
-      font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+      const fontFamily = properties.fontFamily?.toLowerCase() || "";
+
+      if (fontFamily.includes("times")) {
+        font = await pdfDoc.embedFont(StandardFonts.TimesRoman);
+      } else if (fontFamily.includes("courier")) {
+        font = await pdfDoc.embedFont(StandardFonts.Courier);
+      } else if (
+        fontFamily.includes("helvetica") ||
+        fontFamily.includes("arial")
+      ) {
+        font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+      } else {
+        // Default fallback
+        font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+      }
     } catch {
       font = await pdfDoc.embedFont(StandardFonts.Helvetica);
     }
 
-    // Parse color
-    const color = parseColor(properties.color);
+    // Parse color with better error handling
+    const color = parseColor(properties.color || "#000000");
 
-    // Draw text
+    // For text replacements, we need to handle positioning differently
+    let finalX = x;
+    let finalY = y;
+
+    if (properties.isTextReplacement && properties.originalTransform) {
+      // Use original transform data for better positioning
+      const [a, b, c, d, e, f] = properties.originalTransform;
+      finalX = e; // Use original X position
+      finalY = f; // Use original Y position (PDF coordinates)
+      console.log(
+        `🔄 Using original transform positioning: (${finalX}, ${finalY})`,
+      );
+    }
+
+    // Enhanced text rendering with replacement info
+    console.log(
+      `📝 Rendering text: "${properties.text}" at (${Math.round(finalX)}, ${Math.round(finalY)})`,
+    );
+    if (properties.isReplacement) {
+      console.log(
+        `🔄 Text replacement for original textId: ${properties.originalTextId}`,
+        properties.originalText
+          ? `"${properties.originalText}" -> "${properties.text}"`
+          : "",
+      );
+    }
+
+    // Draw text with enhanced properties and better positioning
     page.drawText(properties.text, {
-      x,
-      y,
-      size: properties.fontSize,
+      x: finalX,
+      y: finalY,
+      size: properties.fontSize || 12,
       font,
       color,
     });
   } catch (error) {
-    console.error("Error adding text element:", error);
+    console.error("Error adding text element:", error, element);
   }
 }
 
@@ -194,20 +283,22 @@ async function addCircleElement(
 
 async function addDrawElement(
   page: any,
-  element: DrawElement,
+  element: DrawElement | any,
   pageHeight: number,
 ) {
   try {
     const { properties } = element;
-    const color = parseColor(properties.color);
+    const color = parseColor(properties.color || properties.strokeColor);
 
-    // Convert draw paths to PDF coordinate system
-    for (const path of properties.paths) {
-      if (path.length < 2) continue;
+    // Handle drawing paths from professional editor
+    if (properties.path && Array.isArray(properties.path)) {
+      const path = properties.path;
+      if (path.length < 2) return;
 
-      // Start path
-      const startPoint = path[0];
-      const startY = pageHeight - startPoint.y;
+      // Set drawing properties for highlighter vs pen
+      const strokeWidth = properties.strokeWidth || 2;
+      const opacity =
+        properties.toolType === "highlighter" ? 0.3 : properties.opacity || 1;
 
       // Draw path as connected lines
       for (let i = 1; i < path.length; i++) {
@@ -220,14 +311,166 @@ async function addDrawElement(
         page.drawLine({
           start: { x: prevPoint.x, y: prevY },
           end: { x: currentPoint.x, y: currentY },
-          thickness: properties.strokeWidth,
+          thickness: strokeWidth,
           color,
-          opacity: properties.opacity,
+          opacity,
         });
+      }
+    }
+    // Handle legacy drawing format
+    else if (properties.paths && Array.isArray(properties.paths)) {
+      for (const path of properties.paths) {
+        if (path.length < 2) continue;
+
+        for (let i = 1; i < path.length; i++) {
+          const prevPoint = path[i - 1];
+          const currentPoint = path[i];
+
+          const prevY = pageHeight - prevPoint.y;
+          const currentY = pageHeight - currentPoint.y;
+
+          page.drawLine({
+            start: { x: prevPoint.x, y: prevY },
+            end: { x: currentPoint.x, y: currentY },
+            thickness: properties.strokeWidth,
+            color,
+            opacity: properties.opacity || 1,
+          });
+        }
       }
     }
   } catch (error) {
     console.error("Error adding draw element:", error);
+  }
+}
+
+async function addArrowElement(
+  page: any,
+  element: ShapeElement,
+  x: number,
+  y: number,
+) {
+  try {
+    const { properties, bounds } = element;
+    const strokeColor = parseColor(properties.strokeColor);
+
+    // Draw arrow line
+    const startX = x;
+    const startY = y + bounds.height / 2;
+    const endX = x + bounds.width;
+    const endY = y + bounds.height / 2;
+
+    page.drawLine({
+      start: { x: startX, y: startY },
+      end: { x: endX, y: endY },
+      thickness: properties.strokeWidth,
+      color: strokeColor,
+      opacity: properties.opacity || 1,
+    });
+
+    // Draw arrowhead
+    const headLength = 10;
+    const headAngle = Math.PI / 6;
+
+    page.drawLine({
+      start: { x: endX, y: endY },
+      end: {
+        x: endX - headLength * Math.cos(headAngle),
+        y: endY - headLength * Math.sin(headAngle),
+      },
+      thickness: properties.strokeWidth,
+      color: strokeColor,
+      opacity: properties.opacity || 1,
+    });
+
+    page.drawLine({
+      start: { x: endX, y: endY },
+      end: {
+        x: endX - headLength * Math.cos(-headAngle),
+        y: endY - headLength * Math.sin(-headAngle),
+      },
+      thickness: properties.strokeWidth,
+      color: strokeColor,
+      opacity: properties.opacity || 1,
+    });
+  } catch (error) {
+    console.error("Error adding arrow element:", error);
+  }
+}
+
+async function addSignatureElement(
+  page: any,
+  element: any,
+  x: number,
+  y: number,
+  pdfDoc: PDFDocument,
+) {
+  try {
+    const { properties, bounds } = element;
+
+    if (properties.signatureData) {
+      // Handle signature as image
+      await addImageElement(page, element, x, y, pdfDoc);
+    } else if (properties.signatureText) {
+      // Handle typed signature as text
+      const font = await pdfDoc.embedFont(StandardFonts.TimesRoman);
+      page.drawText(properties.signatureText, {
+        x,
+        y,
+        size: 24,
+        font,
+        color: parseColor(properties.color || "#000000"),
+      });
+    }
+  } catch (error) {
+    console.error("Error adding signature element:", error);
+  }
+}
+
+async function addNoteElement(
+  page: any,
+  element: any,
+  x: number,
+  y: number,
+  pdfDoc: PDFDocument,
+) {
+  try {
+    const { properties, bounds } = element;
+
+    // Draw note background
+    page.drawRectangle({
+      x,
+      y,
+      width: bounds.width,
+      height: bounds.height,
+      color: rgb(1, 1, 0.8), // Light yellow
+      opacity: 0.8,
+    });
+
+    // Draw note border
+    page.drawRectangle({
+      x,
+      y,
+      width: bounds.width,
+      height: bounds.height,
+      borderColor: rgb(1, 0.8, 0),
+      borderWidth: 1,
+    });
+
+    // Add note text if present
+    if (properties.text) {
+      const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+      page.drawText(properties.text, {
+        x: x + 5,
+        y: y + bounds.height - 20,
+        size: 12,
+        font,
+        color: rgb(0, 0, 0),
+        maxWidth: bounds.width - 10,
+      });
+    }
+  } catch (error) {
+    console.error("Error adding note element:", error);
   }
 }
 

@@ -26,8 +26,23 @@
       name="twitter:description"
       content="Transform your PDFs with PdfPage's comprehensive toolkit. Merge, split, compress & more."
     />
-    <!-- PDF Worker Configuration (load early to configure before PDF components) -->
+    <!-- Enhanced PDF Worker Configuration (load early to configure before PDF components) -->
     <script src="/pdf.worker.config.js"></script>
+    <script src="/pdf.worker.enhanced.js"></script>
+
+    <!-- FullStory Configuration (prevent namespace conflicts) -->
+    <script>
+      // Set FullStory namespace to prevent conflicts
+      window["_fs_namespace"] = "FS_PDF";
+
+      // Prevent FullStory initialization conflicts with PDF processing
+      if (
+        typeof process !== "undefined" &&
+        process?.env?.NODE_ENV === "development"
+      ) {
+        window.FS_DISABLE = true;
+      }
+    </script>
 
     <!-- Google Translate -->
     <script type="text/javascript">

@@ -8,6 +8,8 @@ import { configurePDFjs, getPDFConfigStatus } from "@/lib/pdf-config";
 import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import EnhancedEditPdf from "./pages/EnhancedEditPdf";
+import RealtimeEditor from "./pages/RealtimeEditor";
+import PaymentTestPage from "./pages/PaymentTestPage";
 import { LanguageProvider } from "@/contexts/LanguageContext";
 import { FloatingPopupProvider } from "@/contexts/FloatingPopupContext";
 import Index from "./pages/Index";
@@ -236,6 +238,8 @@ const App = () => {
                     path="/advanced-pdf-editor"
                     element={<AdvancedPDFEditor />}
                   />
+                  <Route path="/realtime-editor" element={<RealtimeEditor />} />
+                  <Route path="/payment-test" element={<PaymentTestPage />} />
                   <Route path="/watermark" element={<Watermark />} />
                   <Route path="/protect-pdf" element={<ProtectPdf />} />
                   <Route path="/unlock-pdf" element={<UnlockPdf />} />

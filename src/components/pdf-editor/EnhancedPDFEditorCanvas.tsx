@@ -91,6 +91,7 @@ export default function EnhancedPDFEditorCanvas({
     fontName: string;
     isExistingText: boolean;
     textIndex?: number;
+    existingElementId?: string; // Track existing element being edited
   } | null>(null);
   const [hiddenTextItems, setHiddenTextItems] = useState<Set<string>>(
     new Set(),
@@ -168,8 +169,8 @@ export default function EnhancedPDFEditorCanvas({
           const canvas = document.createElement("canvas");
           const context = canvas.getContext("2d")!;
 
-          // Calculate viewport
-          const viewport = page.getViewport({ scale: zoom });
+          // Calculate viewport with higher scale for better quality and larger display
+          const viewport = page.getViewport({ scale: zoom * 1.5 });
 
           // Set canvas dimensions
           canvas.width = viewport.width;
@@ -192,6 +193,14 @@ export default function EnhancedPDFEditorCanvas({
             fontName: item.fontName,
             hasEOL: item.hasEOL,
           }));
+
+          console.log(`📝 Page ${i} text layer extracted:`, {
+            totalItems: textLayer.length,
+            sampleItems: textLayer.slice(0, 3).map((item) => ({
+              text: item.str,
+              transform: item.transform,
+            })),
+          });
 
           newPages.push({
             pageIndex: i - 1,
@@ -262,78 +271,206 @@ export default function EnhancedPDFEditorCanvas({
     return () => container.removeEventListener("scroll", handleScroll);
   }, [pages, currentVisiblePage, onPageChange]);
 
-  // Get mouse position relative to container and page
+  // Get mouse position relative to canvas - simplified for direct text editing
   const getMousePosition = useCallback(
     (e: React.MouseEvent): { point: Point; pageIndex: number } => {
-      const container = containerRef.current;
-      if (!container) return { point: { x: 0, y: 0 }, pageIndex: 0 };
+      const target = e.currentTarget as HTMLCanvasElement;
+      if (!target) return { point: { x: 0, y: 0 }, pageIndex: 0 };
 
-      const rect = container.getBoundingClientRect();
-      const scrollTop = container.scrollTop;
-      const mouseY = e.clientY - rect.top + scrollTop;
+      const rect = target.getBoundingClientRect();
+      const pageIndex = parseInt(target.getAttribute("data-page-index") || "0");
+
+      // Get exact mouse position on the canvas
       const mouseX = e.clientX - rect.left;
+      const mouseY = e.clientY - rect.top;
 
-      // Find which page the mouse is over
-      let pageIndex = 0;
-      let cumulativeHeight = 0;
-      let pageStartY = 0;
-
-      for (let i = 0; i < pages.length; i++) {
-        const pageHeight = (pages[i].viewport?.height || 0) + 20;
-        if (mouseY < cumulativeHeight + pageHeight) {
-          pageIndex = i;
-          pageStartY = cumulativeHeight;
-          break;
-        }
-        cumulativeHeight += pageHeight;
-      }
-
-      return {
-        point: {
-          x: mouseX / zoom,
-          y: (mouseY - pageStartY) / zoom,
-        },
-        pageIndex,
+      // Convert to PDF coordinates (no zoom division since we already account for zoom in rendering)
+      const point = {
+        x: mouseX,
+        y: mouseY,
       };
+
+      console.log("📍 Mouse click:", {
+        mouseX,
+        mouseY,
+        point,
+        pageIndex,
+        canvasSize: { width: rect.width, height: rect.height },
+      });
+
+      return { point, pageIndex };
     },
-    [zoom, pages],
+    [],
   );
 
   // Handle text detection and editing (Word-like behavior)
   const handleTextClick = useCallback(
     (e: React.MouseEvent) => {
+      console.log("🎯 TEXT CLICK HANDLER CALLED!");
+
+      // First check if clicking on an existing text element
       const { point, pageIndex } = getMousePosition(e);
-      const page = pages[pageIndex];
 
-      if (!page || !page.textLayer) return;
-
-      // Find text at clicked position
-      const clickedTextIndex = page.textLayer.findIndex((textItem: any) => {
-        const [a, b, c, d, tx, ty] = textItem.transform;
-        const x = tx;
-        const y = page.viewport.height - ty - textItem.height;
-        const width = textItem.width;
-        const height = textItem.height;
-
-        return (
-          point.x >= x &&
-          point.x <= x + width &&
-          point.y >= y &&
-          point.y <= y + height
-        );
+      console.log("🔍 Text click attempt:", {
+        point,
+        pageIndex,
+        currentTool,
+        zoom,
+        hasPages: pages.length > 0,
+        elementsCount: elements.length,
+        pagesWithTextLayers: pages.map((p) => ({
+          pageIndex: p.pageIndex,
+          hasTextLayer: !!p.textLayer,
+          textCount: p.textLayer?.length || 0,
+        })),
       });
 
+      // Check for existing text elements first (our editable ones)
+      const existingTextElement = elements.find((element) => {
+        if (element.type !== "text" || element.pageIndex !== pageIndex)
+          return false;
+
+        const bounds = element.bounds;
+        const isInBounds =
+          point.x >= bounds.x &&
+          point.x <= bounds.x + bounds.width &&
+          point.y >= bounds.y &&
+          point.y <= bounds.y + bounds.height;
+
+        if (isInBounds) {
+          console.log("📝 Found existing text element:", element);
+        }
+
+        return isInBounds;
+      }) as TextElement | undefined;
+
+      if (existingTextElement) {
+        // Edit existing text element directly
+        e.stopPropagation();
+
+        setTextInput({
+          bounds: existingTextElement.bounds,
+          value: existingTextElement.properties.text,
+          isEditing: true,
+          pageIndex,
+          originalFontSize: existingTextElement.properties.fontSize,
+          fontName: existingTextElement.properties.fontFamily,
+          isExistingText: true,
+          existingElementId: existingTextElement.id, // Track which element we're editing
+        });
+
+        console.log("📝 Editing existing text element:", {
+          text: existingTextElement.properties.text,
+          fontSize: existingTextElement.properties.fontSize,
+          font: existingTextElement.properties.fontFamily,
+        });
+
+        return true;
+      }
+
+      // Then check PDF's original text layer
+      const page = pages[pageIndex];
+      if (!page || !page.textLayer) {
+        console.log("❌ No page or text layer found:", {
+          hasPage: !!page,
+          hasTextLayer: !!page?.textLayer,
+          pageIndex,
+          totalPages: pages.length,
+        });
+        return false;
+      }
+
+      console.log(
+        "🔍 Checking PDF text layer with",
+        page.textLayer.length,
+        "items",
+      );
+
+      // Always log first few text items for debugging
+      console.log(
+        "📋 First 3 text items:",
+        page.textLayer.slice(0, 3).map((item, i) => ({
+          index: i,
+          text: `"${item.str}"`,
+          transform: item.transform,
+        })),
+      );
+
+      // Simplified text detection - use direct PDF coordinates
+      const clickedTextIndex = page.textLayer.findIndex(
+        (textItem: any, index: number) => {
+          if (!textItem.str || textItem.str.trim() === "") return false;
+
+          const [scaleX, skewY, skewX, scaleY, tx, ty] = textItem.transform;
+
+          // Simplified coordinate mapping - convert PDF text coords to canvas coords
+          const fontSize = Math.abs(scaleY) || 12;
+          const textX = tx;
+          const textY = page.viewport.height - ty - fontSize; // Convert PDF Y to canvas Y
+          const textWidth =
+            textItem.width || textItem.str.length * fontSize * 0.6;
+          const textHeight = fontSize;
+
+          // Convert click point to PDF coordinates (simpler approach)
+          const pdfClickX = point.x / zoom;
+          const pdfClickY = point.y / zoom; // Use direct Y coordinate without flipping
+
+          // EXTREMELY large padding for guaranteed detection (200px!)
+          const padding = 200;
+          const isInBounds =
+            pdfClickX >= textX - padding &&
+            pdfClickX <= textX + textWidth + padding &&
+            pdfClickY >= textY - textHeight - padding &&
+            pdfClickY <= textY + padding;
+
+          // Calculate distance for fallback
+          const centerX = textX + textWidth / 2;
+          const centerY = textY - textHeight / 2;
+          const distance = Math.sqrt(
+            (pdfClickX - centerX) ** 2 + (pdfClickY - centerY) ** 2,
+          );
+
+          // Always log first 3 items and any matches with DETAILED coordinates
+          if (index < 3 || isInBounds || distance < 150) {
+            console.log(
+              `📍 Text ${index} "${textItem.str.trim()}" ${isInBounds ? "✅ MATCH!" : "❌"} (dist: ${Math.round(distance)}):`,
+              {
+                textBounds: `x:${Math.round(textX)} y:${Math.round(textY)} w:${Math.round(textWidth)} h:${Math.round(textHeight)}`,
+                clickPos: `pdf(${Math.round(pdfClickX)},${Math.round(pdfClickY)}) canvas(${Math.round(point.x)},${Math.round(point.y)})`,
+                conditions: {
+                  xOK:
+                    pdfClickX >= textX - padding &&
+                    pdfClickX <= textX + textWidth + padding,
+                  yOK:
+                    pdfClickY >= textY - textHeight - padding &&
+                    pdfClickY <= textY + padding,
+                  distance: Math.round(distance),
+                },
+              },
+            );
+          }
+
+          // Accept if within distance (much more reliable than coordinate bounds)
+          return distance < 400; // Very generous 400px threshold
+
+          return isInBounds;
+        },
+      );
+
       if (clickedTextIndex !== -1) {
-        // Found text - make it editable immediately (like Word)
+        // Found PDF text - make it editable
         e.stopPropagation();
 
         const clickedText = page.textLayer[clickedTextIndex];
-        const [a, b, c, d, tx, ty] = clickedText.transform;
-        const x = tx;
-        const y = page.viewport.height - ty - clickedText.height;
+        const [scaleX, skewY, skewX, scaleY, tx, ty] = clickedText.transform;
 
-        // Calculate original font size from transform matrix
-        const originalFontSize = Math.abs(clickedText.transform[0]) || 12;
+        // Use PDF coordinates (these will be converted to canvas coordinates in render)
+        const x = tx;
+        const y = page.viewport.height - ty - Math.abs(scaleY);
+        const originalFontSize = Math.abs(scaleY) || 12;
+        const width =
+          clickedText.width || Math.abs(scaleX) * clickedText.str.length * 0.6;
+        const height = Math.abs(scaleY) || originalFontSize;
 
         // Hide the original text while editing
         const textKey = `${pageIndex}-${clickedTextIndex}`;
@@ -343,8 +480,8 @@ export default function EnhancedPDFEditorCanvas({
           bounds: {
             x,
             y,
-            width: Math.max(clickedText.width, 100), // Minimum width for editing
-            height: Math.max(clickedText.height, originalFontSize * 1.2),
+            width: Math.max(width, 100),
+            height: Math.max(height, originalFontSize * 1.2),
           },
           value: clickedText.str,
           isEditing: true,
@@ -361,12 +498,14 @@ export default function EnhancedPDFEditorCanvas({
           font: clickedText.fontName,
         });
 
-        return true; // Indicate text was found and editing started
+        console.log("✅ PDF text editing started:", clickedText.str);
+        return true;
       }
 
-      return false; // No text found at this position
+      console.log("❌ No text found at click position");
+      return false;
     },
-    [getMousePosition, pages],
+    [getMousePosition, pages, elements],
   );
 
   // Handle element mouse down for dragging
@@ -398,13 +537,15 @@ export default function EnhancedPDFEditorCanvas({
   // Handle mouse down
   const handleMouseDown = useCallback(
     (e: React.MouseEvent) => {
-      const { point, pageIndex } = getMousePosition(e);
+      console.log("🖱️ Canvas clicked:", { currentTool });
 
-      // Always check for text first (Word-like behavior)
+      // Re-enable text detection for direct editing
       const textFound = handleTextClick(e);
       if (textFound) {
-        return; // Text editing started, don't do anything else
+        return; // Text editing started
       }
+
+      const { point, pageIndex } = getMousePosition(e);
 
       if (currentTool === "select") {
         onElementSelect([]);
@@ -413,10 +554,11 @@ export default function EnhancedPDFEditorCanvas({
       } else if (currentTool === "draw") {
         onStartDrawing(point);
       } else if (currentTool === "text") {
+        // Create new text if no existing text was clicked
         setTextInput({
           bounds: {
-            x: point.x,
-            y: point.y,
+            x: point.x / zoom, // Convert to PDF coordinates
+            y: point.y / zoom,
             width: 200,
             height: selectedFontSize * 1.5,
           },
@@ -431,8 +573,13 @@ export default function EnhancedPDFEditorCanvas({
         ["rectangle", "circle", "line", "arrow"].includes(currentTool)
       ) {
         setIsCreatingElement(true);
-        setTempElement({ x: point.x, y: point.y, width: 0, height: 0 });
-        setDragStart(point);
+        setTempElement({
+          x: point.x / zoom,
+          y: point.y / zoom,
+          width: 0,
+          height: 0,
+        });
+        setDragStart({ x: point.x / zoom, y: point.y / zoom });
       }
     },
     [
@@ -443,6 +590,7 @@ export default function EnhancedPDFEditorCanvas({
       onSignaturePlace,
       onStartDrawing,
       selectedFontSize,
+      zoom,
     ],
   );
 
@@ -564,23 +712,120 @@ export default function EnhancedPDFEditorCanvas({
     ],
   );
 
+  // Find text element at clicked position
+  const findTextAtPosition = useCallback(
+    (point: Point, pageIndex: number) => {
+      if (!pages[pageIndex] || !pages[pageIndex].textLayer) return null;
+
+      const textLayer = pages[pageIndex].textLayer;
+      if (!textLayer) return null;
+
+      // Check text layer items for collision
+      for (const textItem of textLayer) {
+        const textBounds = {
+          x: textItem.transform[4],
+          y:
+            pages[pageIndex].viewport.height -
+            textItem.transform[5] -
+            textItem.height,
+          width: textItem.width,
+          height: textItem.height,
+        };
+
+        // Check if click is within text bounds (with some padding for easier selection)
+        const padding = 5;
+        if (
+          point.x >= textBounds.x - padding &&
+          point.x <= textBounds.x + textBounds.width + padding &&
+          point.y >= textBounds.y - padding &&
+          point.y <= textBounds.y + textBounds.height + padding
+        ) {
+          console.log("📝 Found clickable text:", {
+            text: textItem.str,
+            bounds: textBounds,
+            fontSize: textItem.transform[0],
+            fontName: textItem.fontName,
+          });
+
+          return {
+            text: textItem.str.trim(),
+            x: textBounds.x,
+            y: textBounds.y,
+            width: textBounds.width,
+            height: textBounds.height,
+            fontSize: textItem.transform[0],
+            fontName: textItem.fontName,
+          };
+        }
+      }
+
+      return null;
+    },
+    [pages],
+  );
+
   // Handle text input completion
   const handleTextComplete = useCallback(() => {
-    if (textInput && textInput.value.trim()) {
-      // Use original font size if editing existing text, otherwise use selected font size
+    if (!textInput || !textInput.value.trim()) {
+      // Handle empty text - restore original if needed
+      handleTextCancel();
+      return;
+    }
+
+    if (textInput.existingElementId) {
+      // Update existing text element instead of creating new one
+      const fontSize = textInput.originalFontSize;
+      const fontFamily = textInput.fontName || "Arial";
+
+      onElementUpdate(textInput.existingElementId, {
+        properties: {
+          text: textInput.value,
+          fontSize: fontSize,
+          fontFamily: fontFamily,
+          fontWeight: "normal",
+          color: selectedColor,
+          alignment: "left",
+          rotation: 0,
+        },
+        bounds: {
+          x: textInput.bounds.x,
+          y: textInput.bounds.y,
+          width: Math.max(
+            textInput.bounds.width,
+            textInput.value.length * fontSize * 0.6,
+          ),
+          height: textInput.bounds.height,
+        },
+      });
+
+      console.log("✅ Text element updated:", {
+        id: textInput.existingElementId,
+        text: textInput.value,
+        fontSize: fontSize,
+        fontFamily: fontFamily,
+      });
+    } else {
+      // Create new text element
       const fontSize = textInput.isExistingText
         ? textInput.originalFontSize
         : selectedFontSize;
 
-      // Clean font name (remove any PDF-specific prefixes)
-      const fontFamily = textInput.fontName
-        ? textInput.fontName.replace(/^[A-Z]+\+/, "").split("-")[0] || "Arial"
+      const fontFamily = textInput.isExistingText
+        ? textInput.fontName || "Arial"
         : "Arial";
 
       onElementAdd({
         type: "text",
         pageIndex: textInput.pageIndex,
-        bounds: textInput.bounds,
+        bounds: {
+          x: textInput.bounds.x,
+          y: textInput.bounds.y,
+          width: Math.max(
+            textInput.bounds.width,
+            textInput.value.length * fontSize * 0.6,
+          ),
+          height: textInput.bounds.height,
+        },
         properties: {
           text: textInput.value,
           fontSize: fontSize,
@@ -598,25 +843,30 @@ export default function EnhancedPDFEditorCanvas({
         fontFamily: fontFamily,
         isExistingText: textInput.isExistingText,
       });
-    }
 
-    // Clean up
-    if (textInput?.isExistingText && textInput.textIndex !== undefined) {
-      const textKey = `${textInput.pageIndex}-${textInput.textIndex}`;
-      setHiddenTextItems((prev) => {
-        const newSet = new Set(prev);
-        newSet.delete(textKey);
-        return newSet;
-      });
+      // For PDF text that was replaced, keep it hidden permanently
+      if (textInput.isExistingText && textInput.textIndex !== undefined) {
+        // Keep the PDF text hidden since we created a replacement
+      }
     }
 
     setTextInput(null);
-  }, [textInput, onElementAdd, selectedFontSize, selectedColor]);
+  }, [
+    textInput,
+    onElementAdd,
+    onElementUpdate,
+    selectedFontSize,
+    selectedColor,
+  ]);
 
   // Handle text input cancellation
   const handleTextCancel = useCallback(() => {
-    if (textInput?.isExistingText && textInput.textIndex !== undefined) {
-      // Restore the hidden text
+    if (
+      textInput?.isExistingText &&
+      textInput.textIndex !== undefined &&
+      !textInput.existingElementId
+    ) {
+      // Only restore PDF text if we were editing original PDF text (not our elements)
       const textKey = `${textInput.pageIndex}-${textInput.textIndex}`;
       setHiddenTextItems((prev) => {
         const newSet = new Set(prev);
@@ -656,6 +906,10 @@ export default function EnhancedPDFEditorCanvas({
     switch (element.type) {
       case "text":
         const textEl = element as TextElement;
+        // Hide the element if it's currently being edited
+        const isBeingEdited = textInput?.existingElementId === element.id;
+        if (isBeingEdited) return null;
+
         return (
           <div
             key={element.id}
@@ -672,8 +926,41 @@ export default function EnhancedPDFEditorCanvas({
               background: isSelected
                 ? "rgba(59, 130, 246, 0.1)"
                 : "transparent",
+              cursor:
+                currentTool === "select" || currentTool === "text"
+                  ? "text"
+                  : "default",
+              // Add subtle hover effect for editable text
+              transition: "all 0.2s ease",
             }}
-            onMouseDown={(e) => handleElementMouseDown(e, element)}
+            onMouseDown={(e) => {
+              // For text tool or select tool, enable direct editing
+              if (currentTool === "text" || currentTool === "select") {
+                e.stopPropagation();
+                handleTextClick(e);
+              } else {
+                handleElementMouseDown(e, element);
+              }
+            }}
+            onMouseEnter={(e) => {
+              if (currentTool === "text" || currentTool === "select") {
+                e.currentTarget.style.background = "rgba(59, 130, 246, 0.15)";
+                e.currentTarget.style.transform = "scale(1.02)";
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (currentTool === "text" || currentTool === "select") {
+                e.currentTarget.style.background = isSelected
+                  ? "rgba(59, 130, 246, 0.1)"
+                  : "transparent";
+                e.currentTarget.style.transform = "scale(1)";
+              }
+            }}
+            title={
+              currentTool === "text" || currentTool === "select"
+                ? "Click to edit text"
+                : "Text element"
+            }
           >
             {textEl.properties.text}
           </div>
@@ -821,6 +1108,7 @@ export default function EnhancedPDFEditorCanvas({
             }}
           >
             <canvas
+              data-page-index={page.pageIndex}
               ref={(ref) => {
                 if (ref && page.canvas && page.isLoaded) {
                   const ctx = ref.getContext("2d");
@@ -848,11 +1136,21 @@ export default function EnhancedPDFEditorCanvas({
                 }
               }}
               className="block w-full h-full"
-              onMouseDown={handleMouseDown}
+              onMouseDown={(e) => {
+                // Only handle canvas clicks if not clicking on text overlays
+                const target = e.target as HTMLElement;
+                if (target.tagName === "CANVAS") {
+                  console.log("🖱️ Canvas background clicked");
+                  handleMouseDown(e);
+                }
+              }}
               onMouseMove={handleMouseMove}
               onMouseUp={handleMouseUp}
               style={{
-                cursor: currentTool === "select" ? "default" : "crosshair",
+                cursor:
+                  currentTool === "select" || currentTool === "text"
+                    ? "text"
+                    : "crosshair",
               }}
             />
 
@@ -860,6 +1158,95 @@ export default function EnhancedPDFEditorCanvas({
             <div className="absolute top-2 right-2 bg-black bg-opacity-75 text-white text-xs px-2 py-1 rounded">
               {page.pageIndex + 1}
             </div>
+
+            {/* Text Input for this page */}
+            {textInput && textInput.pageIndex === page.pageIndex && (
+              <textarea
+                value={textInput.value}
+                onChange={(e) => {
+                  setTextInput({ ...textInput, value: e.target.value });
+                  // Auto-resize height based on content
+                  const lines = e.target.value.split("\n").length;
+                  const lineHeight = textInput.originalFontSize * zoom * 1.2;
+                  const newHeight = Math.max(
+                    textInput.bounds.height * zoom,
+                    lines * lineHeight,
+                  );
+                  e.target.style.height = `${newHeight}px`;
+                }}
+                onBlur={handleTextComplete}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    handleTextComplete();
+                  } else if (e.key === "Escape") {
+                    e.preventDefault();
+                    handleTextCancel();
+                  } else if (e.key === "Tab") {
+                    e.preventDefault();
+                    // Insert tab character or move to next element
+                    const start = e.currentTarget.selectionStart;
+                    const end = e.currentTarget.selectionEnd;
+                    const newValue =
+                      textInput.value.substring(0, start) +
+                      "    " +
+                      textInput.value.substring(end);
+                    setTextInput({ ...textInput, value: newValue });
+                    // Set cursor position after the inserted spaces
+                    setTimeout(() => {
+                      e.currentTarget.selectionStart =
+                        e.currentTarget.selectionEnd = start + 4;
+                    }, 0);
+                  }
+                }}
+                autoFocus
+                style={{
+                  position: "absolute",
+                  left: textInput.bounds.x * zoom,
+                  top: textInput.bounds.y * zoom,
+                  width: textInput.bounds.width * zoom,
+                  minHeight: textInput.bounds.height * zoom,
+                  fontSize: textInput.originalFontSize * zoom,
+                  fontFamily: textInput.fontName || "Arial",
+                  border: textInput.existingElementId
+                    ? "3px solid #10b981" // Green for editing existing elements
+                    : textInput.isExistingText
+                      ? "3px solid #f59e0b" // Orange for editing PDF text
+                      : "3px solid #3b82f6", // Blue for new text
+                  outline: "none",
+                  padding: "4px",
+                  background: textInput.existingElementId
+                    ? "rgba(236, 253, 245, 0.95)" // Light green
+                    : textInput.isExistingText
+                      ? "rgba(255, 251, 235, 0.95)" // Light orange
+                      : "rgba(240, 249, 255, 0.95)", // Light blue
+                  zIndex: 99999,
+                  color: selectedColor,
+                  resize: "none",
+                  overflow: "hidden",
+                  lineHeight: "1.2",
+                  boxShadow: "0 4px 20px rgba(0,0,0,0.2)",
+                  borderRadius: "4px",
+                  transform: "translateZ(0)",
+                  wordBreak: "break-word",
+                  whiteSpace: "pre-wrap",
+                  cursor: "text",
+                }}
+                placeholder={
+                  textInput.existingElementId
+                    ? "Edit existing text..."
+                    : textInput.isExistingText
+                      ? "Edit PDF text..."
+                      : "Type new text..."
+                }
+                onFocus={(e) => {
+                  // Select all text on focus for easy replacement
+                  if (textInput.isExistingText || textInput.existingElementId) {
+                    e.target.select();
+                  }
+                }}
+              />
+            )}
           </div>
         ))}
 
@@ -906,46 +1293,39 @@ export default function EnhancedPDFEditorCanvas({
           )}
         </div>
 
-        {/* Text Input */}
+        {/* Text Editing Active Indicator */}
         {textInput && (
-          <textarea
-            value={textInput.value}
-            onChange={(e) =>
-              setTextInput({ ...textInput, value: e.target.value })
-            }
-            onBlur={handleTextComplete}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                handleTextComplete();
-              } else if (e.key === "Escape") {
-                handleTextCancel();
-              }
-            }}
-            autoFocus
+          <div
             style={{
-              position: "absolute",
-              left: textInput.bounds.x * zoom,
-              top: (getPageY(textInput.pageIndex) + textInput.bounds.y) * zoom,
-              width: textInput.bounds.width * zoom,
-              height: textInput.bounds.height * zoom,
-              fontSize: textInput.originalFontSize * zoom,
-              fontFamily:
-                textInput.fontName.replace(/^[A-Z]+\+/, "").split("-")[0] ||
-                "Arial",
-              border: "2px solid #3b82f6",
-              outline: "none",
-              padding: "4px",
-              background: "white",
-              zIndex: 1000,
-              color: selectedColor,
-              resize: "none",
-              overflow: "hidden",
-              lineHeight: "1.2",
-              boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
-              borderRadius: "2px",
+              position: "fixed",
+              top: "20px",
+              right: "20px",
+              background: textInput.existingElementId
+                ? "#10b981" // Green for editing elements
+                : textInput.isExistingText
+                  ? "#f59e0b" // Orange for editing PDF text
+                  : "#3b82f6", // Blue for new text
+              color: "white",
+              padding: "8px 16px",
+              borderRadius: "8px",
+              zIndex: 100000,
+              fontSize: "14px",
+              fontWeight: "500",
+              boxShadow: "0 4px 12px rgba(0,0,0,0.2)",
+              display: "flex",
+              alignItems: "center",
+              gap: "8px",
             }}
-          />
+          >
+            {textInput.existingElementId
+              ? "✏️ Editing Element"
+              : textInput.isExistingText
+                ? "📝 Editing PDF Text"
+                : "➕ Adding New Text"}
+            <div style={{ fontSize: "12px", opacity: 0.9 }}>
+              Press Enter to save, Esc to cancel
+            </div>
+          </div>
         )}
       </div>
     </div>

@@ -10,7 +10,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { PDFService } from "@/services/pdfService";
 import { useToast } from "@/hooks/use-toast";
 import { usePDFEditor } from "@/hooks/usePDFEditor";
-import EnhancedPDFEditorCanvas from "@/components/pdf-editor/EnhancedPDFEditorCanvas";
+import ProfessionalPDFEditor from "@/components/pdf-editor/ProfessionalPDFEditor";
 import ImageUpload, { ImageTool } from "@/components/pdf-editor/ImageUpload";
 import { exportPDFWithEdits, downloadPDF } from "@/utils/pdfExport";
 import {
@@ -332,9 +332,13 @@ const EditPdf: React.FC = () => {
             <div className="w-16 h-16 bg-gradient-to-br from-red-500 to-red-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
               <FileText className="w-8 h-8 text-white" />
             </div>
-            <h1 className="text-3xl font-bold text-gray-900 mb-4">Edit PDF</h1>
+            <h1 className="text-3xl font-bold text-gray-900 mb-4">
+              Professional PDF Editor
+            </h1>
             <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-              Add text, images, shapes, and annotations to your PDF documents
+              Complete PDF editing suite with layered canvas system, drawing
+              tools, text editing, shapes, annotations, and professional export.
+              Built following industry best practices.
             </p>
           </div>
         )}
@@ -358,387 +362,60 @@ const EditPdf: React.FC = () => {
               </Card>
             )}
 
-            {/* Editor Interface - Exact LightPDF Style */}
+            {/* Professional PDF Editor with Complete Feature Set */}
             {file && (
-              <div
-                className="bg-white border border-gray-200 overflow-hidden"
-                style={{ height: "calc(100vh - 200px)" }}
-              >
-                {/* Top Toolbar */}
-                <div className="bg-gray-50 border-b border-gray-200 px-4 py-3">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-1">
-                      {/* Tools */}
-                      {toolbarItems.map((item) => {
-                        const IconComponent = item.icon;
-                        return (
-                          <Button
-                            key={item.tool}
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleToolSelect(item.tool)}
-                            className={cn(
-                              "h-9 w-9 p-0 rounded",
-                              state.currentTool === item.tool
-                                ? "bg-blue-500 text-white hover:bg-blue-600"
-                                : "hover:bg-gray-200 text-gray-700",
-                            )}
-                            title={item.label}
-                          >
-                            <IconComponent className="h-4 w-4" />
-                          </Button>
-                        );
-                      })}
+              <ProfessionalPDFEditor
+                file={file}
+                onSave={async (elements) => {
+                  console.log(
+                    "💾 Saving PDF with professional editor elements:",
+                    elements,
+                  );
 
-                      <div className="h-6 w-px bg-gray-300 mx-3" />
+                  try {
+                    setIsProcessing(true);
 
-                      {/* Undo/Redo */}
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={actions.undo}
-                        disabled={!computed.canUndo}
-                        className="h-9 w-9 p-0 rounded hover:bg-gray-200"
-                        title="Undo"
-                      >
-                        <Undo className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={actions.redo}
-                        disabled={!computed.canRedo}
-                        className="h-9 w-9 p-0 rounded hover:bg-gray-200"
-                        title="Redo"
-                      >
-                        <Redo className="h-4 w-4" />
-                      </Button>
+                    toast({
+                      title: `🔄 Applying ${elements.length} professional edits...`,
+                      description: `Processing ${file.name} with layered canvas system`,
+                    });
 
-                      <div className="h-6 w-px bg-gray-300 mx-3" />
+                    const editedPdfBytes = await exportPDFWithEdits({
+                      originalFile: file,
+                      elements: elements,
+                      pageCount: totalPages,
+                    });
 
-                      {/* Zoom */}
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() =>
-                          actions.setZoom(Math.max(state.zoom / 1.2, 0.25))
-                        }
-                        className="h-9 w-9 p-0 rounded hover:bg-gray-200"
-                        title="Zoom Out"
-                      >
-                        <ZoomOut className="h-4 w-4" />
-                      </Button>
-                      <div className="text-sm font-medium px-3 py-1 bg-white border border-gray-300 rounded min-w-[60px] text-center">
-                        {Math.round(state.zoom * 100)}%
-                      </div>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() =>
-                          actions.setZoom(Math.min(state.zoom * 1.2, 3))
-                        }
-                        className="h-9 w-9 p-0 rounded hover:bg-gray-200"
-                        title="Zoom In"
-                      >
-                        <ZoomIn className="h-4 w-4" />
-                      </Button>
-                    </div>
+                    const filename = file.name.replace(
+                      /\.pdf$/i,
+                      "_professional_edit.pdf",
+                    );
+                    await downloadPDF(editedPdfBytes, filename);
 
-                    {/* Right side */}
-                    <div className="flex items-center space-x-2">
-                      <Button
-                        onClick={handleSaveEdits}
-                        disabled={isProcessing || state.elements.length === 0}
-                        className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded"
-                      >
-                        {isProcessing ? (
-                          <>
-                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                            Processing...
-                          </>
-                        ) : (
-                          <>
-                            <Download className="w-4 h-4 mr-2" />
-                            Download
-                          </>
-                        )}
-                      </Button>
-                    </div>
-                  </div>
-                </div>
+                    await PDFService.trackUsage("edit-pdf", 1, file.size);
 
-                {/* Property Bar */}
-                <div className="bg-white border-b border-gray-200 px-4 py-2">
-                  <div className="flex items-center space-x-6">
-                    {/* Color */}
-                    <div className="flex items-center space-x-2">
-                      <span className="text-sm font-medium text-gray-700">
-                        Color:
-                      </span>
-                      <div className="flex items-center space-x-1">
-                        <div
-                          className="w-6 h-6 rounded border border-gray-400 cursor-pointer"
-                          style={{ backgroundColor: selectedColor }}
-                        />
-                        <span className="text-sm text-gray-600">■</span>
-                      </div>
-                    </div>
+                    toast({
+                      title: "🎉 Professional PDF editing complete!",
+                      description: `${filename} saved with ${elements.length} professional modifications`,
+                    });
 
-                    {/* Stroke */}
-                    <div className="flex items-center space-x-2">
-                      <span className="text-sm font-medium text-gray-700">
-                        Stroke:
-                      </span>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="h-7 px-3 text-sm border-gray-300"
-                      >
-                        {selectedStrokeWidth}px
-                        <ChevronDown className="h-3 w-3 ml-1" />
-                      </Button>
-                    </div>
-
-                    {/* Font Size */}
-                    <div className="flex items-center space-x-2">
-                      <span className="text-sm font-medium text-gray-700">
-                        Font Size:
-                      </span>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="h-7 px-3 text-sm border-gray-300"
-                      >
-                        {selectedFontSize}px
-                        <ChevronDown className="h-3 w-3 ml-1" />
-                      </Button>
-                    </div>
-
-                    {/* Alignment */}
-                    <div className="flex items-center space-x-2">
-                      <span className="text-sm font-medium text-gray-700">
-                        Align:
-                      </span>
-                      <div className="flex border border-gray-300 rounded">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-7 w-7 p-0 rounded-none border-r border-gray-300"
-                        >
-                          <AlignLeft className="h-3 w-3" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-7 w-7 p-0 rounded-none border-r border-gray-300"
-                        >
-                          <AlignCenter className="h-3 w-3" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-7 w-7 p-0 rounded-none"
-                        >
-                          <AlignRight className="h-3 w-3" />
-                        </Button>
-                      </div>
-                    </div>
-
-                    <div className="ml-auto">
-                      <Button variant="ghost" size="sm" className="h-7 w-7 p-0">
-                        <Settings className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Main Editor Area */}
-                <div className="flex" style={{ height: "calc(100vh - 340px)" }}>
-                  {/* Left Sidebar - Pages */}
-                  <div className="w-44 bg-gray-50 border-r border-gray-200 flex flex-col">
-                    <div className="p-3 border-b border-gray-200">
-                      <h3 className="text-sm font-semibold text-gray-800">
-                        Pages
-                      </h3>
-                    </div>
-                    <div className="flex-1 flex flex-col">
-                      {/* Page Navigation */}
-                      <div className="p-3 border-b border-gray-200">
-                        <div className="flex items-center justify-between">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-6 w-6 p-0"
-                            disabled={state.pageIndex === 0}
-                          >
-                            <ChevronLeft className="h-3 w-3" />
-                          </Button>
-                          <span className="text-xs text-gray-600">
-                            {state.pageIndex + 1} / {totalPages}
-                          </span>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-6 w-6 p-0"
-                            disabled={state.pageIndex >= totalPages - 1}
-                          >
-                            <ChevronRight className="h-3 w-3" />
-                          </Button>
-                        </div>
-                      </div>
-
-                      {/* Zoom Controls */}
-                      <div className="p-3 border-b border-gray-200">
-                        <div className="flex items-center justify-between">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-6 w-6 p-0"
-                            onClick={() => setZoom(Math.max(0.5, zoom - 0.25))}
-                            disabled={zoom <= 0.5}
-                          >
-                            <ZoomOut className="h-3 w-3" />
-                          </Button>
-                          <span className="text-xs text-gray-600">
-                            {Math.round(zoom * 100)}%
-                          </span>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-6 w-6 p-0"
-                            onClick={() => setZoom(Math.min(3, zoom + 0.25))}
-                            disabled={zoom >= 3}
-                          >
-                            <ZoomIn className="h-3 w-3" />
-                          </Button>
-                        </div>
-                      </div>
-
-                      {/* Page Thumbnails */}
-                      <div className="flex-1 overflow-y-auto p-3">
-                        <div className="space-y-2">
-                          <div className="border-2 border-blue-500 rounded bg-white p-1">
-                            <div className="w-full h-32 bg-gray-100 rounded text-xs text-gray-500 flex items-center justify-center">
-                              Page {state.pageIndex + 1}
-                            </div>
-                            <div className="text-center mt-1">
-                              <span className="inline-block bg-blue-500 text-white text-xs px-1 rounded">
-                                Current
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Center - PDF Viewer */}
-                  <div className="flex-1 bg-gray-100 overflow-hidden">
-                    <EnhancedPDFEditorCanvas
-                      file={file}
-                      zoom={zoom}
-                      elements={state.elements}
-                      selectedElements={state.selectedElements}
-                      currentTool={state.currentTool}
-                      isDrawing={state.isDrawing}
-                      currentDrawPath={state.currentDrawPath}
-                      selectedColor={selectedColor}
-                      selectedStrokeWidth={selectedStrokeWidth}
-                      selectedFontSize={selectedFontSize}
-                      onElementAdd={actions.addElement}
-                      onElementUpdate={actions.updateElement}
-                      onElementSelect={actions.selectElements}
-                      onElementToggleSelect={actions.toggleElementSelection}
-                      onStartDrawing={actions.startDrawing}
-                      onAddDrawPoint={actions.addDrawPoint}
-                      onEndDrawing={actions.endDrawing}
-                      onCanvasSizeChange={actions.setCanvasSize}
-                      onPageChange={actions.setPage}
-                      onTotalPagesChange={setTotalPages}
-                      className="h-full"
-                    />
-                  </div>
-
-                  {/* Right Sidebar - Properties */}
-                  <div className="w-64 bg-white border-l border-gray-200">
-                    <div className="p-4">
-                      {state.selectedElements.length === 0 ? (
-                        <div className="text-center">
-                          <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                            No Selection
-                          </h3>
-                          <p className="text-sm text-gray-500 mb-4">
-                            Select an element to edit its properties, or use the
-                            toolbar to add new elements.
-                          </p>
-                        </div>
-                      ) : (
-                        <div>
-                          <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                            Properties
-                          </h3>
-                          <div className="space-y-4">
-                            <div>
-                              <label className="block text-sm font-medium text-gray-700 mb-2">
-                                Position
-                              </label>
-                              <div className="grid grid-cols-2 gap-2">
-                                <div>
-                                  <label className="block text-xs text-gray-500 mb-1">
-                                    X
-                                  </label>
-                                  <input
-                                    type="number"
-                                    className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
-                                    defaultValue="0"
-                                  />
-                                </div>
-                                <div>
-                                  <label className="block text-xs text-gray-500 mb-1">
-                                    Y
-                                  </label>
-                                  <input
-                                    type="number"
-                                    className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
-                                    defaultValue="0"
-                                  />
-                                </div>
-                              </div>
-                            </div>
-                            <div>
-                              <label className="block text-sm font-medium text-gray-700 mb-2">
-                                Size
-                              </label>
-                              <div className="grid grid-cols-2 gap-2">
-                                <div>
-                                  <label className="block text-xs text-gray-500 mb-1">
-                                    Width
-                                  </label>
-                                  <input
-                                    type="number"
-                                    className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
-                                    defaultValue="100"
-                                  />
-                                </div>
-                                <div>
-                                  <label className="block text-xs text-gray-500 mb-1">
-                                    Height
-                                  </label>
-                                  <input
-                                    type="number"
-                                    className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
-                                    defaultValue="20"
-                                  />
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </div>
+                    setIsComplete(true);
+                  } catch (error) {
+                    console.error(
+                      "Error saving professionally edited PDF:",
+                      error,
+                    );
+                    toast({
+                      title: "Export failed",
+                      description:
+                        "There was an error exporting your professionally edited PDF. Please try again.",
+                      variant: "destructive",
+                    });
+                  } finally {
+                    setIsProcessing(false);
+                  }
+                }}
+              />
             )}
 
             {/* Premium Features */}

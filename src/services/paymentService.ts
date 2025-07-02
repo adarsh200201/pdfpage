@@ -31,24 +31,68 @@ export const createPayment = async (
     .find((row) => row.startsWith("token="))
     ?.split("=")[1];
 
-  const response = await fetch(
-    `${import.meta.env.VITE_API_URL}/payments/create-order`,
-    {
+  // Use proper API URL with fallback
+  const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+  const fullUrl = `${apiUrl}/payments/create-order`;
+
+  console.log("Creating payment with:", { options, apiUrl: fullUrl });
+
+  try {
+    const response = await fetch(fullUrl, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${token}`,
       },
       body: JSON.stringify(options),
-    },
-  );
+    });
 
-  if (!response.ok) {
-    throw new Error("Failed to create payment order");
+    const responseData = await response.json();
+
+    if (!response.ok) {
+      console.error("Payment creation failed:", {
+        status: response.status,
+        statusText: response.statusText,
+        data: responseData,
+      });
+
+      // Handle specific error cases
+      if (response.status === 401) {
+        throw new Error("Please login to create a payment order");
+      } else if (response.status === 400) {
+        const errorMessage =
+          responseData.message ||
+          responseData.errors?.[0]?.msg ||
+          "Invalid payment data";
+        throw new Error(errorMessage);
+      } else if (response.status >= 500) {
+        throw new Error(
+          "Payment service is temporarily unavailable. Please try again later.",
+        );
+      } else {
+        throw new Error(
+          responseData.message || "Failed to create payment order",
+        );
+      }
+    }
+
+    if (!responseData.orderId) {
+      throw new Error("Invalid response from payment service");
+    }
+
+    return responseData.orderId;
+  } catch (error) {
+    console.error("Payment creation error:", error);
+
+    // Re-throw with more user-friendly message if it's a network error
+    if (error instanceof TypeError && error.message.includes("fetch")) {
+      throw new Error(
+        "Unable to connect to payment service. Please check your internet connection.",
+      );
+    }
+
+    throw error;
   }
-
-  const { orderId } = await response.json();
-  return orderId;
 };
 
 export const processPayment = async (
@@ -87,22 +131,21 @@ export const processPayment = async (
             .find((row) => row.startsWith("token="))
             ?.split("=")[1];
 
-          const verifyResponse = await fetch(
-            `${import.meta.env.VITE_API_URL}/payments/verify`,
-            {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                Authorization: `Bearer ${token}`,
-              },
-              body: JSON.stringify({
-                razorpay_payment_id: response.razorpay_payment_id,
-                razorpay_order_id: response.razorpay_order_id,
-                razorpay_signature: response.razorpay_signature,
-                planType,
-              }),
+          const apiUrl =
+            import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+          const verifyResponse = await fetch(`${apiUrl}/payments/verify`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
             },
-          );
+            body: JSON.stringify({
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_signature: response.razorpay_signature,
+              planType,
+            }),
+          });
 
           if (verifyResponse.ok) {
             resolve();

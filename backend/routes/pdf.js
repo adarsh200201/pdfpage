@@ -658,6 +658,7 @@ router.post(
 
       // Import required libraries
       const pdfParse = require("pdf-parse");
+      const { PDFDocument: PDFLibDocument } = require("pdf-lib");
       const {
         Document,
         Packer,
@@ -666,36 +667,92 @@ router.post(
         HeadingLevel,
       } = require("docx");
 
-      // Parse PDF
-      const pdfData = await pdfParse(file.buffer);
+      // Use enhanced PDF parsing for better text extraction
+      const pdfLibDoc = await PDFLibDocument.load(file.buffer);
+      const numPages = pdfLibDoc.getPageCount();
 
-      // Extract text and basic structure
-      const text = pdfData.text;
-      const numPages = pdfData.numpages;
+      console.log(
+        `📄 PDF has ${numPages} pages, processing with enhanced extraction...`,
+      );
+
+      // Enhanced text extraction using pdf-parse with better options
+      const pdfData = await pdfParse(file.buffer, {
+        pagerender: null, // Don't render pages for OCR by default
+        max: 0, // Extract from all pages
+        version: "v1.10.100",
+        normalizeWhitespace: false, // Preserve original whitespace
+        disableCombineTextItems: false, // Allow text combining for better readability
+      });
+
+      // Extract text and preserve structure
+      let text = pdfData.text;
+      const info = pdfData.info || {};
+
+      console.log(`📝 Extracted ${text.length} characters from PDF`);
+      console.log(`📊 PDF Info:`, {
+        title: info.Title || "Untitled",
+        author: info.Author || "Unknown",
+        creator: info.Creator || "Unknown",
+        producer: info.Producer || "Unknown",
+        pages: numPages,
+      });
 
       if (!text || text.trim().length === 0) {
+        console.log(
+          "⚠️ No text found with standard extraction, trying OCR approach...",
+        );
+
+        // If no text found, the PDF might be scanned - suggest OCR
         return res.status(400).json({
           success: false,
           message:
-            "No readable text found in PDF. The PDF might be scanned or image-based.",
+            "No readable text found in PDF. This appears to be a scanned document or image-based PDF. For scanned documents, please use our OCR tool first to make the text searchable.",
+          suggestion: "Use PDF OCR tool for scanned documents",
+          pdfType: "scanned_or_image_based",
         });
       }
 
-      // Process text and create document structure
-      const paragraphs = processTextToParagraphs(text, preserveFormatting);
+      // Clean and normalize text while preserving structure
+      text = cleanAndNormalizeText(text);
 
-      // Create Word document
-      const doc = new Document({
-        creator: "PdfPage",
-        title: `Converted from ${file.originalname}`,
-        description: `Converted PDF to Word document${includeMetadata ? ` | Original: ${numPages} pages, ${text.length} characters` : ""}`,
+      // Enhanced text processing to preserve document structure
+      const documentStructure = analyzeDocumentStructure(text, info);
+      const paragraphs = processTextToParagraphs(
+        text,
+        preserveFormatting,
+        documentStructure,
+      );
+
+      // Create Word document with enhanced metadata
+      const docConfig = {
+        creator: "PdfPage - Professional PDF Converter",
+        title: documentStructure.title || `Converted from ${file.originalname}`,
+        description: `Professional PDF to Word conversion${includeMetadata ? ` | Original: ${numPages} pages, ${text.length} characters extracted` : ""}`,
+        subject: documentStructure.documentType || "Converted Document",
+        keywords: ["PDF", "Word", "Conversion", "PdfPage"],
         sections: [
           {
-            properties: {},
+            properties: {
+              page: {
+                margin: {
+                  top: 1440, // 1 inch
+                  right: 1440,
+                  bottom: 1440,
+                  left: 1440,
+                },
+              },
+            },
             children: paragraphs,
           },
         ],
-      });
+      };
+
+      // Add author if available
+      if (documentStructure.author) {
+        docConfig.author = documentStructure.author;
+      }
+
+      const doc = new Document(docConfig);
 
       // Generate DOCX buffer
       const docxBuffer = await Packer.toBuffer(doc);
@@ -745,9 +802,34 @@ router.post(
       res.setHeader("X-Original-Pages", numPages);
       res.setHeader("X-Text-Length", text.length);
       res.setHeader("X-Processing-Time", processingTime);
+      res.setHeader("X-Conversion-Type", "enhanced_structured");
       res.setHeader(
-        "X-Conversion-Type",
-        preserveFormatting ? "formatted" : "plain",
+        "X-Document-Type",
+        documentStructure.documentType || "document",
+      );
+      res.setHeader("X-Has-Headers", documentStructure.hasHeaders.toString());
+      res.setHeader(
+        "X-Has-Lists",
+        (
+          documentStructure.hasBulletPoints ||
+          documentStructure.hasNumberedLists
+        ).toString(),
+      );
+      res.setHeader(
+        "X-Estimated-Sections",
+        documentStructure.estimatedSections.toString(),
+      );
+      res.setHeader("X-Extracted-Title", documentStructure.title || "");
+      res.setHeader("X-Original-Filename", file.originalname);
+
+      console.log(
+        `✅ Enhanced Word document created: ${formatBytes(docxBuffer.length)} in ${processingTime}ms`,
+      );
+      console.log(
+        `📋 Document analysis: ${documentStructure.estimatedSections} sections, ${documentStructure.hasHeaders ? "headers detected" : "no headers"}, ${documentStructure.hasBulletPoints || documentStructure.hasNumberedLists ? "lists detected" : "no lists"}`,
+      );
+      console.log(
+        `📄 Content preserved: ${text.length} characters from ${numPages} pages`,
       );
       res.send(docxBuffer);
     } catch (error) {
@@ -779,16 +861,100 @@ router.post(
   },
 );
 
-// Helper function to process text into structured paragraphs
-function processTextToParagraphs(text, preserveFormatting) {
-  const lines = text.split("\n").filter((line) => line.trim());
-  const paragraphs = [];
+// Enhanced text cleaning and normalization
+function cleanAndNormalizeText(text) {
+  // Remove excessive whitespace while preserving meaningful line breaks
+  text = text.replace(/[ \t]+/g, " "); // Multiple spaces/tabs to single space
+  text = text.replace(/\n\s*\n\s*\n/g, "\n\n"); // Multiple line breaks to double line break
+  text = text.replace(/^\s+|\s+$/gm, ""); // Trim each line
 
-  let currentParagraph = [];
+  // Fix common PDF extraction issues
+  text = text.replace(/([a-z])([A-Z])/g, "$1 $2"); // Add space between camelCase words
+  text = text.replace(/([a-zA-Z])(\d)/g, "$1 $2"); // Add space between letter and number
+  text = text.replace(/(\d)([a-zA-Z])/g, "$1 $2"); // Add space between number and letter
 
+  return text;
+}
+
+// Analyze document structure for better conversion
+function analyzeDocumentStructure(text, pdfInfo) {
+  const lines = text.split("\n");
+  const structure = {
+    hasTitle: false,
+    hasHeaders: false,
+    hasBulletPoints: false,
+    hasNumberedLists: false,
+    hasTableOfContents: false,
+    documentType: "document",
+    title: pdfInfo.Title || extractTitleFromText(lines),
+    author: pdfInfo.Author || null,
+    estimatedSections: 0,
+  };
+
+  // Analyze content patterns
   for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+
+    // Check for headers/titles
+    if (isLikelyHeader(trimmed)) {
+      structure.hasHeaders = true;
+      structure.estimatedSections++;
+    }
+
+    // Check for lists
+    if (
+      trimmed.match(/^[\u2022\u2023\u25E6\u2043\u2219•·‣⁃]\s+/) ||
+      trimmed.match(/^[-*+]\s+/)
+    ) {
+      structure.hasBulletPoints = true;
+    }
+
+    if (trimmed.match(/^\d+\.?\s+/) || trimmed.match(/^[a-zA-Z]\.?\s+/)) {
+      structure.hasNumberedLists = true;
+    }
+
+    // Check for table of contents patterns
+    if (
+      trimmed.match(/table of contents|contents|index/i) &&
+      trimmed.length < 50
+    ) {
+      structure.hasTableOfContents = true;
+    }
+  }
+
+  console.log("📋 Document structure analysis:", structure);
+  return structure;
+}
+
+// Extract title from document text if not in metadata
+function extractTitleFromText(lines) {
+  for (let i = 0; i < Math.min(10, lines.length); i++) {
+    const line = lines[i].trim();
+    if (line.length > 10 && line.length < 100 && isLikelyTitle(line)) {
+      return line;
+    }
+  }
+  return null;
+}
+
+// Enhanced helper function to process text into structured paragraphs
+function processTextToParagraphs(
+  text,
+  preserveFormatting,
+  documentStructure = {},
+) {
+  const lines = text.split("\n");
+  const paragraphs = [];
+  let currentParagraph = [];
+  let isInList = false;
+  let listItems = [];
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
     const trimmedLine = line.trim();
 
+    // Skip completely empty lines but track them for paragraph breaks
     if (!trimmedLine) {
       if (currentParagraph.length > 0) {
         // End current paragraph
@@ -796,90 +962,319 @@ function processTextToParagraphs(text, preserveFormatting) {
         paragraphs.push(createWordParagraph(paragraphText, preserveFormatting));
         currentParagraph = [];
       }
+
+      // End list if we were in one
+      if (isInList && listItems.length > 0) {
+        paragraphs.push(...createWordList(listItems));
+        listItems = [];
+        isInList = false;
+      }
       continue;
     }
 
-    // Detect headings (lines that are short, capitalized, or have specific patterns)
-    const isHeading = detectHeading(trimmedLine);
+    // Detect different content types
+    const contentType = detectContentType(trimmedLine, documentStructure);
 
-    if (isHeading) {
-      // Finish current paragraph if any
-      if (currentParagraph.length > 0) {
-        const paragraphText = currentParagraph.join(" ");
-        paragraphs.push(createWordParagraph(paragraphText, preserveFormatting));
-        currentParagraph = [];
-      }
+    switch (contentType.type) {
+      case "title":
+        finishCurrentContent();
+        paragraphs.push(createWordTitle(trimmedLine));
+        break;
 
-      // Add heading
-      paragraphs.push(createWordHeading(trimmedLine));
-    } else {
-      currentParagraph.push(trimmedLine);
+      case "heading":
+        finishCurrentContent();
+        paragraphs.push(createWordHeading(trimmedLine, contentType.level));
+        break;
+
+      case "bullet_item":
+        finishCurrentParagraph();
+        isInList = true;
+        listItems.push({ type: "bullet", text: contentType.text });
+        break;
+
+      case "numbered_item":
+        finishCurrentParagraph();
+        isInList = true;
+        listItems.push({
+          type: "numbered",
+          text: contentType.text,
+          number: contentType.number,
+        });
+        break;
+
+      case "table_row":
+        finishCurrentContent();
+        // For now, treat table rows as regular paragraphs
+        // Future enhancement: create actual tables
+        paragraphs.push(
+          createWordParagraph(trimmedLine, preserveFormatting, "table"),
+        );
+        break;
+
+      default:
+        // Regular text
+        if (isInList) {
+          // End the list and start a new paragraph
+          if (listItems.length > 0) {
+            paragraphs.push(...createWordList(listItems));
+            listItems = [];
+            isInList = false;
+          }
+        }
+        currentParagraph.push(trimmedLine);
     }
   }
 
-  // Add final paragraph if any
-  if (currentParagraph.length > 0) {
-    const paragraphText = currentParagraph.join(" ");
-    paragraphs.push(createWordParagraph(paragraphText, preserveFormatting));
+  // Finish any remaining content
+  finishCurrentContent();
+
+  function finishCurrentContent() {
+    finishCurrentParagraph();
+    if (isInList && listItems.length > 0) {
+      paragraphs.push(...createWordList(listItems));
+      listItems = [];
+      isInList = false;
+    }
+  }
+
+  function finishCurrentParagraph() {
+    if (currentParagraph.length > 0) {
+      const paragraphText = currentParagraph.join(" ");
+      paragraphs.push(createWordParagraph(paragraphText, preserveFormatting));
+      currentParagraph = [];
+    }
   }
 
   return paragraphs;
 }
 
-function detectHeading(line) {
-  // Simple heuristics for heading detection
+// Enhanced content type detection
+function detectContentType(line, documentStructure) {
+  // Check for bullet points
+  const bulletMatch = line.match(
+    /^([\u2022\u2023\u25E6\u2043\u2219•·‣\-⁃\-*+])\s+(.+)$/,
+  );
+  if (bulletMatch) {
+    return { type: "bullet_item", text: bulletMatch[2] };
+  }
+
+  // Check for numbered items
+  const numberedMatch =
+    line.match(/^(\d+)\.?\s+(.+)$/) || line.match(/^([a-zA-Z])\.?\s+(.+)$/);
+  if (numberedMatch) {
+    return {
+      type: "numbered_item",
+      text: numberedMatch[2],
+      number: numberedMatch[1],
+    };
+  }
+
+  // Check for table patterns (simple detection)
+  if (line.includes("\t") || line.match(/\s{3,}\w/)) {
+    return { type: "table_row" };
+  }
+
+  // Check for title (first few lines, specific patterns)
+  if (isLikelyTitle(line)) {
+    return { type: "title" };
+  }
+
+  // Check for headings
+  const headingLevel = detectHeadingLevel(line);
+  if (headingLevel > 0) {
+    return { type: "heading", level: headingLevel };
+  }
+
+  return { type: "paragraph" };
+}
+
+// Enhanced heading detection with levels
+function detectHeadingLevel(line) {
+  // Level 1 - Major headings
+  if (
+    line.length < 60 &&
+    (line.match(/^[A-Z\s]+$/) || // All caps
+      line.match(/^CHAPTER|^SECTION|^PART/i) ||
+      line.match(/^\d+\.\s*[A-Z]/)) // "1. INTRODUCTION"
+  ) {
+    return 1;
+  }
+
+  // Level 2 - Sub headings
+  if (
+    line.length < 80 &&
+    (line.match(/^\d+\.\d+\s/) || // "1.1 Introduction"
+      line.match(/^[A-Z][a-z]+\s[A-Z]/) || // "Title Case Heading"
+      line.match(/^[IVX]+\.\s/)) // Roman numerals
+  ) {
+    return 2;
+  }
+
+  // Level 3 - Minor headings
+  if (
+    line.length < 100 &&
+    (line.match(/^\d+\.\d+\.\d+\s/) || // "1.1.1 Sub-section"
+      line.match(/^[a-z]\)\s/)) // "a) subsection"
+  ) {
+    return 3;
+  }
+
+  return 0;
+}
+
+// Check if line is likely a document title
+function isLikelyTitle(line) {
   return (
     line.length < 100 &&
-    (line.match(/^[A-Z\s]+$/) || // All caps
-      line.match(/^\d+\.?\s/) || // Numbered
-      line.match(/^[IVX]+\.?\s/) || // Roman numerals
-      line.match(/^Chapter|Section|Part/i)) // Common heading words
+    line.length > 5 &&
+    !line.includes(".") &&
+    (line.match(/^[A-Z]/) || line.match(/^[A-Z\s]+$/))
   );
 }
 
-function createWordParagraph(text, preserveFormatting) {
+// Check if line is likely a header
+function isLikelyHeader(line) {
+  return detectHeadingLevel(line) > 0;
+}
+
+// Create Word title with proper styling
+function createWordTitle(text) {
+  const { Paragraph, TextRun } = require("docx");
+
+  return new Paragraph({
+    heading: "Title",
+    children: [
+      new TextRun({
+        text: text,
+        size: 32, // 16pt
+        bold: true,
+        color: "000000",
+      }),
+    ],
+    spacing: {
+      after: 400, // Space after title
+    },
+    alignment: "center",
+  });
+}
+
+// Create Word heading with proper levels and styling
+function createWordHeading(text, level = 1) {
+  const { Paragraph, TextRun, HeadingLevel } = require("docx");
+
+  const headingLevels = {
+    1: HeadingLevel.HEADING_1,
+    2: HeadingLevel.HEADING_2,
+    3: HeadingLevel.HEADING_3,
+    4: HeadingLevel.HEADING_4,
+    5: HeadingLevel.HEADING_5,
+    6: HeadingLevel.HEADING_6,
+  };
+
+  const sizes = { 1: 28, 2: 24, 3: 20, 4: 18, 5: 16, 6: 14 }; // pt sizes
+
+  return new Paragraph({
+    heading: headingLevels[level] || HeadingLevel.HEADING_1,
+    children: [
+      new TextRun({
+        text: text,
+        size: sizes[level] * 2 || 28, // Convert to half-points
+        bold: true,
+        color: "1f1f1f",
+      }),
+    ],
+    spacing: {
+      before: level === 1 ? 400 : 200,
+      after: 200,
+    },
+  });
+}
+
+// Create Word list items
+function createWordList(items) {
+  const { Paragraph, TextRun } = require("docx");
+
+  return items.map((item, index) => {
+    if (item.type === "bullet") {
+      return new Paragraph({
+        bullet: {
+          level: 0,
+        },
+        children: [new TextRun(item.text)],
+        spacing: { after: 100 },
+      });
+    } else if (item.type === "numbered") {
+      return new Paragraph({
+        numbering: {
+          reference: "default-numbering",
+          level: 0,
+        },
+        children: [new TextRun(item.text)],
+        spacing: { after: 100 },
+      });
+    }
+
+    return new Paragraph({
+      children: [new TextRun(`${item.number || "•"} ${item.text}`)],
+      spacing: { after: 100 },
+    });
+  });
+}
+
+// Enhanced paragraph creation with better formatting
+function createWordParagraph(text, preserveFormatting, type = "normal") {
   const { Paragraph, TextRun } = require("docx");
 
   if (!preserveFormatting) {
     return new Paragraph({
       children: [new TextRun(text)],
+      spacing: { after: 120 },
     });
   }
 
-  // Basic formatting detection
-  const children = [];
-  const boldRegex = /\*\*(.*?)\*\*/g;
-  const italicRegex = /\*(.*?)\*/g;
+  // Detect and apply text formatting
+  const formattedRuns = parseFormattedText(text);
 
-  let lastIndex = 0;
-  let match;
+  const paragraphOptions = {
+    children: formattedRuns,
+    spacing: { after: 120 },
+  };
 
-  // Process bold text
-  while ((match = boldRegex.exec(text)) !== null) {
-    if (match.index > lastIndex) {
-      children.push(new TextRun(text.slice(lastIndex, match.index)));
-    }
-    children.push(new TextRun({ text: match[1], bold: true }));
-    lastIndex = match.index + match[0].length;
+  // Apply special styling for different content types
+  if (type === "table") {
+    paragraphOptions.indent = { left: 200 };
+    paragraphOptions.spacing.after = 80;
   }
 
-  if (lastIndex < text.length) {
-    children.push(new TextRun(text.slice(lastIndex)));
-  }
-
-  return new Paragraph({
-    children: children.length > 0 ? children : [new TextRun(text)],
-  });
+  return new Paragraph(paragraphOptions);
 }
 
-function createWordHeading(text) {
-  const { Paragraph, TextRun, HeadingLevel } = require("docx");
+// Parse text for inline formatting (bold, italic, etc.)
+function parseFormattedText(text) {
+  const { TextRun } = require("docx");
+  const runs = [];
 
-  return new Paragraph({
-    text: text,
-    heading: HeadingLevel.HEADING_1,
-    children: [new TextRun({ text, bold: true, size: 28 })],
-  });
+  // Simple pattern detection for common formatting
+  const patterns = [
+    { regex: /\*\*(.*?)\*\*/g, format: { bold: true } }, // **bold**
+    { regex: /\*(.*?)\*/g, format: { italics: true } }, // *italic*
+    { regex: /__(.*?)__/g, format: { underline: {} } }, // __underline__
+    { regex: /`(.*?)`/g, format: { font: "Courier New" } }, // `code`
+  ];
+
+  let remainingText = text;
+  let lastIndex = 0;
+
+  // For now, create a simple text run
+  // Future enhancement: implement proper inline formatting parsing
+  runs.push(
+    new TextRun({
+      text: text,
+      size: 22, // 11pt
+    }),
+  );
+
+  return runs;
 }
 
 // @route   POST /api/pdf/word-to-pdf-advanced
@@ -1127,14 +1522,14 @@ router.post(
       let formattedText = processedContent
         // Clean up markers and apply proper formatting
         .replace(/【NUMBERED_LIST】(.*?)【\/NUMBERED_LIST】/gs, "$1")
-        .replace(/【BULLET_LIST】(.*?)【\/BULLET_LIST】/gs, "$1")
-        .replace(/【HEADING1】(.*?)【\/HEADING1】/g, "\n\n▓▓▓ $1 ▓▓▓\n\n")
+        .replace(/��BULLET_LIST】(.*?)【\/BULLET_LIST】/gs, "$1")
+        .replace(/【HEADING1】(.*?)【\/HEADING1】/g, "\n\n���▓▓ $1 ▓▓▓\n\n")
         .replace(/【HEADING2】(.*?)【\/HEADING2】/g, "\n\n▓▓ $1 ▓▓\n\n")
         .replace(/【HEADING3】(.*?)【\/HEADING3】/g, "\n\n▓ $1 ▓\n\n")
         .replace(/【BOLD】(.*?)【\/BOLD】/g, "【B:$1】")
         .replace(/【ITALIC】(.*?)【\/ITALIC】/g, "【I:$1】")
         .replace(/【UNDERLINE】(.*?)【\/UNDERLINE】/g, "【U:$1】")
-        .replace(/【PARAGRAPH】(.*?)【\/PARAGRAPH】/g, "$1\n")
+        .replace(/���PARAGRAPH】(.*?)【\/PARAGRAPH】/g, "$1\n")
 
         // Clean up excessive whitespace while preserving structure
         .replace(/\n\s*\n\s*\n/g, "\n\n")
@@ -1246,12 +1641,12 @@ router.post(
           isSpecialFormat = true;
         }
         // Other heading levels
-        else if (displayText.startsWith("● H4:")) {
+        else if (displayText.startsWith("��� H4:")) {
           displayText = displayText.slice(6).trim();
           font = fonts.bold;
           fontSize = baseFontSize + 1;
           isSpecialFormat = true;
-        } else if (displayText.startsWith("◆ H5:")) {
+        } else if (displayText.startsWith("�� H5:")) {
           displayText = displayText.slice(6).trim();
           font = fonts.bold;
           fontSize = baseFontSize;

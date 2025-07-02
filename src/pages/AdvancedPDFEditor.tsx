@@ -33,6 +33,7 @@ import AuthModal from "@/components/auth/AuthModal";
 import AdvancedPDFViewer from "@/components/pdf-editor/AdvancedPDFViewer";
 import EnhancedSignature from "@/components/pdf-editor/EnhancedSignature";
 import PDFFormBuilder from "@/components/pdf-editor/PDFFormBuilder";
+import RealtimePDFEditor from "@/components/pdf-editor/RealtimePDFEditor";
 import AdvancedPDFService, {
   TextExtraction,
   OCRResult,
@@ -40,6 +41,7 @@ import AdvancedPDFService, {
 } from "@/services/advancedPdfService";
 import { useRealtimePDFEditor } from "@/hooks/useRealtimePDFEditor";
 import { AnyElement, TextElement, SignatureElement } from "@/types/pdf-editor";
+import { safeArrayFirst } from "@/lib/safe-array-utils";
 import { v4 as uuidv4 } from "uuid";
 import { cn } from "@/lib/utils";
 
@@ -71,7 +73,7 @@ const AdvancedPDFEditor: React.FC = () => {
         return;
       }
 
-      const uploadedFile = acceptedFiles[0];
+      const uploadedFile = safeArrayFirst(acceptedFiles);
       if (uploadedFile && uploadedFile.type === "application/pdf") {
         setFile(uploadedFile);
         toast({

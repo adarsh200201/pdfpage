@@ -35,6 +35,8 @@ import {
   Award,
   Heart,
   Play,
+  Layers,
+  Eye,
 } from "lucide-react";
 
 // Animated Counter Component
@@ -223,6 +225,18 @@ const Index = () => {
       color: "from-indigo-500 to-indigo-600",
       isNew: true,
       popular: true,
+      available: true,
+      isWorking: true,
+    },
+    {
+      title: "Real-time Editor",
+      description:
+        "Live collaborative PDF editing with instant preview and sync",
+      icon: Layers,
+      href: "/realtime-editor",
+      color: "from-green-500 to-green-600",
+      isNew: true,
+      isFeatured: true,
       available: true,
       isWorking: true,
     },

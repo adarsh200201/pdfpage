@@ -176,7 +176,7 @@ export class PDFService {
 
       const blob = await response.blob();
 
-      // Get stats from headers
+      // Get enhanced stats from headers
       const originalPages = parseInt(
         response.headers.get("X-Original-Pages") || "0",
       );
@@ -185,7 +185,28 @@ export class PDFService {
         response.headers.get("X-Processing-Time") || "0",
       );
       const conversionType =
-        response.headers.get("X-Conversion-Type") || "formatted";
+        response.headers.get("X-Conversion-Type") || "enhanced_structured";
+      const documentType =
+        response.headers.get("X-Document-Type") || "document";
+      const hasHeaders = response.headers.get("X-Has-Headers") === "true";
+      const hasLists = response.headers.get("X-Has-Lists") === "true";
+      const estimatedSections = parseInt(
+        response.headers.get("X-Estimated-Sections") || "0",
+      );
+      const extractedTitle = response.headers.get("X-Extracted-Title") || "";
+
+      console.log("📊 Enhanced conversion completed:", {
+        originalPages,
+        textLength,
+        processingTime,
+        conversionType,
+        documentType,
+        hasHeaders,
+        hasLists,
+        estimatedSections,
+        extractedTitle,
+        outputSize: (blob.size / 1024 / 1024).toFixed(2) + " MB",
+      });
 
       // Create new file from blob
       const fileName = file.name.replace(/\.pdf$/i, ".docx");

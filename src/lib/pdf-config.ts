@@ -242,11 +242,11 @@ const waitForWorkerConfig = (): Promise<string> => {
 
     window.addEventListener("pdfWorkerConfigured", handleWorkerConfigured);
 
-    // Reduced timeout for faster fallback
+    // Ultra-fast fallback for immediate response
     setTimeout(() => {
       window.removeEventListener("pdfWorkerConfigured", handleWorkerConfigured);
       tryImmediateFallback();
-    }, 2000); // Reduced from 5000ms to 2000ms for better user experience
+    }, 100); // Reduced to 100ms for ultra-fast response
   });
 };
 

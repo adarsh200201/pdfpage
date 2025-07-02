@@ -16,10 +16,12 @@ import { useAuth } from "@/contexts/AuthContext";
 import { createPayment, processPayment } from "@/services/paymentService";
 import { useToast } from "@/hooks/use-toast";
 import AuthModal from "@/components/auth/AuthModal";
+import PaymentErrorHandler from "@/components/ui/payment-error-handler";
 
 const Pricing = () => {
   const [processingPlan, setProcessingPlan] = useState<string | null>(null);
   const [showAuthModal, setShowAuthModal] = useState(false);
+  const [paymentError, setPaymentError] = useState<Error | null>(null);
   const { user, isAuthenticated } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -31,11 +33,14 @@ const Pricing = () => {
     }
 
     setProcessingPlan(planType);
+    setPaymentError(null); // Clear previous errors
 
     try {
       const amount = planType === "yearly" ? 29900 : 4900; // in paise
       const planName =
         planType === "yearly" ? "Yearly Premium" : "Monthly Premium";
+
+      console.log("Starting payment process for:", { planType, amount });
 
       const orderId = await createPayment({
         amount,
@@ -43,6 +48,8 @@ const Pricing = () => {
         planType,
         planName,
       });
+
+      console.log("Payment order created:", orderId);
 
       await processPayment(orderId, user!.email, user!.name, planType);
 
@@ -54,6 +61,11 @@ const Pricing = () => {
       setTimeout(() => navigate("/dashboard"), 1500);
     } catch (error: any) {
       console.error("Payment error:", error);
+
+      // Set error for the error handler component
+      setPaymentError(error);
+
+      // Still show toast for immediate feedback
       toast({
         title: "Payment Failed",
         description: error.message || "Something went wrong. Please try again.",
@@ -62,6 +74,11 @@ const Pricing = () => {
     } finally {
       setProcessingPlan(null);
     }
+  };
+
+  const handleRetryPayment = () => {
+    setPaymentError(null);
+    // You could also retry the last attempted plan
   };
 
   const features = {
@@ -323,6 +340,17 @@ const Pricing = () => {
           </div>
         </div>
       </div>
+
+      {/* Payment Error Handler */}
+      {paymentError && (
+        <div className="max-w-4xl mx-auto mt-8 px-4">
+          <PaymentErrorHandler
+            error={paymentError}
+            onRetry={handleRetryPayment}
+            loading={processingPlan !== null}
+          />
+        </div>
+      )}
 
       {/* Auth Modal */}
       <AuthModal

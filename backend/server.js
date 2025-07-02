@@ -185,7 +185,7 @@ app.use("/api/upload", require("./routes/upload"));
 app.use("/api/image", require("./routes/image"));
 app.use("/api/analytics", require("./routes/analytics"));
 app.use("/api/stats", require("./routes/stats"));
-app.use("/api/schema-test", require("./routes/schema-test"));
+// app.use("/api/schema-test", require("./routes/schema-test"));
 
 // Test routes (for schema verification)
 if (
