@@ -38,7 +38,7 @@ router.post(
       const { planType, amount } = req.body;
 
       // Validate amount based on plan type
-      const expectedAmount = planType === "yearly" ? 29900 : 4900; // in paise
+      const expectedAmount = planType === "quarterly" ? 2900 : 1100; // in paise
       if (amount !== expectedAmount) {
         return res.status(400).json({
           success: false,
@@ -227,7 +227,7 @@ router.get("/plans", (req, res) => {
     {
       id: "monthly",
       name: "Premium Monthly",
-      price: 49,
+      price: 11,
       currency: "INR",
       interval: "month",
       popular: true,
@@ -243,17 +243,17 @@ router.get("/plans", (req, res) => {
       savings: null,
     },
     {
-      id: "yearly",
-      name: "Premium Yearly",
-      price: 299,
+      id: "quarterly",
+      name: "Premium Quarterly",
+      price: 29,
       currency: "INR",
-      interval: "year",
-      originalPrice: 588,
-      savings: 289,
+      interval: "quarter",
+      originalPrice: 33,
+      savings: 4,
       bestValue: true,
       features: [
         "Everything in Premium Monthly",
-        "2 months free (14 months total)",
+        "Best value for 3 months",
         "Advanced OCR features",
         "API access (coming soon)",
         "Priority feature requests",

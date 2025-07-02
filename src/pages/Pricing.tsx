@@ -26,7 +26,7 @@ const Pricing = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
 
-  const handleSubscribe = async (planType: "monthly" | "yearly") => {
+  const handleSubscribe = async (planType: "monthly" | "quarterly") => {
     if (!isAuthenticated) {
       setShowAuthModal(true);
       return;
@@ -36,9 +36,9 @@ const Pricing = () => {
     setPaymentError(null); // Clear previous errors
 
     try {
-      const amount = planType === "yearly" ? 29900 : 4900; // in paise
+      const amount = planType === "quarterly" ? 2900 : 1100; // in paise - ₹29 for 3 months, ₹11 for 1 month
       const planName =
-        planType === "yearly" ? "Yearly Premium" : "Monthly Premium";
+        planType === "quarterly" ? "Quarterly Premium" : "Monthly Premium";
 
       console.log("Starting payment process for:", { planType, amount });
 
@@ -184,7 +184,7 @@ const Pricing = () => {
                 Premium Monthly
               </h3>
               <div className="flex items-center justify-center mb-4">
-                <span className="text-4xl font-bold text-text-dark">₹49</span>
+                <span className="text-4xl font-bold text-text-dark">₹11</span>
                 <span className="text-text-light ml-2">/month</span>
               </div>
               <p className="text-body-medium text-text-light">
@@ -218,7 +218,7 @@ const Pricing = () => {
                 </>
               ) : user?.isPremium && user?.premiumPlan === "monthly" ? (
                 "Current Plan"
-              ) : user?.isPremium && user?.premiumPlan === "yearly" ? (
+              ) : user?.isPremium && user?.premiumPlan === "quarterly" ? (
                 <>
                   <Crown className="w-4 h-4 mr-2" />
                   Upgrade (Switch to Monthly)
@@ -243,20 +243,20 @@ const Pricing = () => {
 
             <div className="text-center mb-8">
               <h3 className="text-heading-small text-black mb-2">
-                Premium Yearly
+                Premium Quarterly
               </h3>
               <div className="flex items-center justify-center mb-2">
-                <span className="text-4xl font-bold text-black">₹299</span>
-                <span className="text-gray-700 ml-2">/year</span>
+                <span className="text-4xl font-bold text-black">₹29</span>
+                <span className="text-gray-700 ml-2">/3 months</span>
               </div>
               <div className="flex items-center justify-center mb-4">
-                <span className="text-sm line-through text-gray-600">₹588</span>
+                <span className="text-sm line-through text-gray-600">₹33</span>
                 <span className="text-sm font-medium text-green-700 ml-2">
-                  Save ₹289!
+                  Save ₹4!
                 </span>
               </div>
               <p className="text-body-medium text-gray-700">
-                2 months free + all premium features
+                Best value for 3 months + all premium features
               </p>
             </div>
 
@@ -271,28 +271,28 @@ const Pricing = () => {
 
             <Button
               className="w-full bg-black text-white hover:bg-gray-800"
-              onClick={() => handleSubscribe("yearly")}
+              onClick={() => handleSubscribe("quarterly")}
               disabled={
-                processingPlan === "yearly" ||
-                (user?.isPremium && user?.premiumPlan === "yearly")
+                processingPlan === "quarterly" ||
+                (user?.isPremium && user?.premiumPlan === "quarterly")
               }
             >
-              {processingPlan === "yearly" ? (
+              {processingPlan === "quarterly" ? (
                 <>
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                   Processing...
                 </>
-              ) : user?.isPremium && user?.premiumPlan === "yearly" ? (
+              ) : user?.isPremium && user?.premiumPlan === "quarterly" ? (
                 "Current Plan"
               ) : user?.isPremium && user?.premiumPlan === "monthly" ? (
                 <>
                   <Crown className="w-4 h-4 mr-2" />
-                  Upgrade to Yearly
+                  Upgrade to Quarterly
                 </>
               ) : (
                 <>
                   <Crown className="w-4 h-4 mr-2" />
-                  Start Yearly Plan
+                  Start Quarterly Plan
                 </>
               )}
             </Button>
