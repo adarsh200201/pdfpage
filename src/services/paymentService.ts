@@ -148,7 +148,8 @@ export const processPayment = async (
           });
 
           if (verifyResponse.ok) {
-            resolve();
+            const verifyData = await verifyResponse.json();
+            resolve(verifyData); // Return the response data including queued plan info
           } else {
             reject(new Error("Payment verification failed"));
           }

@@ -41,6 +41,7 @@ interface AuthContextType {
   loginWithGoogle: () => Promise<AuthResponse>;
   logout: () => void;
   updateUser: (userData: Partial<User>) => void;
+  refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -71,7 +72,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const fetchUserData = async (token: string) => {
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/auth/me`, {
+      const apiUrl =
+        import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+      const response = await fetch(`${apiUrl}/auth/me`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -95,16 +98,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     try {
       console.log("🔵 [FRONTEND] Attempting to login user:", { email });
 
-      const response = await fetch(
-        `${import.meta.env.VITE_API_URL}/auth/login`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ email, password }),
+      const apiUrl =
+        import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+      const response = await fetch(`${apiUrl}/auth/login`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
         },
-      );
+        body: JSON.stringify({ email, password }),
+      });
 
       if (response.ok) {
         const data = await response.json();
@@ -140,22 +142,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         options,
       });
 
-      const response = await fetch(
-        `${import.meta.env.VITE_API_URL}/auth/register`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            name,
-            email,
-            password,
-            signupSource: options?.signupSource,
-            sessionId: options?.sessionId,
-          }),
+      const apiUrl =
+        import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+      const response = await fetch(`${apiUrl}/auth/register`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
         },
-      );
+        body: JSON.stringify({
+          name,
+          email,
+          password,
+          signupSource: options?.signupSource,
+          sessionId: options?.sessionId,
+        }),
+      });
 
       const responseData = await response.json().catch(() => ({}));
 
@@ -208,6 +209,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     setUser((prev) => (prev ? { ...prev, ...userData } : null));
   };
 
+  const refreshUser = async () => {
+    const token = Cookies.get("token");
+    if (token) {
+      await fetchUserData(token);
+    }
+  };
+
   const value = {
     user,
     isAuthenticated: !!user,
@@ -217,6 +225,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     loginWithGoogle,
     logout,
     updateUser,
+    refreshUser,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

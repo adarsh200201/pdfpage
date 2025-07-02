@@ -83,6 +83,22 @@ const userSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+    // Queued plan upgrade - starts after current plan expires
+    queuedPlan: {
+      planType: {
+        type: String,
+        enum: ["monthly", "yearly", null],
+        default: null,
+      },
+      scheduledStartDate: {
+        type: Date,
+        default: null,
+      },
+      paymentData: {
+        type: mongoose.Schema.Types.Mixed,
+        default: null,
+      },
+    },
     planStatus: {
       type: String,
       enum: ["active", "expired", "trial", "canceled"],
@@ -294,6 +310,42 @@ userSchema.methods.getMostUsedTools = function (limit = 5) {
 
 // Method to upgrade to premium
 userSchema.methods.upgradeToPremium = function (planType, paymentData) {
+  // If user already has an active premium plan, queue the upgrade
+  if (
+    this.isPremium &&
+    this.premiumExpiryDate &&
+    this.premiumExpiryDate > new Date()
+  ) {
+    console.log(
+      `🔄 [PREMIUM] User ${this.email} already has active premium. Queuing ${planType} plan to start after current plan expires.`,
+    );
+
+    // Queue the new plan to start after current plan expires
+    this.queuedPlan = {
+      planType: planType,
+      scheduledStartDate: this.premiumExpiryDate,
+      paymentData: paymentData,
+    };
+
+    // Add payment to history immediately
+    if (paymentData) {
+      this.paymentHistory.push({
+        ...paymentData,
+        status: "queued",
+        note: `${planType} plan queued to start on ${this.premiumExpiryDate.toDateString()}`,
+      });
+    }
+
+    console.log(
+      `✅ [PREMIUM] ${planType} plan queued for ${this.email}. Will start on: ${this.premiumExpiryDate.toDateString()}`,
+    );
+    return;
+  }
+
+  // Immediate upgrade if no active plan
+  console.log(
+    `🚀 [PREMIUM] Immediate upgrade to ${planType} for ${this.email}`,
+  );
   this.isPremium = true;
   this.premiumPlan = planType;
   this.premiumStartDate = new Date();
@@ -314,12 +366,73 @@ userSchema.methods.upgradeToPremium = function (planType, paymentData) {
   }
 };
 
+// Method to process queued plan upgrades (called when current plan expires)
+userSchema.methods.processQueuedUpgrade = function () {
+  if (
+    this.queuedPlan &&
+    this.queuedPlan.planType &&
+    this.queuedPlan.scheduledStartDate <= new Date()
+  ) {
+    console.log(
+      `🔄 [PREMIUM] Processing queued ${this.queuedPlan.planType} upgrade for ${this.email}`,
+    );
+
+    const { planType, paymentData } = this.queuedPlan;
+
+    // Activate the queued plan
+    this.isPremium = true;
+    this.premiumPlan = planType;
+    this.premiumStartDate = new Date();
+    this.planStatus = "active";
+
+    // Set new expiry date
+    const expiryDate = new Date();
+    if (planType === "yearly") {
+      expiryDate.setFullYear(expiryDate.getFullYear() + 1);
+    } else {
+      expiryDate.setMonth(expiryDate.getMonth() + 1);
+    }
+    this.premiumExpiryDate = expiryDate;
+
+    // Update payment status in history
+    if (paymentData && this.paymentHistory.length > 0) {
+      const queuedPayment = this.paymentHistory.find(
+        (p) => p.orderId === paymentData.orderId && p.status === "queued",
+      );
+      if (queuedPayment) {
+        queuedPayment.status = "captured";
+        queuedPayment.note = `${planType} plan activated on ${new Date().toDateString()}`;
+      }
+    }
+
+    // Clear the queued plan
+    this.queuedPlan = {
+      planType: null,
+      scheduledStartDate: null,
+      paymentData: null,
+    };
+
+    console.log(
+      `✅ [PREMIUM] Queued ${planType} plan activated for ${this.email}. New expiry: ${this.premiumExpiryDate.toDateString()}`,
+    );
+    return true;
+  }
+  return false;
+};
+
 // Method to cancel premium
 userSchema.methods.cancelPremium = function () {
   this.isPremium = false;
   this.premiumPlan = "free";
   this.premiumExpiryDate = null;
   this.planStatus = "canceled";
+
+  // Clear any queued plan
+  this.queuedPlan = {
+    planType: null,
+    scheduledStartDate: null,
+    paymentData: null,
+  };
 };
 
 // Static method to find users with expired premium
@@ -328,6 +441,27 @@ userSchema.statics.findExpiredPremium = function () {
     isPremium: true,
     premiumExpiryDate: { $lt: new Date() },
   });
+};
+
+// Static method to process all queued plan upgrades
+userSchema.statics.processAllQueuedUpgrades = async function () {
+  console.log("🔄 [PREMIUM] Processing queued plan upgrades...");
+
+  const usersWithQueuedPlans = await this.find({
+    "queuedPlan.planType": { $ne: null },
+    "queuedPlan.scheduledStartDate": { $lte: new Date() },
+  });
+
+  let processedCount = 0;
+  for (const user of usersWithQueuedPlans) {
+    if (user.processQueuedUpgrade()) {
+      await user.save();
+      processedCount++;
+    }
+  }
+
+  console.log(`✅ [PREMIUM] Processed ${processedCount} queued plan upgrades`);
+  return processedCount;
 };
 
 // Static method to get usage statistics

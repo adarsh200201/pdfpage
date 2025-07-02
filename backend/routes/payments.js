@@ -46,13 +46,8 @@ router.post(
         });
       }
 
-      // Check if user already has active premium
-      if (req.user.isPremiumActive) {
-        return res.status(400).json({
-          success: false,
-          message: "You already have an active premium subscription",
-        });
-      }
+      // Allow users with existing premium to purchase upgrades - these will be queued
+      // and will start after their current plan expires
 
       const options = {
         amount: amount, // amount in paise
@@ -146,6 +141,10 @@ router.post(
 
       // Update user to premium
       const user = await User.findById(req.userId);
+      const hadActivePremium =
+        user.isPremium &&
+        user.premiumExpiryDate &&
+        user.premiumExpiryDate > new Date();
 
       const paymentData = {
         orderId: razorpay_order_id,
@@ -160,9 +159,21 @@ router.post(
       user.upgradeToPremium(planType, paymentData);
       await user.save();
 
+      // Determine response message based on whether plan was queued
+      let message, planActivationDate;
+      if (hadActivePremium) {
+        message = `Payment verified. Your ${planType} plan will start after your current plan expires.`;
+        planActivationDate = user.queuedPlan.scheduledStartDate;
+      } else {
+        message = "Payment verified and premium activated";
+        planActivationDate = user.premiumStartDate;
+      }
+
       res.json({
         success: true,
-        message: "Payment verified and premium activated",
+        message: message,
+        planQueued: hadActivePremium,
+        planActivationDate: planActivationDate,
         user: {
           id: user._id,
           name: user.name,
@@ -171,6 +182,12 @@ router.post(
           premiumPlan: user.premiumPlan,
           premiumExpiryDate: user.premiumExpiryDate,
           premiumDaysRemaining: user.premiumDaysRemaining,
+          queuedPlan: user.queuedPlan.planType
+            ? {
+                planType: user.queuedPlan.planType,
+                scheduledStartDate: user.queuedPlan.scheduledStartDate,
+              }
+            : null,
         },
       });
     } catch (error) {

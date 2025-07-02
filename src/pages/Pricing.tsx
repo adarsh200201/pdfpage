@@ -22,7 +22,7 @@ const Pricing = () => {
   const [processingPlan, setProcessingPlan] = useState<string | null>(null);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [paymentError, setPaymentError] = useState<Error | null>(null);
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, refreshUser } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -51,12 +51,31 @@ const Pricing = () => {
 
       console.log("Payment order created:", orderId);
 
-      await processPayment(orderId, user!.email, user!.name, planType);
+      const paymentResult = await processPayment(
+        orderId,
+        user!.email,
+        user!.name,
+        planType,
+      );
 
-      toast({
-        title: "Payment Successful!",
-        description: `Welcome to ${planName}! Enjoy unlimited PDF processing.`,
-      });
+      // Refresh user data to get updated premium status
+      await refreshUser();
+
+      // Handle queued vs immediate plan activation
+      if (paymentResult.planQueued) {
+        const activationDate = new Date(
+          paymentResult.planActivationDate,
+        ).toLocaleDateString();
+        toast({
+          title: "Payment Successful!",
+          description: `Your ${planName} plan has been purchased and will start on ${activationDate} after your current plan expires.`,
+        });
+      } else {
+        toast({
+          title: "Payment Successful!",
+          description: `Welcome to ${planName}! Enjoy unlimited PDF processing.`,
+        });
+      }
 
       setTimeout(() => navigate("/dashboard"), 1500);
     } catch (error: any) {
