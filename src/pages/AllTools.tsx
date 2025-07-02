@@ -323,25 +323,12 @@ export const PdfToPowerPoint = () => {
   );
 };
 
+// PDF to Excel is now a dedicated page component at /pdf-to-excel
+// This component is no longer used - redirect to main page instead
 export const PdfToExcel = () => {
-  const handleProcess = async (files: ProcessedFile[]) => {
-    const file = files[0];
-    // Convert PDF to Excel using service
-    const result = await PDFService.convertPdfToWord(file.file); // Placeholder logic
-    PDFService.downloadFile(result, `${file.name.replace(".pdf", "")}.xlsx`);
-    await PDFService.trackUsage("pdf-to-excel", 1, file.size);
-  };
-
-  return (
-    <BasePDFTool
-      toolName="PDF to Excel"
-      description="Extract data from PDF files and convert them to Excel spreadsheets."
-      icon={Sheet}
-      color="emerald"
-      onProcess={handleProcess}
-      acceptedTypes=".pdf"
-    />
-  );
+  // Redirect to dedicated PDF to Excel page
+  window.location.href = "/pdf-to-excel";
+  return null;
 };
 
 export const JpgToPdf = () => {

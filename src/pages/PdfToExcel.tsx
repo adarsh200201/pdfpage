@@ -7,7 +7,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PromoBanner } from "@/components/ui/promo-banner";
 import AuthModal from "@/components/auth/AuthModal";
 import { useAuth } from "@/contexts/AuthContext";
-import { PDFService } from "@/services/pdfService";
 import { useToast } from "@/hooks/use-toast";
 import {
   ArrowLeft,
@@ -16,313 +15,225 @@ import {
   FileSpreadsheet,
   Crown,
   Star,
+  Table,
+  Database,
+  TrendingUp,
+  CheckCircle,
+  AlertCircle,
+  Loader2,
 } from "lucide-react";
 
+interface FileStatus {
+  file: File;
+  status: "ready" | "converting" | "completed" | "error";
+  progress: number;
+  result?: {
+    filename: string;
+    downloadUrl: string;
+    fileSize: number;
+    tablesFound: number;
+    sheetsCreated: number;
+    processingTime: number;
+  };
+  error?: string;
+}
+
 const PdfToExcel = () => {
-  const [files, setFiles] = useState<File[]>([]);
-  const [convertedFiles, setConvertedFiles] = useState<
-    { name: string; url: string; size: number }[]
-  >([]);
+  const [files, setFiles] = useState<FileStatus[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [isComplete, setIsComplete] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
 
   const { isAuthenticated, user } = useAuth();
   const { toast } = useToast();
 
   const handleFileUpload = (uploadedFiles: File[]) => {
-    setFiles(uploadedFiles);
-    setIsComplete(false);
-    setConvertedFiles([]);
+    const newFiles: FileStatus[] = uploadedFiles.map((file) => ({
+      file,
+      status: "ready",
+      progress: 0,
+    }));
+    setFiles((prev) => [...prev, ...newFiles]);
+  };
+
+  const removeFile = (index: number) => {
+    setFiles((prev) => prev.filter((_, i) => i !== index));
   };
 
   const handleConvert = async () => {
     if (files.length === 0) {
       toast({
         title: "No files selected",
-        description: "Please select PDF files to convert.",
+        description: "Please upload PDF files to convert to Excel.",
         variant: "destructive",
       });
       return;
     }
 
-    // Check usage limits
-    try {
-      const usageCheck = await PDFService.checkUsageLimit();
-      if (!usageCheck.canUpload) {
-        setShowAuthModal(true);
-        return;
-      }
-    } catch (error) {
-      console.error("Error checking usage limit:", error);
-    }
-
     setIsProcessing(true);
 
     try {
-      const convertedResults: { name: string; url: string; size: number }[] =
-        [];
+      for (let i = 0; i < files.length; i++) {
+        const fileStatus = files[i];
 
-      for (const file of files) {
+        if (fileStatus.status !== "ready") continue;
+
+        // Update status to converting
+        setFiles((prev) =>
+          prev.map((f, idx) =>
+            idx === i ? { ...f, status: "converting", progress: 10 } : f,
+          ),
+        );
+
         try {
+          const formData = new FormData();
+          formData.append("file", fileStatus.file);
+          formData.append("extractTables", "true");
+          formData.append("preserveFormatting", "true");
+
+          const response = await fetch(
+            `${import.meta.env.VITE_API_URL || "http://localhost:5000/api"}/pdf/to-excel`,
+            {
+              method: "POST",
+              headers: {
+                Authorization: `Bearer ${localStorage.getItem("token")}`,
+              },
+              body: formData,
+            },
+          );
+
+          // Update progress
+          setFiles((prev) =>
+            prev.map((f, idx) => (idx === i ? { ...f, progress: 50 } : f)),
+          );
+
+          if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(
+              errorData.message || `HTTP error! status: ${response.status}`,
+            );
+          }
+
+          const blob = await response.blob();
+
+          // Update progress
+          setFiles((prev) =>
+            prev.map((f, idx) => (idx === i ? { ...f, progress: 80 } : f)),
+          );
+
+          // Get metadata from headers
+          const tablesFound = parseInt(
+            response.headers.get("X-Tables-Found") || "0",
+          );
+          const sheetsCreated = parseInt(
+            response.headers.get("X-Sheets-Created") || "0",
+          );
+          const processingTime = parseInt(
+            response.headers.get("X-Processing-Time") || "0",
+          );
+
+          // Create download URL
+          const downloadUrl = URL.createObjectURL(blob);
+          const filename = fileStatus.file.name.replace(/\.pdf$/i, ".xlsx");
+
+          // Update with success
+          setFiles((prev) =>
+            prev.map((f, idx) =>
+              idx === i
+                ? {
+                    ...f,
+                    status: "completed",
+                    progress: 100,
+                    result: {
+                      filename,
+                      downloadUrl,
+                      fileSize: blob.size,
+                      tablesFound,
+                      sheetsCreated,
+                      processingTime,
+                    },
+                  }
+                : f,
+            ),
+          );
+
           toast({
-            title: `🔄 Converting ${file.name}...`,
-            description: "Extracting tabular data and creating CSV spreadsheet",
-          });
-
-          // Convert PDF to Excel format
-          const csvContent = await convertPdfToExcel(file);
-          const blob = new Blob([csvContent], {
-            type: "text/csv;charset=utf-8",
-          });
-          const url = URL.createObjectURL(blob);
-
-          convertedResults.push({
-            name: file.name.replace(/\.pdf$/i, ".csv"),
-            url,
-            size: blob.size,
-          });
-
-          toast({
-            title: `✅ ${file.name} converted successfully`,
-            description: "CSV spreadsheet is ready for download",
+            title: `✅ ${fileStatus.file.name} converted successfully`,
+            description: `Found ${tablesFound} tables, created ${sheetsCreated} sheets`,
           });
         } catch (error) {
-          console.error(`Error converting ${file.name}:`, error);
+          console.error(`Error converting ${fileStatus.file.name}:`, error);
+
+          setFiles((prev) =>
+            prev.map((f, idx) =>
+              idx === i
+                ? {
+                    ...f,
+                    status: "error",
+                    progress: 0,
+                    error:
+                      error instanceof Error
+                        ? error.message
+                        : "Conversion failed",
+                  }
+                : f,
+            ),
+          );
+
           toast({
-            title: `❌ Error converting ${file.name}`,
+            title: `❌ Error converting ${fileStatus.file.name}`,
             description:
-              "Failed to convert this PDF file. Please try another file.",
+              error instanceof Error ? error.message : "Conversion failed",
             variant: "destructive",
           });
         }
       }
-
-      if (convertedResults.length > 0) {
-        setConvertedFiles(convertedResults);
-        setIsComplete(true);
-
-        // Track usage for revenue analytics
-        await PDFService.trackUsage(
-          "pdf-to-excel",
-          files.length,
-          files.reduce((sum, file) => sum + file.size, 0),
-        );
-
-        toast({
-          title: "🎉 Conversion completed!",
-          description: `Successfully converted ${convertedResults.length} PDF(s) to CSV format. Files will open in Excel.`,
-        });
-      }
-    } catch (error) {
-      console.error("Error converting PDF to Excel:", error);
-      toast({
-        title: "Conversion failed",
-        description:
-          "There was an error converting your PDF files. Please try again.",
-        variant: "destructive",
-      });
     } finally {
       setIsProcessing(false);
     }
   };
 
-  const convertPdfToExcel = async (file: File): Promise<Uint8Array> => {
-    console.log("🔄 Converting PDF to CSV spreadsheet...");
-
-    try {
-      // Import required libraries
-      const { PDFDocument } = await import("pdf-lib");
-
-      // Load the PDF
-      const arrayBuffer = await file.arrayBuffer();
-      const pdfDoc = await PDFDocument.load(arrayBuffer);
-      const pages = pdfDoc.getPages();
-
-      console.log(`📑 Processing ${pages.length} pages for Excel conversion`);
-
-      // Extract data from PDF pages
-      const extractedData = [];
-      for (let i = 0; i < pages.length; i++) {
-        const page = pages[i];
-        const { width, height } = page.getSize();
-
-        // Simulate data extraction (in a real implementation, you'd extract actual tabular data)
-        extractedData.push({
-          pageNumber: i + 1,
-          pageSize: `${Math.round(width)} × ${Math.round(height)} points`,
-          extractionDate: new Date().toLocaleDateString(),
-          sourceFile: file.name,
-          dataExtracted: true,
-        });
-      }
-
-      // Create Excel-compatible format
-      const xlsxContent = createExcelContent(extractedData, file.name);
-
-      console.log(
-        `✅ CSV conversion completed: ${extractedData.length} data rows created`,
-      );
-      return xlsxContent;
-    } catch (error) {
-      console.error("CSV conversion failed:", error);
-      throw error;
-    }
-  };
-
-  const createExcelContent = (data: any[], fileName: string): Uint8Array => {
-    // Create a proper Excel file using Office Open XML format
-    console.log("📊 Creating CSV file with extracted data...");
-
-    // Generate the basic structure for a minimal XLSX file
-    const workbook = createMinimalXLSX(data, fileName);
-
-    return workbook;
-  };
-
-  const createMinimalXLSX = (data: any[], fileName: string): Uint8Array => {
-    // Create a basic but functional XLSX file structure
-    // This creates a minimal ZIP structure that Excel can open
-
-    const worksheetData = [
-      ["Page Number", "Page Size", "Extraction Date", "Source File", "Status"],
-      ...data.map((row) => [
-        row.pageNumber,
-        row.pageSize,
-        row.extractionDate,
-        row.sourceFile,
-        "✓ Extracted",
-      ]),
-      [],
-      ["Summary Information"],
-      ["Total Pages", data.length],
-      ["Source File", fileName],
-      ["Conversion Date", new Date().toLocaleDateString()],
-      ["Processing Time", new Date().toLocaleTimeString()],
-      [],
-      ["Data Extraction Details"],
-      ...data.map((row) => [
-        `Page ${row.pageNumber}`,
-        "PDF Content",
-        "Successfully Extracted",
-        row.pageSize,
-        "Ready for Excel",
-      ]),
-    ];
-
-    // Create worksheet XML
-    const worksheetXML = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
-  <sheetData>
-    ${worksheetData
-      .map(
-        (row, rowIndex) => `
-    <row r="${rowIndex + 1}">
-      ${row
-        .map((cell, cellIndex) => {
-          const cellRef = String.fromCharCode(65 + cellIndex) + (rowIndex + 1);
-          const isNumber = typeof cell === "number";
-          const cellValue = String(cell || "")
-            .replace(/"/g, "&quot;")
-            .replace(/&/g, "&amp;")
-            .replace(/</g, "&lt;")
-            .replace(/>/g, "&gt;");
-
-          return `<c r="${cellRef}"${isNumber ? ' t="n"' : ' t="inlineStr"'}>
-          ${isNumber ? `<v>${cell}</v>` : `<is><t>${cellValue}</t></is>`}
-        </c>`;
-        })
-        .join("")}
-    </row>`,
-      )
-      .join("")}
-  </sheetData>
-</worksheet>`;
-
-    // Create the minimal XLSX structure as a properly formatted file
-    const xlsxStructure = {
-      "[Content_Types].xml": `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
-  <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
-  <Default Extension="xml" ContentType="application/xml"/>
-  <Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>
-  <Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>
-</Types>`,
-
-      "_rels/.rels": `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
-  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>
-</Relationships>`,
-
-      "xl/_rels/workbook.xml.rels": `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
-  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>
-</Relationships>`,
-
-      "xl/workbook.xml": `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
-  <sheets>
-    <sheet name="PDF Data" sheetId="1" r:id="rId1" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"/>
-  </sheets>
-</workbook>`,
-
-      "xl/worksheets/sheet1.xml": worksheetXML,
-    };
-
-    // For this implementation, we'll create a CSV-like format that Excel can import
-    // Since creating a true XLSX ZIP file is complex without proper libraries
-    const csvContent = worksheetData
-      .map((row) =>
-        row
-          .map((cell) => {
-            const cellStr = String(cell || "");
-            // Escape quotes and wrap in quotes if contains comma, newline, or quote
-            if (
-              cellStr.includes(",") ||
-              cellStr.includes("\n") ||
-              cellStr.includes('"')
-            ) {
-              return `"${cellStr.replace(/"/g, '""')}"`;
-            }
-            return cellStr;
-          })
-          .join(","),
-      )
-      .join("\n");
-
-    // Add BOM for proper Excel encoding
-    const BOM = "\uFEFF";
-    const csvWithBOM = BOM + csvContent;
-
-    // Convert to Uint8Array with proper encoding
-    const encoder = new TextEncoder();
-    return encoder.encode(csvWithBOM);
-  };
-
-  const downloadFile = (url: string, filename: string) => {
+  const downloadFile = (downloadUrl: string, filename: string) => {
     const link = document.createElement("a");
-    link.href = url;
+    link.href = downloadUrl;
     link.download = filename;
     link.click();
   };
 
   const downloadAll = () => {
-    convertedFiles.forEach((file, index) => {
-      setTimeout(() => downloadFile(file.url, file.name), index * 100);
-    });
+    files
+      .filter((f) => f.status === "completed" && f.result)
+      .forEach((file, index) => {
+        setTimeout(() => {
+          downloadFile(file.result!.downloadUrl, file.result!.filename);
+        }, index * 100);
+      });
   };
 
-  const reset = () => {
-    setFiles([]);
-    setConvertedFiles([]);
-    setIsComplete(false);
+  const retryFile = async (index: number) => {
+    const fileStatus = files[index];
+    if (fileStatus.status !== "error") return;
+
+    setFiles((prev) =>
+      prev.map((f, idx) =>
+        idx === index
+          ? { ...f, status: "ready", progress: 0, error: undefined }
+          : f,
+      ),
+    );
   };
+
+  const clearAll = () => {
+    setFiles([]);
+  };
+
+  const completedFiles = files.filter((f) => f.status === "completed");
+  const hasCompletedFiles = completedFiles.length > 0;
 
   return (
     <div className="min-h-screen bg-bg-light">
       <Header />
 
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <PromoBanner className="mb-8" />
 
         {/* Navigation */}
@@ -341,178 +252,281 @@ const PdfToExcel = () => {
           <div className="w-16 h-16 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
             <FileSpreadsheet className="w-8 h-8 text-white" />
           </div>
-          <h1 className="text-heading-medium text-text-dark mb-4">
-            PDF to Excel
+          <h1 className="text-heading-large text-text-dark mb-4">
+            PDF to Excel Converter
           </h1>
-          <p className="text-body-large text-text-light max-w-2xl mx-auto">
-            Pull data straight from PDFs into CSV spreadsheets. Extract tabular
-            data and create editable CSV files that open in Excel.
+          <p className="text-body-large text-text-light max-w-3xl mx-auto">
+            Extract tables and data from PDF files and convert them to Excel
+            spreadsheets. Our advanced table detection technology identifies
+            structured data and creates professional Excel files with multiple
+            sheets.
           </p>
           <div className="mt-4 inline-flex items-center px-3 py-1 rounded-full text-sm bg-green-100 text-green-800">
-            <span className="mr-2">✨</span>
-            Real data extraction to CSV format!
+            <CheckCircle className="w-4 h-4 mr-2" />
+            Real table extraction • Professional Excel output
+          </div>
+        </div>
+
+        {/* Features */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+          <div className="text-center p-4">
+            <Table className="w-8 h-8 text-emerald-600 mx-auto mb-2" />
+            <h3 className="font-semibold text-gray-900">
+              Smart Table Detection
+            </h3>
+            <p className="text-gray-600 text-sm">
+              Automatically identifies and extracts tables from your PDFs
+            </p>
+          </div>
+          <div className="text-center p-4">
+            <Database className="w-8 h-8 text-blue-600 mx-auto mb-2" />
+            <h3 className="font-semibold text-gray-900">Multi-Sheet Output</h3>
+            <p className="text-gray-600 text-sm">
+              Creates separate Excel sheets for each table found
+            </p>
+          </div>
+          <div className="text-center p-4">
+            <TrendingUp className="w-8 h-8 text-purple-600 mx-auto mb-2" />
+            <h3 className="font-semibold text-gray-900">Professional Format</h3>
+            <p className="text-gray-600 text-sm">
+              Maintains formatting with headers, borders, and styling
+            </p>
+          </div>
+          <div className="text-center p-4">
+            <FileSpreadsheet className="w-8 h-8 text-orange-600 mx-auto mb-2" />
+            <h3 className="font-semibold text-gray-900">Excel Compatible</h3>
+            <p className="text-gray-600 text-sm">
+              Generates .xlsx files that work perfectly with Excel
+            </p>
           </div>
         </div>
 
         {/* Main Content */}
-        {!isComplete ? (
-          <div className="space-y-8">
-            {/* File Upload */}
-            {files.length === 0 && (
-              <div className="bg-white rounded-xl p-8 shadow-sm border border-gray-100">
-                <FileUpload
-                  onFilesSelect={handleFileUpload}
-                  accept=".pdf"
-                  multiple={true}
-                  maxSize={50}
-                />
-              </div>
-            )}
+        <div className="space-y-8">
+          {/* File Upload */}
+          <div className="bg-white rounded-xl p-8 shadow-sm border border-gray-100">
+            <FileUpload
+              onFilesSelect={handleFileUpload}
+              accept=".pdf"
+              multiple={true}
+              maxSize={50}
+              title="Upload PDF Files"
+              description="Select PDF files containing tables or structured data to convert to Excel"
+            />
+          </div>
 
-            {/* File List */}
-            {files.length > 0 && (
-              <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
-                <h3 className="text-lg font-semibold text-text-dark mb-4">
-                  Selected Files ({files.length})
+          {/* File List */}
+          {files.length > 0 && (
+            <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-lg font-semibold text-text-dark">
+                  Files ({files.length})
                 </h3>
-                <div className="space-y-3">
-                  {files.map((file, index) => (
-                    <div
-                      key={index}
-                      className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
-                    >
-                      <div className="flex items-center space-x-3">
-                        <FileText className="w-5 h-5 text-emerald-500" />
-                        <div>
-                          <p className="font-medium text-text-dark">
-                            {file.name}
-                          </p>
-                          <p className="text-sm text-text-light">
-                            {(file.size / 1024 / 1024).toFixed(2)} MB
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Action Buttons */}
-                <div className="flex flex-col sm:flex-row gap-3 mt-6">
+                <div className="flex gap-2">
                   <Button
                     onClick={handleConvert}
-                    disabled={isProcessing}
-                    className="flex-1"
+                    disabled={
+                      isProcessing || files.every((f) => f.status !== "ready")
+                    }
+                    className="bg-emerald-600 hover:bg-emerald-700"
                   >
                     {isProcessing ? (
                       <>
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                         Converting...
                       </>
                     ) : (
                       <>
                         <FileSpreadsheet className="w-4 h-4 mr-2" />
-                        Convert to CSV
+                        Convert to Excel
                       </>
                     )}
                   </Button>
-                  <Button variant="outline" onClick={() => setFiles([])}>
-                    Clear Files
+                  {hasCompletedFiles && (
+                    <Button
+                      onClick={downloadAll}
+                      variant="outline"
+                      className="border-emerald-600 text-emerald-600 hover:bg-emerald-50"
+                    >
+                      <Download className="w-4 h-4 mr-2" />
+                      Download All
+                    </Button>
+                  )}
+                  <Button variant="outline" onClick={clearAll}>
+                    Clear All
                   </Button>
                 </div>
               </div>
-            )}
 
-            {/* Premium Features */}
-            {!user?.isPremium && (
-              <Card className="border-brand-yellow bg-gradient-to-r from-yellow-50 to-orange-50">
-                <CardHeader>
-                  <CardTitle className="flex items-center text-orange-800">
-                    <Crown className="w-5 h-5 mr-2 text-brand-yellow" />
-                    Unlock Premium Features
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <ul className="space-y-2 text-sm text-orange-700 mb-4">
-                    <li className="flex items-center">
-                      <Star className="w-4 h-4 mr-2 text-brand-yellow" />
-                      Convert unlimited PDF files
-                    </li>
-                    <li className="flex items-center">
-                      <Star className="w-4 h-4 mr-2 text-brand-yellow" />
-                      Advanced table detection
-                    </li>
-                    <li className="flex items-center">
-                      <Star className="w-4 h-4 mr-2 text-brand-yellow" />
-                      Multi-sheet Excel output
-                    </li>
-                    <li className="flex items-center">
-                      <Star className="w-4 h-4 mr-2 text-brand-yellow" />
-                      Formula preservation
-                    </li>
-                  </ul>
-                  <Button className="bg-brand-yellow text-black hover:bg-yellow-400">
-                    <Crown className="w-4 h-4 mr-2" />
-                    Get Premium
-                  </Button>
-                </CardContent>
-              </Card>
-            )}
-          </div>
-        ) : (
-          /* Results */
-          <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
-            <div className="text-center mb-6">
-              <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <FileSpreadsheet className="w-8 h-8 text-green-600" />
-              </div>
-              <h3 className="text-xl font-semibold text-text-dark mb-2">
-                Conversion Complete!
-              </h3>
-              <p className="text-text-light">
-                Successfully converted {files.length} PDF(s) to CSV
-              </p>
-            </div>
-
-            {/* File List */}
-            <div className="space-y-3 mb-6">
-              {convertedFiles.map((file, index) => (
-                <div
-                  key={index}
-                  className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
-                >
-                  <div className="flex items-center space-x-3">
-                    <FileSpreadsheet className="w-5 h-5 text-emerald-500" />
-                    <div>
-                      <p className="font-medium text-text-dark">{file.name}</p>
-                      <p className="text-sm text-text-light">
-                        {(file.size / 1024 / 1024).toFixed(2)} MB
-                      </p>
-                    </div>
-                  </div>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => downloadFile(file.url, file.name)}
+              <div className="space-y-4">
+                {files.map((fileStatus, index) => (
+                  <div
+                    key={index}
+                    className="border border-gray-200 rounded-lg p-4"
                   >
-                    <Download className="w-4 h-4 mr-1" />
-                    Download
-                  </Button>
-                </div>
-              ))}
-            </div>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-3">
+                        {fileStatus.status === "ready" && (
+                          <FileText className="w-5 h-5 text-gray-500" />
+                        )}
+                        {fileStatus.status === "converting" && (
+                          <Loader2 className="w-5 h-5 text-blue-500 animate-spin" />
+                        )}
+                        {fileStatus.status === "completed" && (
+                          <CheckCircle className="w-5 h-5 text-green-500" />
+                        )}
+                        {fileStatus.status === "error" && (
+                          <AlertCircle className="w-5 h-5 text-red-500" />
+                        )}
+                        <div>
+                          <p className="font-medium text-text-dark">
+                            {fileStatus.file.name}
+                          </p>
+                          <p className="text-sm text-text-light">
+                            {(fileStatus.file.size / 1024 / 1024).toFixed(2)} MB
+                          </p>
+                        </div>
+                      </div>
 
-            {/* Action Buttons */}
-            <div className="flex flex-col sm:flex-row gap-3">
-              <Button onClick={downloadAll} className="flex-1">
-                <Download className="w-4 h-4 mr-2" />
-                Download All Files
-              </Button>
-              <Button variant="outline" onClick={reset}>
-                Convert More Files
-              </Button>
+                      <div className="flex items-center space-x-2">
+                        {fileStatus.status === "converting" && (
+                          <div className="w-32">
+                            <div className="w-full bg-gray-200 rounded-full h-2">
+                              <div
+                                className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                                style={{ width: `${fileStatus.progress}%` }}
+                              ></div>
+                            </div>
+                            <p className="text-xs text-gray-500 mt-1">
+                              {fileStatus.progress}%
+                            </p>
+                          </div>
+                        )}
+
+                        {fileStatus.status === "completed" &&
+                          fileStatus.result && (
+                            <div className="text-right mr-4">
+                              <p className="text-sm text-green-600 font-medium">
+                                {fileStatus.result.tablesFound} tables found
+                              </p>
+                              <p className="text-xs text-gray-500">
+                                {fileStatus.result.sheetsCreated} sheets created
+                              </p>
+                            </div>
+                          )}
+
+                        {fileStatus.status === "error" && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => retryFile(index)}
+                          >
+                            Retry
+                          </Button>
+                        )}
+
+                        {fileStatus.status === "completed" &&
+                          fileStatus.result && (
+                            <Button
+                              size="sm"
+                              onClick={() =>
+                                downloadFile(
+                                  fileStatus.result!.downloadUrl,
+                                  fileStatus.result!.filename,
+                                )
+                              }
+                            >
+                              <Download className="w-4 h-4 mr-1" />
+                              Download
+                            </Button>
+                          )}
+
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => removeFile(index)}
+                        >
+                          ×
+                        </Button>
+                      </div>
+                    </div>
+
+                    {fileStatus.status === "error" && fileStatus.error && (
+                      <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded text-sm text-red-700">
+                        {fileStatus.error}
+                      </div>
+                    )}
+
+                    {fileStatus.status === "completed" && fileStatus.result && (
+                      <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded text-sm">
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-green-700">
+                          <div>
+                            <span className="font-medium">Size:</span>{" "}
+                            {(fileStatus.result.fileSize / 1024 / 1024).toFixed(
+                              2,
+                            )}{" "}
+                            MB
+                          </div>
+                          <div>
+                            <span className="font-medium">Tables:</span>{" "}
+                            {fileStatus.result.tablesFound}
+                          </div>
+                          <div>
+                            <span className="font-medium">Sheets:</span>{" "}
+                            {fileStatus.result.sheetsCreated}
+                          </div>
+                          <div>
+                            <span className="font-medium">Time:</span>{" "}
+                            {(fileStatus.result.processingTime / 1000).toFixed(
+                              1,
+                            )}
+                            s
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
             </div>
-          </div>
-        )}
+          )}
+
+          {/* Premium Features */}
+          {!user?.isPremiumActive && (
+            <Card className="border-brand-yellow bg-gradient-to-r from-yellow-50 to-orange-50">
+              <CardHeader>
+                <CardTitle className="flex items-center text-orange-800">
+                  <Crown className="w-5 h-5 mr-2 text-brand-yellow" />
+                  Unlock Premium Features
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ul className="space-y-2 text-sm text-orange-700 mb-4">
+                  <li className="flex items-center">
+                    <Star className="w-4 h-4 mr-2 text-brand-yellow" />
+                    Process unlimited PDF files
+                  </li>
+                  <li className="flex items-center">
+                    <Star className="w-4 h-4 mr-2 text-brand-yellow" />
+                    Advanced table detection algorithms
+                  </li>
+                  <li className="flex items-center">
+                    <Star className="w-4 h-4 mr-2 text-brand-yellow" />
+                    Larger file size support (up to 50MB)
+                  </li>
+                  <li className="flex items-center">
+                    <Star className="w-4 h-4 mr-2 text-brand-yellow" />
+                    Custom formatting options
+                  </li>
+                </ul>
+                <Button className="bg-brand-yellow text-black hover:bg-yellow-400">
+                  <Crown className="w-4 h-4 mr-2" />
+                  Get Premium
+                </Button>
+              </CardContent>
+            </Card>
+          )}
+        </div>
       </div>
 
       {/* Auth Modal */}

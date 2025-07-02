@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import AdSense from "@/components/ads/AdSense";
 import { PromoBanner } from "@/components/ui/promo-banner";
 import { useRealTimeStats } from "@/hooks/useRealTimeStats";
+import { useMixpanel } from "@/hooks/useMixpanel";
 import {
   Combine,
   Scissors,
@@ -100,6 +101,22 @@ const FloatingElement = ({
 
 const Index = () => {
   const [currentTestimonial, setCurrentTestimonial] = useState(0);
+  const mixpanel = useMixpanel();
+
+  // Track homepage visit in real-time
+  useEffect(() => {
+    mixpanel.trackPageView("Homepage", {
+      page_title: "PdfPage - The Ultimate PDF Toolkit",
+      visitor_type: "homepage_visitor",
+      timestamp: new Date().toISOString(),
+    });
+
+    // Track engagement event
+    mixpanel.trackEngagement("homepage_loaded", {
+      load_time: Date.now(),
+      user_agent: navigator.userAgent,
+    });
+  }, [mixpanel]);
 
   // Smooth scroll to tools section
   const scrollToTools = () => {
@@ -643,8 +660,29 @@ const Index = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {pdfTools.map((tool, index) => {
               const IconComponent = tool.icon;
+
+              const handleToolClick = () => {
+                // Track tool click in real-time
+                mixpanel.trackToolUsage(
+                  tool.href.replace("/", ""),
+                  "homepage_click",
+                  {
+                    tool_title: tool.title,
+                    tool_description: tool.description,
+                    from_page: "homepage",
+                    click_timestamp: new Date().toISOString(),
+                    tool_index: index,
+                  },
+                );
+              };
+
               return (
-                <Link key={tool.href} to={tool.href} className="group relative">
+                <Link
+                  key={tool.href}
+                  to={tool.href}
+                  className="group relative"
+                  onClick={handleToolClick}
+                >
                   <Card className="h-full border-0 shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2 bg-white/80 backdrop-blur-sm">
                     <CardContent className="p-6">
                       {/* Badges */}

@@ -30,6 +30,7 @@ import { cn } from "@/lib/utils";
 import { PDFService } from "@/services/pdfService";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
+import { useAutoToolTracking } from "@/hooks/useAutoToolTracking";
 import AuthModal from "@/components/auth/AuthModal";
 
 interface ProcessedFile {
@@ -58,10 +59,15 @@ const Split = () => {
 
   const { user, isAuthenticated } = useAuth();
   const { toast } = useToast();
+  const track = useAutoToolTracking();
 
   const handleFilesSelect = (files: File[]) => {
     if (files.length > 0) {
       const selectedFile = files[0];
+
+      // Track file upload
+      track.fileUpload([selectedFile]);
+
       setFile({
         id: Math.random().toString(36).substr(2, 9),
         file: selectedFile,

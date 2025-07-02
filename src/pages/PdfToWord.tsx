@@ -37,6 +37,7 @@ import {
   Type,
   Image,
   Info,
+  Bug,
 } from "lucide-react";
 
 interface FileWithStatus {
@@ -66,6 +67,8 @@ const PdfToWord = () => {
   const [isComplete, setIsComplete] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showAdvancedSettings, setShowAdvancedSettings] = useState(false);
+  const [showDebugPanel, setShowDebugPanel] = useState(false);
+  const [debugLog, setDebugLog] = useState<string[]>([]);
 
   // Conversion settings
   const [conversionSettings, setConversionSettings] = useState({
@@ -92,6 +95,36 @@ const PdfToWord = () => {
   const { isAuthenticated, user } = useAuth();
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Debug logging function
+  const addDebugLog = (message: string) => {
+    const timestamp = new Date().toLocaleTimeString();
+    setDebugLog((prev) => [...prev, `[${timestamp}] ${message}`]);
+    console.log(`[PDF-to-Word Debug] ${message}`);
+  };
+
+  // PDF debugging function
+  const debugPDFFile = async (file: File) => {
+    addDebugLog(`Starting PDF analysis for: ${file.name}`);
+
+    try {
+      const { debugPDFFile: debugFunction, formatDebugInfo } = await import(
+        "../utils/pdf-debug"
+      );
+      const debugInfo = await debugFunction(file);
+      const report = formatDebugInfo(debugInfo);
+
+      addDebugLog("PDF Analysis Results:");
+      report.split("\n").forEach((line) => {
+        if (line.trim()) addDebugLog(line);
+      });
+
+      return debugInfo;
+    } catch (error) {
+      addDebugLog(`PDF analysis failed: ${error.message}`);
+      return null;
+    }
+  };
 
   // Handle file selection
   const handleFilesSelect = useCallback(
@@ -177,6 +210,14 @@ const PdfToWord = () => {
 
       try {
         setCurrentProcessingFile(fileStatus.file.name);
+        addDebugLog(`Starting conversion for file: ${fileStatus.file.name}`);
+        addDebugLog(
+          `File size: ${(fileStatus.file.size / 1024 / 1024).toFixed(2)} MB`,
+        );
+        addDebugLog(`File type: ${fileStatus.file.type}`);
+
+        // Debug the PDF file structure
+        await debugPDFFile(fileStatus.file);
 
         // Update file status to processing with progress indicator
         setFiles((prev) =>
@@ -217,16 +258,63 @@ const PdfToWord = () => {
           formatPreservation: true,
         });
         console.log(
-          `🌐 Enhanced API: ${import.meta.env.VITE_API_URL}/pdf/to-word`,
+          `🌐 Enhanced API: ${import.meta.env.VITE_API_URL || "http://localhost:5000/api"}/pdf/to-word`,
         );
+        console.log(`🔗 Full API endpoint being called:`, {
+          baseUrl: import.meta.env.VITE_API_URL || "http://localhost:5000/api",
+          endpoint: "/pdf/to-word",
+          fullUrl: `${import.meta.env.VITE_API_URL || "http://localhost:5000/api"}/pdf/to-word`,
+        });
 
         // Convert using backend API with REAL conversion (not demo)
         const conversionStartTime = Date.now();
+
+        addDebugLog("Calling PDFService.convertPdfToWordAPI...");
+        addDebugLog(
+          `Conversion settings: ${JSON.stringify(conversionSettings)}`,
+        );
+
+        console.log("🔄 About to call PDFService.convertPdfToWordAPI with:", {
+          fileName: fileStatus.file.name,
+          fileSize: fileStatus.file.size,
+          fileType: fileStatus.file.type,
+          settings: conversionSettings,
+        });
+
         const result = await PDFService.convertPdfToWordAPI(
           fileStatus.file,
           conversionSettings,
         );
         const conversionEndTime = Date.now();
+
+        addDebugLog(
+          `Conversion completed in ${conversionEndTime - conversionStartTime}ms`,
+        );
+        addDebugLog(
+          `Result file: ${result.file.name} (${(result.file.size / 1024 / 1024).toFixed(2)} MB)`,
+        );
+        addDebugLog(
+          `Extracted: ${result.stats.originalPages} pages, ${result.stats.textLength} characters`,
+        );
+
+        // Check for potential issues
+        if (result.stats.originalPages === 0) {
+          addDebugLog(
+            "⚠️ WARNING: 0 pages detected - PDF may be corrupted or image-based",
+          );
+        }
+        if (result.stats.textLength === 0) {
+          addDebugLog(
+            "⚠️ WARNING: 0 characters extracted - PDF may contain only images/scanned content",
+          );
+        }
+
+        console.log("✅ Conversion completed successfully:", {
+          timeTaken: conversionEndTime - conversionStartTime,
+          resultFile: result.file.name,
+          resultSize: result.file.size,
+          stats: result.stats,
+        });
 
         console.log(
           `⏱️ Actual conversion time: ${conversionEndTime - conversionStartTime}ms`,
@@ -247,6 +335,85 @@ const PdfToWord = () => {
           outputSize: `${(result.file.size / 1024 / 1024).toFixed(2)} MB`,
           preservedFormatting: conversionSettings.preserveFormatting,
           realDataExtracted: true,
+        });
+
+        // Validate conversion result
+        if (!result || !result.file) {
+          throw new Error("Invalid conversion result: No file received");
+        }
+
+        if (result.file.size === 0) {
+          throw new Error("Conversion failed: Generated file is empty");
+        }
+
+        if (!result.file.name.endsWith(".docx")) {
+          console.warn(
+            "Warning: Generated file doesn't have .docx extension:",
+            result.file.name,
+          );
+        }
+
+        // Check for extraction issues - this indicates backend needs restart
+        if (result.stats.originalPages === 0 && result.stats.textLength === 0) {
+          addDebugLog("⚠️ Backend extraction returned 0 pages/0 characters");
+          addDebugLog(
+            "🔧 This indicates the backend needs to be restarted to apply fixes",
+          );
+
+          // Enhance the result with client-side analysis for better user experience
+          try {
+            const { extractPDFContent } = await import(
+              "../utils/client-pdf-extraction"
+            );
+            const clientAnalysis = await extractPDFContent(fileStatus.file);
+
+            addDebugLog(
+              `📊 Client analysis: ${clientAnalysis.pages} pages, content: ${clientAnalysis.hasContent}, image-based: ${clientAnalysis.isImageBased}`,
+            );
+
+            // Update stats with client-side analysis
+            result.stats.originalPages = clientAnalysis.pages;
+            result.stats.conversionType = "needs_backend_restart";
+
+            if (clientAnalysis.isImageBased) {
+              addDebugLog("📄 PDF confirmed as image-based/scanned document");
+
+              toast({
+                title: "📄 Image-based PDF Detected",
+                description: `This ${clientAnalysis.pages}-page PDF contains scanned images. For best results, use our OCR tool first, or restart the backend service to enable enhanced extraction.`,
+                duration: 10000,
+              });
+            } else {
+              addDebugLog(
+                "🔧 PDF has text content but backend extraction failed",
+              );
+
+              toast({
+                title: "🔧 Backend Restart Needed",
+                description: `PDF analysis shows ${clientAnalysis.pages} pages with content, but extraction failed. Please restart the backend service to apply recent improvements.`,
+                variant: "destructive",
+                duration: 10000,
+              });
+            }
+          } catch (analysisError) {
+            addDebugLog(`❌ Client analysis failed: ${analysisError.message}`);
+
+            toast({
+              title: "🔧 Service Issue",
+              description:
+                "PDF processing completed but with extraction issues. The backend service may need to be restarted to apply recent improvements.",
+              variant: "destructive",
+              duration: 8000,
+            });
+          }
+        }
+
+        console.log("✅ Conversion result validation passed:", {
+          hasFile: !!result.file,
+          fileSize: result.file.size,
+          fileName: result.file.name,
+          fileType: result.file.type,
+          hasStats: !!result.stats,
         });
 
         // Create download URL for real converted file
@@ -289,6 +456,12 @@ const PdfToWord = () => {
           clearInterval(progressInterval);
         }
 
+        const errorMessage =
+          error instanceof Error ? error.message : "Conversion failed";
+        addDebugLog(
+          `❌ Error converting ${fileStatus.file.name}: ${errorMessage}`,
+        );
+
         console.error(`❌ Error converting ${fileStatus.file.name}:`, error);
 
         // Update file status with error and clear progress
@@ -299,10 +472,7 @@ const PdfToWord = () => {
                   ...f,
                   status: "error",
                   processingProgress: 0,
-                  errorMessage:
-                    error instanceof Error
-                      ? error.message
-                      : "Conversion failed",
+                  errorMessage,
                 }
               : f,
           ),
@@ -310,7 +480,7 @@ const PdfToWord = () => {
 
         toast({
           title: "❌ Conversion Failed",
-          description: `${fileStatus.file.name}: ${error instanceof Error ? error.message : "Unknown error"}`,
+          description: `${fileStatus.file.name}: ${errorMessage}`,
           variant: "destructive",
           duration: 6000,
         });
@@ -335,7 +505,7 @@ const PdfToWord = () => {
     setProgress(100);
   };
 
-  // Download converted file
+  // Download converted file with preview functionality
   const downloadFile = async (fileStatus: FileWithStatus) => {
     if (!fileStatus.downloadUrl) {
       toast({
@@ -356,9 +526,17 @@ const PdfToWord = () => {
       const timestamp = new Date().toISOString().slice(0, 10);
       const fileName = `${originalName}_converted_${timestamp}.docx`;
 
-      // Add small delay for better UX (show loading state)
-      await new Promise((resolve) => setTimeout(resolve, 500));
+      // Show download preview with file info
+      toast({
+        title: "🔄 Preparing Download",
+        description: `Preparing ${fileName} for download...`,
+        duration: 2000,
+      });
 
+      // Add small delay for better UX (show loading state)
+      await new Promise((resolve) => setTimeout(resolve, 800));
+
+      // Create download link
       const link = document.createElement("a");
       link.href = fileStatus.downloadUrl;
       link.download = fileName;
@@ -367,20 +545,39 @@ const PdfToWord = () => {
       link.click();
       document.body.removeChild(link);
 
-      // Show success feedback
-      toast({
-        title: "✅ Download Started",
-        description: `${fileName} is being downloaded to your device.`,
-        duration: 4000,
-      });
+      // Show success feedback with file details (safer toast handling)
+      try {
+        toast({
+          title: "✅ Download Started",
+          description: `${fileName} - ${fileStatus.pages || 0} pages • ${(fileStatus.textLength || 0).toLocaleString()} chars`,
+          duration: 4000,
+        });
+      } catch (toastError) {
+        console.warn("Toast notification error:", toastError);
+      }
 
-      // Track download analytics (optional)
+      // Track download analytics
       console.log("File downloaded:", {
         originalName: fileStatus.file.name,
         downloadName: fileName,
         fileSize: fileStatus.file.size,
         conversionType: fileStatus.conversionType,
+        pages: fileStatus.pages,
+        textLength: fileStatus.textLength,
       });
+
+      // Show additional download preview info with error handling
+      setTimeout(() => {
+        try {
+          toast({
+            title: "📄 File Preview Info",
+            description: `Original: ${fileStatus.file.name} → Converted: ${fileName} (Microsoft Word format) - You can now open this file in Microsoft Word, Google Docs, or any compatible word processor.`,
+            duration: 6000,
+          });
+        } catch (toastError) {
+          console.warn("Preview toast notification error:", toastError);
+        }
+      }, 1000);
     } catch (error) {
       console.error("Download failed:", error);
       toast({
@@ -461,6 +658,15 @@ const PdfToWord = () => {
               <Clock className="w-3 h-3 mr-1" />
               {isProcessing ? "Converting..." : `${completedFiles} completed`}
             </Badge>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowDebugPanel(!showDebugPanel)}
+              className="flex items-center"
+            >
+              <Bug className="w-4 h-4 mr-1" />
+              Debug
+            </Button>
             {/* All features are free - no upgrade needed */}
           </div>
         </div>
@@ -474,10 +680,10 @@ const PdfToWord = () => {
             PDF to Word Converter
           </h1>
           <p className="text-gray-600 max-w-2xl mx-auto">
-            Extract and convert real text content from your PDF documents to
-            editable Word (.docx) files. Advanced text analysis preserves
-            original formatting, structure, and layout - no artificial content
-            added.
+            Convert PDF documents to editable Word (.docx) files with enhanced
+            layout preservation technology. Our advanced engine maintains
+            original formatting, document structure, tables, and spatial layouts
+            for professional-quality conversions.
           </p>
         </div>
 
@@ -485,30 +691,36 @@ const PdfToWord = () => {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
           <div className="text-center p-4">
             <Type className="w-8 h-8 text-blue-600 mx-auto mb-2" />
-            <h3 className="font-semibold text-gray-900">Extract Real Text</h3>
+            <h3 className="font-semibold text-gray-900">
+              Enhanced Text Extraction
+            </h3>
             <p className="text-gray-600 text-sm">
-              Extracts actual text content with original formatting preserved
+              Advanced spatial-aware extraction preserves original text
+              positioning
             </p>
           </div>
           <div className="text-center p-4">
             <Layers className="w-8 h-8 text-green-600 mx-auto mb-2" />
-            <h3 className="font-semibold text-gray-900">Structure Analysis</h3>
+            <h3 className="font-semibold text-gray-900">Layout Preservation</h3>
             <p className="text-gray-600 text-sm">
-              Analyzes and preserves document structure, headings, and lists
+              Maintains document structure, tables, columns, and formatting
             </p>
           </div>
           <div className="text-center p-4">
             <Zap className="w-8 h-8 text-purple-600 mx-auto mb-2" />
-            <h3 className="font-semibold text-gray-900">Fast Processing</h3>
+            <h3 className="font-semibold text-gray-900">
+              Professional Quality
+            </h3>
             <p className="text-gray-600 text-sm">
-              Quick conversion with real-time progress
+              Industry-grade conversion with proper alignment and spacing
             </p>
           </div>
           <div className="text-center p-4">
             <FileCheck className="w-8 h-8 text-orange-600 mx-auto mb-2" />
-            <h3 className="font-semibold text-gray-900">Authentic Content</h3>
+            <h3 className="font-semibold text-gray-900">Structure Detection</h3>
             <p className="text-gray-600 text-sm">
-              100% original content extraction - no artificial text added
+              Intelligent recognition of headers, lists, tables, and content
+              types
             </p>
           </div>
         </div>
@@ -968,6 +1180,161 @@ const PdfToWord = () => {
             {/* All features are completely free */}
           </div>
         </div>
+
+        {/* Debug Panel */}
+        {showDebugPanel && (
+          <div className="mt-8">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center">
+                  <Bug className="w-5 h-5 mr-2" />
+                  Debug Information
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div>
+                    <h4 className="font-medium text-gray-900 mb-2">
+                      System Information
+                    </h4>
+                    <div className="text-sm space-y-1 bg-gray-50 p-3 rounded">
+                      <p>
+                        <strong>API URL:</strong>{" "}
+                        {import.meta.env.VITE_API_URL ||
+                          "http://localhost:5000/api"}
+                      </p>
+                      <p>
+                        <strong>Environment:</strong> {import.meta.env.MODE}
+                      </p>
+                      <p>
+                        <strong>Authenticated:</strong>{" "}
+                        {isAuthenticated ? "Yes" : "No"}
+                      </p>
+                      <p>
+                        <strong>Files Uploaded:</strong> {files.length}
+                      </p>
+                    </div>
+
+                    {/* Show backend restart notice if extraction issues detected */}
+                    {files.some(
+                      (f) =>
+                        f.status === "completed" &&
+                        (f.pages === 0 ||
+                          f.conversionType === "needs_backend_restart"),
+                    ) && (
+                      <div className="mt-3 p-4 bg-gradient-to-r from-orange-50 to-red-50 border border-orange-200 rounded-lg">
+                        <div className="flex items-start">
+                          <div className="flex-shrink-0">
+                            <RefreshCw className="w-5 h-5 text-orange-600 mt-0.5" />
+                          </div>
+                          <div className="ml-3">
+                            <h5 className="font-medium text-orange-800 mb-2">
+                              🔧 Backend Service Restart Required
+                            </h5>
+                            <p className="text-sm text-orange-700 mb-3">
+                              Recent improvements to PDF extraction require
+                              restarting the backend service:
+                            </p>
+                            <div className="bg-white rounded p-2 border border-orange-200">
+                              <ol className="text-sm text-gray-700 space-y-1 list-decimal ml-4">
+                                <li>Open your backend terminal</li>
+                                <li>
+                                  Press{" "}
+                                  <kbd className="px-1 py-0.5 bg-gray-200 rounded text-xs">
+                                    Ctrl+C
+                                  </kbd>{" "}
+                                  to stop the service
+                                </li>
+                                <li>
+                                  Run:{" "}
+                                  <code className="bg-gray-100 px-2 py-0.5 rounded text-xs">
+                                    cd backend && npm run dev
+                                  </code>
+                                </li>
+                                <li>Wait for "Server running" message</li>
+                                <li>Try uploading your PDF again</li>
+                              </ol>
+                            </div>
+                            <p className="text-xs text-orange-600 mt-2">
+                              💡 This will enable enhanced PDF parsing that can
+                              extract content from more document types.
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  <div>
+                    <h4 className="font-medium text-gray-900 mb-2">
+                      Debug Log
+                    </h4>
+                    <div className="bg-black text-green-400 p-3 rounded text-xs font-mono max-h-64 overflow-y-auto">
+                      {debugLog.length > 0 ? (
+                        debugLog.map((log, index) => (
+                          <div key={index}>{log}</div>
+                        ))
+                      ) : (
+                        <div className="text-gray-500">
+                          No debug logs yet. Upload a file to start debugging.
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="flex space-x-2 flex-wrap">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setDebugLog([])}
+                    >
+                      Clear Log
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={async () => {
+                        addDebugLog("Testing backend connectivity...");
+                        try {
+                          const response = await fetch(
+                            `${import.meta.env.VITE_API_URL || "http://localhost:5000/api"}/health`,
+                          );
+                          if (response.ok) {
+                            const data = await response.json();
+                            addDebugLog(`✅ Backend connected: ${data.status}`);
+                          } else {
+                            addDebugLog(`❌ Backend error: ${response.status}`);
+                          }
+                        } catch (error) {
+                          addDebugLog(`❌ Connection failed: ${error.message}`);
+                        }
+                      }}
+                    >
+                      Test Backend
+                    </Button>
+                    {files.length > 0 && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={async () => {
+                          const firstFile = files[0];
+                          if (firstFile) {
+                            addDebugLog(
+                              `Analyzing PDF structure of: ${firstFile.file.name}`,
+                            );
+                            await debugPDFFile(firstFile.file);
+                          }
+                        }}
+                      >
+                        Analyze PDF
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
 
         {/* Promo Banner */}
         <div className="mt-12">

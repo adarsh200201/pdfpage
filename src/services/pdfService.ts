@@ -1,3 +1,5 @@
+import mixpanelService from "./mixpanelService";
+
 export interface ProcessedFile {
   id: string;
   file: File;
@@ -143,6 +145,14 @@ export class PDFService {
       conversionType: string;
     };
   }> {
+    console.log("🚀 Starting PDF to Word conversion via API");
+    console.log("📁 File details:", {
+      name: file.name,
+      size: `${(file.size / 1024 / 1024).toFixed(2)} MB`,
+      type: file.type,
+    });
+    console.log("⚙️ Options:", options);
+
     try {
       const formData = new FormData();
       formData.append("file", file);
@@ -160,7 +170,12 @@ export class PDFService {
         formData.append("includeMetadata", options.includeMetadata.toString());
       }
 
-      const response = await fetch(`${this.API_URL}/pdf/to-word`, {
+      const apiUrl = this.API_URL;
+      const fullEndpoint = `${apiUrl}/pdf/to-word`;
+
+      console.log("🌐 Making request to:", fullEndpoint);
+
+      const response = await fetch(fullEndpoint, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${localStorage.getItem("token")}`,
@@ -168,14 +183,40 @@ export class PDFService {
         body: formData,
       });
 
+      console.log("📡 Response status:", response.status, response.statusText);
+
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(
-          errorData.message || `HTTP error! status: ${response.status}`,
-        );
+        let errorMessage = `HTTP error! status: ${response.status}`;
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.message || errorMessage;
+
+          // Handle specific error cases
+          if (errorData.pdfType === "scanned_or_image_based") {
+            errorMessage =
+              "This PDF appears to be scanned or image-based. Please use our OCR tool first to make the text searchable, then try converting to Word.";
+          }
+        } catch (e) {
+          // If JSON parsing fails, use the default error message
+        }
+        throw new Error(errorMessage);
       }
 
       const blob = await response.blob();
+
+      // Validate the blob is a valid DOCX file
+      if (blob.size === 0) {
+        throw new Error("Received empty file from server. Please try again.");
+      }
+
+      // Check if it's actually a DOCX file (basic validation)
+      if (
+        blob.type &&
+        !blob.type.includes("wordprocessingml") &&
+        !blob.type.includes("application/octet-stream")
+      ) {
+        console.warn("Unexpected blob type:", blob.type);
+      }
 
       // Get enhanced stats from headers
       const originalPages = parseInt(
@@ -209,11 +250,31 @@ export class PDFService {
         outputSize: (blob.size / 1024 / 1024).toFixed(2) + " MB",
       });
 
-      // Create new file from blob
-      const fileName = file.name.replace(/\.pdf$/i, ".docx");
+      // Generate proper filename for the converted file
+      const originalName = file.name.replace(/\.pdf$/i, "");
+      const timestamp = new Date().toISOString().slice(0, 10);
+      const fileName = `${originalName}_converted_${timestamp}.docx`;
+
+      // Create File object for download with proper MIME type
       const convertedFile = new File([blob], fileName, {
         type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        lastModified: Date.now(),
       });
+
+      // Validate the created file
+      console.log("✅ Created DOCX file:", {
+        name: convertedFile.name,
+        size: `${(convertedFile.size / 1024 / 1024).toFixed(2)} MB`,
+        type: convertedFile.type,
+        lastModified: new Date(convertedFile.lastModified).toISOString(),
+      });
+
+      // Additional validation - check if file is not empty
+      if (convertedFile.size === 0) {
+        throw new Error(
+          "Generated DOCX file is empty. Conversion may have failed.",
+        );
+      }
 
       return {
         file: convertedFile,
@@ -225,21 +286,29 @@ export class PDFService {
         },
       };
     } catch (error) {
-      console.error("PDF to Word conversion failed:", error);
+      console.error("❌ PDF to Word conversion failed:", error);
 
       // Provide more specific error messages
-      if (
-        error instanceof TypeError &&
-        error.message.includes("Failed to fetch")
-      ) {
-        throw new Error(
-          `Failed to connect to the API server at ${this.API_URL}. ` +
-            `Please ensure the backend server is running on the correct port. ` +
-            `Current API URL: ${this.API_URL}`,
-        );
+      let errorMessage = "Failed to convert PDF to Word";
+      if (error instanceof Error) {
+        errorMessage = error.message;
+
+        // Handle specific error cases
+        if (error.message.includes("Failed to fetch")) {
+          errorMessage = `Network error: Could not connect to conversion service at ${this.API_URL}. Please check your internet connection and try again.`;
+        } else if (error.message.includes("500")) {
+          errorMessage =
+            "Server error: The conversion service is temporarily unavailable. Please try again in a few moments.";
+        } else if (error.message.includes("400")) {
+          errorMessage =
+            "Invalid file: Please ensure you've uploaded a valid PDF file.";
+        } else if (error.message.includes("413")) {
+          errorMessage =
+            "File too large: Please upload a smaller PDF file (under 25MB for free users).";
+        }
       }
 
-      throw error;
+      throw new Error(errorMessage);
     }
   }
 
@@ -1534,7 +1603,7 @@ export class PDFService {
         const compressionRatio =
           (originalSize - bestResult.length) / originalSize;
         console.log(
-          `�� Image optimization successful: ${(compressionRatio * 100).toFixed(1)}% reduction`,
+          `���� Image optimization successful: ${(compressionRatio * 100).toFixed(1)}% reduction`,
         );
         return bestResult;
       }
@@ -2763,6 +2832,130 @@ export class PDFService {
     }
   }
 
+  // Convert PDF to Excel (.xlsx) via backend API
+  static async convertPdfToExcelAPI(
+    file: File,
+    options: {
+      extractTables?: boolean;
+      preserveFormatting?: boolean;
+    } = {},
+  ): Promise<{
+    file: File;
+    stats: {
+      originalPages: number;
+      tablesFound: number;
+      sheetsCreated: number;
+      processingTime: number;
+    };
+  }> {
+    console.log("🚀 Starting PDF to Excel conversion via API");
+    console.log("📁 File details:", {
+      name: file.name,
+      size: `${(file.size / 1024 / 1024).toFixed(2)} MB`,
+      type: file.type,
+    });
+
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+
+      if (options.extractTables !== undefined) {
+        formData.append("extractTables", options.extractTables.toString());
+      }
+      if (options.preserveFormatting !== undefined) {
+        formData.append(
+          "preserveFormatting",
+          options.preserveFormatting.toString(),
+        );
+      }
+
+      const apiUrl = this.API_URL;
+      const fullEndpoint = `${apiUrl}/pdf/to-excel`;
+
+      console.log("🌐 Making request to:", fullEndpoint);
+
+      const response = await fetch(fullEndpoint, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+        body: formData,
+      });
+
+      console.log("📡 Response status:", response.status, response.statusText);
+
+      if (!response.ok) {
+        let errorMessage = `HTTP error! status: ${response.status}`;
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.message || errorMessage;
+        } catch (e) {
+          // If JSON parsing fails, use the default error message
+        }
+        throw new Error(errorMessage);
+      }
+
+      const blob = await response.blob();
+
+      // Validate the blob
+      if (blob.size === 0) {
+        throw new Error("Received empty file from server. Please try again.");
+      }
+
+      // Get stats from headers
+      const originalPages = parseInt(
+        response.headers.get("X-Original-Pages") || "0",
+      );
+      const tablesFound = parseInt(
+        response.headers.get("X-Tables-Found") || "0",
+      );
+      const sheetsCreated = parseInt(
+        response.headers.get("X-Sheets-Created") || "0",
+      );
+      const processingTime = parseInt(
+        response.headers.get("X-Processing-Time") || "0",
+      );
+
+      console.log("📊 Excel conversion completed:", {
+        originalPages,
+        tablesFound,
+        sheetsCreated,
+        processingTime,
+        outputSize: (blob.size / 1024 / 1024).toFixed(2) + " MB",
+      });
+
+      // Generate proper filename for the converted file
+      const originalName = file.name.replace(/\.pdf$/i, "");
+      const timestamp = new Date().toISOString().slice(0, 10);
+      const fileName = `${originalName}_excel_${timestamp}.xlsx`;
+
+      // Create File object for download with proper MIME type
+      const convertedFile = new File([blob], fileName, {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        lastModified: Date.now(),
+      });
+
+      console.log("✅ Created Excel file:", {
+        name: convertedFile.name,
+        size: `${(convertedFile.size / 1024 / 1024).toFixed(2)} MB`,
+        type: convertedFile.type,
+      });
+
+      return {
+        file: convertedFile,
+        stats: {
+          originalPages,
+          tablesFound,
+          sheetsCreated,
+          processingTime,
+        },
+      };
+    } catch (error) {
+      console.error("PDF to Excel conversion failed:", error);
+      throw error;
+    }
+  }
+
   // Download file helper with duplicate prevention
   static downloadFile(pdfBytes: Uint8Array, filename: string): void {
     try {
@@ -3677,6 +3870,126 @@ export class PDFService {
       return pdfBytes;
     } catch (error) {
       console.error("❌ Page numbering failed:", error);
+      throw error;
+    }
+  }
+
+  // Convert Excel to PDF
+  static async excelToPdf(
+    file: File,
+    options: {
+      pageSize?: string;
+      orientation?: string;
+      fitToPage?: boolean;
+      includeGridlines?: boolean;
+      includeHeaders?: boolean;
+      scaleToFit?: number;
+      worksheetSelection?: string;
+      selectedSheets?: string[];
+      includeFormulas?: boolean;
+      preserveFormatting?: boolean;
+      includeCharts?: boolean;
+      compression?: string;
+      watermark?: string;
+      headerFooter?: boolean;
+      margin?: number;
+    } = {},
+  ): Promise<Uint8Array> {
+    try {
+      console.log("🔄 Converting Excel to PDF...");
+
+      // Track conversion start
+      const startTime = Date.now();
+      mixpanelService.trackConversionStart({
+        inputFormat: "Excel",
+        outputFormat: "PDF",
+        fileName: file.name,
+        fileSize: file.size,
+        fileType: file.type,
+        success: false,
+        settings: options,
+      });
+
+      // Create FormData for file upload
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("settings", JSON.stringify(options));
+
+      // Add authentication token if available
+      const token = this.getToken();
+
+      const response = await fetch(`${this.API_URL}/pdf/excel-to-pdf`, {
+        method: "POST",
+        body: formData,
+        headers: {
+          ...(token && { Authorization: `Bearer ${token}` }),
+        },
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(
+          errorData.message || `HTTP error! status: ${response.status}`,
+        );
+      }
+
+      const arrayBuffer = await response.arrayBuffer();
+      const result = new Uint8Array(arrayBuffer);
+
+      console.log("✅ Excel to PDF conversion completed");
+
+      // Track successful conversion
+      const conversionTime = Date.now() - startTime;
+      mixpanelService.trackConversionComplete({
+        inputFormat: "Excel",
+        outputFormat: "PDF",
+        fileName: file.name,
+        fileSize: file.size,
+        fileType: file.type,
+        outputSize: result.length,
+        conversionTime,
+        success: true,
+      });
+
+      // Track usage
+      await this.trackUsage("excel-to-pdf", 1, file.size);
+
+      // Track file download
+      mixpanelService.trackFileDownload(
+        {
+          fileName: file.name.replace(/\.(xlsx?|xlsm)$/i, ".pdf"),
+          fileSize: result.length,
+          fileType: "application/pdf",
+        },
+        "excel-to-pdf",
+      );
+
+      // Auto-download the result
+      const blob = new Blob([result], { type: "application/pdf" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = file.name.replace(/\.(xlsx?|xlsm)$/i, ".pdf");
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      return result;
+    } catch (error) {
+      console.error("❌ Excel to PDF conversion failed:", error);
+
+      // Track conversion error
+      mixpanelService.trackConversionError({
+        inputFormat: "Excel",
+        outputFormat: "PDF",
+        fileName: file.name,
+        fileSize: file.size,
+        fileType: file.type,
+        success: false,
+        errorMessage: error instanceof Error ? error.message : "Unknown error",
+      });
+
       throw error;
     }
   }

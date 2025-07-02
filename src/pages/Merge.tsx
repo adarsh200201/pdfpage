@@ -30,6 +30,7 @@ import { cn } from "@/lib/utils";
 import { PDFService } from "@/services/pdfService";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
+import { useToolTracking } from "@/hooks/useToolTracking";
 import AuthModal from "@/components/auth/AuthModal";
 import SoftLimitModal from "@/components/modals/SoftLimitModal";
 import RewardBanner from "@/components/ui/RewardBanner";
@@ -66,6 +67,14 @@ const Merge = () => {
 
   // Floating popup tracking
   const { trackToolUsage } = useFloatingPopup();
+
+  // Mixpanel tracking
+  const tracking = useToolTracking({
+    toolName: "merge",
+    category: "PDF Tool",
+    trackPageView: true,
+    trackFunnel: true,
+  });
 
   const handleFilesSelect = (newFiles: File[]) => {
     const processedFiles: MergeFileItem[] = newFiles

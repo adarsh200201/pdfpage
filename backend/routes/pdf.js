@@ -674,42 +674,175 @@ router.post(
       console.log(
         `📄 PDF has ${numPages} pages, processing with enhanced extraction...`,
       );
+      console.log(`📊 PDF Buffer size: ${file.buffer.length} bytes`);
+      console.log(`📋 PDF Analysis starting...`);
 
-      // Enhanced text extraction using pdf-parse with better options
-      const pdfData = await pdfParse(file.buffer, {
-        pagerender: null, // Don't render pages for OCR by default
-        max: 0, // Extract from all pages
-        version: "v1.10.100",
-        normalizeWhitespace: false, // Preserve original whitespace
-        disableCombineTextItems: false, // Allow text combining for better readability
-      });
+      // Enhanced text extraction with multiple extraction methods for better layout preservation
+      let pdfData;
+      let text = "";
+      let info = {};
+      let extractedPages = [];
+      let layoutData = null;
 
-      // Extract text and preserve structure
-      let text = pdfData.text;
-      const info = pdfData.info || {};
+      try {
+        // Method 1: Try enhanced extraction with layout preservation
+        console.log(
+          "🔍 Attempting enhanced extraction with layout preservation...",
+        );
 
-      console.log(`📝 Extracted ${text.length} characters from PDF`);
+        try {
+          // Use pdf-lib for more detailed page analysis
+          const pdfLibDocForAnalysis = await PDFLibDocument.load(file.buffer);
+
+          // Try to extract text with better spatial awareness
+          pdfData = await pdfParse(file.buffer, {
+            pagerender: (pageData) => {
+              // Enhanced page rendering to preserve layout information
+              return pageData.getTextContent().then((textContent) => {
+                let pageText = "";
+                let lastY = null;
+                let isNewLine = true;
+
+                for (const item of textContent.items) {
+                  // Check if we need a line break based on Y position
+                  if (
+                    lastY !== null &&
+                    Math.abs(item.transform[5] - lastY) > 2
+                  ) {
+                    if (!isNewLine) {
+                      pageText += "\n";
+                      isNewLine = true;
+                    }
+                  }
+
+                  // Add spaces for horizontal positioning if needed
+                  if (
+                    !isNewLine &&
+                    item.transform[4] - lastX > item.width * 2
+                  ) {
+                    pageText += " ";
+                  }
+
+                  pageText += item.str;
+                  lastY = item.transform[5];
+                  lastX = item.transform[4] + item.width;
+                  isNewLine = false;
+                }
+
+                return pageText;
+              });
+            },
+            max: 0,
+            normalizeWhitespace: false,
+            disableCombineTextItems: true,
+          });
+
+          text = pdfData.text || "";
+          info = pdfData.info || {};
+
+          console.log(
+            `📝 Enhanced extraction: ${text.length} characters with layout awareness`,
+          );
+        } catch (enhancedError) {
+          console.log(
+            "⚠️ Enhanced extraction failed, trying standard extraction...",
+          );
+          throw enhancedError;
+        }
+      } catch (enhancedError) {
+        try {
+          // Method 2: Standard pdf-parse extraction with better options
+          pdfData = await pdfParse(file.buffer, {
+            pagerender: null,
+            max: 0,
+            normalizeWhitespace: false,
+            disableCombineTextItems: false,
+          });
+
+          text = pdfData.text || "";
+          info = pdfData.info || {};
+
+          console.log(
+            `📝 Standard extraction: ${text.length} characters from PDF`,
+          );
+        } catch (standardError) {
+          console.log(
+            "⚠️ Standard extraction failed, trying alternative method...",
+          );
+
+          // Method 3: Alternative extraction with different options
+          try {
+            pdfData = await pdfParse(file.buffer, {
+              pagerender: null,
+              max: 0,
+              normalizeWhitespace: true,
+              disableCombineTextItems: true,
+            });
+
+            text = pdfData.text || "";
+            info = pdfData.info || {};
+
+            console.log(
+              `📝 Alternative extraction: ${text.length} characters from PDF`,
+            );
+          } catch (alternativeError) {
+            console.log(
+              "⚠️ Alternative extraction also failed, trying basic extraction...",
+            );
+
+            // Method 4: Last resort - basic extraction
+            try {
+              pdfData = await pdfParse(file.buffer);
+              text = pdfData.text || "";
+              info = pdfData.info || {};
+
+              console.log(
+                `📝 Basic extraction: ${text.length} characters from PDF`,
+              );
+            } catch (basicError) {
+              console.error("❌ All extraction methods failed:", basicError);
+              text = "";
+            }
+          }
+        }
+      }
+
       console.log(`📊 PDF Info:`, {
         title: info.Title || "Untitled",
         author: info.Author || "Unknown",
         creator: info.Creator || "Unknown",
         producer: info.Producer || "Unknown",
         pages: numPages,
+        extractedTextLength: text.length,
       });
 
+      // If still no text, check if PDF has pages but no extractable text
       if (!text || text.trim().length === 0) {
-        console.log(
-          "⚠️ No text found with standard extraction, trying OCR approach...",
-        );
+        if (numPages > 0) {
+          console.log(
+            "⚠️ PDF has pages but no extractable text - likely scanned/image-based",
+          );
 
-        // If no text found, the PDF might be scanned - suggest OCR
-        return res.status(400).json({
-          success: false,
-          message:
-            "No readable text found in PDF. This appears to be a scanned document or image-based PDF. For scanned documents, please use our OCR tool first to make the text searchable.",
-          suggestion: "Use PDF OCR tool for scanned documents",
-          pdfType: "scanned_or_image_based",
-        });
+          // Create a minimal document indicating the PDF structure was detected
+          text = `This document appears to be a ${numPages}-page PDF that contains images or scanned content rather than extractable text.\n\n`;
+          text += `Original filename: ${file.originalname}\n`;
+          text += `Number of pages: ${numPages}\n`;
+          text += `File size: ${formatBytes(file.size)}\n\n`;
+          text += `Note: This PDF may contain scanned images, graphics, or other non-text content. `;
+          text += `For better results with scanned documents, please use our OCR tool first to make the text searchable.`;
+
+          console.log(
+            `📝 Created placeholder content: ${text.length} characters`,
+          );
+        } else {
+          return res.status(400).json({
+            success: false,
+            message:
+              "No readable text found in PDF. This appears to be a scanned document or image-based PDF. For scanned documents, please use our OCR tool first to make the text searchable.",
+            suggestion: "Use PDF OCR tool for scanned documents",
+            pdfType: "scanned_or_image_based",
+          });
+        }
       }
 
       // Clean and normalize text while preserving structure
@@ -723,22 +856,135 @@ router.post(
         documentStructure,
       );
 
-      // Create Word document with enhanced metadata
+      // Create Word document with enhanced metadata and professional styling
       const docConfig = {
         creator: "PdfPage - Professional PDF Converter",
         title: documentStructure.title || `Converted from ${file.originalname}`,
         description: `Professional PDF to Word conversion${includeMetadata ? ` | Original: ${numPages} pages, ${text.length} characters extracted` : ""}`,
-        subject: documentStructure.documentType || "Converted Document",
-        keywords: ["PDF", "Word", "Conversion", "PdfPage"],
+        subject: documentStructure.documentType || "Professional Document",
+        keywords: [
+          "PDF",
+          "Word",
+          "Conversion",
+          "PdfPage",
+          "Resume",
+          "Professional",
+        ],
+
+        // Professional document styling
+        styles: {
+          default: {
+            document: {
+              run: {
+                font: "Calibri",
+                size: 22, // 11pt
+                color: "000000",
+              },
+              paragraph: {
+                spacing: {
+                  line: 240, // 1.2 line spacing
+                  before: 0,
+                  after: 160,
+                },
+              },
+            },
+          },
+          paragraphStyles: [
+            {
+              id: "DocumentTitle",
+              name: "Document Title",
+              basedOn: "Normal",
+              next: "Normal",
+              run: {
+                size: 32, // 16pt
+                bold: true,
+                color: "1f2937",
+              },
+              paragraph: {
+                alignment: "center",
+                spacing: {
+                  before: 0,
+                  after: 320,
+                },
+              },
+            },
+            {
+              id: "SectionHeader",
+              name: "Section Header",
+              basedOn: "Normal",
+              next: "Normal",
+              run: {
+                size: 26, // 13pt
+                bold: true,
+                color: "2563eb",
+                allCaps: true,
+              },
+              paragraph: {
+                spacing: {
+                  before: 320,
+                  after: 200,
+                },
+                border: {
+                  bottom: {
+                    style: "single",
+                    size: 6,
+                    color: "2563eb",
+                  },
+                },
+              },
+            },
+          ],
+        },
+
+        // Enhanced numbering for professional lists
+        numbering: {
+          config: [
+            {
+              reference: "default-numbering",
+              levels: [
+                {
+                  level: 0,
+                  format: "decimal",
+                  text: "%1.",
+                  alignment: "start",
+                  style: {
+                    paragraph: {
+                      indent: { left: 720, hanging: 360 },
+                      spacing: { after: 120 },
+                    },
+                  },
+                },
+                {
+                  level: 1,
+                  format: "lowerLetter",
+                  text: "%2)",
+                  alignment: "start",
+                  style: {
+                    paragraph: {
+                      indent: { left: 1080, hanging: 360 },
+                      spacing: { after: 120 },
+                    },
+                  },
+                },
+              ],
+            },
+          ],
+        },
+
         sections: [
           {
             properties: {
               page: {
+                size: {
+                  orientation: "portrait",
+                  width: 12240, // 8.5 inches
+                  height: 15840, // 11 inches
+                },
                 margin: {
                   top: 1440, // 1 inch
-                  right: 1440,
-                  bottom: 1440,
-                  left: 1440,
+                  right: 1440, // 1 inch
+                  bottom: 1440, // 1 inch
+                  left: 1440, // 1 inch
                 },
               },
             },
@@ -789,14 +1035,37 @@ router.post(
       const originalName = file.originalname.replace(/\.pdf$/i, "");
       const filename = `${originalName}.docx`;
 
-      // Send the converted document
+      // Ensure the DOCX buffer is valid
+      if (!docxBuffer || docxBuffer.length === 0) {
+        throw new Error("Failed to generate DOCX document - empty buffer");
+      }
+
+      // Log final conversion statistics
+      console.log(`✅ Final conversion statistics:`, {
+        inputPdf: {
+          filename: file.originalname,
+          size: formatBytes(file.size),
+          pages: numPages,
+        },
+        extraction: {
+          textLength: text.length,
+          hasContent: text.trim().length > 0,
+          method: "enhanced_pdf_parse",
+        },
+        output: {
+          docxSize: formatBytes(docxBuffer.length),
+          processingTime: `${processingTime}ms`,
+        },
+      });
+
+      // Send the converted document with proper headers
       res.setHeader(
         "Content-Type",
         "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
       );
       res.setHeader(
         "Content-Disposition",
-        `attachment; filename="${filename}"`,
+        `attachment; filename="${encodeURIComponent(filename)}"`,
       );
       res.setHeader("Content-Length", docxBuffer.length);
       res.setHeader("X-Original-Pages", numPages);
@@ -819,8 +1088,19 @@ router.post(
         "X-Estimated-Sections",
         documentStructure.estimatedSections.toString(),
       );
-      res.setHeader("X-Extracted-Title", documentStructure.title || "");
-      res.setHeader("X-Original-Filename", file.originalname);
+      res.setHeader(
+        "X-Extracted-Title",
+        encodeURIComponent(documentStructure.title || ""),
+      );
+      res.setHeader(
+        "X-Original-Filename",
+        encodeURIComponent(file.originalname),
+      );
+
+      // Add cache control headers
+      res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+      res.setHeader("Pragma", "no-cache");
+      res.setHeader("Expires", "0");
 
       console.log(
         `✅ Enhanced Word document created: ${formatBytes(docxBuffer.length)} in ${processingTime}ms`,
@@ -831,7 +1111,9 @@ router.post(
       console.log(
         `📄 Content preserved: ${text.length} characters from ${numPages} pages`,
       );
-      res.send(docxBuffer);
+
+      // Send the buffer
+      res.end(docxBuffer);
     } catch (error) {
       console.error("PDF to Word conversion error:", error);
 
@@ -876,7 +1158,7 @@ function cleanAndNormalizeText(text) {
   return text;
 }
 
-// Analyze document structure for better conversion
+// Enhanced document structure analysis for better layout preservation
 function analyzeDocumentStructure(text, pdfInfo) {
   const lines = text.split("\n");
   const structure = {
@@ -885,45 +1167,164 @@ function analyzeDocumentStructure(text, pdfInfo) {
     hasBulletPoints: false,
     hasNumberedLists: false,
     hasTableOfContents: false,
+    hasTables: false,
+    hasColumns: false,
+    hasFooters: false,
+    hasPageNumbers: false,
     documentType: "document",
     title: pdfInfo.Title || extractTitleFromText(lines),
     author: pdfInfo.Author || null,
     estimatedSections: 0,
+    layoutComplexity: "simple",
+    textAlignment: [],
+    fontVariations: 0,
+    lineSpacing: "normal",
   };
 
-  // Analyze content patterns
-  for (const line of lines) {
+  let potentialTableLines = 0;
+  let shortLines = 0;
+  let longLines = 0;
+  let centerAlignedLines = 0;
+  let rightAlignedLines = 0;
+
+  // Analyze content patterns with enhanced detection
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
     const trimmed = line.trim();
+    const nextLine = i + 1 < lines.length ? lines[i + 1].trim() : "";
+    const prevLine = i > 0 ? lines[i - 1].trim() : "";
+
     if (!trimmed) continue;
 
-    // Check for headers/titles
+    // Enhanced header detection
     if (isLikelyHeader(trimmed)) {
       structure.hasHeaders = true;
       structure.estimatedSections++;
     }
 
-    // Check for lists
+    // Enhanced list detection
     if (
-      trimmed.match(/^[\u2022\u2023\u25E6\u2043\u2219•·‣⁃]\s+/) ||
-      trimmed.match(/^[-*+]\s+/)
+      trimmed.match(/^[\u2022\u2023\u25E6\u2043\u2219���·‣⁃]\s+/) ||
+      trimmed.match(/^[-*+]\s+/) ||
+      trimmed.match(/^[▪▫▬▭▮▯]\s+/)
     ) {
       structure.hasBulletPoints = true;
     }
 
-    if (trimmed.match(/^\d+\.?\s+/) || trimmed.match(/^[a-zA-Z]\.?\s+/)) {
+    if (
+      trimmed.match(/^\d+\.?\s+/) ||
+      trimmed.match(/^[a-zA-Z]\.?\s+/) ||
+      trimmed.match(/^[ivx]+\.?\s+/i) ||
+      trimmed.match(/^\([a-zA-Z0-9]+\)\s+/)
+    ) {
       structure.hasNumberedLists = true;
     }
 
-    // Check for table of contents patterns
+    // Enhanced table detection
     if (
-      trimmed.match(/table of contents|contents|index/i) &&
-      trimmed.length < 50
+      trimmed.includes("|") ||
+      trimmed.match(/\t+/) ||
+      trimmed.match(/\s{5,}/) ||
+      (trimmed.match(/\d+/) &&
+        trimmed.match(/[A-Za-z]+/) &&
+        trimmed.length < 50)
+    ) {
+      potentialTableLines++;
+      structure.hasTables = potentialTableLines > 3;
+    }
+
+    // Column layout detection
+    if (trimmed.length < 40 && trimmed.length > 5 && !trimmed.endsWith(".")) {
+      shortLines++;
+    } else if (trimmed.length > 80) {
+      longLines++;
+    }
+
+    // Text alignment detection based on spacing patterns
+    const leadingSpaces = line.length - line.trimStart().length;
+    const trailingSpaces = line.length - line.trimEnd().length;
+
+    if (leadingSpaces > 20 && trailingSpaces > 20) {
+      centerAlignedLines++;
+    } else if (leadingSpaces > 40) {
+      rightAlignedLines++;
+    }
+
+    // Page number detection
+    if (
+      trimmed.match(/^\d+$/) ||
+      trimmed.match(/^page\s+\d+/i) ||
+      trimmed.match(/^\d+\s*\/\s*\d+$/)
+    ) {
+      structure.hasPageNumbers = true;
+    }
+
+    // Footer detection (typically short lines at the end of sections)
+    if (
+      trimmed.length < 50 &&
+      (trimmed.includes("©") ||
+        trimmed.includes("confidential") ||
+        trimmed.includes("proprietary") ||
+        trimmed.match(/\d{4}/)) &&
+      nextLine === ""
+    ) {
+      structure.hasFooters = true;
+    }
+
+    // Table of contents detection
+    if (
+      (trimmed.match(/table of contents|contents|index/i) &&
+        trimmed.length < 50) ||
+      (trimmed.match(/\.{3,}/) && trimmed.match(/\d+$/)) // Lines ending with dots and page numbers
     ) {
       structure.hasTableOfContents = true;
     }
   }
 
-  console.log("📋 Document structure analysis:", structure);
+  // Determine layout complexity
+  const columnRatio = shortLines / Math.max(longLines, 1);
+  const alignmentVariation = centerAlignedLines + rightAlignedLines;
+
+  if (structure.hasTables || potentialTableLines > 10) {
+    structure.layoutComplexity = "complex";
+  } else if (columnRatio > 1.5 || alignmentVariation > lines.length * 0.1) {
+    structure.layoutComplexity = "moderate";
+  } else {
+    structure.layoutComplexity = "simple";
+  }
+
+  // Determine document type based on analysis
+  if (structure.hasTableOfContents && structure.estimatedSections > 5) {
+    structure.documentType = "report";
+  } else if (structure.hasTables && potentialTableLines > 20) {
+    structure.documentType = "data_sheet";
+  } else if (centerAlignedLines > 5 && shortLines > longLines) {
+    structure.documentType = "resume";
+  } else if (structure.estimatedSections > 3) {
+    structure.documentType = "structured_document";
+  }
+
+  // Set alignment preferences
+  if (centerAlignedLines > lines.length * 0.2) {
+    structure.textAlignment.push("center");
+  }
+  if (rightAlignedLines > lines.length * 0.1) {
+    structure.textAlignment.push("right");
+  }
+
+  console.log("📋 Enhanced document structure analysis:", {
+    ...structure,
+    stats: {
+      totalLines: lines.length,
+      potentialTableLines,
+      shortLines,
+      longLines,
+      centerAlignedLines,
+      rightAlignedLines,
+      columnRatio: columnRatio.toFixed(2),
+    },
+  });
+
   return structure;
 }
 
@@ -938,7 +1339,7 @@ function extractTitleFromText(lines) {
   return null;
 }
 
-// Enhanced helper function to process text into structured paragraphs
+// Enhanced helper function to process text into professionally structured paragraphs with layout preservation
 function processTextToParagraphs(
   text,
   preserveFormatting,
@@ -949,71 +1350,90 @@ function processTextToParagraphs(
   let currentParagraph = [];
   let isInList = false;
   let listItems = [];
+  let isInTable = false;
+  let tableRows = [];
+  let currentSection = null;
 
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
-    const trimmedLine = line.trim();
+  // Pre-process lines to identify document sections and layout elements
+  const processedLines = lines
+    .map((line, index) => {
+      const trimmed = line.trim();
+      const originalLine = line; // Preserve original spacing
+      const analysis = analyzeLineType(
+        trimmed,
+        originalLine,
+        documentStructure,
+      );
 
-    // Skip completely empty lines but track them for paragraph breaks
-    if (!trimmedLine) {
-      if (currentParagraph.length > 0) {
-        // End current paragraph
-        const paragraphText = currentParagraph.join(" ");
-        paragraphs.push(createWordParagraph(paragraphText, preserveFormatting));
-        currentParagraph = [];
-      }
+      return {
+        originalText: line,
+        trimmedText: trimmed,
+        analysis: analysis,
+        index: index,
+        isEmpty: !trimmed,
+        indentLevel: getIndentLevel(line),
+        spacingBefore: getSpacingBefore(lines, index),
+        spacingAfter: getSpacingAfter(lines, index),
+      };
+    })
+    .filter((lineInfo) => !lineInfo.isEmpty || lineInfo.spacingBefore > 1); // Keep some empty lines for spacing
 
-      // End list if we were in one
-      if (isInList && listItems.length > 0) {
-        paragraphs.push(...createWordList(listItems));
-        listItems = [];
-        isInList = false;
-      }
+  for (let i = 0; i < processedLines.length; i++) {
+    const lineInfo = processedLines[i];
+    const { trimmedText, analysis, originalText, indentLevel } = lineInfo;
+
+    // Handle empty lines for spacing preservation
+    if (lineInfo.isEmpty) {
+      finishCurrentContent();
+      paragraphs.push(createSpacingParagraph(lineInfo.spacingBefore));
       continue;
     }
 
-    // Detect different content types
-    const contentType = detectContentType(trimmedLine, documentStructure);
+    // Handle table content
+    if (analysis.isTableRow) {
+      finishCurrentContent();
+      isInTable = true;
+      tableRows.push({
+        text: trimmedText,
+        cells: analysis.tableCells || [trimmedText],
+        alignment: analysis.alignment,
+      });
+      continue;
+    } else if (isInTable && tableRows.length > 0) {
+      // End table and add it to document
+      paragraphs.push(...createWordTable(tableRows));
+      tableRows = [];
+      isInTable = false;
+    }
 
-    switch (contentType.type) {
-      case "title":
-        finishCurrentContent();
-        paragraphs.push(createWordTitle(trimmedLine));
-        break;
+    // Handle different content types based on analysis
+    if (analysis.isHeading) {
+      finishCurrentContent();
 
-      case "heading":
-        finishCurrentContent();
-        paragraphs.push(createWordHeading(trimmedLine, contentType.level));
-        break;
-
-      case "bullet_item":
-        finishCurrentParagraph();
-        isInList = true;
-        listItems.push({ type: "bullet", text: contentType.text });
-        break;
-
-      case "numbered_item":
-        finishCurrentParagraph();
-        isInList = true;
-        listItems.push({
-          type: "numbered",
-          text: contentType.text,
-          number: contentType.number,
-        });
-        break;
-
-      case "table_row":
-        finishCurrentContent();
-        // For now, treat table rows as regular paragraphs
-        // Future enhancement: create actual tables
+      if (analysis.level === 1) {
+        // Document title
+        paragraphs.push(createWordTitle(trimmedText, analysis.alignment));
+      } else {
+        // Section header
         paragraphs.push(
-          createWordParagraph(trimmedLine, preserveFormatting, "table"),
+          createWordHeading(trimmedText, analysis.level, analysis.alignment),
         );
-        break;
-
-      default:
-        // Regular text
-        if (isInList) {
+      }
+      currentSection = trimmedText;
+    } else if (analysis.isListItem) {
+      finishCurrentParagraph();
+      isInList = true;
+      listItems.push({
+        type: analysis.listType,
+        text: trimmedText.replace(/^[•\-\d\.]\s*/, "").trim(),
+        level: analysis.listLevel || 0,
+        indentLevel: indentLevel,
+      });
+    } else {
+      // Regular content - group related lines together with better logic
+      if (isInList) {
+        // Check if this continues the list or starts new content
+        if (!analysis.isListItem && analysis.indentLevel <= 0) {
           // End the list and start a new paragraph
           if (listItems.length > 0) {
             paragraphs.push(...createWordList(listItems));
@@ -1021,7 +1441,57 @@ function processTextToParagraphs(
             isInList = false;
           }
         }
-        currentParagraph.push(trimmedLine);
+      }
+
+      // Enhanced grouping logic based on content type and formatting
+      const shouldGroup = shouldGroupWithNext(
+        lineInfo,
+        processedLines,
+        i,
+        documentStructure,
+      );
+
+      if (shouldGroup && i < processedLines.length - 1) {
+        currentParagraph.push({
+          text: trimmedText,
+          analysis: analysis,
+          indentLevel: indentLevel,
+        });
+        continue;
+      }
+
+      // Create paragraph for current content
+      if (currentParagraph.length > 0) {
+        currentParagraph.push({
+          text: trimmedText,
+          analysis: analysis,
+          indentLevel: indentLevel,
+        });
+
+        const paragraphData = mergeParagraphContent(currentParagraph);
+        paragraphs.push(
+          createWordParagraph(
+            paragraphData.text,
+            preserveFormatting,
+            paragraphData.type,
+            paragraphData.alignment,
+            paragraphData.indentLevel,
+          ),
+        );
+        currentParagraph = [];
+      } else {
+        // Standalone line with enhanced type detection
+        const type = getContentType(analysis, currentSection);
+        paragraphs.push(
+          createWordParagraph(
+            trimmedText,
+            preserveFormatting,
+            type,
+            analysis.alignment,
+            indentLevel,
+          ),
+        );
+      }
     }
   }
 
@@ -1030,6 +1500,27 @@ function processTextToParagraphs(
 
   function finishCurrentContent() {
     finishCurrentParagraph();
+    finishCurrentList();
+    finishCurrentTable();
+  }
+
+  function finishCurrentParagraph() {
+    if (currentParagraph.length > 0) {
+      const paragraphData = mergeParagraphContent(currentParagraph);
+      paragraphs.push(
+        createWordParagraph(
+          paragraphData.text,
+          preserveFormatting,
+          paragraphData.type,
+          paragraphData.alignment,
+          paragraphData.indentLevel,
+        ),
+      );
+      currentParagraph = [];
+    }
+  }
+
+  function finishCurrentList() {
     if (isInList && listItems.length > 0) {
       paragraphs.push(...createWordList(listItems));
       listItems = [];
@@ -1037,15 +1528,111 @@ function processTextToParagraphs(
     }
   }
 
-  function finishCurrentParagraph() {
-    if (currentParagraph.length > 0) {
-      const paragraphText = currentParagraph.join(" ");
-      paragraphs.push(createWordParagraph(paragraphText, preserveFormatting));
-      currentParagraph = [];
+  function finishCurrentTable() {
+    if (isInTable && tableRows.length > 0) {
+      paragraphs.push(...createWordTable(tableRows));
+      tableRows = [];
+      isInTable = false;
     }
   }
 
   return paragraphs;
+}
+
+// Helper function to determine if lines should be grouped
+function shouldGroupWithNext(
+  lineInfo,
+  processedLines,
+  currentIndex,
+  documentStructure,
+) {
+  if (currentIndex >= processedLines.length - 1) return false;
+
+  const nextLine = processedLines[currentIndex + 1];
+  const { analysis } = lineInfo;
+
+  // Don't group with headings, lists, or special content
+  if (
+    nextLine.analysis.isHeading ||
+    nextLine.analysis.isListItem ||
+    nextLine.analysis.isTableRow ||
+    analysis.isContact
+  ) {
+    return false;
+  }
+
+  // Group lines with similar indentation and content type
+  if (
+    Math.abs(lineInfo.indentLevel - nextLine.indentLevel) <= 1 &&
+    !analysis.isDate &&
+    !analysis.isJobTitle &&
+    nextLine.trimmedText.length > 10
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
+// Helper function to merge paragraph content intelligently
+function mergeParagraphContent(paragraphLines) {
+  const texts = paragraphLines.map((p) => p.text);
+  const mainType = paragraphLines[0].analysis;
+  const avgIndent =
+    paragraphLines.reduce((sum, p) => sum + p.indentLevel, 0) /
+    paragraphLines.length;
+
+  return {
+    text: texts.join(" "),
+    type: getContentType(mainType),
+    alignment: mainType.alignment || "left",
+    indentLevel: Math.round(avgIndent),
+  };
+}
+
+// Enhanced content type detection
+function getContentType(analysis, currentSection = "") {
+  if (analysis.isContact) return "contact";
+  if (analysis.isJobTitle) return "job_title";
+  if (analysis.isDate) return "date";
+  if (analysis.isCompanyName) return "company";
+  if (analysis.isPageNumber) return "page_number";
+  if (analysis.isFooter) return "footer";
+  if (currentSection && currentSection.toLowerCase().includes("education"))
+    return "education";
+  if (currentSection && currentSection.toLowerCase().includes("experience"))
+    return "experience";
+  return "normal";
+}
+
+// Helper functions for layout analysis
+function getIndentLevel(line) {
+  const leadingSpaces = line.length - line.trimStart().length;
+  return Math.floor(leadingSpaces / 4); // Assume 4 spaces per indent level
+}
+
+function getSpacingBefore(lines, index) {
+  let spacing = 0;
+  for (let i = index - 1; i >= 0; i--) {
+    if (lines[i].trim() === "") {
+      spacing++;
+    } else {
+      break;
+    }
+  }
+  return spacing;
+}
+
+function getSpacingAfter(lines, index) {
+  let spacing = 0;
+  for (let i = index + 1; i < lines.length; i++) {
+    if (lines[i].trim() === "") {
+      spacing++;
+    } else {
+      break;
+    }
+  }
+  return spacing;
 }
 
 // Enhanced content type detection
@@ -1137,9 +1724,16 @@ function isLikelyHeader(line) {
   return detectHeadingLevel(line) > 0;
 }
 
-// Create Word title with proper styling
-function createWordTitle(text) {
-  const { Paragraph, TextRun } = require("docx");
+// Create Word title with proper styling and alignment
+function createWordTitle(text, alignment = "center") {
+  const { Paragraph, TextRun, AlignmentType } = require("docx");
+
+  const alignmentMap = {
+    left: AlignmentType.LEFT,
+    center: AlignmentType.CENTER,
+    right: AlignmentType.RIGHT,
+    justify: AlignmentType.JUSTIFIED,
+  };
 
   return new Paragraph({
     heading: "Title",
@@ -1154,13 +1748,13 @@ function createWordTitle(text) {
     spacing: {
       after: 400, // Space after title
     },
-    alignment: "center",
+    alignment: alignmentMap[alignment] || AlignmentType.CENTER,
   });
 }
 
-// Create Word heading with proper levels and styling
-function createWordHeading(text, level = 1) {
-  const { Paragraph, TextRun, HeadingLevel } = require("docx");
+// Create Word heading with proper levels, styling, and alignment
+function createWordHeading(text, level = 1, alignment = "left") {
+  const { Paragraph, TextRun, HeadingLevel, AlignmentType } = require("docx");
 
   const headingLevels = {
     1: HeadingLevel.HEADING_1,
@@ -1172,6 +1766,13 @@ function createWordHeading(text, level = 1) {
   };
 
   const sizes = { 1: 28, 2: 24, 3: 20, 4: 18, 5: 16, 6: 14 }; // pt sizes
+
+  const alignmentMap = {
+    left: AlignmentType.LEFT,
+    center: AlignmentType.CENTER,
+    right: AlignmentType.RIGHT,
+    justify: AlignmentType.JUSTIFIED,
+  };
 
   return new Paragraph({
     heading: headingLevels[level] || HeadingLevel.HEADING_1,
@@ -1187,10 +1788,11 @@ function createWordHeading(text, level = 1) {
       before: level === 1 ? 400 : 200,
       after: 200,
     },
+    alignment: alignmentMap[alignment] || AlignmentType.LEFT,
   });
 }
 
-// Create Word list items
+// Create Word list items with proper formatting
 function createWordList(items) {
   const { Paragraph, TextRun } = require("docx");
 
@@ -1200,8 +1802,14 @@ function createWordList(items) {
         bullet: {
           level: 0,
         },
-        children: [new TextRun(item.text)],
-        spacing: { after: 100 },
+        children: [
+          new TextRun({
+            text: item.text,
+            size: 22, // 11pt
+          }),
+        ],
+        spacing: { after: 120 },
+        indent: { left: 360 },
       });
     } else if (item.type === "numbered") {
       return new Paragraph({
@@ -1209,72 +1817,655 @@ function createWordList(items) {
           reference: "default-numbering",
           level: 0,
         },
-        children: [new TextRun(item.text)],
-        spacing: { after: 100 },
+        children: [
+          new TextRun({
+            text: item.text,
+            size: 22, // 11pt
+          }),
+        ],
+        spacing: { after: 120 },
       });
     }
 
+    // Fallback for unmatched items
     return new Paragraph({
-      children: [new TextRun(`${item.number || "•"} ${item.text}`)],
-      spacing: { after: 100 },
+      children: [
+        new TextRun({
+          text: `${item.number || "•"} ${item.text}`,
+          size: 22, // 11pt
+        }),
+      ],
+      spacing: { after: 120 },
+      indent: { left: 360 },
     });
   });
 }
 
-// Enhanced paragraph creation with better formatting
-function createWordParagraph(text, preserveFormatting, type = "normal") {
-  const { Paragraph, TextRun } = require("docx");
+// Enhanced paragraph creation with professional formatting, alignment, and indentation
+function createWordParagraph(
+  text,
+  preserveFormatting,
+  type = "normal",
+  alignment = "left",
+  indentLevel = 0,
+) {
+  const { Paragraph, TextRun, AlignmentType } = require("docx");
 
-  if (!preserveFormatting) {
+  if (!text || text.trim().length === 0) {
     return new Paragraph({
-      children: [new TextRun(text)],
-      spacing: { after: 120 },
+      children: [new TextRun(" ")],
+      spacing: { after: 160 },
     });
   }
 
-  // Detect and apply text formatting
-  const formattedRuns = parseFormattedText(text);
+  // Detect if this line should be a heading or special content
+  const contentType = analyzeLineType(text);
+
+  if (contentType.isHeading) {
+    return createWordHeading(text, contentType.level, alignment);
+  }
+
+  if (contentType.isListItem) {
+    return createListItemParagraph(text, contentType.listType);
+  }
+
+  // Create enhanced formatted runs
+  const formattedRuns = parseFormattedText(text, preserveFormatting, type);
+
+  const alignmentMap = {
+    left: AlignmentType.LEFT,
+    center: AlignmentType.CENTER,
+    right: AlignmentType.RIGHT,
+    justify: AlignmentType.JUSTIFIED,
+  };
 
   const paragraphOptions = {
     children: formattedRuns,
-    spacing: { after: 120 },
+    spacing: {
+      before: contentType.spaceBefore || 0,
+      after: contentType.spaceAfter || 160,
+      line: 240, // 1.2 line spacing
+    },
+    alignment: alignmentMap[alignment] || AlignmentType.LEFT,
   };
 
-  // Apply special styling for different content types
-  if (type === "table") {
-    paragraphOptions.indent = { left: 200 };
-    paragraphOptions.spacing.after = 80;
+  // Add indentation if specified
+  if (indentLevel > 0) {
+    paragraphOptions.indent = {
+      left: indentLevel * 360, // 360 twips per indent level (0.25 inch)
+    };
+  }
+
+  // Apply professional styling based on content type
+  if (type === "contact" || contentType.isContact) {
+    paragraphOptions.alignment = AlignmentType.CENTER;
+    paragraphOptions.spacing.after = 240;
+  } else if (type === "job_title") {
+    paragraphOptions.spacing.before = 200;
+    paragraphOptions.spacing.after = 120;
+  } else if (type === "company") {
+    paragraphOptions.spacing.after = 120;
+  } else if (type === "date") {
+    paragraphOptions.alignment = AlignmentType.RIGHT;
+    paragraphOptions.spacing.after = 120;
+  } else if (type === "section" || contentType.isSection) {
+    paragraphOptions.spacing.before = 320;
+    paragraphOptions.spacing.after = 200;
+  } else if (type === "education" || type === "experience") {
+    paragraphOptions.spacing.after = 140;
+  } else if (type === "page_number") {
+    paragraphOptions.alignment = AlignmentType.CENTER;
+    paragraphOptions.spacing = { before: 400, after: 0 };
+  } else if (type === "footer") {
+    paragraphOptions.alignment = AlignmentType.CENTER;
+    paragraphOptions.spacing = { before: 200, after: 200 };
   }
 
   return new Paragraph(paragraphOptions);
 }
 
-// Parse text for inline formatting (bold, italic, etc.)
-function parseFormattedText(text) {
-  const { TextRun } = require("docx");
-  const runs = [];
+// Enhanced line analysis function with comprehensive layout detection
+function analyzeLineType(text, originalLine = "", documentStructure = {}) {
+  const trimmed = text.trim();
+  const originalTrimmed = originalLine.trim();
 
-  // Simple pattern detection for common formatting
-  const patterns = [
-    { regex: /\*\*(.*?)\*\*/g, format: { bold: true } }, // **bold**
-    { regex: /\*(.*?)\*/g, format: { italics: true } }, // *italic*
-    { regex: /__(.*?)__/g, format: { underline: {} } }, // __underline__
-    { regex: /`(.*?)`/g, format: { font: "Courier New" } }, // `code`
+  // Contact information patterns (enhanced)
+  const isEmail = /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/.test(
+    trimmed,
+  );
+  const isPhone =
+    /(\+\d{1,3}[-.\s]?)?\(?\d{1,4}\)?[-.\s]?\d{1,4}[-.\s]?\d{1,9}/.test(
+      trimmed,
+    );
+  const isAddress = /\b\d+\s+[A-Za-z0-9\s,.-]+/.test(trimmed);
+  const isWebsite = /\b(https?:\/\/|www\.)[^\s]+\b/.test(trimmed);
+  const isLinkedIn = /linkedin\.com\/in\//.test(trimmed);
+
+  // Section headers (expanded list)
+  const sectionHeaders = [
+    "ABOUT",
+    "EDUCATION",
+    "EXPERIENCE",
+    "SKILLS",
+    "PROJECTS",
+    "TECHNICAL SKILLS",
+    "PERSONAL PROJECTS",
+    "CERTIFICATIONS",
+    "ACHIEVEMENTS",
+    "CONTACT",
+    "SUMMARY",
+    "OBJECTIVE",
+    "WORK EXPERIENCE",
+    "EMPLOYMENT",
+    "QUALIFICATIONS",
+    "PROFILE",
+    "BACKGROUND",
+    "EXPERTISE",
+    "ACCOMPLISHMENTS",
+    "PROFESSIONAL EXPERIENCE",
+    "ACADEMIC BACKGROUND",
+    "CAREER HIGHLIGHTS",
+    "CORE COMPETENCIES",
   ];
 
-  let remainingText = text;
-  let lastIndex = 0;
-
-  // For now, create a simple text run
-  // Future enhancement: implement proper inline formatting parsing
-  runs.push(
-    new TextRun({
-      text: text,
-      size: 22, // 11pt
-    }),
+  const isSection = sectionHeaders.some(
+    (header) => trimmed.toUpperCase().includes(header) && trimmed.length < 80,
   );
 
-  return runs;
+  // Enhanced name pattern detection
+  const isName =
+    trimmed.length < 60 &&
+    /^[A-Z][a-z]+\s+[A-Z][a-z]+(\s+[A-Z][a-z]+)?$/.test(trimmed) &&
+    !trimmed.includes("@") &&
+    !trimmed.includes("•") &&
+    !trimmed.includes("www") &&
+    !trimmed.match(/\d/);
+
+  // Enhanced job titles and company names
+  const jobKeywords = [
+    "Developer",
+    "Engineer",
+    "Manager",
+    "Analyst",
+    "Designer",
+    "Specialist",
+    "Lead",
+    "Senior",
+    "Junior",
+    "Intern",
+    "Director",
+    "Coordinator",
+    "Administrator",
+    "Consultant",
+    "Architect",
+    "Programmer",
+    "Technician",
+    "Associate",
+    "Executive",
+  ];
+
+  const isJobTitle = jobKeywords.some(
+    (keyword) => trimmed.includes(keyword) && trimmed.length < 100,
+  );
+
+  // Enhanced company name detection
+  const companyIndicators = [
+    "Inc",
+    "LLC",
+    "Corp",
+    "Ltd",
+    "Company",
+    "Technologies",
+    "Solutions",
+    "Systems",
+  ];
+  const isCompanyName = companyIndicators.some(
+    (indicator) => trimmed.includes(indicator) && trimmed.length < 80,
+  );
+
+  // Enhanced date patterns
+  const isDate =
+    /\b(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\b/.test(trimmed) ||
+    /\b\d{4}\b/.test(trimmed) ||
+    /\d{1,2}\/\d{1,2}\/\d{2,4}/.test(trimmed) ||
+    /\d{1,2}-\d{1,2}-\d{2,4}/.test(trimmed) ||
+    /(Present|Current|Now|Ongoing)/.test(trimmed);
+
+  // Enhanced list detection
+  const bulletPatterns = /^[\u2022\u2023\u25E6\u2043\u2219•·‣⁃▪▫▬▭▮▯]\s+/;
+  const numberedPatterns =
+    /^(\d+\.?\s+|[a-zA-Z]\.?\s+|[ivx]+\.?\s+|\([a-zA-Z0-9]+\)\s+)/;
+  const dashPatterns = /^[-*+]\s+/;
+
+  const isListItem =
+    bulletPatterns.test(trimmed) ||
+    numberedPatterns.test(trimmed) ||
+    dashPatterns.test(trimmed);
+
+  let listType = "bullet";
+  let listLevel = 0;
+
+  if (isListItem) {
+    if (numberedPatterns.test(trimmed)) {
+      listType = "numbered";
+    }
+    // Determine list level based on indentation
+    const leadingSpaces = originalLine.length - originalLine.trimStart().length;
+    listLevel = Math.floor(leadingSpaces / 4);
+  }
+
+  // Table detection (enhanced)
+  const tableCells = [];
+  let isTableRow = false;
+
+  if (trimmed.includes("|")) {
+    tableCells.push(...trimmed.split("|").map((cell) => cell.trim()));
+    isTableRow = true;
+  } else if (trimmed.match(/\t+/)) {
+    tableCells.push(...trimmed.split(/\t+/).map((cell) => cell.trim()));
+    isTableRow = true;
+  } else if (trimmed.match(/\s{5,}/)) {
+    // Multiple spaces might indicate columnar data
+    tableCells.push(...trimmed.split(/\s{5,}/).map((cell) => cell.trim()));
+    isTableRow = tableCells.length > 1;
+  }
+
+  // Page number detection
+  const isPageNumber =
+    /^page\s+\d+/i.test(trimmed) ||
+    /^\d+$/.test(trimmed) ||
+    /^\d+\s*\/\s*\d+$/.test(trimmed) ||
+    /^\d+\s+of\s+\d+$/i.test(trimmed);
+
+  // Footer detection
+  const isFooter =
+    trimmed.includes("©") ||
+    /confidential|proprietary|private/i.test(trimmed) ||
+    (trimmed.length < 50 && trimmed.match(/\d{4}/));
+
+  // Text alignment detection based on original line spacing
+  let alignment = "left";
+  if (originalLine !== trimmed) {
+    const leadingSpaces = originalLine.length - originalLine.trimStart().length;
+    const trailingSpaces = originalLine.length - originalLine.trimEnd().length;
+
+    if (leadingSpaces > 20 && trailingSpaces > 20) {
+      alignment = "center";
+    } else if (leadingSpaces > 30) {
+      alignment = "right";
+    }
+  }
+
+  // Enhanced heading detection with multiple levels
+  let headingLevel = 0;
+  if (isName) {
+    headingLevel = 1;
+  } else if (isSection) {
+    headingLevel = 2;
+  } else if (
+    trimmed.length < 80 &&
+    trimmed === trimmed.toUpperCase() &&
+    trimmed.length > 3
+  ) {
+    headingLevel = 3;
+  } else if (trimmed.match(/^\d+\.\s+[A-Z]/) || trimmed.match(/^[IVX]+\.\s+/)) {
+    headingLevel = 3;
+  } else if (trimmed.match(/^\d+\.\d+\s+/) || trimmed.match(/^[A-Z][a-z]+:$/)) {
+    headingLevel = 4;
+  }
+
+  const isContactInfo =
+    isEmail || isPhone || isAddress || isWebsite || isLinkedIn;
+
+  return {
+    isHeading: headingLevel > 0,
+    level: headingLevel,
+    isContact: isContactInfo,
+    isSection: isSection,
+    isListItem: isListItem,
+    listType: listType,
+    listLevel: listLevel,
+    isJobTitle: isJobTitle,
+    isCompanyName: isCompanyName,
+    isDate: isDate,
+    isTableRow: isTableRow,
+    tableCells: tableCells,
+    isPageNumber: isPageNumber,
+    isFooter: isFooter,
+    alignment: alignment,
+    indentLevel: Math.floor(
+      (originalLine.length - originalLine.trimStart().length) / 4,
+    ),
+    spaceBefore: getSpacingRequirement(
+      headingLevel,
+      isSection,
+      isName,
+      isContactInfo,
+      "before",
+    ),
+    spaceAfter: getSpacingRequirement(
+      headingLevel,
+      isSection,
+      isName,
+      isContactInfo,
+      "after",
+    ),
+  };
+}
+
+// Helper function to determine spacing requirements
+function getSpacingRequirement(
+  headingLevel,
+  isSection,
+  isName,
+  isContactInfo,
+  position,
+) {
+  if (position === "before") {
+    if (headingLevel === 1 || isName) return 240;
+    if (headingLevel === 2 || isSection) return 320;
+    if (headingLevel >= 3) return 200;
+    return 0;
+  } else {
+    // "after"
+    if (headingLevel === 1 || isName) return 160;
+    if (headingLevel === 2 || isSection) return 200;
+    if (headingLevel >= 3) return 140;
+    if (isContactInfo) return 120;
+    return 160;
+  }
+}
+
+// Create list item paragraph with proper formatting
+function createListItemParagraph(text, listType = "bullet") {
+  const { Paragraph, TextRun } = require("docx");
+
+  // Remove bullet/number from text
+  const cleanText = text.replace(/^[•\-\d\.]\s*/, "").trim();
+
+  if (listType === "bullet") {
+    return new Paragraph({
+      bullet: { level: 0 },
+      children: [
+        new TextRun({
+          text: cleanText,
+          size: 22, // 11pt
+        }),
+      ],
+      spacing: { after: 120 },
+      indent: { left: 360 },
+    });
+  } else {
+    return new Paragraph({
+      numbering: {
+        reference: "default-numbering",
+        level: 0,
+      },
+      children: [
+        new TextRun({
+          text: cleanText,
+          size: 22, // 11pt
+        }),
+      ],
+      spacing: { after: 120 },
+    });
+  }
+}
+
+// Create spacing paragraph for layout preservation
+function createSpacingParagraph(lineCount = 1) {
+  const { Paragraph, TextRun } = require("docx");
+
+  return new Paragraph({
+    children: [new TextRun(" ")],
+    spacing: {
+      after: Math.min(lineCount * 120, 480), // Max 2 lines spacing
+    },
+  });
+}
+
+// Create Word table from table rows
+function createWordTable(tableRows) {
+  const {
+    Table,
+    TableRow,
+    TableCell,
+    Paragraph,
+    TextRun,
+    WidthType,
+    AlignmentType,
+  } = require("docx");
+
+  if (!tableRows || tableRows.length === 0) {
+    return [];
+  }
+
+  // Determine number of columns from the first row
+  const maxCols = Math.max(...tableRows.map((row) => row.cells.length));
+
+  const tableRowElements = tableRows.map((rowData) => {
+    const cells = [];
+
+    // Ensure all rows have the same number of cells
+    for (let i = 0; i < maxCols; i++) {
+      const cellText = rowData.cells[i] || "";
+
+      cells.push(
+        new TableCell({
+          children: [
+            new Paragraph({
+              children: [
+                new TextRun({
+                  text: cellText,
+                  size: 20, // 10pt for table text
+                }),
+              ],
+              alignment:
+                rowData.alignment === "center"
+                  ? AlignmentType.CENTER
+                  : AlignmentType.LEFT,
+            }),
+          ],
+          width: {
+            size: Math.floor(100 / maxCols),
+            type: WidthType.PERCENTAGE,
+          },
+        }),
+      );
+    }
+
+    return new TableRow({
+      children: cells,
+    });
+  });
+
+  const table = new Table({
+    rows: tableRowElements,
+    width: {
+      size: 100,
+      type: WidthType.PERCENTAGE,
+    },
+  });
+
+  return [table];
+}
+
+// Enhanced text formatting with proper styling
+function parseFormattedText(
+  text,
+  preserveFormatting = true,
+  contentType = "normal",
+) {
+  const { TextRun } = require("docx");
+
+  if (!preserveFormatting) {
+    return [
+      new TextRun({
+        text: text,
+        size: 22, // 11pt
+      }),
+    ];
+  }
+
+  const runs = [];
+  const detectedType = analyzeLineType(text);
+
+  // Apply different formatting based on content type with enhanced styling
+  if (contentType === "contact" || detectedType.isContact) {
+    runs.push(
+      new TextRun({
+        text: text,
+        size: 20, // 10pt
+        color: "2563eb", // Blue color for contact info
+      }),
+    );
+  } else if (contentType === "job_title" || detectedType.isJobTitle) {
+    runs.push(
+      new TextRun({
+        text: text,
+        size: 24, // 12pt
+        bold: true,
+        color: "1f2937", // Dark gray
+      }),
+    );
+  } else if (contentType === "company" || detectedType.isCompanyName) {
+    runs.push(
+      new TextRun({
+        text: text,
+        size: 22, // 11pt
+        italics: true,
+        color: "374151", // Slightly lighter gray
+      }),
+    );
+  } else if (contentType === "date" || detectedType.isDate) {
+    runs.push(
+      new TextRun({
+        text: text,
+        size: 20, // 10pt
+        italics: true,
+        color: "6b7280", // Medium gray
+      }),
+    );
+  } else if (contentType === "page_number" || detectedType.isPageNumber) {
+    runs.push(
+      new TextRun({
+        text: text,
+        size: 18, // 9pt
+        color: "9ca3af", // Light gray
+      }),
+    );
+  } else if (contentType === "footer" || detectedType.isFooter) {
+    runs.push(
+      new TextRun({
+        text: text,
+        size: 18, // 9pt
+        italics: true,
+        color: "9ca3af", // Light gray
+      }),
+    );
+  } else {
+    // Regular text with potential emphasis and inline formatting
+    const words = text.split(" ");
+    let currentText = "";
+
+    for (const word of words) {
+      // Check for emphasized words (all caps, etc.)
+      if (
+        word.length > 2 &&
+        word === word.toUpperCase() &&
+        /^[A-Z]+$/.test(word) &&
+        !word.includes(".") // Avoid acronyms with periods
+      ) {
+        // Finish current text run
+        if (currentText.trim()) {
+          runs.push(
+            new TextRun({
+              text: currentText,
+              size: 22, // 11pt
+            }),
+          );
+          currentText = "";
+        }
+
+        // Add emphasized word
+        runs.push(
+          new TextRun({
+            text: word + " ",
+            size: 22, // 11pt
+            bold: true,
+            color: "1f2937",
+          }),
+        );
+      } else if (
+        word.startsWith("*") &&
+        word.endsWith("*") &&
+        word.length > 2
+      ) {
+        // Handle *bold* formatting
+        if (currentText.trim()) {
+          runs.push(
+            new TextRun({
+              text: currentText,
+              size: 22,
+            }),
+          );
+          currentText = "";
+        }
+
+        runs.push(
+          new TextRun({
+            text: word.slice(1, -1) + " ",
+            size: 22,
+            bold: true,
+          }),
+        );
+      } else if (
+        word.startsWith("_") &&
+        word.endsWith("_") &&
+        word.length > 2
+      ) {
+        // Handle _italic_ formatting
+        if (currentText.trim()) {
+          runs.push(
+            new TextRun({
+              text: currentText,
+              size: 22,
+            }),
+          );
+          currentText = "";
+        }
+
+        runs.push(
+          new TextRun({
+            text: word.slice(1, -1) + " ",
+            size: 22,
+            italics: true,
+          }),
+        );
+      } else {
+        currentText += word + " ";
+      }
+    }
+
+    // Add remaining text
+    if (currentText.trim()) {
+      runs.push(
+        new TextRun({
+          text: currentText.trim(),
+          size: 22, // 11pt
+        }),
+      );
+    }
+  }
+
+  return runs.length > 0
+    ? runs
+    : [
+        new TextRun({
+          text: text,
+          size: 22, // 11pt
+        }),
+      ];
 }
 
 // @route   POST /api/pdf/word-to-pdf-advanced
@@ -1486,7 +2677,7 @@ router.post(
         // Headers and titles
         .replace(
           /<h1[^>]*>(.*?)<\/h1>/gi,
-          "\n\n【HEADING1】$1【/HEADING1】\n\n",
+          "\n\n【HEADING1��$1【/HEADING1】\n\n",
         )
         .replace(
           /<h2[^>]*>(.*?)<\/h2>/gi,
@@ -1494,7 +2685,7 @@ router.post(
         )
         .replace(
           /<h3[^>]*>(.*?)<\/h3>/gi,
-          "\n\n【HEADING3】$1【/HEADING3】\n\n",
+          "\n\n��HEADING3】$1【/HEADING3】\n\n",
         )
 
         // Text formatting
@@ -1527,7 +2718,7 @@ router.post(
         .replace(/【HEADING2】(.*?)【\/HEADING2】/g, "\n\n▓▓ $1 ▓▓\n\n")
         .replace(/【HEADING3】(.*?)【\/HEADING3】/g, "\n\n▓ $1 ▓\n\n")
         .replace(/【BOLD】(.*?)【\/BOLD】/g, "【B:$1】")
-        .replace(/【ITALIC】(.*?)【\/ITALIC】/g, "【I:$1】")
+        .replace(/【ITALIC】(.*?)【\/ITALIC】/g, "��I:$1】")
         .replace(/【UNDERLINE】(.*?)【\/UNDERLINE】/g, "【U:$1】")
         .replace(/���PARAGRAPH】(.*?)【\/PARAGRAPH】/g, "$1\n")
 
@@ -2500,5 +3691,647 @@ router.get("/tools", (req, res) => {
 
 // Use the shared multer error handler
 router.use(handleMulterError);
+
+// @route   POST /api/pdf/to-excel
+// @desc    Convert PDF to Excel (.xlsx) format with table extraction
+// @access  Public (with optional auth and usage limits)
+router.post(
+  "/to-excel",
+  optionalAuth,
+  checkUsageLimit,
+  upload.single("file"),
+  [
+    body("extractTables")
+      .optional()
+      .isBoolean()
+      .withMessage("Extract tables must be boolean"),
+    body("preserveFormatting")
+      .optional()
+      .isBoolean()
+      .withMessage("Preserve formatting must be boolean"),
+    body("sessionId").optional().isString(),
+  ],
+  async (req, res) => {
+    const startTime = Date.now();
+
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({
+          success: false,
+          message: "Validation failed",
+          errors: errors.array(),
+        });
+      }
+
+      const {
+        extractTables = true,
+        preserveFormatting = true,
+        sessionId,
+      } = req.body;
+
+      const file = req.file;
+
+      if (!file) {
+        return res.status(400).json({
+          success: false,
+          message: "PDF file is required",
+        });
+      }
+
+      // Check file size
+      const maxSize = req.user?.isPremiumActive
+        ? 50 * 1024 * 1024 // 50MB for premium
+        : 25 * 1024 * 1024; // 25MB for free users
+
+      if (file.size > maxSize) {
+        return res.status(400).json({
+          success: false,
+          message: `File size exceeds ${req.user?.isPremiumActive ? "50MB" : "25MB"} limit`,
+        });
+      }
+
+      console.log(
+        `Converting PDF to Excel: ${file.originalname} (${formatBytes(file.size)})`,
+      );
+
+      // Import required libraries
+      const pdfParse = require("pdf-parse");
+      const ExcelJS = require("exceljs");
+      const { PDFDocument: PDFLibDocument } = require("pdf-lib");
+
+      // Enhanced PDF parsing for table detection
+      const pdfLibDoc = await PDFLibDocument.load(file.buffer);
+      const numPages = pdfLibDoc.getPageCount();
+
+      console.log(
+        `📄 PDF has ${numPages} pages, extracting tables and data...`,
+      );
+
+      // Enhanced text extraction with table detection
+      let pdfData;
+      let text = "";
+      let extractedTables = [];
+
+      try {
+        pdfData = await pdfParse(file.buffer, {
+          pagerender: null,
+          max: 0,
+          normalizeWhitespace: false,
+          disableCombineTextItems: false,
+        });
+
+        text = pdfData.text || "";
+        console.log(`📝 Extracted ${text.length} characters from PDF`);
+
+        // Extract tables from text
+        extractedTables = extractTablesFromText(text);
+        console.log(`📊 Found ${extractedTables.length} potential tables`);
+      } catch (error) {
+        console.error("Error extracting PDF content:", error);
+        return res.status(400).json({
+          success: false,
+          message:
+            "Failed to extract content from PDF. This may be a scanned document.",
+        });
+      }
+
+      if (!text || text.trim().length === 0) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "No readable text found in PDF. This appears to be a scanned document.",
+          suggestion: "Use PDF OCR tool for scanned documents",
+        });
+      }
+
+      // Create Excel workbook
+      const workbook = new ExcelJS.Workbook();
+
+      // Set workbook properties
+      workbook.creator = "PdfPage - Professional PDF Converter";
+      workbook.lastModifiedBy = "PdfPage";
+      workbook.created = new Date();
+      workbook.modified = new Date();
+      workbook.properties.date1904 = false;
+
+      let sheetsCreated = 0;
+
+      // Create sheets based on extracted content
+      if (extractedTables.length > 0) {
+        // Create separate sheets for each table
+        for (let i = 0; i < extractedTables.length; i++) {
+          const table = extractedTables[i];
+          const sheetName = `Table_${i + 1}`;
+          const worksheet = workbook.addWorksheet(sheetName);
+
+          // Add table data to worksheet
+          if (table.rows && table.rows.length > 0) {
+            // Add headers if detected
+            if (table.headers && table.headers.length > 0) {
+              const headerRow = worksheet.addRow(table.headers);
+              headerRow.font = { bold: true };
+              headerRow.fill = {
+                type: "pattern",
+                pattern: "solid",
+                fgColor: { argb: "FFE6F3FF" },
+              };
+            }
+
+            // Add data rows
+            table.rows.forEach((row) => {
+              worksheet.addRow(row);
+            });
+
+            // Auto-fit columns
+            worksheet.columns.forEach((column) => {
+              column.width = Math.max(
+                10,
+                Math.min(50, column.header?.length || 15),
+              );
+            });
+
+            // Add borders
+            const range = worksheet.getSheetRange();
+            worksheet.eachRow({ includeEmpty: false }, (row) => {
+              row.eachCell((cell) => {
+                cell.border = {
+                  top: { style: "thin" },
+                  left: { style: "thin" },
+                  bottom: { style: "thin" },
+                  right: { style: "thin" },
+                };
+              });
+            });
+
+            sheetsCreated++;
+          }
+        }
+      }
+
+      // Create a general data sheet with all text content
+      const dataSheet = workbook.addWorksheet("Full_Content");
+
+      // Process text into structured data
+      const lines = text.split("\n").filter((line) => line.trim());
+      const structuredData = processTextToExcelData(lines);
+
+      // Add headers
+      const headers = ["Line_Number", "Content_Type", "Content", "Length"];
+      const headerRow = dataSheet.addRow(headers);
+      headerRow.font = { bold: true };
+      headerRow.fill = {
+        type: "pattern",
+        pattern: "solid",
+        fgColor: { argb: "FFD4EEFC" },
+      };
+
+      // Add data
+      structuredData.forEach((item, index) => {
+        dataSheet.addRow([
+          index + 1,
+          item.type,
+          item.content,
+          item.content.length,
+        ]);
+      });
+
+      // Auto-fit columns
+      dataSheet.columns = [
+        { width: 12 }, // Line number
+        { width: 15 }, // Content type
+        { width: 80 }, // Content
+        { width: 10 }, // Length
+      ];
+
+      sheetsCreated++;
+
+      // Create summary sheet
+      const summarySheet = workbook.addWorksheet("Summary");
+
+      const summaryData = [
+        ["Summary Information"],
+        ["Source File", file.originalname],
+        ["Conversion Date", new Date().toLocaleDateString()],
+        ["Processing Time", `${Date.now() - startTime}ms`],
+        ["Total Pages", numPages],
+        ["Total Characters", text.length],
+        ["Tables Found", extractedTables.length],
+        ["Sheets Created", sheetsCreated],
+        [],
+        ["Table Details"],
+        ["Table #", "Rows", "Columns", "Data Points"],
+      ];
+
+      extractedTables.forEach((table, index) => {
+        summaryData.push([
+          `Table ${index + 1}`,
+          table.rows.length,
+          table.headers ? table.headers.length : table.rows[0]?.length || 0,
+          table.rows.length *
+            (table.headers ? table.headers.length : table.rows[0]?.length || 0),
+        ]);
+      });
+
+      summaryData.forEach((row, index) => {
+        const worksheetRow = summarySheet.addRow(row);
+        if (index === 0 || index === 9) {
+          // Headers
+          worksheetRow.font = { bold: true, size: 14 };
+        } else if (index === 10) {
+          // Column headers
+          worksheetRow.font = { bold: true };
+          worksheetRow.fill = {
+            type: "pattern",
+            pattern: "solid",
+            fgColor: { argb: "FFE6F3FF" },
+          };
+        }
+      });
+
+      // Auto-fit summary columns
+      summarySheet.columns.forEach((column) => {
+        column.width = 20;
+      });
+
+      sheetsCreated++;
+
+      // Generate Excel buffer
+      const excelBuffer = await workbook.xlsx.writeBuffer();
+      const processingTime = Date.now() - startTime;
+
+      console.log(
+        `✅ Excel conversion complete: ${formatBytes(excelBuffer.length)} generated in ${processingTime}ms`,
+      );
+
+      // Track usage
+      try {
+        await Usage.trackOperation({
+          userId: req.user ? req.user._id : null,
+          sessionId: sessionId || null,
+          toolUsed: "pdf-to-excel",
+          fileCount: 1,
+          totalFileSize: file.size,
+          processingTime,
+          userAgent: req.headers["user-agent"],
+          ipAddress: getRealIPAddress(req),
+          success: true,
+        });
+
+        if (req.user && !req.user.isPremiumActive) {
+          req.user.incrementUpload(file.size);
+          await req.user.save();
+        }
+      } catch (error) {
+        console.error("Error tracking usage:", error);
+      }
+
+      // Generate filename
+      const originalName = file.originalname.replace(/\.pdf$/i, "");
+      const filename = `${originalName}.xlsx`;
+
+      // Send the Excel file
+      res.setHeader(
+        "Content-Type",
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      );
+      res.setHeader(
+        "Content-Disposition",
+        `attachment; filename="${encodeURIComponent(filename)}"`,
+      );
+      res.setHeader("Content-Length", excelBuffer.length);
+      res.setHeader("X-Original-Pages", numPages);
+      res.setHeader("X-Tables-Found", extractedTables.length);
+      res.setHeader("X-Sheets-Created", sheetsCreated);
+      res.setHeader("X-Processing-Time", processingTime);
+      res.setHeader("X-Text-Length", text.length);
+
+      console.log(
+        `📊 Excel file sent: ${filename} (${formatBytes(excelBuffer.length)})`,
+      );
+
+      res.end(Buffer.from(excelBuffer));
+    } catch (error) {
+      console.error("PDF to Excel conversion error:", error);
+
+      // Track error
+      try {
+        await Usage.trackOperation({
+          userId: req.user ? req.user._id : null,
+          sessionId: req.body.sessionId || null,
+          toolUsed: "pdf-to-excel",
+          fileCount: 1,
+          totalFileSize: req.file ? req.file.size : 0,
+          processingTime: Date.now() - startTime,
+          userAgent: req.headers["user-agent"],
+          ipAddress: getRealIPAddress(req),
+          success: false,
+          errorMessage: error.message,
+        });
+      } catch (trackError) {
+        console.error("Error tracking failed operation:", trackError);
+      }
+
+      res.status(500).json({
+        success: false,
+        message: error.message || "Failed to convert PDF to Excel",
+      });
+    }
+  },
+);
+
+// Helper function to extract tables from text
+function extractTablesFromText(text) {
+  const lines = text.split("\n");
+  const tables = [];
+  let currentTable = null;
+  let inTable = false;
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim();
+
+    if (!line) {
+      if (inTable && currentTable) {
+        tables.push(currentTable);
+        currentTable = null;
+        inTable = false;
+      }
+      continue;
+    }
+
+    // Detect table patterns
+    const isTableRow =
+      line.includes("|") || // Pipe-separated
+      line.match(/\t+/) || // Tab-separated
+      (line.match(/\s{3,}/) && line.split(/\s{3,}/).length > 2); // Multi-space separated
+
+    if (isTableRow) {
+      if (!inTable) {
+        // Start new table
+        currentTable = {
+          headers: null,
+          rows: [],
+          startLine: i,
+        };
+        inTable = true;
+      }
+
+      // Parse the row
+      let cells = [];
+      if (line.includes("|")) {
+        cells = line
+          .split("|")
+          .map((cell) => cell.trim())
+          .filter((cell) => cell);
+      } else if (line.match(/\t+/)) {
+        cells = line
+          .split(/\t+/)
+          .map((cell) => cell.trim())
+          .filter((cell) => cell);
+      } else if (line.match(/\s{3,}/)) {
+        cells = line
+          .split(/\s{3,}/)
+          .map((cell) => cell.trim())
+          .filter((cell) => cell);
+      }
+
+      if (cells.length > 1) {
+        if (!currentTable.headers && isLikelyHeader(cells)) {
+          currentTable.headers = cells;
+        } else {
+          currentTable.rows.push(cells);
+        }
+      }
+    } else if (inTable && currentTable) {
+      // End current table
+      if (currentTable.rows.length > 0) {
+        tables.push(currentTable);
+      }
+      currentTable = null;
+      inTable = false;
+    }
+  }
+
+  // Add final table if exists
+  if (inTable && currentTable && currentTable.rows.length > 0) {
+    tables.push(currentTable);
+  }
+
+  return tables.filter((table) => table.rows.length > 0);
+}
+
+// Helper function to determine if a row is likely a header
+function isLikelyHeader(cells) {
+  if (!cells || cells.length === 0) return false;
+
+  // Headers often contain:
+  // - Title case words
+  // - No numbers (except years)
+  // - Common header words
+  const headerWords = [
+    "name",
+    "date",
+    "id",
+    "number",
+    "type",
+    "status",
+    "total",
+    "amount",
+    "description",
+  ];
+
+  return cells.some((cell) => {
+    const lowerCell = cell.toLowerCase();
+    return (
+      headerWords.some((word) => lowerCell.includes(word)) ||
+      cell.match(/^[A-Z][a-z\s]+$/) || // Title case
+      lowerCell.includes("column") ||
+      lowerCell.includes("field")
+    );
+  });
+}
+
+// Helper function to process text into structured Excel data
+function processTextToExcelData(lines) {
+  return lines.map((line) => {
+    const trimmed = line.trim();
+    let type = "text";
+
+    // Determine content type
+    if (trimmed.match(/^[A-Z\s]+$/) && trimmed.length < 50) {
+      type = "heading";
+    } else if (trimmed.includes("@") && trimmed.includes(".")) {
+      type = "email";
+    } else if (trimmed.match(/\d{4}/) && trimmed.length < 20) {
+      type = "date";
+    } else if (trimmed.match(/^\d+[\.\)]\s/)) {
+      type = "numbered_list";
+    } else if (trimmed.match(/^[•\-\*]\s/)) {
+      type = "bullet_list";
+    } else if (trimmed.includes("|") || trimmed.match(/\t+/)) {
+      type = "table_row";
+    } else if (trimmed.length > 100) {
+      type = "paragraph";
+    }
+
+    return {
+      content: trimmed,
+      type: type,
+    };
+  });
+}
+
+// @route   POST /api/pdf/excel-to-pdf
+// @desc    Convert Excel file to PDF
+// @access  Public (with optional auth and usage limits)
+router.post(
+  "/excel-to-pdf",
+  optionalAuth,
+  ...ipUsageLimitChain,
+  trackToolUsage("excel-to-pdf"),
+  checkUsageLimit,
+  upload.single("file"),
+  [body("settings").optional().isString()],
+  async (req, res) => {
+    const startTime = Date.now();
+
+    try {
+      // Validate request
+      if (!req.file) {
+        return res.status(400).json({
+          success: false,
+          message: "No file uploaded",
+        });
+      }
+
+      // Validate file type
+      const allowedTypes = [
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", // .xlsx
+        "application/vnd.ms-excel", // .xls
+        "application/vnd.ms-excel.sheet.macroEnabled.12", // .xlsm
+      ];
+
+      if (!allowedTypes.includes(req.file.mimetype)) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Invalid file type. Please upload an Excel file (.xlsx, .xls, .xlsm)",
+        });
+      }
+
+      // Parse conversion settings
+      let settings = {};
+      if (req.body.settings) {
+        try {
+          settings = JSON.parse(req.body.settings);
+        } catch (error) {
+          console.warn("Invalid settings JSON, using defaults");
+        }
+      }
+
+      // Default settings
+      const conversionOptions = {
+        pageSize: settings.pageSize || "A4",
+        orientation: settings.orientation || "landscape",
+        fitToPage: settings.fitToPage !== false,
+        includeGridlines: settings.includeGridlines !== false,
+        includeHeaders: settings.includeHeaders !== false,
+        scaleToFit: settings.scaleToFit || 100,
+        worksheetSelection: settings.worksheetSelection || "all",
+        selectedSheets: settings.selectedSheets || [],
+        includeFormulas: settings.includeFormulas || false,
+        preserveFormatting: settings.preserveFormatting !== false,
+        includeCharts: settings.includeCharts !== false,
+        compression: settings.compression || "medium",
+        watermark: settings.watermark || "",
+        headerFooter: settings.headerFooter || false,
+        margin: settings.margin || 20,
+      };
+
+      console.log(`📊 Converting Excel to PDF: ${req.file.originalname}`);
+      console.log(`📋 Settings:`, JSON.stringify(conversionOptions, null, 2));
+
+      // Convert Excel to PDF using ExcelJS + jsPDF
+      const { convertExcelToPdf } = require("../utils/excelToPdfConverter");
+      const pdfBuffer = await convertExcelToPdf(
+        req.file.path,
+        conversionOptions,
+      );
+
+      // Track usage
+      const usageData = {
+        userId: req.user?.id || null,
+        tool: "excel-to-pdf",
+        fileSize: req.file.size,
+        processingTime: Date.now() - startTime,
+        ipAddress: getRealIPAddress(req),
+        userAgent: req.headers["user-agent"],
+        deviceType: getDeviceTypeFromRequest(req),
+        isSuccess: true,
+      };
+
+      await trackUsageWithDeviceInfo(req, usageData);
+
+      // Clean up uploaded file
+      try {
+        await fs.unlink(req.file.path);
+      } catch (cleanupError) {
+        console.warn("Failed to cleanup uploaded file:", cleanupError);
+      }
+
+      // Set response headers
+      const outputFilename = req.file.originalname.replace(
+        /\.(xlsx?|xlsm)$/i,
+        ".pdf",
+      );
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader(
+        "Content-Disposition",
+        `attachment; filename="${outputFilename}"`,
+      );
+      res.setHeader("Content-Length", pdfBuffer.length);
+
+      console.log(`✅ Excel to PDF conversion completed: ${outputFilename}`);
+      res.send(pdfBuffer);
+    } catch (error) {
+      console.error("❌ Excel to PDF conversion error:", error);
+
+      // Clean up file if it exists
+      if (req.file) {
+        try {
+          await fs.unlink(req.file.path);
+        } catch (cleanupError) {
+          console.warn("Failed to cleanup file after error:", cleanupError);
+        }
+      }
+
+      // Track failed usage
+      if (req.user || req.ipUsage) {
+        const usageData = {
+          userId: req.user?.id || null,
+          tool: "excel-to-pdf",
+          fileSize: req.file?.size || 0,
+          processingTime: Date.now() - startTime,
+          ipAddress: getRealIPAddress(req),
+          userAgent: req.headers["user-agent"],
+          deviceType: getDeviceTypeFromRequest(req),
+          isSuccess: false,
+          errorMessage: error.message,
+        };
+
+        await trackUsageWithDeviceInfo(req, usageData).catch(console.error);
+      }
+
+      res.status(500).json({
+        success: false,
+        message: "Excel to PDF conversion failed",
+        error:
+          process.env.NODE_ENV === "development"
+            ? error.message
+            : "Internal server error",
+      });
+    }
+  },
+);
 
 module.exports = router;

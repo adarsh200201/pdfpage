@@ -12,6 +12,8 @@ import RealtimeEditor from "./pages/RealtimeEditor";
 import PaymentTestPage from "./pages/PaymentTestPage";
 import { LanguageProvider } from "@/contexts/LanguageContext";
 import { FloatingPopupProvider } from "@/contexts/FloatingPopupContext";
+import { MixpanelProvider } from "@/contexts/MixpanelContext";
+import { GlobalToolTrackingProvider } from "@/contexts/GlobalToolTrackingContext";
 import Index from "./pages/Index";
 import ImgPage from "./pages/ImgPage";
 import ImgCompress from "./pages/ImgCompress";
@@ -64,7 +66,6 @@ import Status from "./pages/Status";
 // Import all the real tool implementations from AllTools
 import {
   PdfToPowerPoint,
-  PdfToExcel,
   Watermark,
   UnlockPdf,
   ProtectPdf,
@@ -81,6 +82,9 @@ import {
   PowerPointToPdf,
   ExcelToPdf,
 } from "./pages/AllTools";
+
+// Import dedicated PDF to Excel component
+import PdfToExcel from "./pages/PdfToExcel";
 
 // Import the enhanced EditPdf component
 import EditPdf from "./pages/EditPdf";
@@ -172,142 +176,170 @@ const App = () => {
               <Toaster />
               <Sonner />
               <BrowserRouter>
-                <ScrollRestoration />
-                <Routes>
-                  <Route path="/" element={<Index />} />
+                <MixpanelProvider>
+                  <GlobalToolTrackingProvider>
+                    <ScrollRestoration />
+                    <Routes>
+                      <Route path="/" element={<Index />} />
 
-                  {/* Image Tools */}
-                  <Route path="/img" element={<ImgPage />} />
-                  <Route path="/img/compress" element={<ImgCompress />} />
-                  <Route path="/img/resize" element={<ImgResize />} />
-                  <Route path="/img/jpg-to-png" element={<ImgJpgToPng />} />
-                  <Route path="/img/png-to-jpg" element={<ImgPngToJpg />} />
-                  <Route path="/img/watermark" element={<ImgWatermark />} />
-                  <Route path="/img/rotate" element={<ImgRotate />} />
-                  <Route path="/img/crop" element={<ImgCrop />} />
-                  <Route path="/img/remove-bg" element={<ImgRemoveBg />} />
-                  <Route path="/img/upscale" element={<ImgUpscale />} />
-                  <Route path="/img/to-pdf" element={<ImgToPdf />} />
-                  <Route path="/img/meme" element={<ImgMeme />} />
-                  <Route path="/img/convert" element={<ImgConvert />} />
-                  <Route path="/img/favicon" element={<FaviconConverter />} />
-                  <Route path="/favicon" element={<FaviconPage />} />
+                      {/* Image Tools */}
+                      <Route path="/img" element={<ImgPage />} />
+                      <Route path="/img/compress" element={<ImgCompress />} />
+                      <Route path="/img/resize" element={<ImgResize />} />
+                      <Route path="/img/jpg-to-png" element={<ImgJpgToPng />} />
+                      <Route path="/img/png-to-jpg" element={<ImgPngToJpg />} />
+                      <Route path="/img/watermark" element={<ImgWatermark />} />
+                      <Route path="/img/rotate" element={<ImgRotate />} />
+                      <Route path="/img/crop" element={<ImgCrop />} />
+                      <Route path="/img/remove-bg" element={<ImgRemoveBg />} />
+                      <Route path="/img/upscale" element={<ImgUpscale />} />
+                      <Route path="/img/to-pdf" element={<ImgToPdf />} />
+                      <Route path="/img/meme" element={<ImgMeme />} />
+                      <Route path="/img/convert" element={<ImgConvert />} />
+                      <Route
+                        path="/img/favicon"
+                        element={<FaviconConverter />}
+                      />
+                      <Route path="/favicon" element={<FaviconPage />} />
 
-                  {/* Authentication */}
-                  <Route path="/login" element={<Login />} />
-                  <Route path="/register" element={<Register />} />
-                  <Route path="/forgot-password" element={<ForgotPassword />} />
-                  <Route path="/auth/callback" element={<AuthCallback />} />
+                      {/* Authentication */}
+                      <Route path="/login" element={<Login />} />
+                      <Route path="/register" element={<Register />} />
+                      <Route
+                        path="/forgot-password"
+                        element={<ForgotPassword />}
+                      />
+                      <Route path="/auth/callback" element={<AuthCallback />} />
 
-                  {/* Core PDF Tools - REAL-TIME IMPLEMENTATIONS */}
-                  <Route path="/merge" element={<Merge />} />
-                  <Route path="/split" element={<Split />} />
-                  <Route path="/compress" element={<Compress />} />
-                  <Route
-                    path="/compress-processing"
-                    element={<CompressProcessing />}
-                  />
-                  <Route path="/convert" element={<Convert />} />
-                  <Route path="/rotate" element={<Rotate />} />
+                      {/* Core PDF Tools - REAL-TIME IMPLEMENTATIONS */}
+                      <Route path="/merge" element={<Merge />} />
+                      <Route path="/split" element={<Split />} />
+                      <Route path="/compress" element={<Compress />} />
+                      <Route
+                        path="/compress-processing"
+                        element={<CompressProcessing />}
+                      />
+                      <Route path="/convert" element={<Convert />} />
+                      <Route path="/rotate" element={<Rotate />} />
 
-                  {/* PDF Conversion Tools - ALL WORKING */}
-                  <Route path="/pdf-to-jpg" element={<PdfToJpg />} />
-                  <Route path="/pdf-to-word" element={<PdfToWord />} />
-                  <Route path="/word-to-pdf" element={<WordToPdf />} />
-                  <Route
-                    path="/pdf-to-powerpoint"
-                    element={<PdfToPowerPoint />}
-                  />
-                  <Route path="/pdf-to-excel" element={<PdfToExcel />} />
-                  <Route path="/jpg-to-pdf" element={<JpgToPdf />} />
-                  <Route
-                    path="/powerpoint-to-pdf"
-                    element={<PowerPointToPdf />}
-                  />
-                  <Route path="/excel-to-pdf" element={<ExcelToPdf />} />
-                  <Route path="/html-to-pdf" element={<HtmlToPdf />} />
+                      {/* PDF Conversion Tools - ALL WORKING */}
+                      <Route path="/pdf-to-jpg" element={<PdfToJpg />} />
+                      <Route path="/pdf-to-word" element={<PdfToWord />} />
+                      <Route path="/word-to-pdf" element={<WordToPdf />} />
+                      <Route
+                        path="/pdf-to-powerpoint"
+                        element={<PdfToPowerPoint />}
+                      />
+                      <Route path="/pdf-to-excel" element={<PdfToExcel />} />
+                      <Route path="/jpg-to-pdf" element={<JpgToPdf />} />
+                      <Route
+                        path="/powerpoint-to-pdf"
+                        element={<PowerPointToPdf />}
+                      />
+                      <Route path="/excel-to-pdf" element={<ExcelToPdf />} />
+                      <Route path="/html-to-pdf" element={<HtmlToPdf />} />
 
-                  {/* PDF Enhancement Tools - ALL WORKING */}
-                  <Route path="/edit-pdf" element={<EditPdf />} />
-                  <Route
-                    path="/enhanced-edit-pdf"
-                    element={<EnhancedEditPdf />}
-                  />
-                  <Route path="/sign-pdf" element={<SignPdf />} />
-                  <Route
-                    path="/advanced-pdf-editor"
-                    element={<AdvancedPDFEditor />}
-                  />
-                  <Route path="/realtime-editor" element={<RealtimeEditor />} />
-                  <Route path="/payment-test" element={<PaymentTestPage />} />
-                  <Route path="/watermark" element={<Watermark />} />
-                  <Route path="/protect-pdf" element={<ProtectPdf />} />
-                  <Route path="/unlock-pdf" element={<UnlockPdf />} />
-                  <Route path="/organize-pdf" element={<OrganizePdf />} />
-                  <Route path="/page-numbers" element={<PageNumbers />} />
-                  <Route path="/crop-pdf" element={<CropPdf />} />
+                      {/* PDF Enhancement Tools - ALL WORKING */}
+                      <Route path="/edit-pdf" element={<EditPdf />} />
+                      <Route
+                        path="/enhanced-edit-pdf"
+                        element={<EnhancedEditPdf />}
+                      />
+                      <Route path="/sign-pdf" element={<SignPdf />} />
+                      <Route
+                        path="/advanced-pdf-editor"
+                        element={<AdvancedPDFEditor />}
+                      />
+                      <Route
+                        path="/realtime-editor"
+                        element={<RealtimeEditor />}
+                      />
+                      <Route
+                        path="/payment-test"
+                        element={<PaymentTestPage />}
+                      />
+                      <Route path="/watermark" element={<Watermark />} />
+                      <Route path="/protect-pdf" element={<ProtectPdf />} />
+                      <Route path="/unlock-pdf" element={<UnlockPdf />} />
+                      <Route path="/organize-pdf" element={<OrganizePdf />} />
+                      <Route path="/page-numbers" element={<PageNumbers />} />
+                      <Route path="/crop-pdf" element={<CropPdf />} />
 
-                  {/* Advanced PDF Tools - ALL WORKING */}
-                  <Route path="/pdf-to-pdfa" element={<PdfToPdfA />} />
-                  <Route path="/repair-pdf" element={<RepairPdf />} />
-                  <Route path="/scan-to-pdf" element={<ScanToPdf />} />
-                  <Route path="/ocr-pdf" element={<OcrPdf />} />
-                  <Route path="/compare-pdf" element={<ComparePdf />} />
-                  <Route path="/redact-pdf" element={<RedactPdf />} />
-                  <Route path="/rotate-pdf" element={<RotatePdfAdvanced />} />
+                      {/* Advanced PDF Tools - ALL WORKING */}
+                      <Route path="/pdf-to-pdfa" element={<PdfToPdfA />} />
+                      <Route path="/repair-pdf" element={<RepairPdf />} />
+                      <Route path="/scan-to-pdf" element={<ScanToPdf />} />
+                      <Route path="/ocr-pdf" element={<OcrPdf />} />
+                      <Route path="/compare-pdf" element={<ComparePdf />} />
+                      <Route path="/redact-pdf" element={<RedactPdf />} />
+                      <Route
+                        path="/rotate-pdf"
+                        element={<RotatePdfAdvanced />}
+                      />
 
-                  {/* Legacy routes for backwards compatibility */}
-                  <Route path="/tools" element={<Index />} />
+                      {/* Legacy routes for backwards compatibility */}
+                      <Route path="/tools" element={<Index />} />
 
-                  {/* Dashboard and Settings */}
-                  <Route path="/pricing" element={<Pricing />} />
-                  <Route path="/dashboard" element={<Dashboard />} />
-                  <Route path="/admin" element={<AdminRoute />} />
-                  <Route path="/settings" element={<Settings />} />
+                      {/* Dashboard and Settings */}
+                      <Route path="/pricing" element={<Pricing />} />
+                      <Route path="/dashboard" element={<Dashboard />} />
+                      <Route path="/admin" element={<AdminRoute />} />
+                      <Route path="/settings" element={<Settings />} />
 
-                  {/* Company Pages */}
-                  <Route path="/about" element={<About />} />
-                  <Route path="/blog" element={<Blog />} />
-                  <Route path="/careers" element={<Careers />} />
-                  <Route path="/contact" element={<Contact />} />
-                  <Route path="/affiliate" element={<Affiliate />} />
-                  <Route
-                    path="/feature-requests"
-                    element={<FeatureRequests />}
-                  />
-                  <Route path="/report-bug" element={<ReportBug />} />
-                  <Route path="/feature-request" element={<FeatureRequest />} />
+                      {/* Company Pages */}
+                      <Route path="/about" element={<About />} />
+                      <Route path="/blog" element={<Blog />} />
+                      <Route path="/careers" element={<Careers />} />
+                      <Route path="/contact" element={<Contact />} />
+                      <Route path="/affiliate" element={<Affiliate />} />
+                      <Route
+                        path="/feature-requests"
+                        element={<FeatureRequests />}
+                      />
+                      <Route path="/report-bug" element={<ReportBug />} />
+                      <Route
+                        path="/feature-request"
+                        element={<FeatureRequest />}
+                      />
 
-                  {/* Legal Pages */}
-                  <Route path="/privacy" element={<Privacy />} />
-                  <Route path="/terms" element={<Terms />} />
-                  <Route path="/cookies" element={<Cookies />} />
-                  <Route path="/gdpr" element={<Gdpr />} />
-                  <Route path="/security" element={<Security />} />
+                      {/* Legal Pages */}
+                      <Route path="/privacy" element={<Privacy />} />
+                      <Route path="/terms" element={<Terms />} />
+                      <Route path="/cookies" element={<Cookies />} />
+                      <Route path="/gdpr" element={<Gdpr />} />
+                      <Route path="/security" element={<Security />} />
 
-                  {/* API and Status */}
-                  <Route path="/api-docs" element={<ApiDocs />} />
-                  <Route path="/status" element={<Status />} />
+                      {/* API and Status */}
+                      <Route path="/api-docs" element={<ApiDocs />} />
+                      <Route path="/status" element={<Status />} />
 
-                  {/* Development and Testing */}
-                  <Route path="/test-all-tools" element={<TestAllTools />} />
-                  <Route path="/available-tools" element={<AvailableTools />} />
-                  <Route path="/account-test" element={<AccountTest />} />
+                      {/* Development and Testing */}
+                      <Route
+                        path="/test-all-tools"
+                        element={<TestAllTools />}
+                      />
+                      <Route
+                        path="/available-tools"
+                        element={<AvailableTools />}
+                      />
+                      <Route path="/account-test" element={<AccountTest />} />
 
-                  {/* Tool Redirect Pages (legacy compatibility - these show working tools now) */}
-                  <Route
-                    path="/tool-redirect/:toolSlug"
-                    element={<ToolRedirect />}
-                  />
-                  <Route
-                    path="/tool-available/:toolSlug"
-                    element={<ToolAvailable />}
-                  />
+                      {/* Tool Redirect Pages (legacy compatibility - these show working tools now) */}
+                      <Route
+                        path="/tool-redirect/:toolSlug"
+                        element={<ToolRedirect />}
+                      />
+                      <Route
+                        path="/tool-available/:toolSlug"
+                        element={<ToolAvailable />}
+                      />
 
-                  {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-                  <Route path="*" element={<NotFound />} />
-                </Routes>
-                <NetworkStatus />
+                      {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+                      <Route path="*" element={<NotFound />} />
+                    </Routes>
+                    <NetworkStatus />
+                  </GlobalToolTrackingProvider>
+                </MixpanelProvider>
               </BrowserRouter>
             </TooltipProvider>
           </LanguageProvider>

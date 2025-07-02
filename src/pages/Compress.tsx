@@ -29,6 +29,7 @@ import { cn } from "@/lib/utils";
 import { PDFService } from "@/services/pdfService";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
+import { useToolTracking } from "@/hooks/useToolTracking";
 import AuthModal from "@/components/auth/AuthModal";
 import { useFloatingPopup } from "@/contexts/FloatingPopupContext";
 import {
@@ -98,6 +99,14 @@ const Compress = () => {
 
   // Floating popup tracking
   const { trackToolUsage } = useFloatingPopup();
+
+  // Mixpanel tracking
+  const tracking = useToolTracking({
+    toolName: "compress",
+    category: "PDF Tool",
+    trackPageView: true,
+    trackFunnel: true,
+  });
 
   const compressionLevels: CompressionLevel[] = [
     {
@@ -299,6 +308,9 @@ const Compress = () => {
       setFiles([processedFile]);
       setCompressionResult(null);
 
+      // Track file upload
+      tracking.trackFileUpload([file]);
+
       // Generate thumbnails and get page count
       try {
         const [thumbnails, pageCount] = await Promise.all([
@@ -376,6 +388,7 @@ const Compress = () => {
     }
 
     if (!user) {
+      tracking.trackAuthRequired();
       setShowAuthModal(true);
       return;
     }
@@ -385,6 +398,10 @@ const Compress = () => {
 
     try {
       const file = files[0];
+      const startTime = Date.now();
+
+      // Track compression start
+      tracking.trackConversionStart("PDF", "PDF Compressed", [file.file]);
 
       // Simulate progress
       const progressInterval = setInterval(() => {
@@ -431,6 +448,23 @@ const Compress = () => {
       };
 
       setCompressionResult(compressionResult);
+
+      // Track successful compression
+      const conversionTime = Date.now() - startTime;
+      tracking.trackConversionComplete(
+        "PDF",
+        "PDF Compressed",
+        {
+          fileName: file.file.name,
+          fileSize: file.file.size,
+          fileType: file.file.type,
+        },
+        compressedSize,
+        conversionTime,
+      );
+
+      // Track compression settings
+      tracking.trackSettingsChange("compression_level", selectedLevel);
 
       // Track for floating popup (only for anonymous users)
       if (!isAuthenticated) {

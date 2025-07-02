@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import Cookies from "js-cookie";
 import authService from "@/services/authService";
+import mixpanelService from "@/services/mixpanelService";
 
 interface User {
   id: string;
@@ -113,6 +114,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         const { token, user, conversion } = data;
         Cookies.set("token", token, { expires: 365 }); // 1 year for persistent login
         setUser(user);
+
+        // Track user login in Mixpanel
+        mixpanelService.identify(user.id, {
+          email: user.email,
+          name: user.name,
+          isPremium: user.isPremium,
+          totalUploads: user.totalUploads,
+        });
+        mixpanelService.trackUserLogin("email");
+
         console.log("✅ [FRONTEND] Login successful");
         return { user, conversion: conversion || null };
       } else {
@@ -165,6 +176,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         const { token, user, conversion } = responseData;
         Cookies.set("token", token, { expires: 365 }); // 1 year for persistent login
         setUser(user);
+
+        // Track user signup in Mixpanel
+        mixpanelService.identify(user.id, {
+          email: user.email,
+          name: user.name,
+          isPremium: user.isPremium,
+          signupSource: options?.signupSource || "direct",
+          toolName: options?.toolName,
+        });
+        mixpanelService.trackUserSignup("email");
+
         return { user, conversion: conversion || null };
       } else {
         console.error("🔴 [FRONTEND] Registration failed:", {
@@ -201,6 +223,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   };
 
   const logout = () => {
+    // Track user logout in Mixpanel
+    mixpanelService.trackUserLogout();
+    mixpanelService.reset();
+
     Cookies.remove("token");
     setUser(null);
   };
