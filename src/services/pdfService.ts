@@ -36,7 +36,8 @@ export interface UsageLimitInfo {
 }
 
 export class PDFService {
-  private static API_URL = import.meta.env.VITE_API_URL || "/api";
+  private static API_URL =
+    import.meta.env.VITE_API_URL || "https://pdfpage.onrender.com/api";
 
   // Helper method to format file size (static method for class use)
   private static formatFileSize(bytes: number): string {

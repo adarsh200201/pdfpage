@@ -43,7 +43,7 @@ const Dashboard = () => {
         .find((row) => row.startsWith("token="))
         ?.split("=")[1];
       const response = await fetch(
-        `${import.meta.env.VITE_API_URL || "http://localhost:5000/api"}/auth/me`,
+        `${import.meta.env.VITE_API_URL || "https://pdfpage.onrender.com/api"}/auth/me`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
