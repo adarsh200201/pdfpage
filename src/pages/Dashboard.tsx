@@ -42,19 +42,22 @@ const Dashboard = () => {
         .split("; ")
         .find((row) => row.startsWith("token="))
         ?.split("=")[1];
-      const response = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:5000/api"}/users/profile`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL || "http://localhost:5000/api"}/auth/me`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
         },
-      });
+      );
       if (!response.ok) throw new Error("Failed to fetch user profile");
       const data = await response.json();
-      // Use stats from the profile response
-      setTotalOperations(data.profile.stats.totalOperations || 0);
-      setTodayOperations(data.profile.stats.todayOperations || 0);
+      // Use stats from the profile response - the auth/me endpoint returns user data directly
+      setTotalOperations(data.user?.totalUploads || 0);
+      setTodayOperations(data.user?.dailyUploads || 0);
       setUsageData([]); // Optionally, fill with real chart data if available
     } catch (error) {
-      console.error('Failed to fetch usage data:', error);
+      console.error("Failed to fetch usage data:", error);
     }
   };
 
@@ -154,7 +157,9 @@ const Dashboard = () => {
               <Download className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{user?.totalUploads ?? 0}</div>
+              <div className="text-2xl font-bold">
+                {user?.totalUploads ?? 0}
+              </div>
               <p className="text-xs text-muted-foreground">Successfully</p>
             </CardContent>
           </Card>
