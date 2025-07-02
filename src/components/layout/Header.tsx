@@ -83,15 +83,17 @@ const Header = () => {
             {/* User Actions */}
             {isAuthenticated && user ? (
               <DropdownMenu>
-                <DropdownMenuTrigger className="hidden md:flex items-center space-x-2">
-                  <div className="w-8 h-8 bg-brand-red rounded-full flex items-center justify-center">
-                    <span className="text-white text-sm font-semibold">
-                      {user.name.charAt(0).toUpperCase()}
+                <DropdownMenuTrigger asChild>
+                  <button className="hidden md:flex items-center space-x-2 cursor-pointer hover:opacity-80 transition-opacity">
+                    <div className="w-8 h-8 bg-brand-red rounded-full flex items-center justify-center">
+                      <span className="text-white text-sm font-semibold">
+                        {user.name.charAt(0).toUpperCase()}
+                      </span>
+                    </div>
+                    <span className="text-text-dark font-medium">
+                      {user.name}
                     </span>
-                  </div>
-                  <span className="text-text-dark font-medium">
-                    {user.name}
-                  </span>
+                  </button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-56">
                   <div className="px-3 py-2 border-b border-gray-100">
