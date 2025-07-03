@@ -437,12 +437,12 @@ const Split = () => {
 
             {/* Split Button */}
             {file && !usageLimitReached && (
-              <div className="text-center">
+              <div className="text-center mt-6 mb-6">
                 <Button
                   size="lg"
                   onClick={handleSplit}
                   disabled={isProcessing}
-                  className="bg-green-500 hover:bg-green-600"
+                  className="bg-green-500 hover:bg-green-600 text-white font-semibold px-8 py-3 rounded-lg shadow-lg transition-all duration-200 transform hover:scale-105 w-full sm:w-auto min-h-[48px]"
                 >
                   {isProcessing ? (
                     <>

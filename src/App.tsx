@@ -109,6 +109,7 @@ import AdvancedPDFEditor from "./pages/AdvancedPDFEditor";
 
 import NotFound from "./pages/NotFound";
 import Settings from "./pages/Settings";
+import ComingSoon from "./pages/ComingSoon";
 import ToolRedirect from "./pages/ToolRedirect";
 import ToolAvailable from "./pages/ToolAvailable";
 import AvailableTools from "./pages/AvailableTools";
@@ -268,7 +269,12 @@ const App = () => {
                       <Route path="/word-to-pdf" element={<WordToPdf />} />
                       <Route
                         path="/pdf-to-powerpoint"
-                        element={<PdfToPowerPoint />}
+                        element={
+                          <Navigate
+                            to="/coming-soon?tool=pdf-to-powerpoint"
+                            replace
+                          />
+                        }
                       />
                       <Route path="/pdf-to-excel" element={<PdfToExcel />} />
                       <Route path="/jpg-to-pdf" element={<JpgToPdf />} />
@@ -352,6 +358,7 @@ const App = () => {
                       {/* API and Status */}
                       <Route path="/api-docs" element={<ApiDocs />} />
                       <Route path="/status" element={<Status />} />
+                      <Route path="/coming-soon" element={<ComingSoon />} />
 
                       {/* Development and Testing */}
                       <Route

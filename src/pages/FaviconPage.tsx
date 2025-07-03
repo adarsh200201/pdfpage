@@ -94,7 +94,8 @@ const FaviconPage = () => {
   const faviconTools = [
     {
       title: "Image to Favicon",
-      description: "Convert any image to professional favicon files",
+      description:
+        "Convert photos, graphics, and artwork into website favicon files",
       icon: Image,
       path: "/favicon/image-to-favicon",
       color: "text-blue-600",
@@ -121,7 +122,8 @@ const FaviconPage = () => {
     },
     {
       title: "Logo to Favicon",
-      description: "Optimize logos for perfect favicon display",
+      description:
+        "Optimize company logos into professional .ico and .png favicons",
       icon: Sparkles,
       path: "/favicon/logo-to-favicon",
       color: "text-purple-600",

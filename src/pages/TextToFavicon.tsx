@@ -459,8 +459,8 @@ Generated with PdfPage.com - Free Text to Favicon Generator`;
                     onChange={(e) =>
                       setTextSettings({ ...textSettings, text: e.target.value })
                     }
-                    placeholder="Enter text (1-3 characters work best)"
-                    maxLength={5}
+                    placeholder="Enter text (up to 10 characters)"
+                    maxLength={10}
                   />
                 </div>
 

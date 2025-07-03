@@ -81,6 +81,28 @@ export default function PDFEditorCanvas({
 
   const { toast } = useToast();
 
+  // Helper function to find element at a given point
+  const getElementAtPoint = useCallback(
+    (point: Point, elements: AnyElement[]): AnyElement | null => {
+      for (let i = elements.length - 1; i >= 0; i--) {
+        const element = elements[i];
+        if (element.pageIndex !== pageIndex) continue;
+
+        const bounds = element.bounds;
+        if (
+          point.x >= bounds.x &&
+          point.x <= bounds.x + bounds.width &&
+          point.y >= bounds.y &&
+          point.y <= bounds.y + bounds.height
+        ) {
+          return element;
+        }
+      }
+      return null;
+    },
+    [pageIndex],
+  );
+
   // Initialize PDF.js
   useEffect(() => {
     const loadPDF = async () => {
@@ -240,6 +262,33 @@ export default function PDFEditorCanvas({
       selectedElements,
       onElementSelect,
     ],
+  );
+
+  // Handle element touch start for mobile
+  const handleElementTouchStart = useCallback(
+    (e: React.TouchEvent, element: AnyElement) => {
+      e.stopPropagation();
+      e.preventDefault();
+
+      if (currentTool !== "select") return;
+
+      const touch = e.touches[0];
+      const rect = canvasRef.current?.getBoundingClientRect();
+      if (!rect) return;
+
+      const point = {
+        x: (touch.clientX - rect.left) / zoom,
+        y: (touch.clientY - rect.top) / zoom,
+      };
+
+      if (!selectedElements.includes(element.id)) {
+        onElementSelect([element.id]);
+      }
+
+      setIsDragging(true);
+      setDragStart(point);
+    },
+    [currentTool, canvasRef, zoom, selectedElements, onElementSelect],
   );
 
   // Handle mouse down
@@ -404,6 +453,192 @@ export default function PDFEditorCanvas({
     ],
   );
 
+  // Touch event handlers for mobile support
+  const handleTouchStart = useCallback(
+    (e: React.TouchEvent) => {
+      e.preventDefault();
+      const touch = e.touches[0];
+      const rect = canvasRef.current?.getBoundingClientRect();
+      if (!rect || !pageData) return;
+
+      const point = {
+        x: (touch.clientX - rect.left) / zoom,
+        y: (touch.clientY - rect.top) / zoom,
+      };
+
+      // Handle signature placement
+      if (onSignaturePlace && currentTool === "select") {
+        onSignaturePlace(point.x, point.y);
+        return;
+      }
+
+      // Check for element selection
+      const clickedElement = getElementAtPoint(point, elements);
+
+      if (currentTool === "select") {
+        if (clickedElement) {
+          setIsDragging(true);
+          setDragStart(point);
+          if (!selectedElements.includes(clickedElement.id)) {
+            onElementToggleSelect(clickedElement.id);
+          }
+        } else {
+          onElementSelect([]);
+        }
+      } else if (currentTool === "draw") {
+        onStartDrawing(point);
+      } else if (currentTool === "rectangle" || currentTool === "circle") {
+        setIsCreatingElement(true);
+        setDragStart(point);
+        setTempElement({ x: point.x, y: point.y, width: 0, height: 0 });
+      } else if (currentTool === "text") {
+        setTextInput({
+          bounds: { x: point.x, y: point.y, width: 200, height: 30 },
+          value: "",
+          isEditing: true,
+        });
+      }
+    },
+    [
+      canvasRef,
+      pageData,
+      zoom,
+      onSignaturePlace,
+      currentTool,
+      elements,
+      selectedElements,
+      onElementToggleSelect,
+      onElementSelect,
+      onStartDrawing,
+    ],
+  );
+
+  const handleTouchMove = useCallback(
+    (e: React.TouchEvent) => {
+      e.preventDefault();
+      const touch = e.touches[0];
+      const rect = canvasRef.current?.getBoundingClientRect();
+      if (!rect || !pageData) return;
+
+      const point = {
+        x: (touch.clientX - rect.left) / zoom,
+        y: (touch.clientY - rect.top) / zoom,
+      };
+
+      if (currentTool === "draw" && isDrawing) {
+        onAddDrawPoint(point);
+      } else if (isDragging && selectedElements.length > 0) {
+        const deltaX = point.x - dragStart.x;
+        const deltaY = point.y - dragStart.y;
+
+        selectedElements.forEach((id) => {
+          const element = elements.find((el) => el.id === id);
+          if (element) {
+            onElementUpdate(id, {
+              bounds: {
+                ...element.bounds,
+                x: element.bounds.x + deltaX,
+                y: element.bounds.y + deltaY,
+              },
+            });
+          }
+        });
+
+        setDragStart(point);
+      } else if (isCreatingElement && tempElement) {
+        const width = Math.abs(point.x - dragStart.x);
+        const height = Math.abs(point.y - dragStart.y);
+        const x = Math.min(point.x, dragStart.x);
+        const y = Math.min(point.y, dragStart.y);
+
+        setTempElement({ x, y, width, height });
+      }
+    },
+    [
+      canvasRef,
+      pageData,
+      zoom,
+      currentTool,
+      isDrawing,
+      isDragging,
+      selectedElements,
+      dragStart,
+      elements,
+      onAddDrawPoint,
+      onElementUpdate,
+      isCreatingElement,
+      tempElement,
+    ],
+  );
+
+  const handleTouchEnd = useCallback(
+    (e: React.TouchEvent) => {
+      e.preventDefault();
+
+      if (currentTool === "draw" && isDrawing) {
+        if (currentDrawPath.length > 1) {
+          onElementAdd({
+            type: "draw",
+            pageIndex,
+            bounds: {
+              x:
+                Math.min(...currentDrawPath.map((p) => p.x)) -
+                selectedStrokeWidth,
+              y:
+                Math.min(...currentDrawPath.map((p) => p.y)) -
+                selectedStrokeWidth,
+              width:
+                Math.max(...currentDrawPath.map((p) => p.x)) -
+                Math.min(...currentDrawPath.map((p) => p.x)) +
+                selectedStrokeWidth * 2,
+              height:
+                Math.max(...currentDrawPath.map((p) => p.y)) -
+                Math.min(...currentDrawPath.map((p) => p.y)) +
+                selectedStrokeWidth * 2,
+            },
+            properties: {
+              paths: [currentDrawPath],
+              strokeWidth: selectedStrokeWidth,
+              color: selectedColor,
+              opacity: 1,
+            },
+          } as Omit<DrawElement, "id" | "createdAt" | "updatedAt">);
+        }
+        onEndDrawing();
+      } else if (isCreatingElement && tempElement) {
+        if (tempElement.width > 5 && tempElement.height > 5) {
+          onElementAdd({
+            type: currentTool as "rectangle" | "circle",
+            pageIndex,
+            bounds: tempElement,
+            properties: {
+              strokeWidth: selectedStrokeWidth,
+              strokeColor: selectedColor,
+              fillColor: "transparent",
+              opacity: 1,
+            },
+          } as Omit<ShapeElement, "id" | "createdAt" | "updatedAt">);
+        }
+        setIsCreatingElement(false);
+        setTempElement(null);
+      }
+
+      setIsDragging(false);
+    },
+    [
+      currentTool,
+      isDrawing,
+      currentDrawPath,
+      selectedStrokeWidth,
+      onElementAdd,
+      pageIndex,
+      selectedColor,
+      onEndDrawing,
+      isCreatingElement,
+      tempElement,
+    ],
+  );
+
   // Handle text input completion
   const handleTextComplete = useCallback(() => {
     if (textInput && textInput.value.trim()) {
@@ -461,6 +696,7 @@ export default function PDFEditorCanvas({
                 : "transparent",
             }}
             onMouseDown={(e) => handleElementMouseDown(e, element)}
+            onTouchStart={(e) => handleElementTouchStart(e, element)}
           >
             {textEl.properties.text}
           </div>
@@ -483,6 +719,7 @@ export default function PDFEditorCanvas({
               opacity: rectEl.properties.opacity,
             }}
             onMouseDown={(e) => handleElementMouseDown(e, element)}
+            onTouchStart={(e) => handleElementTouchStart(e, element)}
           />
         );
 
@@ -504,6 +741,7 @@ export default function PDFEditorCanvas({
               opacity: circleEl.properties.opacity,
             }}
             onMouseDown={(e) => handleElementMouseDown(e, element)}
+            onTouchStart={(e) => handleElementTouchStart(e, element)}
           />
         );
 
@@ -526,6 +764,7 @@ export default function PDFEditorCanvas({
                   : "transparent",
               }}
               onMouseDown={(e) => handleElementMouseDown(e, element)}
+              onTouchStart={(e) => handleElementTouchStart(e, element)}
               draggable={false}
             />
           );
@@ -546,6 +785,7 @@ export default function PDFEditorCanvas({
                   : "transparent",
               }}
               onMouseDown={(e) => handleElementMouseDown(e, element)}
+              onTouchStart={(e) => handleElementTouchStart(e, element)}
               draggable={false}
             />
           );
@@ -569,6 +809,7 @@ export default function PDFEditorCanvas({
                   : "transparent",
               }}
               onMouseDown={(e) => handleElementMouseDown(e, element)}
+              onTouchStart={(e) => handleElementTouchStart(e, element)}
             >
               {sigEl.properties.signatureText}
             </div>
@@ -666,7 +907,13 @@ export default function PDFEditorCanvas({
           onMouseDown={handleMouseDown}
           onMouseMove={handleMouseMove}
           onMouseUp={handleMouseUp}
-          style={{ cursor: currentTool === "select" ? "default" : "crosshair" }}
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
+          style={{
+            cursor: currentTool === "select" ? "default" : "crosshair",
+            touchAction: "none", // Prevent scrolling on touch
+          }}
         />
 
         {/* Elements Overlay */}

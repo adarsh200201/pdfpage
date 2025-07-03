@@ -493,7 +493,7 @@ Generated with PdfPage.com - Free Emoji to Favicon Generator`;
                     onChange={(e) => setSelectedEmoji(e.target.value)}
                     placeholder="Enter any emoji"
                     className="text-2xl text-center"
-                    maxLength={4}
+                    maxLength={10}
                   />
                 </div>
               </CardContent>

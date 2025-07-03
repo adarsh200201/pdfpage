@@ -143,16 +143,8 @@ const PdfToJpg = () => {
       return;
     }
 
-    // Check usage limits
-    try {
-      const usageCheck = await PDFService.checkUsageLimit();
-      if (!usageCheck.canUpload) {
-        setShowAuthModal(true);
-        return;
-      }
-    } catch (error) {
-      console.error("Error checking usage limit:", error);
-    }
+    // No usage limits - unlimited conversion for all users
+    // Login only required after 2 tools for convenience (handled by backend middleware)
 
     setIsProcessing(true);
 
