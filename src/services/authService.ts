@@ -6,8 +6,7 @@ interface GoogleAuthResponse {
     name: string;
     profilePicture?: string;
     isPremium: boolean;
-    dailyUploads: number;
-    maxDailyUploads: number;
+    // Daily upload limits removed - unlimited usage for all users
   };
 }
 

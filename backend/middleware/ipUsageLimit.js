@@ -100,7 +100,7 @@ const handleSoftLimit = async (req, res, next) => {
         requiresAuth: true,
         softLimit: true,
         message:
-          "You've reached your daily limit of 2 free tools. Create a free account for unlimited access!",
+          "After 2 tools, please create a free account to continue. All tools remain unlimited!",
         usageInfo: {
           currentUsage: req.ipUsage.currentUsage,
           maxUsage: req.ipUsage.maxUsage,
@@ -108,11 +108,11 @@ const handleSoftLimit = async (req, res, next) => {
         },
         authAction: "softLimit",
         benefits: [
-          "Unlimited tool usage",
-          "Priority processing",
-          "No watermarks",
-          "Advanced features",
-          "24/7 support",
+          "Continue unlimited tool usage",
+          "Save your work progress",
+          "Access to all features",
+          "No interruptions",
+          "Free forever",
         ],
         featuredTools: [
           "PDF to Word conversion",

@@ -538,11 +538,14 @@ const Index = () => {
             {/* Enhanced Subtitle */}
             <p className="text-xl sm:text-2xl text-gray-600 mb-6 max-w-4xl mx-auto leading-relaxed">
               Convert, merge, split, compress, and edit PDFs instantly.{" "}
-              <span className="font-bold text-gray-900 relative">
+              <span className="font-bold text-gray-900">
                 No downloads. No registration. 100% free.
-                <div className="absolute -bottom-1 left-0 right-0 h-0.5 bg-gradient-to-r from-green-400 to-emerald-500 rounded-full"></div>
               </span>
             </p>
+            {/* Green underline moved outside p tag to avoid nesting issue */}
+            <div className="flex justify-center mb-2">
+              <div className="w-80 h-0.5 bg-gradient-to-r from-green-400 to-emerald-500 rounded-full"></div>
+            </div>
 
             {/* Enhanced CTA Buttons */}
             <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-4">

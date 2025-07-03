@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import Header from "@/components/layout/Header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
+// Progress removed - no daily usage limits
 import {
   BarChart,
   Bar,
@@ -61,13 +61,9 @@ const Dashboard = () => {
     }
   };
 
-  const remainingToday = user?.isPremium
-    ? "Unlimited"
-    : `${Math.max(0, (user?.maxDailyUploads || 3) - (user?.dailyUploads || 0))}`;
-
-  const usagePercentage = user?.isPremium
-    ? 0
-    : ((user?.dailyUploads || 0) / (user?.maxDailyUploads || 3)) * 100;
+  // All users have unlimited usage - no daily limits
+  const remainingToday = "Unlimited";
+  const usagePercentage = 0;
 
   return (
     <div className="min-h-screen bg-bg-light">
@@ -217,15 +213,14 @@ const Dashboard = () => {
                   <div>
                     <p className="font-semibold">Free Plan</p>
                     <p className="text-sm text-muted-foreground mb-2">
-                      {remainingToday}/3 operations today
+                      Unlimited tool usage • Login after 2 tools for convenience
                     </p>
-                    <Progress value={usagePercentage} className="mb-2" />
                     <Button
                       asChild
                       size="sm"
                       className="w-full bg-brand-red hover:bg-red-600"
                     >
-                      <Link to="/pricing">Upgrade Now</Link>
+                      <Link to="/pricing">Upgrade for Premium Features</Link>
                     </Button>
                   </div>
                 )}

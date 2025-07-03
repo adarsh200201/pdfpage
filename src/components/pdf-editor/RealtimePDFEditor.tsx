@@ -52,14 +52,24 @@ export function RealtimePDFEditor({
       setError(null);
 
       try {
+        // Check if PDF.js is properly configured
+        if (!pdfjs.GlobalWorkerOptions.workerSrc) {
+          throw new Error(
+            "PDF.js worker not configured. Please refresh the page and try again.",
+          );
+        }
+
         const fileData = await pdfFile.arrayBuffer();
 
-        // Load PDF document with error handling
+        // Load PDF document with error handling and version consistency
         const loadingTask = pdfjs.getDocument({
           data: fileData,
           useWorkerFetch: false,
           isEvalSupported: false,
           useSystemFonts: true,
+          // Ensure we use the configured worker with correct version
+          cMapUrl: `https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/cmaps/`,
+          cMapPacked: true,
         });
 
         const pdf = await loadingTask.promise;
@@ -79,14 +89,35 @@ export function RealtimePDFEditor({
         });
       } catch (error) {
         console.error("PDF loading failed:", error);
-        setError(
-          `Failed to load PDF: ${error instanceof Error ? error.message : "Unknown error"}`,
-        );
+
+        // Provide more specific error messages based on error type
+        let errorMessage = "Unknown error occurred";
+        let description =
+          "Please try a different PDF file or check if it's corrupted";
+
+        if (error instanceof Error) {
+          errorMessage = error.message;
+
+          // Handle specific PDF.js errors
+          if (error.message.includes("Invalid PDF")) {
+            description = "The file appears to be corrupted or not a valid PDF";
+          } else if (error.message.includes("Password")) {
+            description =
+              "This PDF is password protected. Please unlock it first";
+          } else if (error.message.includes("network")) {
+            description =
+              "Network error occurred. Please check your connection";
+          } else if (error.message.includes("UnknownErrorException")) {
+            description =
+              "PDF.js worker not properly configured. Please refresh the page";
+          }
+        }
+
+        setError(`Failed to load PDF: ${errorMessage}`);
 
         toast({
           title: "PDF Loading Failed",
-          description:
-            "Please try a different PDF file or check if it's corrupted",
+          description,
           variant: "destructive",
         });
       } finally {

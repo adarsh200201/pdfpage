@@ -135,7 +135,9 @@ class MixpanelService {
       };
 
       mixpanel.track(eventName, enrichedProperties);
-      mixpanel.flush();
+
+      // Note: mixpanel.flush() is not available in mixpanel-browser
+      // Events are automatically sent with batch configuration
     } catch (error) {
       console.error("❌ Failed to track event:", error);
     }
@@ -168,7 +170,8 @@ class MixpanelService {
 
       mixpanel.people.set(userProps);
 
-      mixpanel.flush();
+      // Note: mixpanel.flush() is not available in mixpanel-browser
+      // Events are automatically sent with batch configuration
 
       this.track("User Identified", {
         user_id: userId,

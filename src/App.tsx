@@ -1,11 +1,18 @@
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import ErrorBoundary from "@/components/ErrorBoundary";
 import { NetworkStatus } from "@/components/ui/network-status";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useEffect } from "react";
 import { configurePDFjs, getPDFConfigStatus } from "@/lib/pdf-config";
-import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
+import {
+  BrowserRouter,
+  Routes,
+  Route,
+  Navigate,
+  useLocation,
+} from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import EnhancedEditPdf from "./pages/EnhancedEditPdf";
 import RealtimeEditor from "./pages/RealtimeEditor";
@@ -28,8 +35,12 @@ import ImgUpscale from "./pages/ImgUpscale";
 import ImgToPdf from "./pages/ImgToPdf";
 import ImgMeme from "./pages/ImgMeme";
 import ImgConvert from "./pages/ImgConvert";
-import FaviconConverter from "./pages/FaviconConverter";
+// FaviconConverter removed - replaced with separate tools
 import FaviconPage from "./pages/FaviconPage";
+import ImageToFavicon from "./pages/ImageToFavicon";
+import TextToFavicon from "./pages/TextToFavicon";
+import EmojiToFavicon from "./pages/EmojiToFavicon";
+import LogoToFavicon from "./pages/LogoToFavicon";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import ForgotPassword from "./pages/ForgotPassword";
@@ -148,6 +159,14 @@ const App = () => {
     const initializePDFjs = async () => {
       try {
         console.log("🚀 Initializing PDF.js configuration...");
+
+        // Log current PDF.js version for debugging
+        const { pdfjs } = await import("react-pdf");
+        console.log(
+          "📦 React-PDF using PDF.js version:",
+          (pdfjs as any).version || "unknown",
+        );
+
         await configurePDFjs();
         const status = getPDFConfigStatus();
         console.log("✅ PDF.js configuration status:", status);
@@ -173,8 +192,12 @@ const App = () => {
         <FloatingPopupProvider>
           <LanguageProvider>
             <TooltipProvider>
-              <Toaster />
-              <Sonner />
+              <ErrorBoundary fallback={<div />}>
+                <Toaster />
+              </ErrorBoundary>
+              <ErrorBoundary fallback={<div />}>
+                <Sonner />
+              </ErrorBoundary>
               <BrowserRouter>
                 <MixpanelProvider>
                   <GlobalToolTrackingProvider>
@@ -196,11 +219,28 @@ const App = () => {
                       <Route path="/img/to-pdf" element={<ImgToPdf />} />
                       <Route path="/img/meme" element={<ImgMeme />} />
                       <Route path="/img/convert" element={<ImgConvert />} />
+                      {/* Redirect old favicon URL to new tools page */}
                       <Route
                         path="/img/favicon"
-                        element={<FaviconConverter />}
+                        element={<Navigate to="/favicon" replace />}
                       />
                       <Route path="/favicon" element={<FaviconPage />} />
+                      <Route
+                        path="/favicon/image-to-favicon"
+                        element={<ImageToFavicon />}
+                      />
+                      <Route
+                        path="/favicon/text-to-favicon"
+                        element={<TextToFavicon />}
+                      />
+                      <Route
+                        path="/favicon/emoji-to-favicon"
+                        element={<EmojiToFavicon />}
+                      />
+                      <Route
+                        path="/favicon/logo-to-favicon"
+                        element={<LogoToFavicon />}
+                      />
 
                       {/* Authentication */}
                       <Route path="/login" element={<Login />} />

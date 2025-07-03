@@ -9,9 +9,9 @@
 
   // Worker source configurations in order of preference
   const WORKER_SOURCES = [
-    "https://cdn.jsdelivr.net/npm/pdfjs-dist@4.8.69/build/pdf.worker.min.mjs",
-    "https://unpkg.com/pdfjs-dist@4.8.69/build/pdf.worker.min.mjs",
-    "/pdf.worker.min.mjs", // Self-hosted fallback
+    "https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js",
+    "https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.worker.min.js",
+    "/pdf.worker.min.js", // Self-hosted fallback
   ];
 
   // Function to test if a worker source is accessible

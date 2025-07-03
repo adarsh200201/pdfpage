@@ -454,7 +454,7 @@ const TestAllTools = () => {
                   📊 Usage Analytics
                 </h4>
                 <ul className="space-y-2 text-sm">
-                  <li>• Daily operation limits (3 for free users)</li>
+                  <li>• Unlimited tool usage (login after 2 tools)</li>
                   <li>• Popular tool usage statistics</li>
                   <li>• File processing metrics</li>
                   <li>• User behavior patterns</li>

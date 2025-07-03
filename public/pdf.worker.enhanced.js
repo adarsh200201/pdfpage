@@ -10,14 +10,14 @@
   // Enhanced worker source configurations with immediate fallback
   const WORKER_SOURCES = [
     // Primary CDN sources (most reliable)
-    "https://cdn.jsdelivr.net/npm/pdfjs-dist@4.8.69/build/pdf.worker.min.mjs",
-    "https://unpkg.com/pdfjs-dist@4.8.69/build/pdf.worker.min.mjs",
+    "https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js",
+    "https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.worker.min.js",
 
     // Alternative CDN sources
-    "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.8.69/pdf.worker.min.mjs",
+    "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js",
 
     // Self-hosted fallback
-    "/pdf.worker.min.mjs",
+    "/pdf.worker.min.js",
   ];
 
   // Cache for tested sources

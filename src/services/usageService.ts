@@ -23,9 +23,8 @@ export class UsageService {
         const usageKey = `usage_${today}`;
         const dailyUsage = JSON.parse(localStorage.getItem(usageKey) || "[]");
 
-        if (dailyUsage.length >= 3) {
-          return false; // Free limit reached
-        }
+        // No daily limits - unlimited usage for all users
+        // Only login required after 2 tools (handled by backend middleware)
 
         dailyUsage.push({
           toolUsed,
@@ -68,6 +67,7 @@ export class UsageService {
   }
 
   static getRemainingFreeUsage(): number {
-    return Math.max(0, 3 - this.getAnonymousUsageCount());
+    // Unlimited usage - only login required after 2 tools
+    return Infinity;
   }
 }

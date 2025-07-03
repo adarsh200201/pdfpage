@@ -96,10 +96,14 @@ export const configurePDFjs = async (force = false): Promise<void> => {
     const isDev = import.meta.env.DEV;
 
     // Try different worker sources in order of preference
+    // Use react-pdf's exact PDF.js version to avoid version mismatch
+    const pdfjsVersion = "3.11.174"; // Fixed to react-pdf's version
+    console.log("Using PDF.js version:", pdfjsVersion);
+
     const workerSources = [
-      `https://cdn.jsdelivr.net/npm/pdfjs-dist@4.8.69/build/pdf.worker.min.mjs`,
-      `https://unpkg.com/pdfjs-dist@4.8.69/build/pdf.worker.min.mjs`,
-      `/pdf.worker.min.mjs`, // Fallback to self-hosted if available
+      `https://cdn.jsdelivr.net/npm/pdfjs-dist@${pdfjsVersion}/build/pdf.worker.min.js`,
+      `https://unpkg.com/pdfjs-dist@${pdfjsVersion}/build/pdf.worker.min.js`,
+      `/pdf.worker.min.js`, // Fallback to self-hosted if available
     ];
 
     let workerConfigured = false;
@@ -223,10 +227,12 @@ const waitForWorkerConfig = (): Promise<string> => {
 
     // Try immediate fallback with best-available worker source
     const tryImmediateFallback = () => {
+      const pdfjsVersion = "3.11.174"; // Fixed to react-pdf's version
+      console.log("Fallback using PDF.js version:", pdfjsVersion);
       const fallbackWorkerSources = [
-        `https://cdn.jsdelivr.net/npm/pdfjs-dist@4.8.69/build/pdf.worker.min.mjs`,
-        `https://unpkg.com/pdfjs-dist@4.8.69/build/pdf.worker.min.mjs`,
-        `/pdf.worker.min.mjs`,
+        `https://cdn.jsdelivr.net/npm/pdfjs-dist@${pdfjsVersion}/build/pdf.worker.min.js`,
+        `https://unpkg.com/pdfjs-dist@${pdfjsVersion}/build/pdf.worker.min.js`,
+        `/pdf.worker.min.js`,
       ];
 
       console.log("PDF worker configuration timeout, using immediate fallback");
@@ -246,7 +252,7 @@ const waitForWorkerConfig = (): Promise<string> => {
     setTimeout(() => {
       window.removeEventListener("pdfWorkerConfigured", handleWorkerConfigured);
       tryImmediateFallback();
-    }, 100); // Reduced to 100ms for ultra-fast response
+    }, 50); // Reduced to 50ms for ultra-fast response
   });
 };
 
