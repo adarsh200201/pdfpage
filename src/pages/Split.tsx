@@ -65,7 +65,7 @@ const Split: React.FC = () => {
     new Set(),
   );
 
-  // Generate PDF thumbnail
+  // Generate PDF thumbnail with mobile optimization
   const generatePDFThumbnail = async (
     file: File,
     pageNumber: number,
@@ -78,22 +78,28 @@ const Split: React.FC = () => {
       // Import PDF.js with proper error handling
       const pdfjsLib = await import("pdfjs-dist");
 
-      // Configure worker if not already set
+      // Configure worker with mobile-optimized settings
       if (!pdfjsLib.GlobalWorkerOptions.workerSrc) {
-        pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdn.jsdelivr.net/npm/pdfjs-dist@4.8.69/build/pdf.worker.min.mjs`;
+        // Use exact version match to prevent worker mismatch issues
+        pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js`;
       }
 
-      // Load PDF
+      // Load PDF with mobile-optimized settings
       const arrayBuffer = await file.arrayBuffer();
       console.log(`📄 PDF ArrayBuffer loaded: ${arrayBuffer.byteLength} bytes`);
 
       const loadingTask = pdfjsLib.getDocument({
         data: arrayBuffer,
         verbosity: 0,
-        cMapUrl: "https://cdn.jsdelivr.net/npm/pdfjs-dist@4.8.69/cmaps/",
+        cMapUrl: "https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/cmaps/",
         cMapPacked: true,
         standardFontDataUrl:
-          "https://cdn.jsdelivr.net/npm/pdfjs-dist@4.8.69/standard_fonts/",
+          "https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/standard_fonts/",
+        // Mobile optimizations
+        useSystemFonts: true,
+        disableFontFace: false,
+        nativeImageDecoderSupport: "display",
+        useWorkerFetch: false, // Disable worker fetch for better mobile compatibility
       });
 
       const pdf = await loadingTask.promise;
@@ -108,23 +114,40 @@ const Split: React.FC = () => {
       const page = await pdf.getPage(pageNumber);
       console.log(`📄 Page ${pageNumber} loaded successfully`);
 
-      // Create canvas for thumbnail with better scale
-      const scale = 0.75; // Larger scale for better visibility
+      // Create canvas for thumbnail with mobile-optimized scale
+      const isMobile = window.innerWidth <= 768;
+      const scale = isMobile ? 0.5 : 0.75; // Lower scale on mobile for better performance
       const viewport = page.getViewport({ scale });
       console.log(
-        `🎯 Viewport created: ${viewport.width}x${viewport.height} at scale ${scale}`,
+        `🎯 Viewport created: ${viewport.width}x${viewport.height} at scale ${scale} (mobile: ${isMobile})`,
       );
 
       const canvas = document.createElement("canvas");
-      const context = canvas.getContext("2d", { alpha: false });
+      const context = canvas.getContext("2d", {
+        alpha: false,
+        willReadFrequently: false, // Optimize for one-time rendering
+        desynchronized: true, // Better performance on mobile
+      });
 
       if (!context) {
         throw new Error("Could not get canvas context");
       }
 
-      // Set canvas size
-      canvas.width = Math.floor(viewport.width);
-      canvas.height = Math.floor(viewport.height);
+      // Set canvas size with reasonable limits for mobile
+      const maxWidth = isMobile ? 400 : 600;
+      const maxHeight = isMobile ? 500 : 800;
+
+      canvas.width = Math.min(Math.floor(viewport.width), maxWidth);
+      canvas.height = Math.min(Math.floor(viewport.height), maxHeight);
+
+      // Adjust viewport if canvas was resized
+      const adjustedViewport = page.getViewport({
+        scale:
+          Math.min(
+            canvas.width / viewport.width,
+            canvas.height / viewport.height,
+          ) * scale,
+      });
 
       console.log(`🖼️ Canvas created: ${canvas.width}x${canvas.height}`);
 
@@ -132,22 +155,35 @@ const Split: React.FC = () => {
       context.fillStyle = "white";
       context.fillRect(0, 0, canvas.width, canvas.height);
 
-      // Render page to canvas
+      // Render page to canvas with timeout for mobile
       const renderContext = {
         canvasContext: context,
-        viewport: viewport,
+        viewport: adjustedViewport,
         intent: "display",
         renderInteractiveForms: false,
         annotationMode: 0, // Disable annotations for cleaner render
+        // Mobile optimizations
+        optionalContentConfigPromise: null,
+        annotationCanvasMap: null,
       };
 
       console.log(`🎨 Starting page render...`);
-      const renderTask = page.render(renderContext);
-      await renderTask.promise;
+
+      // Add timeout for mobile rendering
+      const renderPromise = page.render(renderContext).promise;
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(
+          () => reject(new Error("Render timeout")),
+          isMobile ? 10000 : 15000,
+        );
+      });
+
+      await Promise.race([renderPromise, timeoutPromise]);
       console.log(`✅ Page render completed successfully`);
 
-      // Convert to data URL with high quality
-      const thumbnailDataUrl = canvas.toDataURL("image/jpeg", 0.92);
+      // Convert to data URL with mobile-optimized quality
+      const quality = isMobile ? 0.8 : 0.92; // Lower quality on mobile for faster processing
+      const thumbnailDataUrl = canvas.toDataURL("image/jpeg", quality);
       console.log(
         `🖼️ Thumbnail data URL generated: ${thumbnailDataUrl.length} characters`,
       );
@@ -171,6 +207,83 @@ const Split: React.FC = () => {
         `❌ Failed to generate thumbnail for page ${pageNumber}:`,
         error,
       );
+
+      // On mobile, try a simplified fallback approach
+      if (window.innerWidth <= 768) {
+        console.log(
+          "🔄 Attempting mobile fallback for thumbnail generation...",
+        );
+        try {
+          // Return a simple placeholder for mobile if rendering fails
+          return await generateMobileFallbackThumbnail(pageNumber);
+        } catch (fallbackError) {
+          console.error("Mobile fallback also failed:", fallbackError);
+        }
+      }
+
+      return null;
+    }
+  };
+
+  // Mobile fallback thumbnail generator
+  const generateMobileFallbackThumbnail = async (
+    pageNumber: number,
+  ): Promise<string | null> => {
+    try {
+      // Create a simple canvas with page number
+      const canvas = document.createElement("canvas");
+      const context = canvas.getContext("2d");
+
+      if (!context) return null;
+
+      canvas.width = 150;
+      canvas.height = 200;
+
+      // White background
+      context.fillStyle = "white";
+      context.fillRect(0, 0, canvas.width, canvas.height);
+
+      // Border
+      context.strokeStyle = "#e5e7eb";
+      context.lineWidth = 2;
+      context.strokeRect(0, 0, canvas.width, canvas.height);
+
+      // Page icon (simple rectangle with lines)
+      context.fillStyle = "#9ca3af";
+      context.fillRect(20, 30, 110, 140);
+      context.fillStyle = "white";
+      context.fillRect(25, 35, 100, 130);
+
+      // Lines to represent text
+      context.strokeStyle = "#d1d5db";
+      context.lineWidth = 1;
+      for (let i = 0; i < 8; i++) {
+        const y = 45 + i * 15;
+        context.beginPath();
+        context.moveTo(30, y);
+        context.lineTo(120, y);
+        context.stroke();
+      }
+
+      // Page number
+      context.fillStyle = "#374151";
+      context.font = "12px system-ui, sans-serif";
+      context.textAlign = "center";
+      context.fillText(
+        `Page ${pageNumber}`,
+        canvas.width / 2,
+        canvas.height - 15,
+      );
+
+      const dataUrl = canvas.toDataURL("image/jpeg", 0.8);
+      canvas.remove();
+
+      console.log(
+        `📱 Mobile fallback thumbnail generated for page ${pageNumber}`,
+      );
+      return dataUrl;
+    } catch (error) {
+      console.error("Mobile fallback thumbnail generation failed:", error);
       return null;
     }
   };
@@ -675,7 +788,7 @@ const Split: React.FC = () => {
                     onClick={resetTool}
                     variant="outline"
                     size="sm"
-                    className="flex-1 md:flex-none"
+                    className="flex-1 md:flex-none min-h-[44px] touch-manipulation"
                   >
                     <X className="w-4 h-4 mr-1 md:mr-2" />
                     <span className="text-sm">Remove</span>
@@ -683,18 +796,20 @@ const Split: React.FC = () => {
                   <Button
                     onClick={splitPDF}
                     disabled={isProcessing}
-                    className="bg-primary hover:bg-primary/90 flex-1 md:flex-none"
+                    className="bg-primary hover:bg-primary/90 flex-1 md:flex-none min-h-[44px] touch-manipulation"
                     size="sm"
                   >
                     {isProcessing ? (
                       <>
                         <div className="w-4 h-4 mr-1 md:mr-2 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                        <span className="text-sm">Splitting...</span>
+                        <span className="text-sm font-medium">
+                          Splitting...
+                        </span>
                       </>
                     ) : (
                       <>
                         <Scissors className="w-4 h-4 mr-1 md:mr-2" />
-                        <span className="text-sm">Split PDF</span>
+                        <span className="text-sm font-medium">Split PDF</span>
                       </>
                     )}
                   </Button>
@@ -745,7 +860,7 @@ const Split: React.FC = () => {
                         placeholder="Search pages..."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
-                        className="w-full pl-10 pr-4 py-2 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-primary focus:border-transparent"
+                        className="w-full pl-10 pr-4 py-3 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-primary focus:border-transparent touch-manipulation"
                       />
                     </div>
                   </div>
@@ -756,7 +871,7 @@ const Split: React.FC = () => {
                       onClick={() => setViewMode("grid")}
                       variant={viewMode === "grid" ? "default" : "outline"}
                       size="sm"
-                      className="p-2"
+                      className="p-3 min-h-[44px] touch-manipulation"
                     >
                       <Grid3X3 className="w-4 h-4" />
                     </Button>
@@ -764,7 +879,7 @@ const Split: React.FC = () => {
                       onClick={() => setViewMode("list")}
                       variant={viewMode === "list" ? "default" : "outline"}
                       size="sm"
-                      className="p-2"
+                      className="p-3 min-h-[44px] touch-manipulation"
                     >
                       <List className="w-4 h-4" />
                     </Button>
@@ -772,13 +887,13 @@ const Split: React.FC = () => {
                 </div>
 
                 {/* Action Buttons */}
-                <div className="flex flex-col sm:flex-row sm:items-center space-y-2 sm:space-y-0 sm:space-x-2 mb-4">
-                  <div className="flex space-x-2 flex-1">
+                <div className="flex flex-col space-y-3 mb-4">
+                  <div className="flex space-x-2">
                     <Button
                       onClick={selectAll}
                       variant="outline"
                       size="sm"
-                      className="flex-1 sm:flex-none"
+                      className="flex-1 min-h-[40px] touch-manipulation"
                     >
                       Select All
                     </Button>
@@ -786,7 +901,7 @@ const Split: React.FC = () => {
                       onClick={selectNone}
                       variant="outline"
                       size="sm"
-                      className="flex-1 sm:flex-none"
+                      className="flex-1 min-h-[40px] touch-manipulation"
                     >
                       Select None
                     </Button>
@@ -796,16 +911,16 @@ const Split: React.FC = () => {
                     <Button
                       onClick={(e) => downloadSelected(e)}
                       disabled={selectedCount === 0 || isDownloading}
-                      className="bg-primary hover:bg-primary/90 flex-1 sm:flex-none"
+                      className="bg-primary hover:bg-primary/90 flex-1 min-h-[44px] touch-manipulation"
                       size="sm"
                       type="button"
                     >
                       {isDownloading ? (
-                        <div className="w-4 h-4 mr-1 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        <div className="w-4 h-4 mr-2 border-2 border-white border-t-transparent rounded-full animate-spin" />
                       ) : (
-                        <Download className="w-4 h-4 mr-1 md:mr-2" />
+                        <Download className="w-4 h-4 mr-2" />
                       )}
-                      <span className="text-xs md:text-sm">
+                      <span className="text-sm font-medium">
                         Selected ({selectedCount})
                       </span>
                     </Button>
@@ -815,14 +930,14 @@ const Split: React.FC = () => {
                       variant="outline"
                       size="sm"
                       type="button"
-                      className="flex-1 sm:flex-none"
+                      className="flex-1 min-h-[44px] touch-manipulation"
                     >
                       {isDownloading ? (
-                        <div className="w-4 h-4 mr-1 border-2 border-gray-600 border-t-transparent rounded-full animate-spin" />
+                        <div className="w-4 h-4 mr-2 border-2 border-gray-600 border-t-transparent rounded-full animate-spin" />
                       ) : (
-                        <CloudDownload className="w-4 h-4 mr-1 md:mr-2" />
+                        <CloudDownload className="w-4 h-4 mr-2" />
                       )}
-                      <span className="text-xs md:text-sm">All</span>
+                      <span className="text-sm font-medium">All</span>
                     </Button>
                   </div>
                 </div>
@@ -830,11 +945,11 @@ const Split: React.FC = () => {
                 <Button
                   onClick={resetTool}
                   variant="outline"
-                  className="w-full"
+                  className="w-full min-h-[44px] touch-manipulation"
                   size="sm"
                 >
                   <RotateCcw className="w-4 h-4 mr-2" />
-                  Split Another PDF
+                  <span className="font-medium">Split Another PDF</span>
                 </Button>
               </CardContent>
             </Card>
@@ -842,12 +957,12 @@ const Split: React.FC = () => {
             {/* Pages Display */}
             {viewMode === "grid" ? (
               /* Grid View */
-              <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-8 gap-3 md:gap-4">
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-8 gap-3 md:gap-4">
                 {filteredPages.map((page) => (
                   <Card
                     key={page.index}
                     className={cn(
-                      "cursor-pointer transition-all hover:shadow-lg",
+                      "cursor-pointer transition-all hover:shadow-lg touch-manipulation",
                       page.selected
                         ? "ring-2 ring-primary bg-primary/5"
                         : "hover:ring-1 hover:ring-gray-300",
@@ -899,20 +1014,26 @@ const Split: React.FC = () => {
                             </div>
                           </div>
                         ) : page.thumbnailError ? (
-                          <div className="w-full h-full flex items-center justify-center bg-red-50">
-                            <div className="text-center">
-                              <FileText className="w-8 h-8 text-red-400 mx-auto mb-1" />
-                              <div className="text-xs text-red-600">
-                                Preview failed
+                          <div className="w-full h-full flex items-center justify-center bg-orange-50 border border-orange-200">
+                            <div className="text-center p-2">
+                              <FileText className="w-6 h-6 text-orange-500 mx-auto mb-1" />
+                              <div className="text-xs text-orange-700 font-medium">
+                                Page {page.index + 1}
+                              </div>
+                              <div className="text-xs text-orange-600">
+                                Ready to download
                               </div>
                             </div>
                           </div>
                         ) : (
-                          <div className="w-full h-full flex items-center justify-center bg-gray-100">
-                            <div className="text-center">
-                              <FileText className="w-8 h-8 text-gray-400 mx-auto mb-1" />
-                              <div className="text-xs text-gray-600">
-                                PDF Page
+                          <div className="w-full h-full flex items-center justify-center bg-blue-50 border border-blue-200">
+                            <div className="text-center p-2">
+                              <FileText className="w-6 h-6 text-blue-500 mx-auto mb-1" />
+                              <div className="text-xs text-blue-700 font-medium">
+                                Page {page.index + 1}
+                              </div>
+                              <div className="text-xs text-blue-600">
+                                PDF Ready
                               </div>
                             </div>
                           </div>
@@ -957,7 +1078,7 @@ const Split: React.FC = () => {
                             ? "secondary"
                             : "outline"
                         }
-                        className="w-full text-xs"
+                        className="w-full text-xs min-h-[36px] touch-manipulation"
                         type="button"
                         disabled={
                           downloadQueueRef.current.has(page.index) ||
@@ -971,9 +1092,11 @@ const Split: React.FC = () => {
                         ) : (
                           <Download className="w-3 h-3 mr-1" />
                         )}
-                        {downloadedPages.has(page.index)
-                          ? "Downloaded"
-                          : "Download"}
+                        <span className="text-xs sm:text-sm">
+                          {downloadedPages.has(page.index)
+                            ? "Downloaded"
+                            : "Download"}
+                        </span>
                       </Button>
                     </CardContent>
                   </Card>
@@ -1042,12 +1165,20 @@ const Split: React.FC = () => {
                               <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-blue-500"></div>
                             </div>
                           ) : page.thumbnailError ? (
-                            <div className="w-full h-full flex items-center justify-center bg-red-50">
-                              <FileText className="w-4 h-4 text-red-400" />
+                            <div className="w-full h-full flex items-center justify-center bg-orange-50 border border-orange-200">
+                              <div className="text-center">
+                                <FileText className="w-4 h-4 text-orange-500 mx-auto mb-1" />
+                                <div className="text-xs text-orange-600">
+                                  Ready
+                                </div>
+                              </div>
                             </div>
                           ) : (
-                            <div className="w-full h-full flex items-center justify-center bg-gray-100">
-                              <FileText className="w-4 h-4 text-gray-400" />
+                            <div className="w-full h-full flex items-center justify-center bg-blue-50 border border-blue-200">
+                              <div className="text-center">
+                                <FileText className="w-4 h-4 text-blue-500 mx-auto mb-1" />
+                                <div className="text-xs text-blue-600">PDF</div>
+                              </div>
                             </div>
                           )}
 
@@ -1089,18 +1220,18 @@ const Split: React.FC = () => {
                             downloadQueueRef.current.has(page.index) ||
                             downloadedPages.has(page.index)
                           }
-                          className="flex-shrink-0"
+                          className="flex-shrink-0 min-h-[40px] min-w-[80px] touch-manipulation"
                         >
                           {downloadQueueRef.current.has(page.index) ? (
                             <div className="w-4 h-4 mr-1 border-2 border-gray-600 border-t-transparent rounded-full animate-spin" />
                           ) : downloadedPages.has(page.index) ? (
-                            <CheckCircle className="w-4 h-4 mr-1 md:mr-2" />
+                            <CheckCircle className="w-4 h-4 mr-1" />
                           ) : (
-                            <Download className="w-4 h-4 mr-1 md:mr-2" />
+                            <Download className="w-4 h-4 mr-1" />
                           )}
-                          <span className="hidden sm:inline">
+                          <span className="text-xs sm:text-sm">
                             {downloadedPages.has(page.index)
-                              ? "Downloaded"
+                              ? "Done"
                               : "Download"}
                           </span>
                         </Button>

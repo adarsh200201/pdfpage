@@ -260,29 +260,41 @@ const CropPdf = () => {
     [handleFileSelect, toast],
   );
 
-  // Load PDF and convert first page to image for cropping
+  // Load PDF and convert first page to image for cropping with mobile optimization
   const loadPDFForPreview = async (pdfFile: File) => {
     setIsLoadingPDF(true);
     setPdfError(null);
 
     try {
+      console.log("🚀 Loading PDF for crop preview:", pdfFile.name);
       const pdfjsLib = await import("pdfjs-dist");
 
+      // Configure worker with mobile-optimized settings and correct version
       if (!pdfjsLib.GlobalWorkerOptions.workerSrc) {
-        pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdn.jsdelivr.net/npm/pdfjs-dist@4.8.69/build/pdf.worker.min.mjs`;
+        pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js`;
       }
 
       const arrayBuffer = await pdfFile.arrayBuffer();
+      console.log(`📄 PDF ArrayBuffer loaded: ${arrayBuffer.byteLength} bytes`);
+
       const loadingTask = pdfjsLib.getDocument({
         data: arrayBuffer,
-        cMapUrl: "https://cdn.jsdelivr.net/npm/pdfjs-dist@4.8.69/cmaps/",
+        cMapUrl: "https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/cmaps/",
         cMapPacked: true,
         standardFontDataUrl:
-          "https://cdn.jsdelivr.net/npm/pdfjs-dist@4.8.69/standard_fonts/",
+          "https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/standard_fonts/",
         verbosity: 0,
+        // Mobile optimizations
+        useSystemFonts: true,
+        disableFontFace: false,
+        nativeImageDecoderSupport: "display",
+        useWorkerFetch: false, // Better mobile compatibility
       });
 
+      console.log("⏳ Loading PDF document...");
       const pdf = await loadingTask.promise;
+      console.log(`📚 PDF loaded successfully: ${pdf.numPages} pages`);
+
       setPdfDocument(pdf);
       setTotalPages(pdf.numPages);
       setCurrentPage(0);
@@ -296,40 +308,91 @@ const CropPdf = () => {
         duration: 3000,
       });
     } catch (err) {
-      console.error("PDF loading error:", err);
+      console.error("❌ PDF loading error:", err);
       let errorMessage = "Unable to load the PDF file";
+
       if (err instanceof Error) {
+        console.error("Error details:", err.message, err.stack);
         if (err.message.includes("Invalid PDF")) {
           errorMessage = "Invalid PDF file format";
         } else if (err.message.includes("password")) {
           errorMessage = "Password-protected PDFs are not supported";
         } else if (err.message.includes("corrupt")) {
           errorMessage = "The PDF file appears to be corrupted";
+        } else if (
+          err.message.includes("worker") ||
+          err.message.includes("Worker")
+        ) {
+          errorMessage = "PDF processing failed. Please try again.";
+        } else if (err.message.includes("timeout")) {
+          errorMessage = "PDF loading timed out. Please try a smaller file.";
         }
       }
+
+      // On mobile, try a different approach or show more helpful error
+      const isMobile = window.innerWidth <= 768;
+      if (isMobile) {
+        console.log(
+          "📱 Mobile PDF loading failed, providing mobile-specific guidance",
+        );
+        errorMessage += " (Try using a smaller PDF file on mobile)";
+      }
+
       setPdfError(errorMessage);
       toast({
         title: "PDF loading failed",
         description: errorMessage,
         variant: "destructive",
+        duration: 5000,
       });
     } finally {
       setIsLoadingPDF(false);
     }
   };
 
-  // Render PDF page to image for cropping
+  // Render PDF page to image for cropping with mobile optimization
   const renderPageToImage = async (pdf: any, pageIndex: number) => {
     try {
+      console.log(`🎨 Rendering page ${pageIndex + 1} for crop preview...`);
       const page = await pdf.getPage(pageIndex + 1);
-      const viewport = page.getViewport({ scale: 2 }); // Higher scale for better quality
+
+      // Mobile-optimized scaling
+      const isMobile = window.innerWidth <= 768;
+      const scale = isMobile ? 1.5 : 2; // Reduced scale on mobile for better performance
+      const viewport = page.getViewport({ scale });
+
+      console.log(
+        `📐 Viewport: ${viewport.width}x${viewport.height} at scale ${scale} (mobile: ${isMobile})`,
+      );
 
       const canvas = document.createElement("canvas");
-      const context = canvas.getContext("2d");
-      if (!context) return;
+      const context = canvas.getContext("2d", {
+        alpha: false,
+        willReadFrequently: false, // Optimize for one-time rendering
+        desynchronized: true, // Better performance on mobile
+      });
 
-      canvas.width = viewport.width;
-      canvas.height = viewport.height;
+      if (!context) {
+        throw new Error("Could not get canvas context");
+      }
+
+      // Set reasonable canvas size limits for mobile
+      const maxWidth = isMobile ? 800 : 1200;
+      const maxHeight = isMobile ? 1000 : 1600;
+
+      canvas.width = Math.min(viewport.width, maxWidth);
+      canvas.height = Math.min(viewport.height, maxHeight);
+
+      // Adjust viewport if canvas was resized
+      const adjustedViewport = page.getViewport({
+        scale:
+          Math.min(
+            canvas.width / viewport.width,
+            canvas.height / viewport.height,
+          ) * scale,
+      });
+
+      console.log(`🖼️ Canvas created: ${canvas.width}x${canvas.height}`);
 
       // Fill with white background
       context.fillStyle = "white";
@@ -337,21 +400,71 @@ const CropPdf = () => {
 
       const renderContext = {
         canvasContext: context,
-        viewport: viewport,
+        viewport: adjustedViewport,
+        intent: "display",
+        renderInteractiveForms: false,
+        annotationMode: 0, // Disable annotations for cleaner render
       };
 
-      await page.render(renderContext).promise;
+      console.log("🎨 Starting page render...");
 
-      // Convert canvas to blob and create URL
-      canvas.toBlob((blob) => {
-        if (blob) {
-          const url = URL.createObjectURL(blob);
-          setPreviewUrl(url);
-        }
-      }, "image/png");
+      // Add timeout for mobile rendering
+      const renderPromise = page.render(renderContext).promise;
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(
+          () => reject(new Error("Render timeout")),
+          isMobile ? 15000 : 20000,
+        );
+      });
+
+      await Promise.race([renderPromise, timeoutPromise]);
+      console.log("✅ Page render completed successfully");
+
+      // Convert canvas to blob and create URL with mobile-optimized quality
+      const quality = isMobile ? 0.85 : 0.95;
+      canvas.toBlob(
+        (blob) => {
+          if (blob) {
+            console.log(`📷 Created preview blob: ${blob.size} bytes`);
+            const url = URL.createObjectURL(blob);
+            setPreviewUrl(url);
+          } else {
+            throw new Error("Failed to create blob from canvas");
+          }
+        },
+        "image/jpeg",
+        quality,
+      ); // Use JPEG with quality for smaller file size
+
+      // Clean up canvas
+      canvas.remove();
     } catch (err) {
-      console.error("Error rendering page:", err);
-      setPdfError("Failed to render PDF page");
+      console.error("❌ Error rendering page:", err);
+
+      // Provide more specific error handling for mobile
+      const isMobile = window.innerWidth <= 768;
+      let errorMessage = "Failed to render PDF page";
+
+      if (err instanceof Error) {
+        if (err.message.includes("timeout")) {
+          errorMessage = isMobile
+            ? "PDF rendering timed out on mobile. Try a smaller file."
+            : "PDF rendering timed out. Please try again.";
+        } else if (
+          err.message.includes("memory") ||
+          err.message.includes("out of memory")
+        ) {
+          errorMessage = "PDF is too large to process. Try a smaller file.";
+        }
+      }
+
+      setPdfError(errorMessage);
+      toast({
+        title: "Render Failed",
+        description: errorMessage,
+        variant: "destructive",
+        duration: 4000,
+      });
     }
   };
 
@@ -623,7 +736,7 @@ const CropPdf = () => {
         duration: 3000,
       });
     } catch (error) {
-      console.error("❌ PDF crop failed:", error);
+      console.error("���� PDF crop failed:", error);
       toast({
         title: "Crop Failed",
         description:
@@ -682,7 +795,7 @@ const CropPdf = () => {
         const renderedHeight = imageData.naturalHeight;
 
         console.log(
-          `🖼️ Rendered image size: ${renderedWidth} x ${renderedHeight}`,
+          `���️ Rendered image size: ${renderedWidth} x ${renderedHeight}`,
         );
         console.log(
           `✂️ Crop area from cropper: x=${cropData.x}, y=${cropData.y}, w=${cropData.width}, h=${cropData.height}`,
@@ -839,11 +952,13 @@ const CropPdf = () => {
                 <Button
                   onClick={handleManualDownload}
                   size="lg"
-                  className="bg-green-600 hover:bg-green-700 text-white font-bold px-8 py-4"
+                  className="bg-green-600 hover:bg-green-700 text-white font-bold px-6 sm:px-8 py-3 sm:py-4 min-h-[50px] w-full sm:w-auto touch-manipulation"
                   disabled={!croppedPdfBytes}
                 >
                   <Download className="w-6 h-6 mr-3" />
-                  Download Cropped PDF
+                  <span className="text-sm sm:text-base">
+                    Download Cropped PDF
+                  </span>
                 </Button>
 
                 {/* Debug info in development */}
@@ -859,7 +974,7 @@ const CropPdf = () => {
               </div>
             </div>
 
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <div className="flex flex-col sm:flex-row gap-3 justify-center">
               <Button
                 onClick={() => {
                   setSelectedFile(null);
@@ -871,12 +986,18 @@ const CropPdf = () => {
                   setCroppedPdfBytes(null);
                   setCroppedFileName("");
                 }}
-                className="bg-emerald-600 hover:bg-emerald-700"
+                className="bg-emerald-600 hover:bg-emerald-700 min-h-[44px] touch-manipulation"
               >
-                Crop Another PDF
+                <span className="font-medium">Crop Another PDF</span>
               </Button>
-              <Button variant="outline" asChild>
-                <Link to="/">Back to Home</Link>
+              <Button
+                variant="outline"
+                asChild
+                className="min-h-[44px] touch-manipulation"
+              >
+                <Link to="/">
+                  <span className="font-medium">Back to Home</span>
+                </Link>
               </Button>
             </div>
           </div>
@@ -1044,16 +1165,16 @@ const CropPdf = () => {
                       {cropPresets.map((preset) => (
                         <Card
                           key={preset.id}
-                          className={`cursor-pointer transition-all duration-200 hover:shadow-md border-2 ${
+                          className={`cursor-pointer transition-all duration-200 hover:shadow-md border-2 touch-manipulation ${
                             selectedPreset === preset.id
                               ? "border-emerald-500 bg-emerald-50"
                               : "border-gray-200 hover:border-emerald-300"
                           }`}
                           onClick={() => handlePresetSelect(preset.id)}
                         >
-                          <CardContent className="p-3 text-center">
+                          <CardContent className="p-3 text-center min-h-[100px] flex flex-col justify-center">
                             <preset.icon className="w-6 h-6 mx-auto mb-2 text-emerald-600" />
-                            <h3 className="font-semibold text-xs mb-1">
+                            <h3 className="font-semibold text-xs sm:text-sm mb-1">
                               {preset.name}
                             </h3>
                             <p className="text-xs text-gray-600 mb-1">
@@ -1093,13 +1214,13 @@ const CropPdf = () => {
                             </Badge>
                           )}
                         </CardTitle>
-                        <div className="flex items-center gap-1 sm:gap-2 overflow-x-auto">
+                        <div className="flex items-center gap-2 overflow-x-auto pb-2">
                           <Button
                             variant="outline"
                             size="sm"
                             onClick={() => handleZoom(0.1)}
                             disabled={!cropperReady}
-                            className="flex-shrink-0"
+                            className="flex-shrink-0 min-h-[40px] min-w-[40px] touch-manipulation"
                           >
                             <ZoomIn className="w-4 h-4" />
                             <span className="ml-1 hidden sm:inline">In</span>
@@ -1109,7 +1230,7 @@ const CropPdf = () => {
                             size="sm"
                             onClick={() => handleZoom(-0.1)}
                             disabled={!cropperReady}
-                            className="flex-shrink-0"
+                            className="flex-shrink-0 min-h-[40px] min-w-[40px] touch-manipulation"
                           >
                             <ZoomOut className="w-4 h-4" />
                             <span className="ml-1 hidden sm:inline">Out</span>
@@ -1118,7 +1239,7 @@ const CropPdf = () => {
                             variant="outline"
                             size="sm"
                             onClick={() => setShowGrid(!showGrid)}
-                            className="flex-shrink-0"
+                            className="flex-shrink-0 min-h-[40px] touch-manipulation"
                           >
                             <Grid3X3 className="w-4 h-4 sm:mr-2" />
                             <span className="hidden sm:inline">Grid</span>
@@ -1129,7 +1250,7 @@ const CropPdf = () => {
                             onClick={() =>
                               setAspectRatioLocked(!aspectRatioLocked)
                             }
-                            className="flex-shrink-0"
+                            className="flex-shrink-0 min-h-[40px] touch-manipulation"
                           >
                             {aspectRatioLocked ? (
                               <Lock className="w-4 h-4" />
@@ -1196,33 +1317,36 @@ const CropPdf = () => {
                       )}
 
                       {/* Transform Controls */}
-                      <div className="flex items-center justify-center gap-2 mt-4 flex-wrap">
+                      <div className="flex items-center justify-center gap-3 mt-4 flex-wrap">
                         <Button
                           variant="outline"
                           size="sm"
                           onClick={() => handleRotate(-90)}
                           disabled={!cropperReady}
+                          className="min-h-[44px] min-w-[80px] touch-manipulation"
                         >
                           <RotateCcw className="w-4 h-4 mr-1" />
-                          -90°
+                          <span className="text-sm font-medium">-90°</span>
                         </Button>
                         <Button
                           variant="outline"
                           size="sm"
                           onClick={() => handleRotate(90)}
                           disabled={!cropperReady}
+                          className="min-h-[44px] min-w-[80px] touch-manipulation"
                         >
                           <RotateCw className="w-4 h-4 mr-1" />
-                          +90°
+                          <span className="text-sm font-medium">+90°</span>
                         </Button>
                         <Button
                           variant="outline"
                           size="sm"
                           onClick={handleReset}
                           disabled={!cropperReady}
+                          className="min-h-[44px] touch-manipulation"
                         >
                           <RefreshCw className="w-4 h-4 mr-1" />
-                          Reset
+                          <span className="text-sm font-medium">Reset</span>
                         </Button>
                       </div>
 
@@ -1272,10 +1396,11 @@ const CropPdf = () => {
                               }
                             }}
                             disabled={currentPage === 0 || isLoadingPDF}
+                            className="min-h-[44px] min-w-[80px] touch-manipulation"
                           >
-                            Previous
+                            <span className="font-medium">Previous</span>
                           </Button>
-                          <span className="text-sm text-gray-600">
+                          <span className="text-sm sm:text-base text-gray-600 font-medium px-2">
                             Page {currentPage + 1} of {totalPages}
                           </span>
                           <Button
@@ -1294,8 +1419,9 @@ const CropPdf = () => {
                             disabled={
                               currentPage === totalPages - 1 || isLoadingPDF
                             }
+                            className="min-h-[44px] min-w-[80px] touch-manipulation"
                           >
-                            Next
+                            <span className="font-medium">Next</span>
                           </Button>
                         </div>
                       )}
@@ -1390,17 +1516,17 @@ const CropPdf = () => {
                   size="lg"
                   onClick={handleCrop}
                   disabled={isProcessing}
-                  className="bg-emerald-600 hover:bg-emerald-700"
+                  className="bg-emerald-600 hover:bg-emerald-700 min-h-[50px] px-6 sm:px-8 py-3 sm:py-4 text-sm sm:text-base font-semibold touch-manipulation w-full sm:w-auto"
                 >
                   {isProcessing ? (
                     <>
                       <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                      Cropping PDF...
+                      <span>Cropping PDF...</span>
                     </>
                   ) : (
                     <>
                       <Scissors className="w-5 h-5 mr-2" />
-                      Crop PDF
+                      <span>Crop PDF</span>
                     </>
                   )}
                 </Button>

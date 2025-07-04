@@ -197,7 +197,7 @@ const JpgToPdf = () => {
     // Check usage limits
     try {
       const usageCheck = await PDFService.checkUsageLimit();
-      if (!usageCheck.canUpload) {
+      if (!usageCheck.canUse) {
         setShowAuthModal(true);
         return;
       }
