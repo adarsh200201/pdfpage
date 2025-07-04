@@ -60,19 +60,19 @@ const FloatingGoogleSignInPopup: React.FC<FloatingGoogleSignInPopupProps> = ({
     setIsLoading(true);
 
     try {
-      const result = await loginWithGoogle();
+      // loginWithGoogle() redirects the browser, so we don't expect a result
+      await loginWithGoogle();
 
-      if (result && result.user) {
-        toast({
-          title: "Welcome!",
-          description: `Hi ${result.user.name}! You now have unlimited access to all tools.`,
-          duration: 5000,
-        });
+      // Since we're redirecting, we can show a loading message
+      toast({
+        title: "Redirecting to Google...",
+        description: "Please complete the authentication process.",
+        duration: 3000,
+      });
 
-        // Hide popup permanently after successful login
-        setIsVisible(false);
-        onDismiss();
-      }
+      // Hide popup permanently after successful login
+      setIsVisible(false);
+      onDismiss();
     } catch (error: any) {
       console.error("Google sign-in error:", error);
       toast({

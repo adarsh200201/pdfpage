@@ -61,14 +61,28 @@ export class PDFService {
   // Request deduplication to prevent multiple concurrent operations
   private static activeRequests = new Map<string, Promise<Uint8Array>>();
 
+  // Helper to get auth token consistently (using cookies like AuthContext)
+  private static getAuthToken(): string | null {
+    return (
+      document.cookie
+        .split("; ")
+        .find((row) => row.startsWith("token="))
+        ?.split("=")[1] || null
+    );
+  }
+
+  // Helper to create auth headers
+  private static getAuthHeaders(): Record<string, string> {
+    const token = this.getAuthToken();
+    return token ? { Authorization: `Bearer ${token}` } : {};
+  }
+
   // Check usage limits before processing
   static async checkUsageLimit(): Promise<UsageLimitInfo> {
     try {
       const response = await fetch(`${this.API_URL}/pdf/check-limit`, {
         method: "GET",
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
+        headers: this.getAuthHeaders(),
       });
 
       if (!response.ok) {
@@ -177,9 +191,7 @@ export class PDFService {
 
       const response = await fetch(fullEndpoint, {
         method: "POST",
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
+        headers: this.getAuthHeaders(),
         body: formData,
       });
 
@@ -1081,7 +1093,7 @@ export class PDFService {
         const reduction =
           ((originalSize - forcedResult.length) / originalSize) * 100;
         console.log(
-          `💪 Forced compression achieved ${reduction.toFixed(3)}% reduction`,
+          `���� Forced compression achieved ${reduction.toFixed(3)}% reduction`,
         );
         return forcedResult;
       }
@@ -1603,7 +1615,7 @@ export class PDFService {
         const compressionRatio =
           (originalSize - bestResult.length) / originalSize;
         console.log(
-          `���� Image optimization successful: ${(compressionRatio * 100).toFixed(1)}% reduction`,
+          `����� Image optimization successful: ${(compressionRatio * 100).toFixed(1)}% reduction`,
         );
         return bestResult;
       }
@@ -2281,17 +2293,36 @@ export class PDFService {
 
       if (response.ok) {
         onProgress?.(90);
-        const arrayBuffer = await response.arrayBuffer();
-        onProgress?.(100);
-        return [new Uint8Array(arrayBuffer)];
+        // Check if response is JSON (multiple files) or ArrayBuffer (single file)
+        const contentType = response.headers.get("content-type");
+        if (contentType && contentType.includes("application/json")) {
+          // Multiple split files returned as JSON with base64 data
+          const jsonData = await response.json();
+          if (jsonData.files && Array.isArray(jsonData.files)) {
+            onProgress?.(100);
+            return jsonData.files.map(
+              (fileData: string) =>
+                new Uint8Array(
+                  Uint8Array.from(atob(fileData), (c) => c.charCodeAt(0)),
+                ),
+            );
+          }
+        }
+        // Fallback: single file or unexpected format - use client-side splitting
+        console.warn(
+          "Backend returned unexpected format, falling back to client-side splitting",
+        );
+        return await this.splitPDFClientSideOptimized(file, onProgress);
       }
     } catch (error) {
       console.warn(
-        "Backend unavailable, using optimized client-side splitting",
+        "Backend unavailable or error occurred, using optimized client-side splitting:",
+        error,
       );
     }
 
     // Fallback to optimized client-side processing
+    console.log("Using client-side PDF splitting");
     return await this.splitPDFClientSideOptimized(file, onProgress);
   }
 
@@ -2311,48 +2342,176 @@ export class PDFService {
           const arrayBuffer = await file.arrayBuffer();
           const pdfDoc = await loadPDFDocument(arrayBuffer);
           const pageCount = pdfDoc.getPageCount();
+          console.log(
+            `Client-side splitting: Processing PDF with ${pageCount} pages`,
+          );
           onProgress?.(40);
 
           const splitPDFs: Uint8Array[] = [];
+          const BATCH_SIZE = 20; // Process in batches to prevent memory issues
 
-          // For small PDFs, process sequentially for better memory management
-          if (pageCount <= 10) {
-            for (let i = 0; i < pageCount; i++) {
+          // Process pages in batches to manage memory for large PDFs
+          for (
+            let batchStart = 0;
+            batchStart < pageCount;
+            batchStart += BATCH_SIZE
+          ) {
+            const batchEnd = Math.min(batchStart + BATCH_SIZE, pageCount);
+            console.log(
+              `🔄 Processing batch ${Math.floor(batchStart / BATCH_SIZE) + 1}: pages ${batchStart + 1}-${batchEnd}`,
+            );
+
+            // Monitor memory usage before batch processing
+            if (
+              typeof window !== "undefined" &&
+              window.performance &&
+              (window.performance as any).memory
+            ) {
+              const memInfo = (window.performance as any).memory;
+              const usedMB = (memInfo.usedJSHeapSize / 1024 / 1024).toFixed(2);
+              const totalMB = (memInfo.totalJSHeapSize / 1024 / 1024).toFixed(
+                2,
+              );
+              console.log(
+                `💾 Memory before batch: ${usedMB} MB used of ${totalMB} MB total`,
+              );
+
+              // If memory usage is too high, force cleanup
+              if (memInfo.usedJSHeapSize > memInfo.totalJSHeapSize * 0.8) {
+                console.warn("⚠️ High memory usage detected, forcing cleanup");
+                if ((window as any).gc) {
+                  (window as any).gc();
+                }
+              }
+            }
+
+            // Force garbage collection between batches if available
+            if (typeof window !== "undefined" && (window as any).gc) {
+              (window as any).gc();
+            }
+
+            for (let i = batchStart; i < batchEnd; i++) {
               onProgress?.(40 + (i / pageCount) * 50);
 
-              const newPdf = await this.createSinglePagePDFOptimized(pdfDoc, i);
-              splitPDFs.push(newPdf);
-            }
-          } else {
-            // For larger PDFs, use batch processing to avoid memory issues
-            const batchSize = 5;
-            for (
-              let batch = 0;
-              batch < Math.ceil(pageCount / batchSize);
-              batch++
-            ) {
-              const batchPromises: Promise<Uint8Array>[] = [];
-
-              for (
-                let i = batch * batchSize;
-                i < Math.min((batch + 1) * batchSize, pageCount);
-                i++
-              ) {
-                batchPromises.push(
-                  this.createSinglePagePDFOptimized(pdfDoc, i),
+              try {
+                const newPdf = await this.createSinglePagePDFOptimized(
+                  pdfDoc,
+                  i,
                 );
+
+                // Validate the created PDF before adding to collection
+                if (
+                  newPdf &&
+                  newPdf instanceof Uint8Array &&
+                  newPdf.length > 100
+                ) {
+                  splitPDFs.push(newPdf);
+                  console.log(
+                    `✅ Sequential page ${i + 1} created successfully: ${newPdf.length} bytes`,
+                  );
+                } else {
+                  console.error(
+                    `❌ Page ${i + 1} is empty or invalid (${newPdf?.length || 0} bytes), trying fallback method`,
+                  );
+
+                  // Try fallback method for invalid pages
+                  let fallbackSuccess = false;
+                  try {
+                    const fallbackPdf = await this.createSinglePagePDF(
+                      pdfDoc,
+                      i,
+                    );
+                    if (
+                      fallbackPdf &&
+                      fallbackPdf instanceof Uint8Array &&
+                      fallbackPdf.length > 100
+                    ) {
+                      splitPDFs.push(fallbackPdf);
+                      console.log(
+                        `✅ Fallback method succeeded for page ${i + 1}: ${fallbackPdf.length} bytes`,
+                      );
+                      fallbackSuccess = true;
+                    }
+                  } catch (fallbackError) {
+                    console.error(
+                      `❌ Fallback method failed for page ${i + 1}:`,
+                      fallbackError,
+                    );
+                  }
+
+                  // Only create placeholder if both methods failed
+                  if (!fallbackSuccess) {
+                    console.error(
+                      `❌ Both methods failed for page ${i + 1}, creating placeholder`,
+                    );
+                    try {
+                      const placeholderPdf = await this.createPlaceholderPDF(
+                        i + 1,
+                      );
+                      if (placeholderPdf && placeholderPdf.length > 100) {
+                        splitPDFs.push(placeholderPdf);
+                        console.log(
+                          `✅ Placeholder created for page ${i + 1}: ${placeholderPdf.length} bytes`,
+                        );
+                      } else {
+                        console.error(
+                          `❌ Failed to create valid placeholder for page ${i + 1}`,
+                        );
+                        // Skip this page entirely rather than adding invalid data
+                      }
+                    } catch (placeholderError) {
+                      console.error(
+                        `❌ Placeholder creation failed for page ${i + 1}:`,
+                        placeholderError,
+                      );
+                      // Skip this page entirely
+                    }
+                  }
+                }
+              } catch (error) {
+                console.error(`❌ Error creating page ${i + 1}:`, error);
+                // Try fallback method as last resort
+                try {
+                  const fallbackPdf = await this.createSinglePagePDF(pdfDoc, i);
+                  if (fallbackPdf && fallbackPdf.length > 0) {
+                    splitPDFs.push(fallbackPdf);
+                    console.log(
+                      `✅ Fallback method succeeded after error for page ${i + 1}: ${fallbackPdf.length} bytes`,
+                    );
+                  } else {
+                    console.error(
+                      `❌ All methods failed for page ${i + 1}, creating placeholder`,
+                    );
+                    const placeholderPdf = await this.createPlaceholderPDF(
+                      i + 1,
+                    );
+                    splitPDFs.push(placeholderPdf);
+                  }
+                } catch (fallbackError) {
+                  console.error(
+                    `❌ All methods failed for page ${i + 1}, creating placeholder`,
+                  );
+                  const placeholderPdf = await this.createPlaceholderPDF(i + 1);
+                  splitPDFs.push(placeholderPdf);
+                }
               }
 
-              const batchResults = await Promise.all(batchPromises);
-              splitPDFs.push(...batchResults);
+              // Add small delay every 10 pages to prevent browser freezing
+              if ((i + 1) % 10 === 0) {
+                await new Promise((resolve) => setTimeout(resolve, 10));
+              }
+            }
 
-              onProgress?.(
-                40 + ((batch + 1) / Math.ceil(pageCount / batchSize)) * 50,
-              );
+            // Small delay between batches
+            if (batchEnd < pageCount) {
+              await new Promise((resolve) => setTimeout(resolve, 50));
             }
           }
 
           onProgress?.(100);
+          console.log(
+            `Client-side splitting completed: Generated ${splitPDFs.length} split pages`,
+          );
           return splitPDFs;
         },
         undefined,
@@ -2364,20 +2523,184 @@ export class PDFService {
     }
   }
 
+  // Create a placeholder PDF for pages that cannot be processed
+  private static async createPlaceholderPDF(
+    pageNumber: number,
+  ): Promise<Uint8Array> {
+    try {
+      const { createPDFDocument, getRGBColor, getStandardFonts } = await import(
+        "@/lib/pdf-utils"
+      );
+      const pdfDoc = await createPDFDocument();
+      const page = pdfDoc.addPage([612, 792]); // Standard letter size
+
+      const font = await pdfDoc.embedFont((await getStandardFonts()).Helvetica);
+      const red = await getRGBColor(0.8, 0.2, 0.2);
+
+      page.drawText(`Page ${pageNumber}`, {
+        x: 50,
+        y: 750,
+        size: 24,
+        font,
+        color: red,
+      });
+
+      page.drawText(`This page could not be processed`, {
+        x: 50,
+        y: 700,
+        size: 14,
+        font,
+      });
+
+      page.drawText(`Original page number: ${pageNumber}`, {
+        x: 50,
+        y: 670,
+        size: 12,
+        font,
+      });
+
+      const pdfBytes = await pdfDoc.save();
+
+      // Validate placeholder PDF
+      if (
+        !pdfBytes ||
+        !(pdfBytes instanceof Uint8Array) ||
+        pdfBytes.length < 100
+      ) {
+        console.error(`❌ Placeholder PDF for page ${pageNumber} is invalid`);
+        throw new Error(
+          `Failed to create valid placeholder for page ${pageNumber}`,
+        );
+      }
+
+      console.log(
+        `📄 Created placeholder for page ${pageNumber}: ${pdfBytes.length} bytes`,
+      );
+
+      // Create a defensive copy
+      const safePdfBytes = new Uint8Array(pdfBytes.length);
+      safePdfBytes.set(pdfBytes);
+
+      return safePdfBytes;
+    } catch (error) {
+      console.error(
+        `Failed to create placeholder for page ${pageNumber}:`,
+        error,
+      );
+      // Return minimal empty PDF as absolute fallback
+      const { createPDFDocument } = await import("@/lib/pdf-utils");
+      const pdfDoc = await createPDFDocument();
+      pdfDoc.addPage([612, 792]);
+      return await pdfDoc.save();
+    }
+  }
+
   // Optimized helper method to create single page PDF
   private static async createSinglePagePDFOptimized(
     sourcePdf: any,
     pageIndex: number,
   ): Promise<Uint8Array> {
-    const { createPDFDocument } = await import("@/lib/pdf-utils");
-    const newPdf = await createPDFDocument();
-    const [page] = await newPdf.copyPages(sourcePdf, [pageIndex]);
-    newPdf.addPage(page);
+    try {
+      const { createPDFDocument } = await import("@/lib/pdf-utils");
 
-    return await newPdf.save({
-      useObjectStreams: false,
-      addDefaultPage: false,
-    });
+      // Validate source PDF and page index
+      if (!sourcePdf) {
+        throw new Error("Source PDF is null or undefined");
+      }
+
+      const pageCount = sourcePdf.getPageCount();
+      if (pageIndex < 0 || pageIndex >= pageCount) {
+        throw new Error(
+          `Page index ${pageIndex} is out of range (0-${pageCount - 1})`,
+        );
+      }
+
+      const newPdf = await createPDFDocument();
+
+      // Try to copy the page with error handling
+      let copiedPages;
+      try {
+        copiedPages = await newPdf.copyPages(sourcePdf, [pageIndex]);
+      } catch (copyError) {
+        console.error(`Failed to copy page ${pageIndex + 1}:`, copyError);
+        throw new Error(
+          `Unable to copy page ${pageIndex + 1}: ${copyError.message}`,
+        );
+      }
+
+      if (!copiedPages || copiedPages.length === 0) {
+        throw new Error(`No pages were copied for page ${pageIndex + 1}`);
+      }
+
+      const [page] = copiedPages;
+      if (!page) {
+        throw new Error(`Copied page ${pageIndex + 1} is null or undefined`);
+      }
+
+      newPdf.addPage(page);
+
+      const pdfBytes = await newPdf.save({
+        useObjectStreams: false,
+        addDefaultPage: false,
+      });
+
+      console.log(`Created page ${pageIndex + 1}:`, {
+        size: pdfBytes.length,
+        isUint8Array: pdfBytes instanceof Uint8Array,
+      });
+
+      // Comprehensive validation
+      if (!pdfBytes || !(pdfBytes instanceof Uint8Array)) {
+        throw new Error(
+          `Generated PDF for page ${pageIndex + 1} is not a valid Uint8Array`,
+        );
+      }
+
+      if (pdfBytes.length === 0) {
+        throw new Error(`Generated PDF for page ${pageIndex + 1} is empty`);
+      }
+
+      // Additional validation - ensure minimum PDF size and valid header
+      if (pdfBytes.length < 100) {
+        throw new Error(
+          `Generated PDF for page ${pageIndex + 1} is too small (${pdfBytes.length} bytes)`,
+        );
+      }
+
+      // Check for valid PDF header
+      const header = Array.from(pdfBytes.slice(0, 4))
+        .map((b) => String.fromCharCode(b))
+        .join("");
+      if (!header.startsWith("%PDF")) {
+        throw new Error(
+          `Generated PDF for page ${pageIndex + 1} has invalid header: ${header}`,
+        );
+      }
+
+      // Create a defensive copy to prevent memory corruption
+      const safePdfBytes = new Uint8Array(pdfBytes.length);
+      safePdfBytes.set(pdfBytes);
+
+      // Final validation log
+      console.log(
+        `📋 [PDF-SERVICE-OPT] Final validation for page ${pageIndex + 1}:`,
+        {
+          originalSize: pdfBytes.length,
+          copySize: safePdfBytes.length,
+          firstByte: safePdfBytes[0],
+          header: header,
+          isValid: safePdfBytes.length > 100 && header.startsWith("%PDF"),
+        },
+      );
+
+      return safePdfBytes;
+    } catch (error) {
+      console.error(
+        `Error creating PDF for page ${pageIndex + 1} with optimized method:`,
+        error,
+      );
+      throw error; // Don't automatically fallback here, let the caller handle it
+    }
   }
 
   // Legacy helper method for fallback
@@ -2385,15 +2708,63 @@ export class PDFService {
     sourcePdf: any,
     pageIndex: number,
   ): Promise<Uint8Array> {
-    const { PDFDocument } = await import("pdf-lib");
-    const newPdf = await PDFDocument.create();
-    const [page] = await newPdf.copyPages(sourcePdf, [pageIndex]);
-    newPdf.addPage(page);
+    try {
+      const { PDFDocument } = await import("pdf-lib");
+      const newPdf = await PDFDocument.create();
+      const [page] = await newPdf.copyPages(sourcePdf, [pageIndex]);
+      newPdf.addPage(page);
 
-    return await newPdf.save({
-      useObjectStreams: false,
-      addDefaultPage: false,
-    });
+      const pdfBytes = await newPdf.save({
+        useObjectStreams: false,
+        addDefaultPage: false,
+      });
+
+      console.log(`Legacy method created page ${pageIndex + 1}:`, {
+        size: pdfBytes.length,
+        isUint8Array: pdfBytes instanceof Uint8Array,
+      });
+
+      // Comprehensive validation
+      if (!pdfBytes || !(pdfBytes instanceof Uint8Array)) {
+        throw new Error(
+          `Legacy PDF generation for page ${pageIndex + 1} is not a valid Uint8Array`,
+        );
+      }
+
+      if (pdfBytes.length === 0) {
+        throw new Error(
+          `Legacy PDF generation for page ${pageIndex + 1} is empty`,
+        );
+      }
+
+      if (pdfBytes.length < 100) {
+        throw new Error(
+          `Legacy PDF generation for page ${pageIndex + 1} is too small (${pdfBytes.length} bytes)`,
+        );
+      }
+
+      // Check for valid PDF header
+      const header = Array.from(pdfBytes.slice(0, 4))
+        .map((b) => String.fromCharCode(b))
+        .join("");
+      if (!header.startsWith("%PDF")) {
+        throw new Error(
+          `Legacy PDF generation for page ${pageIndex + 1} has invalid header: ${header}`,
+        );
+      }
+
+      // Create a defensive copy to prevent memory corruption
+      const safePdfBytes = new Uint8Array(pdfBytes.length);
+      safePdfBytes.set(pdfBytes);
+
+      return safePdfBytes;
+    } catch (error) {
+      console.error(
+        `Legacy PDF creation failed for page ${pageIndex + 1}:`,
+        error,
+      );
+      throw error;
+    }
   }
 
   // Legacy client-side splitting for fallback
@@ -2876,9 +3247,7 @@ export class PDFService {
 
       const response = await fetch(fullEndpoint, {
         method: "POST",
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
+        headers: this.getAuthHeaders(),
         body: formData,
       });
 
@@ -3493,9 +3862,7 @@ export class PDFService {
         `${this.API_URL}/pdf/word-to-pdf-libreoffice`,
         {
           method: "POST",
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-          },
+          headers: this.getAuthHeaders(),
           body: formData,
         },
       );
@@ -3583,9 +3950,7 @@ export class PDFService {
 
       const response = await fetch(`${this.API_URL}/pdf/word-to-pdf-advanced`, {
         method: "POST",
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
+        headers: this.getAuthHeaders(),
         body: formData,
       });
 
@@ -3724,9 +4089,7 @@ export class PDFService {
 
       const response = await fetch(`${this.API_URL}/pdf/word-to-pdf`, {
         method: "POST",
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
+        headers: this.getAuthHeaders(),
         body: formData,
       });
 

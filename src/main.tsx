@@ -268,4 +268,9 @@ if (import.meta.env.DEV) {
   setInterval(setupFrameProtection, 1000);
 }
 
+// Fix FullStory namespace conflict
+if (typeof window !== "undefined") {
+  window["_fs_namespace"] = "FS";
+}
+
 createRoot(document.getElementById("root")!).render(<App />);

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import Header from "@/components/layout/Header";
 import { Button } from "@/components/ui/button";
@@ -87,12 +87,14 @@ const Compress = () => {
   const [progress, setProgress] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
   const [selectedLevel, setSelectedLevel] = useState<string>("medium");
+  const previousFiles = useRef<ProcessedFile[]>([]);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [compressionResult, setCompressionResult] =
     useState<CompressionResult | null>(null);
   const [estimatedSize, setEstimatedSize] = useState<number | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const compressionInProgress = useRef<boolean>(false);
   const { user, isAuthenticated } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -107,6 +109,17 @@ const Compress = () => {
     trackPageView: true,
     trackFunnel: true,
   });
+
+  // Debounced compression function to prevent rapid clicks
+  const debouncedCompressFiles = useMemo(() => {
+    let timeoutId: NodeJS.Timeout;
+    return () => {
+      clearTimeout(timeoutId);
+      timeoutId = setTimeout(() => {
+        compressFiles();
+      }, 300); // 300ms debounce
+    };
+  }, []);
 
   const compressionLevels: CompressionLevel[] = [
     {
@@ -225,10 +238,7 @@ const Compress = () => {
   // Estimate compression based on level and file characteristics
   const estimateCompression = useCallback(
     (file: File, level: string) => {
-      const compressionLevel = compressionLevels.find((l) => l.id === level);
-      if (!compressionLevel) return null;
-
-      // Base compression ratios for different levels
+      // Base compression ratios for different levels (hardcoded for stability)
       const baseReductions = {
         extreme: 0.7, // 70% reduction
         high: 0.5, // 50% reduction
@@ -256,16 +266,47 @@ const Compress = () => {
       const estimatedCompressedSize = file.size * (1 - adjustedReduction);
       return Math.round(estimatedCompressedSize);
     },
-    [compressionLevels],
+    [], // No dependencies to prevent re-creation
   );
 
-  // Update estimated size when level changes
+  // Update estimated size when level changes or files are loaded
   useEffect(() => {
-    if (files.length > 0) {
+    console.log(
+      `📊 Compression level changed to: ${selectedLevel}, Files count: ${files.length}`,
+    );
+
+    if (files.length > 0 && !files[0].loadingThumbnails) {
       const estimated = estimateCompression(files[0].file, selectedLevel);
       setEstimatedSize(estimated);
+      console.log(
+        `💡 Estimated size for ${selectedLevel}: ${estimated ? (estimated / 1024).toFixed(1) + "KB" : "N/A"}`,
+      );
+    } else if (files.length === 0) {
+      setEstimatedSize(null);
+      console.log(`⚠️ No files available for estimation`);
     }
-  }, [selectedLevel, files, estimateCompression]);
+  }, [selectedLevel, files]); // Removed estimateCompression from dependencies
+
+  // Monitor file state changes to detect unwanted resets
+  useEffect(() => {
+    if (previousFiles.current.length > 0 && files.length === 0) {
+      console.warn(
+        "🚨 Files were unexpectedly cleared! Previous files:",
+        previousFiles.current,
+      );
+    }
+    previousFiles.current = [...files];
+  }, [files]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      // Clean up any download URLs to prevent memory leaks
+      if (compressionResult?.downloadUrl) {
+        URL.revokeObjectURL(compressionResult.downloadUrl);
+      }
+    };
+  }, [compressionResult?.downloadUrl]);
 
   const handleFileSelect = useCallback(
     async (selectedFiles: File[]) => {
@@ -305,8 +346,19 @@ const Compress = () => {
         loadingThumbnails: true,
       };
 
+      // Clear any existing download URLs to prevent memory leaks
+      if (compressionResult?.downloadUrl) {
+        URL.revokeObjectURL(compressionResult.downloadUrl);
+      }
+
+      // Reset all compression state when new file is selected
+      compressionInProgress.current = false;
+      setIsProcessing(false);
       setFiles([processedFile]);
       setCompressionResult(null);
+      setProgress(0);
+
+      console.log("🔄 File changed, compression state reset");
 
       // Track file upload
       tracking.trackFileUpload([file]);
@@ -326,10 +378,6 @@ const Compress = () => {
             loadingThumbnails: false,
           },
         ]);
-
-        // Estimate compression for the selected level
-        const estimated = estimateCompression(file, selectedLevel);
-        setEstimatedSize(estimated);
       } catch (error) {
         console.error("Error processing file:", error);
         setFiles([
@@ -340,14 +388,7 @@ const Compress = () => {
         ]);
       }
     },
-    [
-      user,
-      toast,
-      generateThumbnails,
-      getPageCount,
-      selectedLevel,
-      estimateCompression,
-    ],
+    [toast, generateThumbnails, getPageCount],
   );
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -378,6 +419,7 @@ const Compress = () => {
   };
 
   const compressFiles = async () => {
+    // Multiple safety checks to prevent duplicate requests
     if (files.length === 0) {
       toast({
         title: "No files selected",
@@ -393,12 +435,27 @@ const Compress = () => {
       return;
     }
 
+    // Triple check to prevent multiple simultaneous compression requests
+    if (isProcessing || compressionInProgress.current) {
+      console.log(
+        "⚠️ Compression already in progress, ignoring duplicate request",
+      );
+      return;
+    }
+
+    // Set flags to prevent duplicates
+    compressionInProgress.current = true;
     setIsProcessing(true);
     setProgress(0);
+    setCompressionResult(null); // Clear any previous results
+
+    console.log(`🚀 Starting compression...`);
 
     try {
       const file = files[0];
       const startTime = Date.now();
+
+      // Compression ID will be validated later if needed
 
       // Track compression start
       tracking.trackConversionStart("PDF", "PDF Compressed", [file.file]);
@@ -428,10 +485,43 @@ const Compress = () => {
       const originalSize = parseInt(
         result.headers?.["x-original-size"] || file.size.toString(),
       );
+
+      // Handle ArrayBuffer result data correctly
+      const actualCompressedSize =
+        result.data instanceof ArrayBuffer
+          ? result.data.byteLength
+          : (result.data as any).size || 0;
+
       const compressedSize = parseInt(
-        result.headers?.["x-compressed-size"] || result.data.size.toString(),
+        result.headers?.["x-compressed-size"] ||
+          actualCompressedSize.toString(),
       );
-      const sizeSaved = parseInt(result.headers?.["x-size-saved"] || "0");
+
+      // Calculate size saved if not provided in headers
+      const calculatedSizeSaved = originalSize - compressedSize;
+      const sizeSaved = parseInt(
+        result.headers?.["x-size-saved"] || calculatedSizeSaved.toString(),
+      );
+
+      // Recalculate compression ratio if not accurate in headers
+      const calculatedCompressionRatio =
+        originalSize > 0
+          ? ((originalSize - compressedSize) / originalSize) * 100
+          : 0;
+
+      const finalCompressionRatio =
+        compressionRatio > 0 ? compressionRatio : calculatedCompressionRatio;
+
+      console.log(`📊 Compression results:`, {
+        originalSize,
+        compressedSize,
+        sizeSaved,
+        compressionRatio: finalCompressionRatio,
+        dataType:
+          result.data instanceof ArrayBuffer
+            ? "ArrayBuffer"
+            : typeof result.data,
+      });
 
       // Create download URL
       const blob = new Blob([result.data], { type: "application/pdf" });
@@ -440,7 +530,7 @@ const Compress = () => {
       const compressionResult: CompressionResult = {
         originalSize,
         compressedSize,
-        compressionRatio,
+        compressionRatio: finalCompressionRatio,
         sizeSaved,
         level: selectedLevel,
         downloadUrl,
@@ -473,30 +563,73 @@ const Compress = () => {
 
       toast({
         title: "Compression Complete!",
-        description: `File size reduced by ${compressionRatio.toFixed(1)}%`,
+        description: `File size reduced by ${finalCompressionRatio.toFixed(1)}%`,
       });
     } catch (error: any) {
       console.error("Compression failed:", error);
+
+      // Clear any partial progress
+      setProgress(0);
+      setCompressionResult(null);
+
       toast({
         title: "Compression Failed",
         description:
           error.response?.data?.message ||
+          error.message ||
           "An error occurred during compression.",
         variant: "destructive",
       });
+
+      // Track compression failure
+      tracking.trackConversionFailed("PDF", "PDF Compressed", error.message);
     } finally {
+      // Reset all compression flags
+      compressionInProgress.current = false;
       setIsProcessing(false);
+
+      console.log(`✅ Compression cleanup completed`);
     }
   };
 
   const downloadResult = () => {
-    if (compressionResult) {
+    if (!compressionResult) {
+      toast({
+        title: "No file to download",
+        description: "Please compress a PDF first.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      console.log(`📥 Downloading: ${compressionResult.filename}`);
+
       const link = document.createElement("a");
       link.href = compressionResult.downloadUrl;
       link.download = compressionResult.filename;
+      link.style.display = "none";
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
+
+      toast({
+        title: "Download started",
+        description: `Downloading ${compressionResult.filename}`,
+      });
+
+      // Track successful download
+      tracking.trackDownload(
+        compressionResult.filename,
+        compressionResult.compressedSize,
+      );
+    } catch (error) {
+      console.error("Download failed:", error);
+      toast({
+        title: "Download failed",
+        description: "There was an error downloading your file.",
+        variant: "destructive",
+      });
     }
   };
 
@@ -596,99 +729,114 @@ const Compress = () => {
             </CardContent>
           </Card>
 
+          {/* Debug File State */}
+          {process.env.NODE_ENV === "development" && (
+            <div className="mb-4 p-2 bg-yellow-50 border border-yellow-200 rounded text-xs">
+              <strong>Debug:</strong> Files length: {files.length} | Processing:{" "}
+              {isProcessing ? "Yes" : "No"} | Level: {selectedLevel} | Files:{" "}
+              {JSON.stringify(
+                files.map((f) => ({ id: f.id, name: f.name, size: f.size })),
+              )}
+            </div>
+          )}
+
           {/* File Preview */}
           {files.length > 0 && (
             <Card className="mb-8">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Eye className="w-5 h-5" />
-                  File Preview
+                  File Preview ({files.length} file
+                  {files.length !== 1 ? "s" : ""})
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                {files.map((file) => (
-                  <div key={file.id} className="border rounded-lg p-4">
-                    <div className="flex items-center justify-between mb-4">
-                      <div className="flex items-center gap-3">
-                        <FileText className="w-8 h-8 text-red-500" />
-                        <div>
-                          <h3 className="font-semibold">{file.name}</h3>
-                          <p className="text-sm text-gray-500">
-                            {formatFileSize(file.size)} • {file.pageCount || 0}{" "}
-                            pages
-                          </p>
+                {files.map((file) => {
+                  console.log("🖼️ Rendering file:", file);
+                  return (
+                    <div key={file.id} className="border rounded-lg p-4">
+                      <div className="flex items-center justify-between mb-4">
+                        <div className="flex items-center gap-3">
+                          <FileText className="w-8 h-8 text-red-500" />
+                          <div>
+                            <h3 className="font-semibold">{file.name}</h3>
+                            <p className="text-sm text-gray-500">
+                              {formatFileSize(file.size)} •{" "}
+                              {file.pageCount || 0} pages
+                            </p>
+                          </div>
                         </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => removeFile(file.id)}
+                        >
+                          <X className="w-4 h-4" />
+                        </Button>
                       </div>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => removeFile(file.id)}
-                      >
-                        <X className="w-4 h-4" />
-                      </Button>
+
+                      {/* Thumbnails */}
+                      {file.loadingThumbnails ? (
+                        <div className="flex items-center justify-center py-8">
+                          <Loader2 className="w-6 h-6 animate-spin" />
+                          <span className="ml-2">Generating preview...</span>
+                        </div>
+                      ) : file.thumbnails && file.thumbnails.length > 0 ? (
+                        <div className="flex gap-2 mb-4">
+                          {file.thumbnails.map((thumbnail, index) => (
+                            <img
+                              key={index}
+                              src={thumbnail}
+                              alt={`Page ${index + 1}`}
+                              className="w-16 h-20 object-cover border rounded shadow-sm"
+                            />
+                          ))}
+                          {file.pageCount && file.pageCount > 3 && (
+                            <div className="w-16 h-20 border rounded shadow-sm flex items-center justify-center bg-gray-50">
+                              <span className="text-xs text-gray-500">
+                                +{file.pageCount - 3}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      ) : null}
+
+                      {/* Size Estimation */}
+                      {estimatedSize && (
+                        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                          <h4 className="font-semibold text-blue-900 mb-2">
+                            Compression Estimate
+                          </h4>
+                          <div className="grid grid-cols-3 gap-4 text-sm">
+                            <div>
+                              <p className="text-gray-600">Original Size</p>
+                              <p className="font-semibold">
+                                {formatFileSize(file.size)}
+                              </p>
+                            </div>
+                            <div>
+                              <p className="text-gray-600">Estimated Size</p>
+                              <p className="font-semibold text-blue-700">
+                                {formatFileSize(estimatedSize)}
+                              </p>
+                            </div>
+                            <div>
+                              <p className="text-gray-600">Estimated Savings</p>
+                              <p className="font-semibold text-green-700">
+                                {formatFileSize(file.size - estimatedSize)} (
+                                {(
+                                  ((file.size - estimatedSize) / file.size) *
+                                  100
+                                ).toFixed(1)}
+                                %)
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      )}
                     </div>
-
-                    {/* Thumbnails */}
-                    {file.loadingThumbnails ? (
-                      <div className="flex items-center justify-center py-8">
-                        <Loader2 className="w-6 h-6 animate-spin" />
-                        <span className="ml-2">Generating preview...</span>
-                      </div>
-                    ) : file.thumbnails && file.thumbnails.length > 0 ? (
-                      <div className="flex gap-2 mb-4">
-                        {file.thumbnails.map((thumbnail, index) => (
-                          <img
-                            key={index}
-                            src={thumbnail}
-                            alt={`Page ${index + 1}`}
-                            className="w-16 h-20 object-cover border rounded shadow-sm"
-                          />
-                        ))}
-                        {file.pageCount && file.pageCount > 3 && (
-                          <div className="w-16 h-20 border rounded shadow-sm flex items-center justify-center bg-gray-50">
-                            <span className="text-xs text-gray-500">
-                              +{file.pageCount - 3}
-                            </span>
-                          </div>
-                        )}
-                      </div>
-                    ) : null}
-
-                    {/* Size Estimation */}
-                    {estimatedSize && (
-                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                        <h4 className="font-semibold text-blue-900 mb-2">
-                          Compression Estimate
-                        </h4>
-                        <div className="grid grid-cols-3 gap-4 text-sm">
-                          <div>
-                            <p className="text-gray-600">Original Size</p>
-                            <p className="font-semibold">
-                              {formatFileSize(file.size)}
-                            </p>
-                          </div>
-                          <div>
-                            <p className="text-gray-600">Estimated Size</p>
-                            <p className="font-semibold text-blue-700">
-                              {formatFileSize(estimatedSize)}
-                            </p>
-                          </div>
-                          <div>
-                            <p className="text-gray-600">Estimated Savings</p>
-                            <p className="font-semibold text-green-700">
-                              {formatFileSize(file.size - estimatedSize)} (
-                              {(
-                                ((file.size - estimatedSize) / file.size) *
-                                100
-                              ).toFixed(1)}
-                              %)
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                ))}
+                  );
+                })}
               </CardContent>
             </Card>
           )}
@@ -716,7 +864,14 @@ const Compress = () => {
                           ? getColorClass(level.color)
                           : "border-gray-200 hover:border-gray-300",
                       )}
-                      onClick={() => setSelectedLevel(level.id)}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        console.log(
+                          `🎛️ Compression level selected: ${level.id}, Files: ${files.length}`,
+                        );
+                        setSelectedLevel(level.id);
+                      }}
                     >
                       <CardContent className="p-3 sm:p-4 text-center">
                         <level.icon
@@ -824,15 +979,31 @@ const Compress = () => {
             <CardContent className="p-6">
               <div className="flex gap-4 justify-center">
                 <Button
-                  onClick={compressFiles}
-                  disabled={files.length === 0 || isProcessing}
-                  className="bg-blue-600 hover:bg-blue-700"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    if (
+                      !isProcessing &&
+                      !compressionInProgress.current &&
+                      files.length > 0 &&
+                      user
+                    ) {
+                      compressFiles();
+                    }
+                  }}
+                  disabled={
+                    files.length === 0 ||
+                    isProcessing ||
+                    compressionInProgress.current ||
+                    !user
+                  }
+                  className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
                   size="lg"
                 >
-                  {isProcessing ? (
+                  {isProcessing || compressionInProgress.current ? (
                     <>
                       <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                      Compressing...
+                      Compressing... ({Math.round(progress)}%)
                     </>
                   ) : (
                     <>

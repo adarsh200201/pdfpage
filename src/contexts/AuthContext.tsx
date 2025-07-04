@@ -209,13 +209,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const loginWithGoogle = async () => {
     console.log("🔵 [FRONTEND] Initiating Google OAuth login");
     try {
-      const result = await authService.loginWithGoogle();
-      // Assuming authService.loginWithGoogle() returns user data
-      if (result && result.user) {
-        setUser(result.user);
-        return { user: result.user, conversion: result.conversion || null };
-      }
-      throw new Error("Google login failed");
+      // The authService.loginWithGoogle() method redirects the browser
+      // It doesn't return a Promise, so we handle it differently
+      authService.loginWithGoogle();
+
+      // Since we're redirecting, we don't return anything here
+      // The actual login will be handled by the auth callback page
+      return { user: null, conversion: null };
     } catch (error: any) {
       console.error("🔴 [FRONTEND] Google login error:", error);
       throw new Error(error.message || "Google authentication failed");
