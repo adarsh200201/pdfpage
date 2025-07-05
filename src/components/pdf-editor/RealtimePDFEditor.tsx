@@ -8,8 +8,30 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Users, Eye, Edit3, Download, Upload } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Progress } from "@/components/ui/progress";
+import {
+  Loader2,
+  Users,
+  Eye,
+  Edit3,
+  Download,
+  Upload,
+  Type,
+  Square,
+  Circle,
+  Image,
+  MousePointer,
+  Undo,
+  Redo,
+  ZoomIn,
+  ZoomOut,
+  Save,
+  Trash2,
+} from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { PDFService } from "@/services/pdfService";
 
 interface RealtimePDFEditorProps {
   file?: File;
@@ -35,13 +57,98 @@ export function RealtimePDFEditor({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Edit session state
+  const [editSessionId, setEditSessionId] = useState<string | null>(null);
+  const [isCreatingSession, setIsCreatingSession] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveProgress, setSaveProgress] = useState(0);
+
+  // Editing tools state
+  const [activeTool, setActiveTool] = useState<
+    "select" | "text" | "rectangle" | "circle" | "image"
+  >("select");
+  const [isDrawing, setIsDrawing] = useState(false);
+  const [elements, setElements] = useState<
+    Array<{
+      id: string;
+      type: string;
+      pageIndex: number;
+      x: number;
+      y: number;
+      width?: number;
+      height?: number;
+      text?: string;
+      fontSize?: number;
+      color?: { r: number; g: number; b: number };
+    }>
+  >([]);
+  const [selectedElement, setSelectedElement] = useState<string | null>(null);
+  const [textInput, setTextInput] = useState("");
+  const [fontSize, setFontSize] = useState(12);
+  const [editHistory, setEditHistory] = useState<Array<any>>([]);
+  const [historyIndex, setHistoryIndex] = useState(-1);
+
   // Real-time editor state
   const { state, actions, selectors, computed } =
     useRealtimePDFEditor(sessionId);
 
   // Canvas management
   const [canvasReady, setCanvasReady] = useState(false);
+  const [isRendering, setIsRendering] = useState(false);
   const canvasMethodsRef = useRef<any>(null);
+  const overlayCanvasRef = useRef<HTMLCanvasElement>(null);
+  const renderTaskRef = useRef<any>(null);
+
+  // Create edit session
+  const createEditSession = useCallback(
+    async (pdfFile: File) => {
+      // Prevent duplicate session creation
+      if (editSessionId || isCreatingSession) {
+        console.log("Edit session already exists or is being created");
+        return;
+      }
+
+      setIsCreatingSession(true);
+      setError(null);
+
+      try {
+        const sessionData = await PDFService.createEditSession(pdfFile, {
+          collaborative: true,
+          onProgress: setSaveProgress,
+        });
+
+        setEditSessionId(sessionData.sessionId);
+        setTotalPages(sessionData.pageCount);
+
+        toast({
+          title: "Edit Session Created",
+          description: `Ready to edit PDF with ${sessionData.pageCount} pages`,
+        });
+
+        console.log("Edit session created:", sessionData);
+
+        // Now load the PDF for rendering
+        await loadPDF(pdfFile);
+      } catch (error) {
+        console.error("Failed to create edit session:", error);
+        setError(
+          error instanceof Error
+            ? error.message
+            : "Failed to create edit session",
+        );
+
+        toast({
+          title: "Session Creation Failed",
+          description: "Failed to create editing session. Please try again.",
+          variant: "destructive",
+        });
+      } finally {
+        setIsCreatingSession(false);
+        setSaveProgress(0);
+      }
+    },
+    [toast],
+  );
 
   // Load PDF document
   const loadPDF = useCallback(
@@ -84,7 +191,7 @@ export function RealtimePDFEditor({
 
         console.log("PDF loaded successfully:", {
           pages: pdf.numPages,
-          sessionId: state.sessionId,
+          sessionId: editSessionId,
           collaborators: computed.collaboratorCount,
         });
       } catch (error) {
@@ -124,13 +231,27 @@ export function RealtimePDFEditor({
         setIsLoading(false);
       }
     },
-    [state.sessionId, computed.collaboratorCount, toast],
+    [editSessionId, computed.collaboratorCount, toast],
   );
 
   // Render PDF page on canvas
   const renderPage = useCallback(
     async (pageNum: number) => {
-      if (!pdfDocument || !canvasReady || !canvasMethodsRef.current) return;
+      if (
+        !pdfDocument ||
+        !canvasReady ||
+        !canvasMethodsRef.current ||
+        isRendering
+      )
+        return;
+
+      // Cancel any existing render task
+      if (renderTaskRef.current) {
+        renderTaskRef.current.cancel();
+        renderTaskRef.current = null;
+      }
+
+      setIsRendering(true);
 
       try {
         const page = await pdfDocument.getPage(pageNum);
@@ -141,6 +262,7 @@ export function RealtimePDFEditor({
 
         if (!canvas || !context) {
           console.error("Canvas or context not available");
+          setIsRendering(false);
           return;
         }
 
@@ -150,13 +272,14 @@ export function RealtimePDFEditor({
         // Clear canvas before rendering
         canvasMethodsRef.current.clearCanvas();
 
-        // Render PDF page
+        // Create render task with cancellation support
         const renderContext = {
           canvasContext: context,
           viewport: viewport,
         };
 
-        await page.render(renderContext).promise;
+        renderTaskRef.current = page.render(renderContext);
+        await renderTaskRef.current.promise;
 
         // Update canvas size in editor state
         actions.setZoom(zoom);
@@ -164,14 +287,135 @@ export function RealtimePDFEditor({
         console.log(
           `Page ${pageNum} rendered successfully at ${Math.round(zoom * 100)}% zoom`,
         );
+
+        setIsRendering(false);
+        setError(null);
       } catch (error) {
+        setIsRendering(false);
+
+        // Ignore cancellation errors
+        if (error instanceof Error && error.message.includes("cancelled")) {
+          return;
+        }
+
         console.error("Page rendering failed:", error);
         setError(
           `Failed to render page: ${error instanceof Error ? error.message : "Unknown error"}`,
         );
       }
     },
-    [pdfDocument, zoom, canvasReady, actions],
+    [pdfDocument, zoom, canvasReady, actions, isRendering],
+  );
+
+  // Apply edit action to backend
+  const applyEditAction = useCallback(
+    async (action: any) => {
+      if (!editSessionId) return;
+
+      try {
+        const result = await PDFService.applyEditAction(
+          editSessionId,
+          action,
+          currentPage - 1,
+        );
+
+        console.log(`Edit action applied: ${result.actionId}`);
+
+        // Add to history for undo/redo
+        const newHistory = editHistory.slice(0, historyIndex + 1);
+        newHistory.push(action);
+        setEditHistory(newHistory);
+        setHistoryIndex(newHistory.length - 1);
+      } catch (error) {
+        console.error("Failed to apply edit action:", error);
+        toast({
+          title: "Edit Failed",
+          description: "Failed to apply edit. Please try again.",
+          variant: "destructive",
+        });
+      }
+    },
+    [editSessionId, currentPage, editHistory, historyIndex, toast],
+  );
+
+  // Handle canvas interactions
+  const handleCanvasClick = useCallback(
+    (event: React.MouseEvent<HTMLCanvasElement>) => {
+      if (!canvasMethodsRef.current) return;
+
+      const canvas = canvasMethodsRef.current.getCanvas();
+      const rect = canvas.getBoundingClientRect();
+      const x = (event.clientX - rect.left) / zoom;
+      const y = (event.clientY - rect.top) / zoom;
+
+      switch (activeTool) {
+        case "text":
+          if (textInput.trim()) {
+            const textElement = {
+              id: Date.now().toString(),
+              type: "addText",
+              pageIndex: currentPage - 1,
+              x,
+              y,
+              text: textInput,
+              fontSize,
+              color: { r: 0, g: 0, b: 0 },
+            };
+
+            setElements([...elements, textElement]);
+            applyEditAction({
+              type: "addText",
+              data: {
+                text: textInput,
+                x,
+                y,
+                fontSize,
+                color: { r: 0, g: 0, b: 0 },
+              },
+            });
+
+            setTextInput("");
+          }
+          break;
+
+        case "rectangle":
+        case "circle":
+          setIsDrawing(true);
+          // Store start position for shape drawing
+          const shapeElement = {
+            id: Date.now().toString(),
+            type: "addShape",
+            pageIndex: currentPage - 1,
+            x,
+            y,
+            width: 100,
+            height: 50,
+          };
+
+          setElements([...elements, shapeElement]);
+          applyEditAction({
+            type: "addShape",
+            data: {
+              shape: activeTool,
+              x,
+              y,
+              width: 100,
+              height: 50,
+              color: { r: 0, g: 0, b: 0 },
+            },
+          });
+          break;
+      }
+    },
+    [
+      activeTool,
+      textInput,
+      fontSize,
+      zoom,
+      currentPage,
+      elements,
+      applyEditAction,
+    ],
   );
 
   // Handle file upload
@@ -179,7 +423,7 @@ export function RealtimePDFEditor({
     (event: React.ChangeEvent<HTMLInputElement>) => {
       const selectedFile = safeArrayFirst(Array.from(event.target.files || []));
       if (selectedFile && selectedFile.type === "application/pdf") {
-        loadPDF(selectedFile);
+        createEditSession(selectedFile);
       } else {
         toast({
           title: "Invalid File",
@@ -188,8 +432,56 @@ export function RealtimePDFEditor({
         });
       }
     },
-    [loadPDF, toast],
+    [createEditSession, toast],
   );
+
+  // Save edited PDF
+  const saveEditedPDF = useCallback(async () => {
+    if (!editSessionId) {
+      toast({
+        title: "No Session",
+        description: "Please upload a PDF first to start editing.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsSaving(true);
+    setSaveProgress(0);
+
+    try {
+      const pdfData = await PDFService.renderEditedPDF(
+        editSessionId,
+        setSaveProgress,
+      );
+
+      // Create download link
+      const blob = new Blob([pdfData], { type: "application/pdf" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = "edited_document.pdf";
+      link.click();
+      URL.revokeObjectURL(url);
+
+      toast({
+        title: "PDF Saved",
+        description: "Your edited PDF has been downloaded successfully.",
+      });
+
+      onSave?.(pdfData);
+    } catch (error) {
+      console.error("Failed to save PDF:", error);
+      toast({
+        title: "Save Failed",
+        description: "Failed to save the edited PDF. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSaving(false);
+      setSaveProgress(0);
+    }
+  }, [editSessionId, onSave, toast]);
 
   // Handle canvas ready
   const handleCanvasReady = useCallback((canvas: HTMLCanvasElement) => {
@@ -226,12 +518,31 @@ export function RealtimePDFEditor({
     }
   }, [file, loadPDF]);
 
-  // Render current page when dependencies change
+  // Cleanup on unmount
   useEffect(() => {
-    if (pdfDocument && canvasReady) {
-      renderPage(currentPage);
+    return () => {
+      // Cancel any ongoing render tasks
+      if (renderTaskRef.current) {
+        renderTaskRef.current.cancel();
+        renderTaskRef.current = null;
+      }
+
+      // Reset rendering state
+      setIsRendering(false);
+      setCanvasReady(false);
+    };
+  }, []);
+
+  // Render current page when dependencies change (with debouncing)
+  useEffect(() => {
+    if (pdfDocument && canvasReady && !isRendering) {
+      const timeoutId = setTimeout(() => {
+        renderPage(currentPage);
+      }, 100); // Small delay to prevent rapid re-renders
+
+      return () => clearTimeout(timeoutId);
     }
-  }, [pdfDocument, currentPage, zoom, canvasReady, renderPage]);
+  }, [pdfDocument, currentPage, zoom, canvasReady, renderPage, isRendering]);
 
   // Page navigation
   const goToPage = useCallback(
@@ -275,34 +586,165 @@ export function RealtimePDFEditor({
                 variant="outline"
                 size="sm"
                 onClick={() => fileInputRef.current?.click()}
-                disabled={isLoading}
+                disabled={isLoading || isCreatingSession}
               >
                 <Upload className="w-4 h-4 mr-2" />
-                Upload PDF
+                {isCreatingSession ? "Creating Session..." : "Upload PDF"}
               </Button>
 
-              {pdfDocument && (
+              {editSessionId && (
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => onSave && onSave(new ArrayBuffer(0))}
+                  onClick={saveEditedPDF}
+                  disabled={isSaving}
                 >
-                  <Download className="w-4 h-4 mr-2" />
-                  Save
+                  {isSaving ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    <>
+                      <Save className="w-4 h-4 mr-2" />
+                      Save PDF
+                    </>
+                  )}
                 </Button>
               )}
             </div>
           </div>
 
+          {/* Editing Toolbar */}
+          {editSessionId && (
+            <div className="flex items-center gap-2 mt-4 p-2 bg-gray-50 rounded-lg">
+              <div className="flex items-center gap-1">
+                <Button
+                  variant={activeTool === "select" ? "default" : "ghost"}
+                  size="sm"
+                  onClick={() => setActiveTool("select")}
+                >
+                  <MousePointer className="w-4 h-4" />
+                </Button>
+                <Button
+                  variant={activeTool === "text" ? "default" : "ghost"}
+                  size="sm"
+                  onClick={() => setActiveTool("text")}
+                >
+                  <Type className="w-4 h-4" />
+                </Button>
+                <Button
+                  variant={activeTool === "rectangle" ? "default" : "ghost"}
+                  size="sm"
+                  onClick={() => setActiveTool("rectangle")}
+                >
+                  <Square className="w-4 h-4" />
+                </Button>
+                <Button
+                  variant={activeTool === "circle" ? "default" : "ghost"}
+                  size="sm"
+                  onClick={() => setActiveTool("circle")}
+                >
+                  <Circle className="w-4 h-4" />
+                </Button>
+              </div>
+
+              <Separator orientation="vertical" className="h-6" />
+
+              <div className="flex items-center gap-1">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => handleZoom(zoom - 0.1)}
+                >
+                  <ZoomOut className="w-4 h-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => handleZoom(zoom + 0.1)}
+                >
+                  <ZoomIn className="w-4 h-4" />
+                </Button>
+              </div>
+
+              <Separator orientation="vertical" className="h-6" />
+
+              <div className="flex items-center gap-1">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  disabled={historyIndex <= 0}
+                  onClick={() => {
+                    if (historyIndex > 0) {
+                      setHistoryIndex(historyIndex - 1);
+                    }
+                  }}
+                >
+                  <Undo className="w-4 h-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  disabled={historyIndex >= editHistory.length - 1}
+                  onClick={() => {
+                    if (historyIndex < editHistory.length - 1) {
+                      setHistoryIndex(historyIndex + 1);
+                    }
+                  }}
+                >
+                  <Redo className="w-4 h-4" />
+                </Button>
+              </div>
+
+              {activeTool === "text" && (
+                <>
+                  <Separator orientation="vertical" className="h-6" />
+                  <Input
+                    placeholder="Enter text"
+                    value={textInput}
+                    onChange={(e) => setTextInput(e.target.value)}
+                    className="w-32 h-8"
+                  />
+                  <Input
+                    type="number"
+                    value={fontSize}
+                    onChange={(e) =>
+                      setFontSize(parseInt(e.target.value) || 12)
+                    }
+                    min="8"
+                    max="72"
+                    className="w-16 h-8"
+                  />
+                </>
+              )}
+            </div>
+          )}
+
+          {(isCreatingSession || isSaving) && (
+            <div className="mt-2">
+              <Progress value={saveProgress} className="h-2" />
+            </div>
+          )}
+
           {pdfDocument && (
-            <div className="flex items-center gap-4 text-sm text-gray-600">
+            <div className="flex items-center gap-4 text-sm text-gray-600 mt-2">
               <span>
                 Page {currentPage} of {totalPages}
               </span>
               <Separator orientation="vertical" className="h-4" />
               <span>Zoom: {Math.round(zoom * 100)}%</span>
               <Separator orientation="vertical" className="h-4" />
-              <span>Session: {state.sessionId.slice(-8)}</span>
+              <span>
+                Elements:{" "}
+                {elements.filter((e) => e.pageIndex === currentPage - 1).length}
+              </span>
+              {editSessionId && (
+                <>
+                  <Separator orientation="vertical" className="h-4" />
+                  <span>Session: {editSessionId.slice(-8)}</span>
+                </>
+              )}
             </div>
           )}
         </CardHeader>
@@ -365,13 +807,20 @@ export function RealtimePDFEditor({
           )}
 
           {pdfDocument && !error && (
-            <SafePDFCanvas
-              onCanvasReady={handleCanvasReady}
-              onCanvasError={handleCanvasError}
-              className="shadow-lg"
-            >
-              {/* Canvas methods will be passed to children via cloneElement */}
-            </SafePDFCanvas>
+            <div className="relative">
+              <SafePDFCanvas
+                onCanvasReady={handleCanvasReady}
+                onCanvasError={handleCanvasError}
+                className="shadow-lg cursor-crosshair"
+                onClick={handleCanvasClick}
+              />
+              {/* Overlay canvas for drawing elements */}
+              <canvas
+                ref={overlayCanvasRef}
+                className="absolute top-0 left-0 pointer-events-none"
+                style={{ zIndex: 10 }}
+              />
+            </div>
           )}
         </div>
 
@@ -394,6 +843,9 @@ export function RealtimePDFEditor({
                   >
                     Previous
                   </Button>
+                  <span className="text-sm px-2">
+                    {currentPage} / {totalPages}
+                  </span>
                   <Button
                     variant="outline"
                     size="sm"
@@ -407,27 +859,64 @@ export function RealtimePDFEditor({
 
               <Separator />
 
-              {/* Zoom */}
+              {/* Current Tool Info */}
               <div>
-                <h4 className="font-medium mb-2">Zoom</h4>
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleZoom(zoom - 0.1)}
-                  >
-                    -
-                  </Button>
-                  <span className="text-sm min-w-[60px] text-center">
-                    {Math.round(zoom * 100)}%
-                  </span>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleZoom(zoom + 0.1)}
-                  >
-                    +
-                  </Button>
+                <h4 className="font-medium mb-2">Active Tool</h4>
+                <div className="p-2 bg-gray-50 rounded text-sm">
+                  <div className="font-medium capitalize">{activeTool}</div>
+                  {activeTool === "text" && (
+                    <div className="text-gray-600 mt-1">
+                      Click on the PDF to add text
+                    </div>
+                  )}
+                  {(activeTool === "rectangle" || activeTool === "circle") && (
+                    <div className="text-gray-600 mt-1">
+                      Click on the PDF to add {activeTool}
+                    </div>
+                  )}
+                  {activeTool === "select" && (
+                    <div className="text-gray-600 mt-1">
+                      Click elements to select them
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <Separator />
+
+              {/* Elements on Current Page */}
+              <div>
+                <h4 className="font-medium mb-2">Page Elements</h4>
+                <div className="space-y-1">
+                  {elements
+                    .filter((e) => e.pageIndex === currentPage - 1)
+                    .map((element, index) => (
+                      <div
+                        key={element.id}
+                        className="flex items-center justify-between p-2 bg-gray-50 rounded text-sm"
+                      >
+                        <span className="capitalize">
+                          {element.type.replace("add", "")} {index + 1}
+                        </span>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            setElements(
+                              elements.filter((e) => e.id !== element.id),
+                            );
+                          }}
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </Button>
+                      </div>
+                    ))}
+                  {elements.filter((e) => e.pageIndex === currentPage - 1)
+                    .length === 0 && (
+                    <div className="text-sm text-gray-500 italic">
+                      No elements on this page
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -435,10 +924,14 @@ export function RealtimePDFEditor({
 
               {/* Editor Stats */}
               <div>
-                <h4 className="font-medium mb-2">Editor Info</h4>
+                <h4 className="font-medium mb-2">Session Info</h4>
                 <div className="space-y-1 text-sm text-gray-600">
-                  <div>Elements: {computed.elementCount}</div>
-                  <div>Selected: {computed.selectedCount}</div>
+                  <div>Total Elements: {elements.length}</div>
+                  <div>Edit History: {editHistory.length}</div>
+                  <div>Current Page: {currentPage}</div>
+                  {editSessionId && (
+                    <div>Session ID: {editSessionId.slice(-8)}</div>
+                  )}
                   <div>Collaborators: {computed.collaboratorCount}</div>
                 </div>
               </div>

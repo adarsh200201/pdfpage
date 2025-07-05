@@ -35,17 +35,28 @@ const AuthCallback: React.FC = () => {
 
           // Fetch user data with the token
           const user = await authService.handleAuthCallback(token);
-          updateUser(user);
 
-          toast({
-            title: "Welcome!",
-            description: "You have been successfully signed in with Google.",
-          });
+          // Ensure user data is valid before updating
+          if (user && user.id) {
+            updateUser(user);
 
-          // Always redirect to home page after Google login
-          navigate("/");
+            toast({
+              title: "Welcome!",
+              description: "You have been successfully signed in with Google.",
+            });
+
+            // Small delay to ensure state updates before navigation
+            setTimeout(() => {
+              const redirectUrl = authService.getAuthRedirectUrl();
+              navigate(redirectUrl);
+            }, 500);
+          } else {
+            throw new Error("Invalid user data received");
+          }
         } catch (error) {
           console.error("Auth callback error:", error);
+          // Clear invalid token
+          Cookies.remove("token");
           toast({
             title: "Authentication Error",
             description: "There was an error completing the sign-in process.",

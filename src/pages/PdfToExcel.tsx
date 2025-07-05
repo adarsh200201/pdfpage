@@ -1,13 +1,17 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import Header from "@/components/layout/Header";
-import FileUpload from "@/components/ui/file-upload";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PromoBanner } from "@/components/ui/promo-banner";
 import AuthModal from "@/components/auth/AuthModal";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
+import { PDFService } from "@/services/pdfService";
+import { useToolTracking } from "@/hooks/useToolTracking";
+import { useFloatingPopup } from "@/contexts/FloatingPopupContext";
+import { Progress } from "@/components/ui/progress";
+import { cn } from "@/lib/utils";
 import {
   ArrowLeft,
   Download,
@@ -21,6 +25,10 @@ import {
   CheckCircle,
   AlertCircle,
   Loader2,
+  Upload,
+  X,
+  Settings,
+  BarChart,
 } from "lucide-react";
 
 interface FileStatus {
@@ -42,21 +50,77 @@ const PdfToExcel = () => {
   const [files, setFiles] = useState<FileStatus[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
+  const [conversionSettings, setConversionSettings] = useState({
+    extractAllTables: true,
+    preserveFormatting: true,
+  });
 
   const { isAuthenticated, user } = useAuth();
   const { toast } = useToast();
 
+  // Floating popup tracking
+  const { trackToolUsage } = useFloatingPopup();
+
+  // Mixpanel tracking
+  const tracking = useToolTracking({
+    toolName: "pdf-to-excel",
+    category: "PDF Tool",
+    trackPageView: true,
+    trackFunnel: true,
+  });
+
   const handleFileUpload = (uploadedFiles: File[]) => {
-    const newFiles: FileStatus[] = uploadedFiles.map((file) => ({
+    const validFiles = uploadedFiles.filter((file) => {
+      if (file.type !== "application/pdf") {
+        toast({
+          title: "Invalid file type",
+          description: `${file.name} is not a PDF file.`,
+          variant: "destructive",
+        });
+        return false;
+      }
+      if (file.size > 10 * 1024 * 1024) {
+        // 10MB limit
+        toast({
+          title: "File too large",
+          description: `${file.name} exceeds 10MB limit.`,
+          variant: "destructive",
+        });
+        return false;
+      }
+      return true;
+    });
+
+    const newFiles: FileStatus[] = validFiles.map((file) => ({
       file,
       status: "ready",
       progress: 0,
     }));
     setFiles((prev) => [...prev, ...newFiles]);
+
+    // Track file upload
+    if (validFiles.length > 0) {
+      tracking.trackFileUpload(validFiles);
+    }
   };
 
   const removeFile = (index: number) => {
     setFiles((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const downloadFile = (downloadUrl: string, filename: string) => {
+    const link = document.createElement("a");
+    link.href = downloadUrl;
+    link.download = filename;
+    link.style.display = "none";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    toast({
+      title: "Download started",
+      description: `Downloading ${filename}`,
+    });
   };
 
   const handleConvert = async () => {
@@ -66,6 +130,12 @@ const PdfToExcel = () => {
         description: "Please upload PDF files to convert to Excel.",
         variant: "destructive",
       });
+      return;
+    }
+
+    if (!user) {
+      tracking.trackAuthRequired();
+      setShowAuthModal(true);
       return;
     }
 
@@ -85,57 +155,40 @@ const PdfToExcel = () => {
         );
 
         try {
-          const formData = new FormData();
-          formData.append("file", fileStatus.file);
-          formData.append("extractTables", "true");
-          formData.append("preserveFormatting", "true");
+          const startTime = Date.now();
 
-          const response = await fetch(
-            `${import.meta.env.VITE_API_URL || "http://localhost:5000/api"}/pdf/to-excel`,
-            {
-              method: "POST",
-              headers: {
-                Authorization: `Bearer ${localStorage.getItem("token")}`,
-              },
-              body: formData,
+          // Track conversion start
+          tracking.trackConversionStart("PDF", "Excel", [fileStatus.file]);
+
+          const result = await PDFService.pdfToExcel(fileStatus.file, {
+            extractAllTables: conversionSettings.extractAllTables,
+            preserveFormatting: conversionSettings.preserveFormatting,
+            sessionId: `pdf_to_excel_${Date.now()}`,
+            onProgress: (progress) => {
+              setFiles((prev) =>
+                prev.map((f, idx) => (idx === i ? { ...f, progress } : f)),
+              );
             },
-          );
+          });
 
-          // Update progress
-          setFiles((prev) =>
-            prev.map((f, idx) => (idx === i ? { ...f, progress: 50 } : f)),
-          );
+          const processingTime = Date.now() - startTime;
 
-          if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(
-              errorData.message || `HTTP error! status: ${response.status}`,
-            );
-          }
-
-          const blob = await response.blob();
-
-          // Update progress
-          setFiles((prev) =>
-            prev.map((f, idx) => (idx === i ? { ...f, progress: 80 } : f)),
-          );
-
-          // Get metadata from headers
+          // Extract info from headers
           const tablesFound = parseInt(
-            response.headers.get("X-Tables-Found") || "0",
+            result.headers?.["x-tables-found"] || "0",
           );
           const sheetsCreated = parseInt(
-            response.headers.get("X-Sheets-Created") || "0",
-          );
-          const processingTime = parseInt(
-            response.headers.get("X-Processing-Time") || "0",
+            result.headers?.["x-sheets-created"] || "1",
           );
 
-          // Create download URL
+          // Create download blob and URL
+          const blob = new Blob([result.data], {
+            type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+          });
           const downloadUrl = URL.createObjectURL(blob);
-          const filename = fileStatus.file.name.replace(/\.pdf$/i, ".xlsx");
+          const outputFilename = `${fileStatus.file.name.replace(/\.pdf$/i, "")}_converted.xlsx`;
 
-          // Update with success
+          // Update file status with completion
           setFiles((prev) =>
             prev.map((f, idx) =>
               idx === i
@@ -144,9 +197,9 @@ const PdfToExcel = () => {
                     status: "completed",
                     progress: 100,
                     result: {
-                      filename,
+                      filename: outputFilename,
                       downloadUrl,
-                      fileSize: blob.size,
+                      fileSize: result.data.byteLength,
                       tablesFound,
                       sheetsCreated,
                       processingTime,
@@ -156,9 +209,27 @@ const PdfToExcel = () => {
             ),
           );
 
+          // Track successful conversion
+          tracking.trackConversionComplete(
+            "PDF",
+            "Excel",
+            {
+              fileName: fileStatus.file.name,
+              fileSize: fileStatus.file.size,
+              fileType: fileStatus.file.type,
+            },
+            result.data.byteLength,
+            processingTime,
+          );
+
+          // Track for floating popup (only for anonymous users)
+          if (!isAuthenticated) {
+            trackToolUsage();
+          }
+
           toast({
-            title: `✅ ${fileStatus.file.name} converted successfully`,
-            description: `Found ${tablesFound} tables, created ${sheetsCreated} sheets`,
+            title: "Conversion Complete!",
+            description: `${fileStatus.file.name} converted successfully. Found ${tablesFound} tables.`,
           });
         } catch (error) {
           console.error(`Error converting ${fileStatus.file.name}:`, error);
@@ -192,13 +263,6 @@ const PdfToExcel = () => {
     }
   };
 
-  const downloadFile = (downloadUrl: string, filename: string) => {
-    const link = document.createElement("a");
-    link.href = downloadUrl;
-    link.download = filename;
-    link.click();
-  };
-
   const downloadAll = () => {
     files
       .filter((f) => f.status === "completed" && f.result)
@@ -209,332 +273,298 @@ const PdfToExcel = () => {
       });
   };
 
-  const retryFile = async (index: number) => {
-    const fileStatus = files[index];
-    if (fileStatus.status !== "error") return;
-
-    setFiles((prev) =>
-      prev.map((f, idx) =>
-        idx === index
-          ? { ...f, status: "ready", progress: 0, error: undefined }
-          : f,
-      ),
-    );
+  const formatFileSize = (bytes: number): string => {
+    if (bytes === 0) return "0 Bytes";
+    const k = 1024;
+    const sizes = ["Bytes", "KB", "MB", "GB"];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
   };
-
-  const clearAll = () => {
-    setFiles([]);
-  };
-
-  const completedFiles = files.filter((f) => f.status === "completed");
-  const hasCompletedFiles = completedFiles.length > 0;
 
   return (
-    <div className="min-h-screen bg-bg-light">
+    <div className="min-h-screen bg-gradient-to-br from-green-50 via-blue-50 to-purple-100">
       <Header />
 
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <PromoBanner className="mb-8" />
-
-        {/* Navigation */}
-        <div className="flex items-center space-x-2 mb-8">
+      <div className="container mx-auto px-6 py-8">
+        {/* Header */}
+        <div className="flex items-center gap-4 mb-8">
           <Link
             to="/"
-            className="text-body-medium text-text-light hover:text-brand-red"
+            className="flex items-center gap-2 text-gray-600 hover:text-gray-900"
           >
-            <ArrowLeft className="w-4 h-4 mr-1 inline" />
-            Back to Home
+            <ArrowLeft className="w-5 h-5" />
+            <span>Back to Home</span>
           </Link>
         </div>
 
-        {/* Header */}
-        <div className="text-center mb-8">
-          <div className="w-16 h-16 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
-            <FileSpreadsheet className="w-8 h-8 text-white" />
-          </div>
-          <h1 className="text-heading-large text-text-dark mb-4">
-            PDF to Excel Converter
-          </h1>
-          <p className="text-body-large text-text-light max-w-3xl mx-auto">
-            Extract tables and data from PDF files and convert them to Excel
-            spreadsheets. Our advanced table detection technology identifies
-            structured data and creates professional Excel files with multiple
-            sheets.
-          </p>
-          <div className="mt-4 inline-flex items-center px-3 py-1 rounded-full text-sm bg-green-100 text-green-800">
-            <CheckCircle className="w-4 h-4 mr-2" />
-            Real table extraction • Professional Excel output
-          </div>
-        </div>
-
-        {/* Features */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-          <div className="text-center p-4">
-            <Table className="w-8 h-8 text-emerald-600 mx-auto mb-2" />
-            <h3 className="font-semibold text-gray-900">
-              Smart Table Detection
-            </h3>
-            <p className="text-gray-600 text-sm">
-              Automatically identifies and extracts tables from your PDFs
-            </p>
-          </div>
-          <div className="text-center p-4">
-            <Database className="w-8 h-8 text-blue-600 mx-auto mb-2" />
-            <h3 className="font-semibold text-gray-900">Multi-Sheet Output</h3>
-            <p className="text-gray-600 text-sm">
-              Creates separate Excel sheets for each table found
-            </p>
-          </div>
-          <div className="text-center p-4">
-            <TrendingUp className="w-8 h-8 text-purple-600 mx-auto mb-2" />
-            <h3 className="font-semibold text-gray-900">Professional Format</h3>
-            <p className="text-gray-600 text-sm">
-              Maintains formatting with headers, borders, and styling
-            </p>
-          </div>
-          <div className="text-center p-4">
-            <FileSpreadsheet className="w-8 h-8 text-orange-600 mx-auto mb-2" />
-            <h3 className="font-semibold text-gray-900">Excel Compatible</h3>
-            <p className="text-gray-600 text-sm">
-              Generates .xlsx files that work perfectly with Excel
-            </p>
-          </div>
-        </div>
-
-        {/* Main Content */}
-        <div className="space-y-8">
-          {/* File Upload */}
-          <div className="bg-white rounded-xl p-8 shadow-sm border border-gray-100">
-            <FileUpload
-              onFilesSelect={handleFileUpload}
-              accept=".pdf"
-              multiple={true}
-              maxSize={50}
-              title="Upload PDF Files"
-              description="Select PDF files containing tables or structured data to convert to Excel"
-            />
-          </div>
-
-          {/* File List */}
-          {files.length > 0 && (
-            <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="text-lg font-semibold text-text-dark">
-                  Files ({files.length})
-                </h3>
-                <div className="flex gap-2">
-                  <Button
-                    onClick={handleConvert}
-                    disabled={
-                      isProcessing || files.every((f) => f.status !== "ready")
-                    }
-                    className="bg-emerald-600 hover:bg-emerald-700"
-                  >
-                    {isProcessing ? (
-                      <>
-                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                        Converting...
-                      </>
-                    ) : (
-                      <>
-                        <FileSpreadsheet className="w-4 h-4 mr-2" />
-                        Convert to Excel
-                      </>
-                    )}
-                  </Button>
-                  {hasCompletedFiles && (
-                    <Button
-                      onClick={downloadAll}
-                      variant="outline"
-                      className="border-emerald-600 text-emerald-600 hover:bg-emerald-50"
-                    >
-                      <Download className="w-4 h-4 mr-2" />
-                      Download All
-                    </Button>
-                  )}
-                  <Button variant="outline" onClick={clearAll}>
-                    Clear All
-                  </Button>
-                </div>
-              </div>
-
-              <div className="space-y-4">
-                {files.map((fileStatus, index) => (
-                  <div
-                    key={index}
-                    className="border border-gray-200 rounded-lg p-4"
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-3">
-                        {fileStatus.status === "ready" && (
-                          <FileText className="w-5 h-5 text-gray-500" />
-                        )}
-                        {fileStatus.status === "converting" && (
-                          <Loader2 className="w-5 h-5 text-blue-500 animate-spin" />
-                        )}
-                        {fileStatus.status === "completed" && (
-                          <CheckCircle className="w-5 h-5 text-green-500" />
-                        )}
-                        {fileStatus.status === "error" && (
-                          <AlertCircle className="w-5 h-5 text-red-500" />
-                        )}
-                        <div>
-                          <p className="font-medium text-text-dark">
-                            {fileStatus.file.name}
-                          </p>
-                          <p className="text-sm text-text-light">
-                            {(fileStatus.file.size / 1024 / 1024).toFixed(2)} MB
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center space-x-2">
-                        {fileStatus.status === "converting" && (
-                          <div className="w-32">
-                            <div className="w-full bg-gray-200 rounded-full h-2">
-                              <div
-                                className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                                style={{ width: `${fileStatus.progress}%` }}
-                              ></div>
-                            </div>
-                            <p className="text-xs text-gray-500 mt-1">
-                              {fileStatus.progress}%
-                            </p>
-                          </div>
-                        )}
-
-                        {fileStatus.status === "completed" &&
-                          fileStatus.result && (
-                            <div className="text-right mr-4">
-                              <p className="text-sm text-green-600 font-medium">
-                                {fileStatus.result.tablesFound} tables found
-                              </p>
-                              <p className="text-xs text-gray-500">
-                                {fileStatus.result.sheetsCreated} sheets created
-                              </p>
-                            </div>
-                          )}
-
-                        {fileStatus.status === "error" && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => retryFile(index)}
-                          >
-                            Retry
-                          </Button>
-                        )}
-
-                        {fileStatus.status === "completed" &&
-                          fileStatus.result && (
-                            <Button
-                              size="sm"
-                              onClick={() =>
-                                downloadFile(
-                                  fileStatus.result!.downloadUrl,
-                                  fileStatus.result!.filename,
-                                )
-                              }
-                            >
-                              <Download className="w-4 h-4 mr-1" />
-                              Download
-                            </Button>
-                          )}
-
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => removeFile(index)}
-                        >
-                          ×
-                        </Button>
-                      </div>
-                    </div>
-
-                    {fileStatus.status === "error" && fileStatus.error && (
-                      <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded text-sm text-red-700">
-                        {fileStatus.error}
-                      </div>
-                    )}
-
-                    {fileStatus.status === "completed" && fileStatus.result && (
-                      <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded text-sm">
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-green-700">
-                          <div>
-                            <span className="font-medium">Size:</span>{" "}
-                            {(fileStatus.result.fileSize / 1024 / 1024).toFixed(
-                              2,
-                            )}{" "}
-                            MB
-                          </div>
-                          <div>
-                            <span className="font-medium">Tables:</span>{" "}
-                            {fileStatus.result.tablesFound}
-                          </div>
-                          <div>
-                            <span className="font-medium">Sheets:</span>{" "}
-                            {fileStatus.result.sheetsCreated}
-                          </div>
-                          <div>
-                            <span className="font-medium">Time:</span>{" "}
-                            {(fileStatus.result.processingTime / 1000).toFixed(
-                              1,
-                            )}
-                            s
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
+        {/* Title Section */}
+        <div className="text-center mb-12">
+          <div className="flex items-center justify-center gap-3 mb-4">
+            <div className="p-3 bg-green-600 rounded-2xl">
+              <Table className="w-8 h-8 text-white" />
             </div>
-          )}
+            <h1 className="text-4xl font-bold text-gray-900">PDF to Excel</h1>
+          </div>
+          <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+            Extract tables and data from PDF files and convert them to Excel
+            spreadsheets. Preserve formatting and structure with intelligent
+            table detection.
+          </p>
+        </div>
 
-          {/* Premium Features */}
-          {!user?.isPremiumActive && (
-            <Card className="border-brand-yellow bg-gradient-to-r from-yellow-50 to-orange-50">
+        <div className="max-w-4xl mx-auto">
+          {/* File Upload Area */}
+          <Card className="mb-8">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Upload className="w-5 h-5" />
+                Upload PDF Files
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div
+                className={cn(
+                  "border-2 border-dashed rounded-lg p-8 text-center transition-colors",
+                  "border-gray-300 hover:border-gray-400",
+                )}
+                onClick={() => document.getElementById("file-upload")?.click()}
+              >
+                <Upload className="w-12 h-12 mx-auto mb-4 text-gray-400" />
+                <h3 className="text-lg font-semibold mb-2">
+                  Choose PDF files or drag & drop
+                </h3>
+                <p className="text-gray-500 mb-4">
+                  Supports PDF files up to 10MB
+                </p>
+                <Button variant="outline">Browse Files</Button>
+                <input
+                  id="file-upload"
+                  type="file"
+                  accept=".pdf,application/pdf"
+                  onChange={(e) =>
+                    handleFileUpload(Array.from(e.target.files || []))
+                  }
+                  className="hidden"
+                  multiple
+                />
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Conversion Settings */}
+          {files.length > 0 && (
+            <Card className="mb-8">
               <CardHeader>
-                <CardTitle className="flex items-center text-orange-800">
-                  <Crown className="w-5 h-5 mr-2 text-brand-yellow" />
-                  Unlock Premium Features
+                <CardTitle className="flex items-center gap-2">
+                  <Settings className="w-5 h-5" />
+                  Conversion Settings
                 </CardTitle>
               </CardHeader>
-              <CardContent>
-                <ul className="space-y-2 text-sm text-orange-700 mb-4">
-                  <li className="flex items-center">
-                    <Star className="w-4 h-4 mr-2 text-brand-yellow" />
-                    Process unlimited PDF files
-                  </li>
-                  <li className="flex items-center">
-                    <Star className="w-4 h-4 mr-2 text-brand-yellow" />
-                    Advanced table detection algorithms
-                  </li>
-                  <li className="flex items-center">
-                    <Star className="w-4 h-4 mr-2 text-brand-yellow" />
-                    Larger file size support (up to 50MB)
-                  </li>
-                  <li className="flex items-center">
-                    <Star className="w-4 h-4 mr-2 text-brand-yellow" />
-                    Custom formatting options
-                  </li>
-                </ul>
-                <Button className="bg-brand-yellow text-black hover:bg-yellow-400">
-                  <Crown className="w-4 h-4 mr-2" />
-                  Get Premium
-                </Button>
+              <CardContent className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-medium">Extract All Tables</p>
+                    <p className="text-sm text-gray-500">
+                      Find and extract all tables from the PDF
+                    </p>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={conversionSettings.extractAllTables}
+                    onChange={(e) =>
+                      setConversionSettings({
+                        ...conversionSettings,
+                        extractAllTables: e.target.checked,
+                      })
+                    }
+                    className="w-4 h-4"
+                  />
+                </div>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-medium">Preserve Formatting</p>
+                    <p className="text-sm text-gray-500">
+                      Maintain original table formatting and styles
+                    </p>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={conversionSettings.preserveFormatting}
+                    onChange={(e) =>
+                      setConversionSettings({
+                        ...conversionSettings,
+                        preserveFormatting: e.target.checked,
+                      })
+                    }
+                    className="w-4 h-4"
+                  />
+                </div>
               </CardContent>
             </Card>
           )}
+
+          {/* File List */}
+          {files.length > 0 && (
+            <Card className="mb-8">
+              <CardHeader>
+                <CardTitle>Files to Convert</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {files.map((fileStatus, index) => (
+                    <div key={index} className="border rounded-lg p-4">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-3">
+                          <FileText className="w-6 h-6 text-red-500" />
+                          <div>
+                            <p className="font-medium">
+                              {fileStatus.file.name}
+                            </p>
+                            <p className="text-sm text-gray-500">
+                              {formatFileSize(fileStatus.file.size)}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {fileStatus.status === "completed" &&
+                            fileStatus.result && (
+                              <Button
+                                size="sm"
+                                onClick={() =>
+                                  downloadFile(
+                                    fileStatus.result!.downloadUrl,
+                                    fileStatus.result!.filename,
+                                  )
+                                }
+                              >
+                                <Download className="w-4 h-4 mr-1" />
+                                Download
+                              </Button>
+                            )}
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => removeFile(index)}
+                          >
+                            <X className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </div>
+
+                      {/* Status and Progress */}
+                      {fileStatus.status === "converting" && (
+                        <div className="space-y-2">
+                          <div className="flex justify-between text-sm">
+                            <span>Converting to Excel...</span>
+                            <span>{Math.round(fileStatus.progress)}%</span>
+                          </div>
+                          <Progress
+                            value={fileStatus.progress}
+                            className="h-2"
+                          />
+                        </div>
+                      )}
+
+                      {fileStatus.status === "completed" &&
+                        fileStatus.result && (
+                          <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+                            <div className="flex items-center gap-2 text-green-800 mb-2">
+                              <CheckCircle className="w-4 h-4" />
+                              <span className="font-medium">
+                                Conversion Complete
+                              </span>
+                            </div>
+                            <div className="grid grid-cols-2 gap-4 text-sm">
+                              <div>
+                                <span className="text-gray-600">
+                                  Tables Found:
+                                </span>
+                                <span className="ml-2 font-medium">
+                                  {fileStatus.result.tablesFound}
+                                </span>
+                              </div>
+                              <div>
+                                <span className="text-gray-600">
+                                  Sheets Created:
+                                </span>
+                                <span className="ml-2 font-medium">
+                                  {fileStatus.result.sheetsCreated}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
+                      {fileStatus.status === "error" && (
+                        <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+                          <div className="flex items-center gap-2 text-red-800">
+                            <AlertCircle className="w-4 h-4" />
+                            <span className="font-medium">
+                              Conversion Failed
+                            </span>
+                          </div>
+                          <p className="text-sm text-red-600 mt-1">
+                            {fileStatus.error}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Action Buttons */}
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex gap-4 justify-center">
+                <Button
+                  onClick={handleConvert}
+                  disabled={files.length === 0 || isProcessing || !user}
+                  className="bg-green-600 hover:bg-green-700"
+                  size="lg"
+                >
+                  {isProcessing ? (
+                    <>
+                      <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                      Converting...
+                    </>
+                  ) : (
+                    <>
+                      <FileSpreadsheet className="w-5 h-5 mr-2" />
+                      Convert to Excel
+                    </>
+                  )}
+                </Button>
+
+                {files.some((f) => f.status === "completed") && (
+                  <Button variant="outline" onClick={downloadAll} size="lg">
+                    <Download className="w-5 h-5 mr-2" />
+                    Download All
+                  </Button>
+                )}
+
+                {files.length > 0 && (
+                  <Button variant="outline" onClick={() => setFiles([])}>
+                    Clear All
+                  </Button>
+                )}
+              </div>
+            </CardContent>
+          </Card>
         </div>
+
+        <PromoBanner />
       </div>
 
-      {/* Auth Modal */}
-      <AuthModal
-        isOpen={showAuthModal}
-        onClose={() => setShowAuthModal(false)}
-        defaultTab="register"
-      />
+      {showAuthModal && (
+        <AuthModal
+          isOpen={showAuthModal}
+          onClose={() => setShowAuthModal(false)}
+          defaultMode="login"
+        />
+      )}
     </div>
   );
 };

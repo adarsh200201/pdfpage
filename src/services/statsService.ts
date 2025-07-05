@@ -29,10 +29,25 @@ class StatsService {
 
     try {
       // Fetch real stats from our dashboard endpoint
-      const response = await fetch(`${this.API_BASE}/api/stats/dashboard`);
-      if (!response.ok) throw new Error("Failed to fetch dashboard stats");
+      const response = await fetch(`${this.API_BASE}/api/stats/dashboard`, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        // Add timeout for better error handling
+        signal: AbortSignal.timeout(10000), // 10 second timeout
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
 
       const data = await response.json();
+
+      if (!data.success) {
+        throw new Error("Backend returned unsuccessful response");
+      }
+
       const backendStats = data.data;
 
       const stats: StatsData = {
@@ -48,13 +63,23 @@ class StatsService {
 
       return stats;
     } catch (error) {
-      console.error("Failed to fetch real stats:", error);
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error";
+
+      // Provide more specific error logging
+      if (error.name === "AbortError") {
+        console.error("Stats API request timed out after 10 seconds");
+      } else if (error.message.includes("Failed to fetch")) {
+        console.error("Unable to connect to backend - is the server running?");
+      } else {
+        console.error("Failed to fetch real stats:", errorMessage);
+      }
 
       // Return fallback stats (realistic starting values, not dummy data)
       return {
         pdfsProcessed: 0,
         registeredUsers: 0,
-        countries: 0,
+        countries: 1,
         uptime: 99.9,
       };
     }

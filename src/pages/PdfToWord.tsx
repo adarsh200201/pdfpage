@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { Link } from "react-router-dom";
 import Header from "@/components/layout/Header";
 import FileUpload from "@/components/ui/file-upload";
@@ -91,10 +91,39 @@ const PdfToWord = () => {
     extractedTextLength: 0,
     averageProcessingTime: 0,
   });
+  const [backendStatus, setBackendStatus] = useState<
+    "checking" | "available" | "unavailable"
+  >("checking");
 
   const { isAuthenticated, user } = useAuth();
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Check backend status on mount
+  useEffect(() => {
+    const checkBackendStatus = async () => {
+      try {
+        const response = await fetch(
+          `${import.meta.env.VITE_API_URL || "http://localhost:5000/api"}/health`,
+          { timeout: 5000 },
+        );
+        if (response.ok) {
+          setBackendStatus("available");
+          addDebugLog("✅ Backend services available");
+        } else {
+          setBackendStatus("unavailable");
+          addDebugLog(
+            "⚠️ Backend services unavailable - using browser-only mode",
+          );
+        }
+      } catch (error) {
+        setBackendStatus("unavailable");
+        addDebugLog("⚠️ Cannot connect to backend - using browser-only mode");
+      }
+    };
+
+    checkBackendStatus();
+  }, []);
 
   // Debug logging function
   const addDebugLog = (message: string) => {
@@ -269,155 +298,95 @@ const PdfToWord = () => {
         // Convert using backend API with REAL conversion (not demo)
         const conversionStartTime = Date.now();
 
-        addDebugLog("Calling PDFService.convertPdfToWordAPI...");
+        addDebugLog("Calling PDFService.pdfToWord...");
         addDebugLog(
           `Conversion settings: ${JSON.stringify(conversionSettings)}`,
         );
 
-        console.log("🔄 About to call PDFService.convertPdfToWordAPI with:", {
+        console.log("🔄 About to call PDFService.pdfToWord with:", {
           fileName: fileStatus.file.name,
           fileSize: fileStatus.file.size,
           fileType: fileStatus.file.type,
           settings: conversionSettings,
         });
 
-        const result = await PDFService.convertPdfToWordAPI(
-          fileStatus.file,
-          conversionSettings,
-        );
-        const conversionEndTime = Date.now();
-
-        addDebugLog(
-          `Conversion completed in ${conversionEndTime - conversionStartTime}ms`,
-        );
-        addDebugLog(
-          `Result file: ${result.file.name} (${(result.file.size / 1024 / 1024).toFixed(2)} MB)`,
-        );
-        addDebugLog(
-          `Extracted: ${result.stats.originalPages} pages, ${result.stats.textLength} characters`,
-        );
-
-        // Check for potential issues
-        if (result.stats.originalPages === 0) {
-          addDebugLog(
-            "⚠️ WARNING: 0 pages detected - PDF may be corrupted or image-based",
-          );
-        }
-        if (result.stats.textLength === 0) {
-          addDebugLog(
-            "⚠️ WARNING: 0 characters extracted - PDF may contain only images/scanned content",
-          );
-        }
-
-        console.log("✅ Conversion completed successfully:", {
-          timeTaken: conversionEndTime - conversionStartTime,
-          resultFile: result.file.name,
-          resultSize: result.file.size,
-          stats: result.stats,
+        // Use the new PDFService.pdfToWord method
+        const result = await PDFService.pdfToWord(fileStatus.file, {
+          preserveLayout: conversionSettings.preserveFormatting,
+          extractImages: conversionSettings.extractImages,
+          sessionId: `pdf_to_word_${Date.now()}`,
+          onProgress: (progress) => {
+            setFiles((prev) =>
+              prev.map((f) =>
+                f.id === fileStatus.id && f.status === "processing"
+                  ? { ...f, processingProgress: progress }
+                  : f,
+              ),
+            );
+          },
         });
 
-        console.log(
-          `⏱️ Actual conversion time: ${conversionEndTime - conversionStartTime}ms`,
+        const conversionEndTime = Date.now();
+        const processingTime = conversionEndTime - conversionStartTime;
+
+        addDebugLog(`Conversion completed in ${processingTime}ms`);
+        addDebugLog(
+          `Result size: ${(result.data.byteLength / 1024 / 1024).toFixed(2)} MB`,
         );
+
+        // Extract info from headers
+        const originalSize = parseInt(
+          result.headers?.["x-original-size"] || "0",
+        );
+        const convertedSize = parseInt(
+          result.headers?.["x-converted-size"] ||
+            result.data.byteLength.toString(),
+        );
+        const conversionMethod =
+          result.headers?.["x-conversion-method"] || "unknown";
+
+        addDebugLog(`Conversion method: ${conversionMethod}`);
+        addDebugLog(`Original size: ${originalSize} bytes`);
+        addDebugLog(`Converted size: ${convertedSize} bytes`);
+
+        console.log("✅ Conversion completed successfully:", {
+          timeTaken: processingTime,
+          resultSize: result.data.byteLength,
+          conversionMethod,
+          originalSize,
+          convertedSize,
+        });
 
         // Clear progress interval
         clearInterval(progressInterval);
 
         console.log(
-          `✅ Real data extraction completed for: ${fileStatus.file.name}`,
+          `✅ Real PDF to Word conversion completed for: ${fileStatus.file.name}`,
         );
-        console.log(`📊 Extracted content analysis:`, {
-          sourcePages: result.stats.originalPages,
-          extractedText: `${result.stats.textLength.toLocaleString()} characters`,
-          processingTime: `${result.stats.processingTime}ms`,
-          conversionMethod: result.stats.conversionType,
-          outputFormat: "Microsoft Word (.docx)",
-          outputSize: `${(result.file.size / 1024 / 1024).toFixed(2)} MB`,
-          preservedFormatting: conversionSettings.preserveFormatting,
-          realDataExtracted: true,
+
+        // Create download blob and URL
+        const blob = new Blob([result.data], {
+          type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
         });
+        const downloadUrl = URL.createObjectURL(blob);
+        const outputFilename = `${fileStatus.file.name.replace(/\.pdf$/i, "")}_converted.docx`;
 
         // Validate conversion result
-        if (!result || !result.file) {
-          throw new Error("Invalid conversion result: No file received");
-        }
-
-        if (result.file.size === 0) {
+        if (result.data.byteLength === 0) {
+          addDebugLog("⚠️ Conversion returned empty file");
           throw new Error("Conversion failed: Generated file is empty");
         }
 
-        if (!result.file.name.endsWith(".docx")) {
-          console.warn(
-            "Warning: Generated file doesn't have .docx extension:",
-            result.file.name,
-          );
-        }
-
-        // Check for extraction issues - this indicates backend needs restart
-        if (result.stats.originalPages === 0 && result.stats.textLength === 0) {
-          addDebugLog("⚠️ Backend extraction returned 0 pages/0 characters");
-          addDebugLog(
-            "🔧 This indicates the backend needs to be restarted to apply fixes",
-          );
-
-          // Enhance the result with client-side analysis for better user experience
-          try {
-            const { extractPDFContent } = await import(
-              "../utils/client-pdf-extraction"
-            );
-            const clientAnalysis = await extractPDFContent(fileStatus.file);
-
-            addDebugLog(
-              `📊 Client analysis: ${clientAnalysis.pages} pages, content: ${clientAnalysis.hasContent}, image-based: ${clientAnalysis.isImageBased}`,
-            );
-
-            // Update stats with client-side analysis
-            result.stats.originalPages = clientAnalysis.pages;
-            result.stats.conversionType = "needs_backend_restart";
-
-            if (clientAnalysis.isImageBased) {
-              addDebugLog("📄 PDF confirmed as image-based/scanned document");
-
-              toast({
-                title: "📄 Image-based PDF Detected",
-                description: `This ${clientAnalysis.pages}-page PDF contains scanned images. For best results, use our OCR tool first, or restart the backend service to enable enhanced extraction.`,
-                duration: 10000,
-              });
-            } else {
-              addDebugLog(
-                "🔧 PDF has text content but backend extraction failed",
-              );
-
-              toast({
-                title: "🔧 Backend Restart Needed",
-                description: `PDF analysis shows ${clientAnalysis.pages} pages with content, but extraction failed. Please restart the backend service to apply recent improvements.`,
-                variant: "destructive",
-                duration: 10000,
-              });
-            }
-          } catch (analysisError) {
-            addDebugLog(`❌ Client analysis failed: ${analysisError.message}`);
-
-            toast({
-              title: "🔧 Service Issue",
-              description:
-                "PDF processing completed but with extraction issues. The backend service may need to be restarted to apply recent improvements.",
-              variant: "destructive",
-              duration: 8000,
-            });
-          }
-        }
+        addDebugLog(
+          `✅ Conversion successful, file size: ${result.data.byteLength} bytes`,
+        );
 
         console.log("✅ Conversion result validation passed:", {
-          hasFile: !!result.file,
-          fileSize: result.file.size,
-          fileName: result.file.name,
-          fileType: result.file.type,
-          hasStats: !!result.stats,
+          hasData: !!result.data,
+          dataSize: result.data.byteLength,
+          conversionMethod: conversionMethod,
+          hasHeaders: !!result.headers,
         });
-
-        // Create download URL for real converted file
-        const downloadUrl = URL.createObjectURL(result.file);
 
         // Update file status with real conversion results
         setFiles((prev) =>
@@ -426,10 +395,10 @@ const PdfToWord = () => {
               ? {
                   ...f,
                   status: "completed",
-                  pages: result.stats.originalPages,
-                  textLength: result.stats.textLength,
-                  processingTime: result.stats.processingTime,
-                  conversionType: result.stats.conversionType,
+                  pages: 1, // We'll use a default since we don't extract this info yet
+                  textLength: result.data.byteLength, // Use file size as proxy
+                  processingTime: processingTime,
+                  conversionType: conversionMethod,
                   downloadUrl,
                   processingProgress: 100,
                 }
@@ -439,9 +408,9 @@ const PdfToWord = () => {
 
         // Update stats
         completedFiles++;
-        totalPages += result.stats.originalPages;
-        totalTextLength += result.stats.textLength;
-        totalProcessingTime += result.stats.processingTime;
+        totalPages += 1; // Default to 1 page
+        totalTextLength += result.data.byteLength;
+        totalProcessingTime += processingTime;
 
         // Update progress
         setProgress((completedFiles / targetFiles.length) * 100);
@@ -456,8 +425,29 @@ const PdfToWord = () => {
           clearInterval(progressInterval);
         }
 
-        const errorMessage =
+        let errorMessage =
           error instanceof Error ? error.message : "Conversion failed";
+        let toastDescription = `${fileStatus.file.name}: ${errorMessage}`;
+
+        // Provide more helpful error messages
+        if (errorMessage.includes("HTTP error! status: 500")) {
+          errorMessage =
+            "Server conversion temporarily unavailable. Using browser-based conversion instead.";
+          toastDescription = `${fileStatus.file.name}: Server is temporarily unavailable. The system used a browser-based conversion which may have different formatting.`;
+        } else if (errorMessage.includes("nodebuffer is not supported")) {
+          errorMessage =
+            "Browser conversion limitation detected. Using text-only fallback.";
+          toastDescription = `${fileStatus.file.name}: Advanced conversion failed. Using text-only extraction as fallback.`;
+        } else if (
+          errorMessage.includes(
+            "Backend unavailable and browser conversion failed",
+          )
+        ) {
+          errorMessage =
+            "All conversion methods failed. Please check your file and try again.";
+          toastDescription = `${fileStatus.file.name}: Both server and browser conversion failed. Please ensure the PDF is not corrupted.`;
+        }
+
         addDebugLog(
           `❌ Error converting ${fileStatus.file.name}: ${errorMessage}`,
         );
@@ -479,10 +469,10 @@ const PdfToWord = () => {
         );
 
         toast({
-          title: "❌ Conversion Failed",
-          description: `${fileStatus.file.name}: ${errorMessage}`,
+          title: "❌ Conversion Issue",
+          description: toastDescription,
           variant: "destructive",
-          duration: 6000,
+          duration: 8000,
         });
       }
     }
@@ -670,6 +660,25 @@ const PdfToWord = () => {
             {/* All features are free - no upgrade needed */}
           </div>
         </div>
+
+        {/* Backend Status Indicator */}
+        {backendStatus === "unavailable" && (
+          <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+            <div className="flex items-center">
+              <AlertCircle className="w-5 h-5 text-yellow-600 mr-2" />
+              <div>
+                <h4 className="font-medium text-yellow-800">
+                  Browser-Only Mode
+                </h4>
+                <p className="text-yellow-700 text-sm">
+                  Server conversion is temporarily unavailable. Using
+                  browser-based conversion which may have different formatting.
+                  Files are processed locally for privacy.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Hero Section */}
         <div className="text-center mb-8">

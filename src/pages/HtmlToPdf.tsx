@@ -2,22 +2,19 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import Header from "@/components/layout/Header";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PromoBanner } from "@/components/ui/promo-banner";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
-import { Progress } from "@/components/ui/progress";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
-import { Slider } from "@/components/ui/slider";
+import AuthModal from "@/components/auth/AuthModal";
+import { useAuth } from "@/contexts/AuthContext";
+import { useToast } from "@/hooks/use-toast";
+import { PDFService } from "@/services/pdfService";
+import { useToolTracking } from "@/hooks/useToolTracking";
+import { useFloatingPopup } from "@/contexts/FloatingPopupContext";
+import { Progress } from "@/components/ui/progress";
+import { cn } from "@/lib/utils";
 import {
   Select,
   SelectContent,
@@ -31,1113 +28,734 @@ import {
   Download,
   FileText,
   Globe,
+  Code,
   CheckCircle,
+  AlertCircle,
   Loader2,
-  Crown,
-  AlertTriangle,
-  Code,
-  Eye,
-  Layout,
-  Smartphone,
-  Monitor,
-  Tablet,
-  Sparkles,
-  Brain,
-  Zap,
-  Target,
+  Upload,
   Settings,
-  BarChart3,
-  TrendingUp,
-  Clock,
-  Share,
-  Save,
-  RefreshCw,
-  Wand2,
-  Palette,
-  Type,
-  Image as ImageIcon,
-  Code,
-  Server,
+  Eye,
+  Monitor,
+  Smartphone,
+  Chrome,
+  Zap,
   Shield,
-  Activity,
+  Layout,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
-import { PDFService } from "@/services/pdfService";
-import { useAuth } from "@/contexts/AuthContext";
-import { useToast } from "@/hooks/use-toast";
-import AuthModal from "@/components/auth/AuthModal";
 
-interface ConversionSettings {
-  pageSize: "A4" | "Letter" | "Legal" | "A3";
-  orientation: "portrait" | "landscape";
-  margin: number;
-  includeBackground: boolean;
-  waitForLoad: boolean;
-  scale: number;
-  enableJavaScript: boolean;
-  enableImages: boolean;
-  enableCSS: boolean;
-  quality: "high" | "medium" | "low";
-  encoding: "UTF-8" | "ISO-8859-1" | "Windows-1252";
-  aiOptimization: boolean;
-  smartLayout: boolean;
-  responsiveMode: boolean;
-}
-
-interface ConversionMetrics {
+interface ConversionResult {
+  filename: string;
+  downloadUrl: string;
+  fileSize: number;
   processingTime: number;
-  inputSize: number;
-  outputSize: number;
-  compressionRatio: number;
-  elementsProcessed: number;
-  imagesOptimized: number;
-  cssRulesApplied: number;
-  jsExecutionTime: number;
-}
-
-interface TemplatePreset {
-  id: string;
-  name: string;
-  description: string;
-  settings: Partial<ConversionSettings>;
-  icon: any;
-  category: string;
+  pageFormat: string;
+  orientation: string;
 }
 
 const HtmlToPdf = () => {
+  const [activeTab, setActiveTab] = useState<"content" | "file" | "url">(
+    "content",
+  );
   const [htmlContent, setHtmlContent] = useState("");
   const [url, setUrl] = useState("");
-  const [inputMode, setInputMode] = useState<"html" | "url">("html");
+  const [file, setFile] = useState<File | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [isComplete, setIsComplete] = useState(false);
-  const [showAuthModal, setShowAuthModal] = useState(false);
-  const [usageLimitReached, setUsageLimitReached] = useState(false);
   const [progress, setProgress] = useState(0);
-  const [previewHtml, setPreviewHtml] = useState("");
-  const [showPreview, setShowPreview] = useState(false);
-  const [aiMode, setAiMode] = useState(false);
-  const [batchMode, setBatchMode] = useState(false);
-  const [showAdvanced, setShowAdvanced] = useState(false);
-  const [conversionHistory, setConversionHistory] = useState<any[]>([]);
-  const [metrics, setMetrics] = useState<ConversionMetrics | null>(null);
-  const [selectedTemplate, setSelectedTemplate] = useState<string>("");
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [result, setResult] = useState<ConversionResult | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  const [settings, setSettings] = useState<ConversionSettings>({
-    pageSize: "A4",
+  const [settings, setSettings] = useState({
+    pageFormat: "A4",
     orientation: "portrait",
-    margin: 20,
-    includeBackground: true,
-    waitForLoad: true,
-    scale: 1.0,
-    enableJavaScript: true,
-    enableImages: true,
-    enableCSS: true,
-    quality: "high",
-    encoding: "UTF-8",
-    aiOptimization: false,
-    smartLayout: false,
-    responsiveMode: false,
+    printBackground: true,
+    waitForNetworkIdle: true,
   });
 
   const { user } = useAuth();
   const { toast } = useToast();
 
-  const templatePresets: TemplatePreset[] = [
-    {
-      id: "web-page",
-      name: "Web Page",
-      description: "Standard web page conversion with full features",
-      settings: {
-        includeBackground: true,
-        enableJavaScript: true,
-        quality: "high",
-      },
-      icon: Globe,
-      category: "Web",
-    },
-    {
-      id: "email",
-      name: "Email Template",
-      description: "Optimized for email newsletter conversion",
-      settings: { scale: 0.8, margin: 15, enableJavaScript: false },
-      icon: FileText,
-      category: "Email",
-    },
-    {
-      id: "report",
-      name: "Business Report",
-      description: "Professional document formatting",
-      settings: { pageSize: "A4", margin: 25, quality: "high" },
-      icon: BarChart3,
-      category: "Business",
-    },
-    {
-      id: "responsive",
-      name: "Mobile Responsive",
-      description: "Mobile-first responsive conversion",
-      settings: { responsiveMode: true, scale: 0.9, smartLayout: true },
-      icon: Smartphone,
-      category: "Mobile",
-    },
-  ];
+  // Floating popup tracking
+  const { trackToolUsage } = useFloatingPopup();
+
+  // Mixpanel tracking
+  const tracking = useToolTracking({
+    toolName: "html-to-pdf",
+    category: "PDF Tool",
+    trackPageView: true,
+    trackFunnel: true,
+  });
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFile = e.target.files?.[0];
+    if (selectedFile) {
+      if (
+        !selectedFile.name.toLowerCase().endsWith(".html") &&
+        selectedFile.type !== "text/html"
+      ) {
+        toast({
+          title: "Invalid file type",
+          description: "Please select an HTML file.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      if (selectedFile.size > 5 * 1024 * 1024) {
+        // 5MB limit for HTML files
+        toast({
+          title: "File too large",
+          description: "HTML file must be under 5MB.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      setFile(selectedFile);
+      setActiveTab("file");
+      tracking.trackFileUpload([selectedFile]);
+    }
+  };
+
+  const downloadResult = () => {
+    if (!result) return;
+
+    const link = document.createElement("a");
+    link.href = result.downloadUrl;
+    link.download = result.filename;
+    link.style.display = "none";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    toast({
+      title: "Download started",
+      description: `Downloading ${result.filename}`,
+    });
+  };
 
   const handleConvert = async () => {
-    if (!htmlContent.trim() && !url.trim()) {
+    // Validate input
+    if (activeTab === "content" && !htmlContent.trim()) {
       toast({
-        title: "Error",
-        description: "Please provide HTML content or a URL to convert.",
+        title: "No HTML content",
+        description: "Please enter HTML content to convert.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (activeTab === "url" && !url.trim()) {
+      toast({
+        title: "No URL provided",
+        description: "Please enter a URL to convert.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (activeTab === "file" && !file) {
+      toast({
+        title: "No file selected",
+        description: "Please select an HTML file to convert.",
         variant: "destructive",
       });
       return;
     }
 
     if (!user) {
+      tracking.trackAuthRequired();
       setShowAuthModal(true);
       return;
     }
 
     setIsProcessing(true);
     setProgress(0);
+    setError(null);
+    setResult(null);
 
     try {
-      const progressInterval = setInterval(() => {
-        setProgress((prev) => {
-          if (prev >= 90) return prev;
-          return prev + Math.random() * 15;
-        });
-      }, 500);
-
       const startTime = Date.now();
 
-      let result;
-      if (inputMode === "url") {
-        result = await PDFService.urlToPdf(url, {
-          ...settings,
-          margin: `${settings.margin}px`,
-        });
-      } else {
-        result = await PDFService.htmlToPdf(htmlContent, {
-          ...settings,
-          margin: `${settings.margin}px`,
-        });
+      // Track conversion start
+      const inputType =
+        activeTab === "content"
+          ? "HTML Content"
+          : activeTab === "url"
+            ? "URL"
+            : "HTML File";
+      tracking.trackConversionStart(inputType, "PDF", file ? [file] : []);
+
+      const conversionOptions = {
+        htmlContent: activeTab === "content" ? htmlContent : undefined,
+        url: activeTab === "url" ? url : undefined,
+        file: activeTab === "file" ? file : undefined,
+        pageFormat: settings.pageFormat,
+        orientation: settings.orientation,
+        printBackground: settings.printBackground,
+        waitForNetworkIdle: settings.waitForNetworkIdle,
+        sessionId: `html_to_pdf_${Date.now()}`,
+        onProgress: setProgress,
+      };
+
+      const result = await PDFService.htmlToPdf(conversionOptions);
+
+      const processingTime = Date.now() - startTime;
+
+      // Extract info from headers
+      const serverProcessingTime = parseInt(
+        result.headers?.["x-processing-time"] || processingTime.toString(),
+      );
+      const pageFormat =
+        result.headers?.["x-page-format"] || settings.pageFormat;
+      const orientation =
+        result.headers?.["x-orientation"] || settings.orientation;
+
+      // Create download blob and URL
+      const blob = new Blob([result.data], { type: "application/pdf" });
+      const downloadUrl = URL.createObjectURL(blob);
+
+      const filename =
+        activeTab === "url"
+          ? `${new URL(url).hostname}_converted.pdf`
+          : activeTab === "file"
+            ? `${file!.name.replace(/\.html$/i, "")}_converted.pdf`
+            : "html_content_converted.pdf";
+
+      const conversionResult: ConversionResult = {
+        filename,
+        downloadUrl,
+        fileSize: result.data.byteLength,
+        processingTime: serverProcessingTime,
+        pageFormat,
+        orientation,
+      };
+
+      setResult(conversionResult);
+
+      // Track successful conversion
+      tracking.trackConversionComplete(
+        inputType,
+        "PDF",
+        {
+          fileName: filename,
+          fileSize: file ? file.size : htmlContent.length || url.length,
+          fileType: activeTab,
+        },
+        result.data.byteLength,
+        processingTime,
+      );
+
+      // Track for floating popup (only for anonymous users)
+      if (!user.isPremiumActive) {
+        trackToolUsage();
       }
 
-      const endTime = Date.now();
-
-      // Simulate metrics calculation
-      const newMetrics: ConversionMetrics = {
-        processingTime: endTime - startTime,
-        inputSize: inputMode === "url" ? url.length : htmlContent.length,
-        outputSize: result.size || 0,
-        compressionRatio: 0.75,
-        elementsProcessed: Math.floor(Math.random() * 500) + 100,
-        imagesOptimized: Math.floor(Math.random() * 20) + 5,
-        cssRulesApplied: Math.floor(Math.random() * 200) + 50,
-        jsExecutionTime: Math.floor(Math.random() * 1000) + 200,
-      };
-
-      setMetrics(newMetrics);
-
-      clearInterval(progressInterval);
-      setProgress(100);
-
-      // Add to history
-      const historyEntry = {
-        id: Date.now().toString(),
-        timestamp: new Date(),
-        type: inputMode,
-        source: inputMode === "url" ? url : "HTML Content",
-        metrics: newMetrics,
-        settings: { ...settings },
-      };
-
-      setConversionHistory((prev) => [historyEntry, ...prev.slice(0, 9)]);
-
-      const blob = new Blob([result], { type: "application/pdf" });
-      const downloadUrl = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = downloadUrl;
-      a.download = `converted-${Date.now()}.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(downloadUrl);
-
-      setIsComplete(true);
-
       toast({
-        title: "Success!",
-        description: "HTML converted to PDF successfully.",
+        title: "Conversion Complete!",
+        description: `Successfully converted ${inputType} to PDF`,
       });
     } catch (error) {
-      console.error("Conversion failed:", error);
+      console.error("HTML to PDF conversion failed:", error);
+      const errorMessage =
+        error instanceof Error ? error.message : "Conversion failed";
+      setError(errorMessage);
+
+      // Track conversion failure
+      tracking.trackConversionFailed(
+        activeTab === "content"
+          ? "HTML Content"
+          : activeTab === "url"
+            ? "URL"
+            : "HTML File",
+        "PDF",
+        errorMessage,
+      );
+
       toast({
         title: "Conversion Failed",
-        description:
-          "There was an error converting your HTML to PDF. Please try again.",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
       setIsProcessing(false);
+      setProgress(0);
     }
   };
 
-  const handlePreview = () => {
-    if (inputMode === "html" && htmlContent.trim()) {
-      setPreviewHtml(htmlContent);
-      setShowPreview(true);
-    } else if (inputMode === "url" && url.trim()) {
-      window.open(url, "_blank");
-    }
+  const resetAll = () => {
+    setHtmlContent("");
+    setUrl("");
+    setFile(null);
+    setResult(null);
+    setError(null);
+    setProgress(0);
   };
 
-  const handleTemplateSelect = (templateId: string) => {
-    const template = templatePresets.find((t) => t.id === templateId);
-    if (template) {
-      setSettings((prev) => ({ ...prev, ...template.settings }));
-      setSelectedTemplate(templateId);
-      toast({
-        title: "Template Applied",
-        description: `${template.name} settings have been applied.`,
-      });
-    }
-  };
-
-  const handleShare = async () => {
-    if (navigator.share) {
-      try {
-        await navigator.share({
-          title: "HTML to PDF Converter",
-          text: "Convert HTML content to PDF with advanced features",
-          url: window.location.href,
-        });
-      } catch (error) {
-        console.error("Error sharing:", error);
-      }
-    } else {
-      // Fallback: copy URL to clipboard
-      navigator.clipboard.writeText(window.location.href);
-      toast({
-        title: "Link Copied",
-        description: "Page URL copied to clipboard.",
-      });
-    }
-  };
-
-  const exportSettings = () => {
-    const dataStr = JSON.stringify(settings, null, 2);
-    const dataBlob = new Blob([dataStr], { type: "application/json" });
-    const url = URL.createObjectURL(dataBlob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = "html-to-pdf-settings.json";
-    link.click();
-    URL.revokeObjectURL(url);
+  const formatFileSize = (bytes: number): string => {
+    if (bytes === 0) return "0 Bytes";
+    const k = 1024;
+    const sizes = ["Bytes", "KB", "MB", "GB"];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
+    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-green-100">
       <Header />
 
-      {/* Enhanced Header Section */}
-      <div className="relative pt-16">
-        <div className="absolute inset-0 bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-700 opacity-90"></div>
-        <div
-          className={
-            'absolute inset-0 bg-[url(\'data:image/svg+xml,%3Csvg width="60" height="60" viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg"%3E%3Cg fill="none" fill-rule="evenodd"%3E%3Cg fill="%23ffffff" fill-opacity="0.1"%3E%3Ccircle cx="7" cy="7" r="7"/%3E%3C/g%3E%3C/g%3E%3C/svg%3E\')] animate-pulse'
-          }
-        ></div>
-
-        <div className="relative container mx-auto px-6 py-24">
-          <div className="flex items-center gap-4 mb-8">
-            <Link
-              to="/"
-              className="inline-flex items-center gap-2 text-white/80 hover:text-white transition-colors group"
-            >
-              <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
-              Back to Tools
-            </Link>
-          </div>
-
-          <div className="max-w-4xl">
-            <div className="flex items-center gap-4 mb-6">
-              <div className="p-4 bg-white/20 backdrop-blur-sm rounded-2xl">
-                <Code className="w-12 h-12 text-white" />
-              </div>
-              <div>
-                <h1 className="text-5xl font-bold text-white mb-4">
-                  HTML to PDF Converter
-                </h1>
-                <p className="text-xl text-white/90 leading-relaxed">
-                  Transform HTML content and web pages into professional PDF
-                  documents with AI-powered optimization and advanced
-                  customization options.
-                </p>
-              </div>
-            </div>
-
-            {/* Feature Pills */}
-            <div className="flex flex-wrap gap-3 mb-8">
-              {[
-                { icon: Brain, label: "AI Optimization", color: "bg-white/20" },
-                { icon: Sparkles, label: "Smart Layout", color: "bg-white/20" },
-                {
-                  icon: Target,
-                  label: "Precision Control",
-                  color: "bg-white/20",
-                },
-                { icon: Zap, label: "Lightning Fast", color: "bg-white/20" },
-                {
-                  icon: Shield,
-                  label: "Secure Processing",
-                  color: "bg-white/20",
-                },
-                {
-                  icon: Activity,
-                  label: "Real-time Analytics",
-                  color: "bg-white/20",
-                },
-              ].map((feature, index) => (
-                <div
-                  key={index}
-                  className={`${feature.color} backdrop-blur-sm rounded-full px-4 py-2 flex items-center gap-2 text-white/90 border border-white/20`}
-                >
-                  <feature.icon className="w-4 h-4" />
-                  <span className="text-sm font-medium">{feature.label}</span>
-                </div>
-              ))}
-            </div>
-          </div>
+      <div className="container mx-auto px-6 py-8">
+        {/* Header */}
+        <div className="flex items-center gap-4 mb-8">
+          <Link
+            to="/"
+            className="flex items-center gap-2 text-gray-600 hover:text-gray-900"
+          >
+            <ArrowLeft className="w-5 h-5" />
+            <span>Back to Home</span>
+          </Link>
         </div>
-      </div>
 
-      <div className="container mx-auto px-6 py-12">
-        {/* AI Mode Toggle & Template Selection */}
-        <div className="mb-8 space-y-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div className="flex items-center gap-2">
-                <Switch
-                  checked={aiMode}
-                  onCheckedChange={setAiMode}
-                  className="data-[state=checked]:bg-gradient-to-r data-[state=checked]:from-purple-500 data-[state=checked]:to-pink-500"
-                />
-                <Label className="flex items-center gap-2 text-lg font-semibold">
-                  <Brain className="w-5 h-5 text-purple-600" />
-                  AI-Powered Mode
-                </Label>
-              </div>
-              <Badge
-                variant={aiMode ? "default" : "outline"}
-                className="bg-gradient-to-r from-purple-500 to-pink-500 text-white"
-              >
-                {aiMode ? "Enhanced Processing" : "Standard Mode"}
-              </Badge>
+        {/* Title Section */}
+        <div className="text-center mb-12">
+          <div className="flex items-center justify-center gap-3 mb-4">
+            <div className="p-3 bg-purple-600 rounded-2xl">
+              <Globe className="w-8 h-8 text-white" />
             </div>
-            <div className="flex gap-2">
-              <Button variant="outline" size="sm" onClick={handleShare}>
-                <Share className="w-4 h-4 mr-2" />
-                Share
-              </Button>
-              <Button variant="outline" size="sm" onClick={exportSettings}>
-                <Save className="w-4 h-4 mr-2" />
-                Export Settings
-              </Button>
-            </div>
+            <h1 className="text-4xl font-bold text-gray-900">HTML to PDF</h1>
           </div>
+          <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+            Convert HTML content, files, or web pages to high-quality PDF
+            documents. Powered by headless Chrome for perfect rendering.
+          </p>
+        </div>
 
-          {/* Template Presets */}
-          <Card className="border-0 shadow-lg bg-white/80 backdrop-blur-sm">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Palette className="w-5 h-5 text-indigo-600" />
-                Quick Templates
-              </CardTitle>
-              <CardDescription>
-                Choose from optimized presets for different conversion types
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                {templatePresets.map((template) => (
-                  <Card
-                    key={template.id}
-                    className={cn(
-                      "cursor-pointer transition-all duration-200 hover:shadow-md border-2",
-                      selectedTemplate === template.id
-                        ? "border-indigo-500 bg-indigo-50"
-                        : "border-gray-200 hover:border-indigo-300",
-                    )}
-                    onClick={() => handleTemplateSelect(template.id)}
-                  >
-                    <CardContent className="p-4 text-center">
-                      <template.icon className="w-8 h-8 mx-auto mb-2 text-indigo-600" />
-                      <h3 className="font-semibold text-sm mb-1">
-                        {template.name}
-                      </h3>
-                      <p className="text-xs text-gray-600">
-                        {template.description}
-                      </p>
-                      <Badge variant="outline" className="mt-2 text-xs">
-                        {template.category}
-                      </Badge>
-                    </CardContent>
-                  </Card>
-                ))}
+        <div className="max-w-4xl mx-auto">
+          {/* Features Banner */}
+          <Card className="mb-8 bg-gradient-to-r from-purple-50 to-blue-50 border-purple-200">
+            <CardContent className="p-6">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-purple-100 rounded-lg">
+                    <Chrome className="w-5 h-5 text-purple-600" />
+                  </div>
+                  <div>
+                    <p className="font-semibold text-purple-900">
+                      Chrome Engine
+                    </p>
+                    <p className="text-sm text-purple-700">
+                      Puppeteer headless browser
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-purple-100 rounded-lg">
+                    <Zap className="w-5 h-5 text-purple-600" />
+                  </div>
+                  <div>
+                    <p className="font-semibold text-purple-900">
+                      Perfect Rendering
+                    </p>
+                    <p className="text-sm text-purple-700">
+                      CSS, JS, and fonts preserved
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-purple-100 rounded-lg">
+                    <Shield className="w-5 h-5 text-purple-600" />
+                  </div>
+                  <div>
+                    <p className="font-semibold text-purple-900">
+                      Multi-Source
+                    </p>
+                    <p className="text-sm text-purple-700">
+                      Content, files, or URLs
+                    </p>
+                  </div>
+                </div>
               </div>
             </CardContent>
           </Card>
-        </div>
 
-        <div className="grid lg:grid-cols-3 gap-8">
-          {/* Main Conversion Area */}
-          <div className="lg:col-span-2 space-y-6">
-            <Card className="border-0 shadow-lg bg-white/80 backdrop-blur-sm">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Code className="w-5 h-5 text-blue-600" />
-                  Content Input
-                </CardTitle>
-                <CardDescription>
-                  Choose your input method and provide the content to convert
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                {/* Input Mode Selector */}
-                <Tabs
-                  value={inputMode}
-                  onValueChange={(value) =>
-                    setInputMode(value as "html" | "url")
-                  }
-                >
-                  <TabsList className="grid w-full grid-cols-2">
-                    <TabsTrigger
-                      value="html"
-                      className="flex items-center gap-2"
-                    >
-                      <Code className="w-4 h-4" />
-                      HTML Code
-                    </TabsTrigger>
-                    <TabsTrigger
-                      value="url"
-                      className="flex items-center gap-2"
-                    >
-                      <Globe className="w-4 h-4" />
-                      Website URL
-                    </TabsTrigger>
-                  </TabsList>
-
-                  <TabsContent value="html" className="space-y-4">
-                    <div>
-                      <Label
-                        htmlFor="html-content"
-                        className="text-sm font-medium"
-                      >
-                        HTML Content
-                      </Label>
-                      <Textarea
-                        id="html-content"
-                        placeholder="Paste your HTML content here..."
-                        value={htmlContent}
-                        onChange={(e) => setHtmlContent(e.target.value)}
-                        className="min-h-[300px] font-mono text-sm mt-2"
-                      />
-                    </div>
-                  </TabsContent>
-
-                  <TabsContent value="url" className="space-y-4">
-                    <div>
-                      <Label
-                        htmlFor="url-input"
-                        className="text-sm font-medium"
-                      >
-                        Website URL
-                      </Label>
-                      <Input
-                        id="url-input"
-                        type="url"
-                        placeholder="https://example.com"
-                        value={url}
-                        onChange={(e) => setUrl(e.target.value)}
-                        className="mt-2"
-                      />
-                    </div>
-                  </TabsContent>
-                </Tabs>
-
-                {/* Action Buttons */}
-                <div className="flex gap-3">
-                  <Button
-                    onClick={handleConvert}
-                    disabled={
-                      isProcessing || (!htmlContent.trim() && !url.trim())
-                    }
-                    className="flex-1 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
+          {/* Input Tabs */}
+          <Card className="mb-8">
+            <CardHeader>
+              <CardTitle>HTML Input</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Tabs
+                value={activeTab}
+                onValueChange={(v) => setActiveTab(v as any)}
+              >
+                <TabsList className="grid w-full grid-cols-3">
+                  <TabsTrigger
+                    value="content"
+                    className="flex items-center gap-2"
                   >
-                    {isProcessing ? (
-                      <>
-                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                        Converting...
-                      </>
-                    ) : (
-                      <>
-                        <Download className="w-4 h-4 mr-2" />
-                        Convert to PDF
-                      </>
-                    )}
-                  </Button>
+                    <Code className="w-4 h-4" />
+                    HTML Content
+                  </TabsTrigger>
+                  <TabsTrigger value="file" className="flex items-center gap-2">
+                    <Upload className="w-4 h-4" />
+                    HTML File
+                  </TabsTrigger>
+                  <TabsTrigger value="url" className="flex items-center gap-2">
+                    <Globe className="w-4 h-4" />
+                    Website URL
+                  </TabsTrigger>
+                </TabsList>
 
-                  <Button
-                    variant="outline"
-                    onClick={handlePreview}
-                    disabled={!htmlContent.trim() && !url.trim()}
-                    className="px-6"
-                  >
-                    <Eye className="w-4 h-4 mr-2" />
-                    Preview
-                  </Button>
-                </div>
-
-                {/* Progress Bar */}
-                {isProcessing && (
-                  <div className="space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span>Processing...</span>
-                      <span>{Math.round(progress)}%</span>
-                    </div>
-                    <Progress value={progress} className="h-2" />
-                  </div>
-                )}
-
-                {/* Success State */}
-                {isComplete && (
-                  <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
-                    <div className="flex items-center gap-2 text-green-800">
-                      <CheckCircle className="w-5 h-5" />
-                      <span className="font-medium">
-                        Conversion completed successfully!
-                      </span>
-                    </div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* Advanced Settings */}
-            <Card className="border-0 shadow-lg bg-white/80 backdrop-blur-sm">
-              <CardHeader>
-                <div className="flex items-center justify-between">
+                <TabsContent value="content" className="space-y-4">
                   <div>
-                    <CardTitle className="flex items-center gap-2">
-                      <Settings className="w-5 h-5 text-gray-600" />
-                      Advanced Settings
-                    </CardTitle>
-                    <CardDescription>
-                      Fine-tune your PDF conversion settings
-                    </CardDescription>
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setShowAdvanced(!showAdvanced)}
-                  >
-                    {showAdvanced ? "Hide" : "Show"} Advanced
-                  </Button>
-                </div>
-              </CardHeader>
-
-              {showAdvanced && (
-                <CardContent className="space-y-6">
-                  <Tabs defaultValue="layout" className="w-full">
-                    <TabsList className="grid w-full grid-cols-4">
-                      <TabsTrigger value="layout">Layout</TabsTrigger>
-                      <TabsTrigger value="content">Content</TabsTrigger>
-                      <TabsTrigger value="quality">Quality</TabsTrigger>
-                      <TabsTrigger value="ai">AI Features</TabsTrigger>
-                    </TabsList>
-
-                    <TabsContent value="layout" className="space-y-4 mt-6">
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <Label className="text-sm font-medium">
-                            Page Size
-                          </Label>
-                          <Select
-                            value={settings.pageSize}
-                            onValueChange={(value: any) =>
-                              setSettings((prev) => ({
-                                ...prev,
-                                pageSize: value,
-                              }))
-                            }
-                          >
-                            <SelectTrigger className="mt-2">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="A4">A4</SelectItem>
-                              <SelectItem value="Letter">Letter</SelectItem>
-                              <SelectItem value="Legal">Legal</SelectItem>
-                              <SelectItem value="A3">A3</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-
-                        <div>
-                          <Label className="text-sm font-medium">
-                            Orientation
-                          </Label>
-                          <Select
-                            value={settings.orientation}
-                            onValueChange={(value: any) =>
-                              setSettings((prev) => ({
-                                ...prev,
-                                orientation: value,
-                              }))
-                            }
-                          >
-                            <SelectTrigger className="mt-2">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="portrait">Portrait</SelectItem>
-                              <SelectItem value="landscape">
-                                Landscape
-                              </SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      </div>
-
-                      <div>
-                        <Label className="text-sm font-medium">
-                          Margin: {settings.margin}px
-                        </Label>
-                        <Slider
-                          value={[settings.margin]}
-                          onValueChange={(value) =>
-                            setSettings((prev) => ({
-                              ...prev,
-                              margin: value[0],
-                            }))
-                          }
-                          max={50}
-                          min={0}
-                          step={5}
-                          className="mt-2"
-                        />
-                      </div>
-
-                      <div>
-                        <Label className="text-sm font-medium">
-                          Scale: {settings.scale}x
-                        </Label>
-                        <Slider
-                          value={[settings.scale]}
-                          onValueChange={(value) =>
-                            setSettings((prev) => ({
-                              ...prev,
-                              scale: value[0],
-                            }))
-                          }
-                          max={2}
-                          min={0.5}
-                          step={0.1}
-                          className="mt-2"
-                        />
-                      </div>
-                    </TabsContent>
-
-                    <TabsContent value="content" className="space-y-4 mt-6">
-                      <div className="space-y-4">
-                        <div className="flex items-center justify-between">
-                          <Label className="text-sm font-medium">
-                            Include Background
-                          </Label>
-                          <Switch
-                            checked={settings.includeBackground}
-                            onCheckedChange={(checked) =>
-                              setSettings((prev) => ({
-                                ...prev,
-                                includeBackground: checked,
-                              }))
-                            }
-                          />
-                        </div>
-
-                        <div className="flex items-center justify-between">
-                          <Label className="text-sm font-medium">
-                            Enable JavaScript
-                          </Label>
-                          <Switch
-                            checked={settings.enableJavaScript}
-                            onCheckedChange={(checked) =>
-                              setSettings((prev) => ({
-                                ...prev,
-                                enableJavaScript: checked,
-                              }))
-                            }
-                          />
-                        </div>
-
-                        <div className="flex items-center justify-between">
-                          <Label className="text-sm font-medium">
-                            Enable Images
-                          </Label>
-                          <Switch
-                            checked={settings.enableImages}
-                            onCheckedChange={(checked) =>
-                              setSettings((prev) => ({
-                                ...prev,
-                                enableImages: checked,
-                              }))
-                            }
-                          />
-                        </div>
-
-                        <div className="flex items-center justify-between">
-                          <Label className="text-sm font-medium">
-                            Enable CSS
-                          </Label>
-                          <Switch
-                            checked={settings.enableCSS}
-                            onCheckedChange={(checked) =>
-                              setSettings((prev) => ({
-                                ...prev,
-                                enableCSS: checked,
-                              }))
-                            }
-                          />
-                        </div>
-
-                        <div className="flex items-center justify-between">
-                          <Label className="text-sm font-medium">
-                            Wait for Load
-                          </Label>
-                          <Switch
-                            checked={settings.waitForLoad}
-                            onCheckedChange={(checked) =>
-                              setSettings((prev) => ({
-                                ...prev,
-                                waitForLoad: checked,
-                              }))
-                            }
-                          />
-                        </div>
-                      </div>
-                    </TabsContent>
-
-                    <TabsContent value="quality" className="space-y-4 mt-6">
-                      <div>
-                        <Label className="text-sm font-medium">
-                          Output Quality
-                        </Label>
-                        <Select
-                          value={settings.quality}
-                          onValueChange={(value: any) =>
-                            setSettings((prev) => ({ ...prev, quality: value }))
-                          }
-                        >
-                          <SelectTrigger className="mt-2">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="high">High Quality</SelectItem>
-                            <SelectItem value="medium">
-                              Medium Quality
-                            </SelectItem>
-                            <SelectItem value="low">
-                              Low Quality (Faster)
-                            </SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-
-                      <div>
-                        <Label className="text-sm font-medium">
-                          Text Encoding
-                        </Label>
-                        <Select
-                          value={settings.encoding}
-                          onValueChange={(value: any) =>
-                            setSettings((prev) => ({
-                              ...prev,
-                              encoding: value,
-                            }))
-                          }
-                        >
-                          <SelectTrigger className="mt-2">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="UTF-8">UTF-8</SelectItem>
-                            <SelectItem value="ISO-8859-1">
-                              ISO-8859-1
-                            </SelectItem>
-                            <SelectItem value="Windows-1252">
-                              Windows-1252
-                            </SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </TabsContent>
-
-                    <TabsContent value="ai" className="space-y-4 mt-6">
-                      <div className="space-y-4">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <Label className="text-sm font-medium">
-                              AI Optimization
-                            </Label>
-                            <p className="text-xs text-gray-500">
-                              Enhance layout and formatting using AI
-                            </p>
-                          </div>
-                          <Switch
-                            checked={settings.aiOptimization}
-                            onCheckedChange={(checked) =>
-                              setSettings((prev) => ({
-                                ...prev,
-                                aiOptimization: checked,
-                              }))
-                            }
-                          />
-                        </div>
-
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <Label className="text-sm font-medium">
-                              Smart Layout
-                            </Label>
-                            <p className="text-xs text-gray-500">
-                              Automatically optimize page breaks
-                            </p>
-                          </div>
-                          <Switch
-                            checked={settings.smartLayout}
-                            onCheckedChange={(checked) =>
-                              setSettings((prev) => ({
-                                ...prev,
-                                smartLayout: checked,
-                              }))
-                            }
-                          />
-                        </div>
-
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <Label className="text-sm font-medium">
-                              Responsive Mode
-                            </Label>
-                            <p className="text-xs text-gray-500">
-                              Adapt content for better PDF formatting
-                            </p>
-                          </div>
-                          <Switch
-                            checked={settings.responsiveMode}
-                            onCheckedChange={(checked) =>
-                              setSettings((prev) => ({
-                                ...prev,
-                                responsiveMode: checked,
-                              }))
-                            }
-                          />
-                        </div>
-                      </div>
-                    </TabsContent>
-                  </Tabs>
-                </CardContent>
-              )}
-            </Card>
-          </div>
-
-          {/* Analytics Sidebar */}
-          <div className="space-y-6">
-            {/* Real-time Statistics */}
-            <Card className="border-0 shadow-lg bg-white/80 backdrop-blur-sm">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <BarChart3 className="w-5 h-5 text-green-600" />
-                  Conversion Analytics
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {metrics ? (
-                  <>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="p-3 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg">
-                        <div className="text-2xl font-bold text-blue-700">
-                          {(metrics.processingTime / 1000).toFixed(1)}s
-                        </div>
-                        <div className="text-xs text-blue-600">
-                          Processing Time
-                        </div>
-                      </div>
-                      <div className="p-3 bg-gradient-to-br from-green-50 to-emerald-50 rounded-lg">
-                        <div className="text-2xl font-bold text-green-700">
-                          {metrics.elementsProcessed}
-                        </div>
-                        <div className="text-xs text-green-600">Elements</div>
-                      </div>
-                      <div className="p-3 bg-gradient-to-br from-purple-50 to-violet-50 rounded-lg">
-                        <div className="text-2xl font-bold text-purple-700">
-                          {metrics.imagesOptimized}
-                        </div>
-                        <div className="text-xs text-purple-600">Images</div>
-                      </div>
-                      <div className="p-3 bg-gradient-to-br from-orange-50 to-red-50 rounded-lg">
-                        <div className="text-2xl font-bold text-orange-700">
-                          {(metrics.compressionRatio * 100).toFixed(0)}%
-                        </div>
-                        <div className="text-xs text-orange-600">
-                          Compression
-                        </div>
-                      </div>
-                    </div>
-
-                    <Separator />
-
-                    <div className="space-y-2">
-                      <div className="flex justify-between text-sm">
-                        <span>Input Size</span>
-                        <span className="font-medium">
-                          {(metrics.inputSize / 1024).toFixed(1)} KB
-                        </span>
-                      </div>
-                      <div className="flex justify-between text-sm">
-                        <span>Output Size</span>
-                        <span className="font-medium">
-                          {(metrics.outputSize / 1024).toFixed(1)} KB
-                        </span>
-                      </div>
-                      <div className="flex justify-between text-sm">
-                        <span>CSS Rules</span>
-                        <span className="font-medium">
-                          {metrics.cssRulesApplied}
-                        </span>
-                      </div>
-                      <div className="flex justify-between text-sm">
-                        <span>JS Execution</span>
-                        <span className="font-medium">
-                          {metrics.jsExecutionTime}ms
-                        </span>
-                      </div>
-                    </div>
-                  </>
-                ) : (
-                  <div className="text-center py-8 text-gray-500">
-                    <Activity className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                    <p className="text-sm">
-                      Analytics will appear after conversion
+                    <Label htmlFor="htmlContent">HTML Content</Label>
+                    <Textarea
+                      id="htmlContent"
+                      placeholder="Paste your HTML code here... Example:
+<!DOCTYPE html>
+<html>
+<head>
+    <title>My Document</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 40px; }
+        h1 { color: #333; }
+    </style>
+</head>
+<body>
+    <h1>Hello World!</h1>
+    <p>This will be converted to PDF.</p>
+</body>
+</html>"
+                      value={htmlContent}
+                      onChange={(e) => setHtmlContent(e.target.value)}
+                      className="min-h-[300px] font-mono text-sm"
+                    />
+                    <p className="text-sm text-gray-500 mt-2">
+                      Enter your complete HTML code including styles and scripts
                     </p>
                   </div>
-                )}
-              </CardContent>
-            </Card>
+                </TabsContent>
 
-            {/* Conversion History */}
-            <Card className="border-0 shadow-lg bg-white/80 backdrop-blur-sm">
+                <TabsContent value="file" className="space-y-4">
+                  <div>
+                    <Label htmlFor="fileUpload">Upload HTML File</Label>
+                    <div
+                      className={cn(
+                        "border-2 border-dashed rounded-lg p-8 text-center transition-colors",
+                        file
+                          ? "border-green-400 bg-green-50"
+                          : "border-gray-300 hover:border-gray-400",
+                      )}
+                      onClick={() =>
+                        document.getElementById("file-upload")?.click()
+                      }
+                    >
+                      {file ? (
+                        <div className="flex items-center justify-center gap-3">
+                          <FileText className="w-8 h-8 text-green-600" />
+                          <div>
+                            <p className="font-semibold text-green-900">
+                              {file.name}
+                            </p>
+                            <p className="text-sm text-green-700">
+                              {formatFileSize(file.size)}
+                            </p>
+                          </div>
+                        </div>
+                      ) : (
+                        <>
+                          <Upload className="w-12 h-12 mx-auto mb-4 text-gray-400" />
+                          <h3 className="text-lg font-semibold mb-2">
+                            Choose HTML file or drag & drop
+                          </h3>
+                          <p className="text-gray-500 mb-4">
+                            Supports .html files up to 5MB
+                          </p>
+                          <Button variant="outline">Browse Files</Button>
+                        </>
+                      )}
+                    </div>
+                    <input
+                      id="file-upload"
+                      type="file"
+                      accept=".html,text/html"
+                      onChange={handleFileUpload}
+                      className="hidden"
+                    />
+                  </div>
+                </TabsContent>
+
+                <TabsContent value="url" className="space-y-4">
+                  <div>
+                    <Label htmlFor="url">Website URL</Label>
+                    <Input
+                      id="url"
+                      type="url"
+                      placeholder="https://example.com"
+                      value={url}
+                      onChange={(e) => setUrl(e.target.value)}
+                      className="text-lg"
+                    />
+                    <p className="text-sm text-gray-500 mt-2">
+                      Enter the full URL of the webpage you want to convert
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                    <Monitor className="w-5 h-5 text-blue-600" />
+                    <span className="text-sm text-blue-800">
+                      The page will be rendered exactly as it appears in Chrome
+                    </span>
+                  </div>
+                </TabsContent>
+              </Tabs>
+            </CardContent>
+          </Card>
+
+          {/* PDF Settings */}
+          <Card className="mb-8">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Settings className="w-5 h-5" />
+                PDF Settings
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div>
+                  <Label htmlFor="pageFormat">Page Format</Label>
+                  <Select
+                    value={settings.pageFormat}
+                    onValueChange={(value) =>
+                      setSettings({ ...settings, pageFormat: value })
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="A4">A4</SelectItem>
+                      <SelectItem value="A3">A3</SelectItem>
+                      <SelectItem value="Letter">Letter</SelectItem>
+                      <SelectItem value="Legal">Legal</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label htmlFor="orientation">Orientation</Label>
+                  <Select
+                    value={settings.orientation}
+                    onValueChange={(value) =>
+                      setSettings({ ...settings, orientation: value })
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="portrait">Portrait</SelectItem>
+                      <SelectItem value="landscape">Landscape</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-medium">Print Background</p>
+                    <p className="text-sm text-gray-500">
+                      Include CSS backgrounds
+                    </p>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={settings.printBackground}
+                    onChange={(e) =>
+                      setSettings({
+                        ...settings,
+                        printBackground: e.target.checked,
+                      })
+                    }
+                    className="w-4 h-4"
+                  />
+                </div>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-medium">Wait for Network</p>
+                    <p className="text-sm text-gray-500">
+                      Complete resource loading
+                    </p>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={settings.waitForNetworkIdle}
+                    onChange={(e) =>
+                      setSettings({
+                        ...settings,
+                        waitForNetworkIdle: e.target.checked,
+                      })
+                    }
+                    className="w-4 h-4"
+                  />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Conversion Results */}
+          {result && (
+            <Card className="mb-8">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <Clock className="w-5 h-5 text-blue-600" />
-                  Recent Conversions
+                  <CheckCircle className="w-5 h-5 text-green-600" />
+                  Conversion Complete
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                {conversionHistory.length > 0 ? (
-                  <div className="space-y-3">
-                    {conversionHistory.slice(0, 5).map((entry) => (
-                      <div key={entry.id} className="p-3 bg-gray-50 rounded-lg">
-                        <div className="flex items-center justify-between mb-2">
-                          <Badge variant="outline" className="text-xs">
-                            {entry.type.toUpperCase()}
-                          </Badge>
-                          <span className="text-xs text-gray-500">
-                            {entry.timestamp.toLocaleTimeString()}
-                          </span>
-                        </div>
-                        <p className="text-sm font-medium text-gray-700 truncate">
-                          {entry.source}
-                        </p>
-                        <div className="flex justify-between mt-2 text-xs text-gray-500">
-                          <span>
-                            {(entry.metrics.processingTime / 1000).toFixed(1)}s
-                          </span>
-                          <span>
-                            {entry.metrics.elementsProcessed} elements
-                          </span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-8 text-gray-500">
-                    <Clock className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                    <p className="text-sm">No conversions yet</p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* Usage Limit Notice */}
-            {usageLimitReached && (
-              <Card className="border-orange-200 bg-orange-50">
-                <CardContent className="p-4">
-                  <div className="flex items-start gap-3">
-                    <AlertTriangle className="w-5 h-5 text-orange-600 mt-0.5" />
-                    <div className="flex-1">
-                      <h3 className="font-medium text-orange-800">
-                        Usage Limit Reached
-                      </h3>
-                      <p className="text-sm text-orange-700 mt-1">
-                        You've reached your conversion limit. Upgrade to
-                        continue.
+                <div className="bg-green-50 border border-green-200 rounded-lg p-6">
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                    <div className="text-center">
+                      <p className="text-sm text-gray-600">File Size</p>
+                      <p className="text-lg font-bold text-green-600">
+                        {formatFileSize(result.fileSize)}
                       </p>
-                      <Button
-                        size="sm"
-                        className="mt-3 bg-orange-600 hover:bg-orange-700"
-                      >
-                        <Crown className="w-4 h-4 mr-2" />
-                        Upgrade Plan
-                      </Button>
+                    </div>
+                    <div className="text-center">
+                      <p className="text-sm text-gray-600">Processing Time</p>
+                      <p className="text-lg font-bold text-green-600">
+                        {result.processingTime}ms
+                      </p>
+                    </div>
+                    <div className="text-center">
+                      <p className="text-sm text-gray-600">Page Format</p>
+                      <p className="text-lg font-bold text-green-600">
+                        {result.pageFormat}
+                      </p>
+                    </div>
+                    <div className="text-center">
+                      <p className="text-sm text-gray-600">Orientation</p>
+                      <p className="text-lg font-bold text-green-600 capitalize">
+                        {result.orientation}
+                      </p>
                     </div>
                   </div>
-                </CardContent>
-              </Card>
-            )}
+
+                  <div className="text-center">
+                    <Button
+                      onClick={downloadResult}
+                      className="bg-green-600 hover:bg-green-700"
+                    >
+                      <Download className="w-4 h-4 mr-2" />
+                      Download PDF
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Error Display */}
+          {error && (
+            <Card className="mb-8">
+              <CardContent className="p-6">
+                <div className="bg-red-50 border border-red-200 rounded-lg p-6">
+                  <div className="flex items-center gap-2 text-red-800 mb-2">
+                    <AlertCircle className="w-5 h-5" />
+                    <span className="font-medium">Conversion Failed</span>
+                  </div>
+                  <p className="text-red-600">{error}</p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Action Buttons */}
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex gap-4 justify-center">
+                <Button
+                  onClick={handleConvert}
+                  disabled={isProcessing || !user}
+                  className="bg-purple-600 hover:bg-purple-700"
+                  size="lg"
+                >
+                  {isProcessing ? (
+                    <>
+                      <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                      Converting... ({Math.round(progress)}%)
+                    </>
+                  ) : (
+                    <>
+                      <FileText className="w-5 h-5 mr-2" />
+                      Convert to PDF
+                    </>
+                  )}
+                </Button>
+
+                {(result || error) && (
+                  <Button variant="outline" onClick={resetAll} size="lg">
+                    Convert Another
+                  </Button>
+                )}
+              </div>
+
+              {/* Progress Bar */}
+              {isProcessing && (
+                <div className="mt-6">
+                  <div className="flex justify-between text-sm mb-2">
+                    <span>Processing HTML to PDF...</span>
+                    <span>{Math.round(progress)}%</span>
+                  </div>
+                  <Progress value={progress} className="h-2" />
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Info Section */}
+          <div className="mt-12">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Layout className="w-5 h-5" />
+                  HTML to PDF Features
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <h3 className="font-semibold mb-2">Chrome Rendering:</h3>
+                    <ul className="space-y-2 text-sm">
+                      <li>• Headless Chrome via Puppeteer</li>
+                      <li>• Exact browser-quality rendering</li>
+                      <li>• CSS3 and modern JavaScript support</li>
+                      <li>• Web fonts and external resources</li>
+                      <li>• Responsive design handling</li>
+                    </ul>
+                  </div>
+                  <div>
+                    <h3 className="font-semibold mb-2">Input Options:</h3>
+                    <ul className="space-y-2 text-sm">
+                      <li>• Direct HTML content pasting</li>
+                      <li>• HTML file upload (.html)</li>
+                      <li>• Live website URL conversion</li>
+                      <li>• Custom page formats and orientation</li>
+                      <li>• Background and network loading control</li>
+                    </ul>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
           </div>
         </div>
+
+        <PromoBanner />
       </div>
 
-      {/* Preview Modal */}
-      {showPreview && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden">
-            <div className="flex items-center justify-between p-4 border-b">
-              <h3 className="text-lg font-semibold">HTML Preview</h3>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setShowPreview(false)}
-              >
-                ×
-              </Button>
-            </div>
-            <div className="p-4 max-h-[70vh] overflow-auto">
-              <div
-                className="border rounded-lg p-4 bg-white"
-                dangerouslySetInnerHTML={{ __html: previewHtml }}
-              />
-            </div>
-          </div>
-        </div>
+      {showAuthModal && (
+        <AuthModal
+          isOpen={showAuthModal}
+          onClose={() => setShowAuthModal(false)}
+          defaultMode="login"
+        />
       )}
-
-      <PromoBanner />
-      <AuthModal
-        isOpen={showAuthModal}
-        onClose={() => setShowAuthModal(false)}
-      />
     </div>
   );
 };

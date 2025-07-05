@@ -1,6 +1,6 @@
 // IMMEDIATE cross-origin frame protection - must be first
 if (
-  typeof window !== 'undefined" && typeof import !== "undefined' &&
+  typeof window !== "undefined' && typeof import !== 'undefined" &&
   import.meta?.env?.DEV
 ) {
   // Intercept ALL property access on window to prevent SecurityError

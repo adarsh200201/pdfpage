@@ -1,0 +1,4 @@
+{
+  "command": "npm run dev",
+  "serverUrl": "http://localhost:3000"
+}

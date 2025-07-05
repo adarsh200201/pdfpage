@@ -159,26 +159,10 @@ const App = () => {
   useEffect(() => {
     const initializePDFjs = async () => {
       try {
-        console.log("🚀 Initializing PDF.js configuration...");
-
-        // Log current PDF.js version for debugging
-        const { pdfjs } = await import("react-pdf");
-        console.log(
-          "📦 React-PDF using PDF.js version:",
-          (pdfjs as any).version || "unknown",
-        );
-
+        // Configure PDF.js with proper worker setup
         await configurePDFjs();
-        const status = getPDFConfigStatus();
-        console.log("✅ PDF.js configuration status:", status);
 
-        if (!status.isConfigured) {
-          console.warn("⚠️ PDF.js may not be properly configured");
-        } else {
-          console.log(
-            "🎉 All PDF tools are now ready for real-time processing!",
-          );
-        }
+        // PDF configuration completed silently
       } catch (error) {
         console.error("❌ Failed to initialize PDF.js:", error);
       }

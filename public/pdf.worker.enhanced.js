@@ -1,11 +1,16 @@
 // Enhanced PDF Worker Configuration with Error Recovery
 // This configuration provides better error handling and immediate fallbacks
+// DISABLED: To prevent conflicts with main PDF configuration
 
 (function () {
   "use strict";
 
   // Check if we're in a browser environment
   if (typeof window === "undefined") return;
+
+  // DISABLED: This enhanced worker is disabled to prevent console spam
+  // The main PDF configuration in src/lib/pdf-config.ts handles worker setup
+  return;
 
   // Enhanced worker source configurations with immediate fallback
   const WORKER_SOURCES = [

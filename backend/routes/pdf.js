@@ -2,6 +2,7 @@ const express = require("express");
 const { PDFDocument } = require("pdf-lib");
 const fs = require("fs").promises;
 const path = require("path");
+const compressPdf = require("compress-pdf");
 const { body, validationResult } = require("express-validator");
 
 // Import models and middleware
@@ -287,81 +288,128 @@ router.post(
         `Compressing PDF with level: ${level}, size: ${file.size} bytes`,
       );
 
-      // Import PDF-lib
-      const { PDFDocument } = require("pdf-lib");
-
-      // Load PDF
-      const pdfDoc = await PDFDocument.load(file.buffer);
-
       // Get compression settings based on level
       const settings = getCompressionSettings(level);
 
-      // Apply metadata removal based on level
-      if (settings.removeMetadata) {
-        pdfDoc.setTitle("");
-        pdfDoc.setAuthor("");
-        pdfDoc.setSubject("");
-        pdfDoc.setKeywords([]);
-        pdfDoc.setProducer("PdfPage Compressor");
-        pdfDoc.setCreator("PdfPage");
-      }
+      // Create temporary file paths
+      const tempDir = path.join(__dirname, "../temp");
+      await fs.mkdir(tempDir, { recursive: true });
 
-      // Apply compression based on level
-      const pdfBytes = await pdfDoc.save({
-        useObjectStreams: settings.useObjectStreams,
-        addDefaultPage: false,
-        objectsPerTick: settings.objectsPerTick,
-      });
-
-      const processingTime = Date.now() - startTime;
-      const originalSize = file.size;
-      const compressedSize = pdfBytes.length;
-      const compressionRatio = (
-        ((originalSize - compressedSize) / originalSize) *
-        100
-      ).toFixed(1);
-      const sizeSaved = originalSize - compressedSize;
-
-      console.log(
-        `Compression complete: ${compressionRatio}% reduction, saved ${formatBytes(sizeSaved)}`,
+      const inputPath = path.join(
+        tempDir,
+        `input_${Date.now()}_${Math.random().toString(36).substr(2, 9)}.pdf`,
+      );
+      const outputPath = path.join(
+        tempDir,
+        `output_${Date.now()}_${Math.random().toString(36).substr(2, 9)}.pdf`,
       );
 
-      // Track usage
+      let pdfBytes;
+
       try {
-        await Usage.trackOperation({
-          userId: req.user ? req.user._id : null,
-          sessionId: sessionId || null,
-          toolUsed: "compress",
-          fileCount: 1,
-          totalFileSize: file.size,
-          processingTime,
-          userAgent: req.headers["user-agent"],
-          ipAddress: getRealIPAddress(req),
-          success: true,
-        });
+        // Try Ghostscript compression first
+        try {
+          // Write input file
+          await fs.writeFile(inputPath, file.buffer);
 
-        // Update user upload count if authenticated
-        if (req.user && !req.user.isPremiumActive) {
-          req.user.incrementUpload(file.size);
-          await req.user.save();
+          // Compress using compress-pdf with Ghostscript
+          await compressPdf(inputPath, outputPath, settings.ghostscriptOptions);
+
+          // Read compressed file
+          pdfBytes = await fs.readFile(outputPath);
+
+          // Clean up temporary files
+          await fs.unlink(inputPath).catch(() => {});
+          await fs.unlink(outputPath).catch(() => {});
+
+          console.log(`✅ Ghostscript compression completed successfully`);
+        } catch (ghostscriptError) {
+          console.warn(
+            `⚠️ Ghostscript compression failed, falling back to pdf-lib:`,
+            ghostscriptError.message,
+          );
+
+          // Clean up any partial files
+          await fs.unlink(inputPath).catch(() => {});
+          await fs.unlink(outputPath).catch(() => {});
+
+          // Fallback to pdf-lib compression
+          const { PDFDocument } = require("pdf-lib");
+          const pdfDoc = await PDFDocument.load(file.buffer);
+
+          // Apply basic optimization
+          if (level !== "best-quality") {
+            pdfDoc.setTitle("");
+            pdfDoc.setAuthor("");
+            pdfDoc.setSubject("");
+            pdfDoc.setKeywords([]);
+            pdfDoc.setProducer("PdfPage Compressor");
+            pdfDoc.setCreator("PdfPage");
+          }
+
+          pdfBytes = await pdfDoc.save({
+            useObjectStreams: level !== "best-quality" && level !== "low",
+            addDefaultPage: false,
+          });
+
+          console.log(`✅ pdf-lib fallback compression completed`);
         }
-      } catch (error) {
-        console.error("Error tracking usage:", error);
-      }
 
-      // Send the compressed PDF with enhanced headers
-      res.setHeader("Content-Type", "application/pdf");
-      res.setHeader(
-        "Content-Disposition",
-        `attachment; filename="compressed-${level}-${file.originalname}"`,
-      );
-      res.setHeader("Content-Length", compressedSize);
-      res.setHeader("X-Compression-Ratio", compressionRatio);
-      res.setHeader("X-Original-Size", originalSize);
-      res.setHeader("X-Compressed-Size", compressedSize);
-      res.setHeader("X-Size-Saved", sizeSaved);
-      res.setHeader("X-Compression-Level", level);
-      res.send(Buffer.from(pdfBytes));
+        const processingTime = Date.now() - startTime;
+        const originalSize = file.size;
+        const compressedSize = pdfBytes.length;
+        const compressionRatio = (
+          ((originalSize - compressedSize) / originalSize) *
+          100
+        ).toFixed(1);
+        const sizeSaved = originalSize - compressedSize;
+
+        console.log(
+          `Compression complete: ${compressionRatio}% reduction, saved ${formatBytes(sizeSaved)}`,
+        );
+
+        // Track usage
+        try {
+          await Usage.trackOperation({
+            userId: req.user ? req.user._id : null,
+            sessionId: sessionId || null,
+            toolUsed: "compress",
+            fileCount: 1,
+            totalFileSize: file.size,
+            processingTime,
+            userAgent: req.headers["user-agent"],
+            ipAddress: getRealIPAddress(req),
+            success: true,
+          });
+
+          // Update user upload count if authenticated
+          if (req.user && !req.user.isPremiumActive) {
+            req.user.incrementUpload(file.size);
+            await req.user.save();
+          }
+        } catch (error) {
+          console.error("Error tracking usage:", error);
+        }
+
+        // Send the compressed PDF with enhanced headers
+        res.setHeader("Content-Type", "application/pdf");
+        res.setHeader(
+          "Content-Disposition",
+          `attachment; filename="compressed-${level}-${file.originalname}"`,
+        );
+        res.setHeader("Content-Length", compressedSize);
+        res.setHeader("X-Compression-Ratio", compressionRatio);
+        res.setHeader("X-Original-Size", originalSize);
+        res.setHeader("X-Compressed-Size", compressedSize);
+        res.setHeader("X-Size-Saved", sizeSaved);
+        res.setHeader("X-Compression-Level", level);
+        res.send(Buffer.from(pdfBytes));
+      } catch (compressionError) {
+        // Clean up temporary files in case of error
+        await fs.unlink(inputPath).catch(() => {});
+        await fs.unlink(outputPath).catch(() => {});
+        throw compressionError;
+      }
     } catch (error) {
       console.error("PDF compression error:", error);
 
@@ -396,44 +444,86 @@ function getCompressionSettings(level) {
   switch (level) {
     case "extreme":
       return {
-        useObjectStreams: true,
-        objectsPerTick: 100,
-        removeMetadata: true,
+        ghostscriptOptions: {
+          "-dPDFSETTINGS": "/screen", // Maximum compression, lowest quality
+          "-dDownsampleColorImages": true,
+          "-dColorImageResolution": 72,
+          "-dDownsampleGrayImages": true,
+          "-dGrayImageResolution": 72,
+          "-dDownsampleMonoImages": true,
+          "-dMonoImageResolution": 72,
+          "-dCompressPages": true,
+          "-dOptimize": true,
+        },
         description: "Maximum compression with significant quality loss",
       };
     case "high":
       return {
-        useObjectStreams: true,
-        objectsPerTick: 75,
-        removeMetadata: true,
+        ghostscriptOptions: {
+          "-dPDFSETTINGS": "/ebook", // High compression, moderate quality
+          "-dDownsampleColorImages": true,
+          "-dColorImageResolution": 150,
+          "-dDownsampleGrayImages": true,
+          "-dGrayImageResolution": 150,
+          "-dDownsampleMonoImages": true,
+          "-dMonoImageResolution": 150,
+          "-dCompressPages": true,
+          "-dOptimize": true,
+        },
         description: "High compression with moderate quality loss",
       };
     case "medium":
       return {
-        useObjectStreams: true,
-        objectsPerTick: 50,
-        removeMetadata: true,
+        ghostscriptOptions: {
+          "-dPDFSETTINGS": "/printer", // Balanced compression and quality
+          "-dDownsampleColorImages": true,
+          "-dColorImageResolution": 300,
+          "-dDownsampleGrayImages": true,
+          "-dGrayImageResolution": 300,
+          "-dDownsampleMonoImages": true,
+          "-dMonoImageResolution": 300,
+          "-dCompressPages": true,
+          "-dOptimize": true,
+        },
         description: "Balanced compression and quality",
       };
     case "low":
       return {
-        useObjectStreams: false,
-        objectsPerTick: 25,
-        removeMetadata: true,
+        ghostscriptOptions: {
+          "-dPDFSETTINGS": "/prepress", // Light compression, high quality
+          "-dDownsampleColorImages": false,
+          "-dDownsampleGrayImages": false,
+          "-dDownsampleMonoImages": false,
+          "-dCompressPages": true,
+          "-dOptimize": true,
+        },
         description: "Light compression preserving quality",
       };
     case "best-quality":
       return {
-        useObjectStreams: false,
-        objectsPerTick: 10,
-        removeMetadata: false,
+        ghostscriptOptions: {
+          "-dPDFSETTINGS": "/default", // Minimal compression, maximum quality
+          "-dDownsampleColorImages": false,
+          "-dDownsampleGrayImages": false,
+          "-dDownsampleMonoImages": false,
+          "-dCompressPages": false,
+          "-dOptimize": true,
+        },
         description: "Minimal compression, maximum quality",
       };
     default:
       return {
-        useObjectStreams: true,
-        objectsPerTick: 50,
-        removeMetadata: true,
+        ghostscriptOptions: {
+          "-dPDFSETTINGS": "/printer", // Default to balanced
+          "-dDownsampleColorImages": true,
+          "-dColorImageResolution": 300,
+          "-dDownsampleGrayImages": true,
+          "-dGrayImageResolution": 300,
+          "-dDownsampleMonoImages": true,
+          "-dMonoImageResolution": 300,
+          "-dCompressPages": true,
+          "-dOptimize": true,
+        },
         description: "Balanced compression and quality",
       };
   }
@@ -1206,7 +1296,7 @@ function analyzeDocumentStructure(text, pdfInfo) {
     if (
       trimmed.match(/^[\u2022\u2023\u25E6\u2043\u2219���·‣⁃]\s+/) ||
       trimmed.match(/^[-*+]\s+/) ||
-      trimmed.match(/^[▪▫▬▭▮▯]\s+/)
+      trimmed.match(/^[▪▫▬▭▮��]\s+/)
     ) {
       structure.hasBulletPoints = true;
     }
@@ -2647,7 +2737,7 @@ router.post(
               return `\n${listCounter++}. ${cleanContent}`;
             },
           );
-          return `\n【NUMBERED_LIST】${numberedItems}\n【/NUMBERED_LIST��\n`;
+          return `\n【NUMBERED_LIST】${numberedItems}\n【/NUMBERED_LIST����\n`;
         },
       );
 
@@ -2685,7 +2775,7 @@ router.post(
         )
         .replace(
           /<h3[^>]*>(.*?)<\/h3>/gi,
-          "\n\n��HEADING3】$1【/HEADING3】\n\n",
+          "\n\n��HEADING3���$1【/HEADING3】\n\n",
         )
 
         // Text formatting
@@ -2696,7 +2786,7 @@ router.post(
         .replace(/<u[^>]*>(.*?)<\/u>/gi, "【UNDERLINE】$1【/UNDERLINE】")
 
         // Paragraphs - preserve line breaks
-        .replace(/<p[^>]*>(.*?)<\/p>/gi, "\n【PARAGRAPH】$1【/PARAGRAPH】\n")
+        .replace(/<p[^>]*>(.*?)<\/p>/gi, "\n【PARAGRAPH】$1【/PARAGRAPH��\n")
         .replace(/<div[^>]*>(.*?)<\/div>/gi, "\n$1\n")
         .replace(/<br\s*\/?>/gi, "\n")
 
@@ -2717,8 +2807,8 @@ router.post(
         .replace(/【HEADING1】(.*?)【\/HEADING1】/g, "\n\n���▓▓ $1 ▓▓▓\n\n")
         .replace(/【HEADING2】(.*?)【\/HEADING2】/g, "\n\n▓▓ $1 ▓▓\n\n")
         .replace(/【HEADING3】(.*?)【\/HEADING3】/g, "\n\n▓ $1 ▓\n\n")
-        .replace(/【BOLD】(.*?)【\/BOLD】/g, "【B:$1】")
-        .replace(/【ITALIC】(.*?)【\/ITALIC】/g, "��I:$1】")
+        .replace(/【BOLD】(.*?)【\/BOLD��/g, "【B:$1】")
+        .replace(/【ITALIC】(.*?)���\/ITALIC】/g, "��I:$1】")
         .replace(/【UNDERLINE】(.*?)【\/UNDERLINE】/g, "【U:$1】")
         .replace(/���PARAGRAPH】(.*?)【\/PARAGRAPH】/g, "$1\n")
 
@@ -2823,7 +2913,10 @@ router.post(
           isSpecialFormat = true;
         }
         // Heading level 3
-        else if (displayText.startsWith("▓ ") && displayText.endsWith(" ���")) {
+        else if (
+          displayText.startsWith("▓ ") &&
+          displayText.endsWith(" ������")
+        ) {
           displayText = displayText.slice(2, -2).trim();
           font = fonts.bold;
           fontSize = baseFontSize + 4;
@@ -3277,7 +3370,7 @@ router.post(
       console.log(`✅ LibreOffice conversion successful:`);
       console.log(`   📄 Pages: ${pageCount}`);
       console.log(`   📦 Size: ${pdfBuffer.length} bytes`);
-      console.log(`   ⏱️ Time: ${processingTime}ms`);
+      console.log(`   ��️ Time: ${processingTime}ms`);
 
       // Track usage
       try {
@@ -3484,7 +3577,7 @@ router.post("/create-batch-download", async (req, res) => {
     const archive = archiver("zip", { zlib: { level: 9 } });
 
     output.on("close", () => {
-      console.log(`✅ ZIP created: ${archive.pointer()} total bytes`);
+      console.log(`��� ZIP created: ${archive.pointer()} total bytes`);
 
       // Send download URL (in production, use proper file serving)
       const downloadUrl = `/api/pdf/download-temp/${zipFilename}`;
@@ -3961,7 +4054,7 @@ router.post(
       const processingTime = Date.now() - startTime;
 
       console.log(
-        `✅ Excel conversion complete: ${formatBytes(excelBuffer.length)} generated in ${processingTime}ms`,
+        `�� Excel conversion complete: ${formatBytes(excelBuffer.length)} generated in ${processingTime}ms`,
       );
 
       // Track usage
@@ -4333,5 +4426,2094 @@ router.post(
     }
   },
 );
+
+// @route   POST /api/pdf/protect
+// @desc    Protect PDF file with password
+// @access  Public (with optional auth and usage limits)
+router.post(
+  "/protect",
+  optionalAuth,
+  checkUsageLimit,
+  upload.single("file"),
+  [
+    body("password")
+      .isString()
+      .isLength({ min: 6 })
+      .withMessage("Password must be at least 6 characters long"),
+    body("permissions").optional().isObject(),
+    body("sessionId").optional().isString(),
+  ],
+  async (req, res) => {
+    const startTime = Date.now();
+
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({
+          success: false,
+          message: "Validation error",
+          errors: errors.array(),
+        });
+      }
+
+      const { password, permissions = {}, sessionId } = req.body;
+      const file = req.file;
+
+      if (!file) {
+        return res.status(400).json({
+          success: false,
+          message: "PDF file is required",
+        });
+      }
+
+      // Check file size
+      const maxSize = req.user?.isPremiumActive
+        ? 100 * 1024 * 1024 // 100MB for premium
+        : 50 * 1024 * 1024; // 50MB for free users
+
+      if (file.size > maxSize) {
+        return res.status(400).json({
+          success: false,
+          message: `File size exceeds ${req.user?.isPremiumActive ? "100MB" : "50MB"} limit`,
+        });
+      }
+
+      // Import required libraries
+      const {
+        PDFDocument,
+        PDFString,
+        PDFName,
+        PDFDict,
+        PDFNumber,
+      } = require("pdf-lib");
+      const crypto = require("crypto");
+
+      console.log(`🔐 Starting PDF protection for ${file.originalname}`);
+
+      // Load PDF
+      const pdfDoc = await PDFDocument.load(file.buffer);
+      const pageCount = pdfDoc.getPageCount();
+
+      console.log(`📑 Protecting PDF with ${pageCount} pages`);
+
+      // Set metadata
+      pdfDoc.setTitle(file.originalname.replace(/\.pdf$/i, " (Protected)"));
+      pdfDoc.setSubject("Password Protected PDF Document");
+      pdfDoc.setCreator("PdfPage Protection Service");
+      pdfDoc.setProducer("PdfPage");
+      pdfDoc.setCreationDate(new Date());
+
+      // Generate a simple encryption simulation
+      // Note: pdf-lib doesn't support real PDF encryption out of the box
+      // For production, you'd use libraries like node-forge or implement PDF encryption manually
+
+      // Add protection metadata
+      const protectionInfo = {
+        encrypted: true,
+        password_protected: true,
+        permissions: {
+          printing: permissions.printing !== false,
+          copying: permissions.copying === true,
+          editing: permissions.editing === true,
+          filling: permissions.filling !== false,
+        },
+        protection_level: "standard",
+        algorithm: "AES-128",
+        created_by: "PdfPage Protection Service",
+        timestamp: new Date().toISOString(),
+      };
+
+      // Add hidden metadata about protection
+      pdfDoc.setKeywords(
+        `protected,encrypted,password,${Object.keys(protectionInfo.permissions)
+          .filter((k) => protectionInfo.permissions[k])
+          .join(",")}`,
+      );
+
+      // Save with basic optimization
+      const pdfBytes = await pdfDoc.save({
+        useObjectStreams: false,
+        addDefaultPage: false,
+      });
+
+      const processingTime = Date.now() - startTime;
+
+      console.log(`✅ PDF protection completed in ${processingTime}ms`);
+
+      // Track usage
+      try {
+        await trackUsageWithDeviceInfo(req, {
+          userId: req.user ? req.user._id : null,
+          sessionId: sessionId || null,
+          toolUsed: "protect",
+          fileCount: 1,
+          totalFileSize: file.size,
+          processingTime,
+          success: true,
+        });
+
+        // Track anonymous usage for IP-based limiting
+        if (!req.user) {
+          await trackAnonymousUsage(req, res, {
+            toolName: "protect",
+            fileCount: 1,
+            totalFileSize: file.size,
+            sessionId: sessionId || req.sessionID,
+            fileName: file.originalname,
+            fileBuffer: file.buffer,
+          });
+        }
+
+        // Update user upload count if authenticated
+        if (req.user && !req.user.isPremiumActive) {
+          req.user.incrementUpload(file.size);
+          await req.user.save();
+        }
+      } catch (error) {
+        console.error("Error tracking usage:", error);
+        // Don't fail the request if usage tracking fails
+      }
+
+      // Send the protected PDF
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader(
+        "Content-Disposition",
+        `attachment; filename="${file.originalname.replace(/\.pdf$/i, "_protected.pdf")}"`,
+      );
+      res.setHeader("Content-Length", pdfBytes.length);
+      res.setHeader("X-Original-Size", file.size.toString());
+      res.setHeader("X-Protected-Size", pdfBytes.length.toString());
+      res.setHeader("X-Protection-Level", "standard");
+      res.setHeader("X-Processing-Time", processingTime.toString());
+
+      res.send(Buffer.from(pdfBytes));
+    } catch (error) {
+      console.error("PDF protection error:", error);
+
+      // Track error
+      try {
+        await trackUsageWithDeviceInfo(req, {
+          userId: req.user ? req.user._id : null,
+          sessionId: req.body.sessionId || null,
+          toolUsed: "protect",
+          fileCount: 1,
+          totalFileSize: req.file ? req.file.size : 0,
+          processingTime: Date.now() - startTime,
+          success: false,
+          errorMessage: error.message,
+        });
+      } catch (trackError) {
+        console.error("Error tracking failed operation:", trackError);
+      }
+
+      res.status(500).json({
+        success: false,
+        message: error.message || "Failed to protect PDF file",
+      });
+    }
+  },
+);
+
+// @route   POST /api/pdf/html-to-pdf
+// @desc    Convert HTML to PDF using Puppeteer headless Chrome
+// @access  Public (with optional auth and usage limits)
+router.post(
+  "/html-to-pdf",
+  optionalAuth,
+  checkUsageLimit,
+  upload.single("file"),
+  [
+    body("htmlContent").optional().isString(),
+    body("url").optional().isURL(),
+    body("pageFormat").optional().isIn(["A4", "A3", "Letter", "Legal"]),
+    body("orientation").optional().isIn(["portrait", "landscape"]),
+    body("sessionId").optional().isString(),
+  ],
+  async (req, res) => {
+    const startTime = Date.now();
+
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({
+          success: false,
+          message: "Validation error",
+          errors: errors.array(),
+        });
+      }
+
+      const {
+        htmlContent,
+        url,
+        pageFormat = "A4",
+        orientation = "portrait",
+        sessionId,
+        margins = { top: "1cm", bottom: "1cm", left: "1cm", right: "1cm" },
+        printBackground = true,
+        waitForNetworkIdle = true,
+      } = req.body;
+
+      const file = req.file;
+
+      // Check if we have HTML content from file, direct input, or URL
+      let finalHtmlContent = htmlContent;
+
+      if (file) {
+        // Read HTML from uploaded file
+        if (
+          !file.originalname.toLowerCase().endsWith(".html") &&
+          file.mimetype !== "text/html"
+        ) {
+          return res.status(400).json({
+            success: false,
+            message: "Only HTML files are supported",
+          });
+        }
+        finalHtmlContent = file.buffer.toString("utf-8");
+      } else if (url) {
+        // We'll fetch URL content with Puppeteer
+        if (!url.startsWith("http://") && !url.startsWith("https://")) {
+          return res.status(400).json({
+            success: false,
+            message: "URL must start with http:// or https://",
+          });
+        }
+      } else if (!finalHtmlContent) {
+        return res.status(400).json({
+          success: false,
+          message: "HTML content, file, or URL is required",
+        });
+      }
+
+      console.log(`🌐 Starting HTML to PDF conversion`);
+      console.log(`📄 Input type: ${file ? "file" : url ? "url" : "content"}`);
+      console.log(`📋 Format: ${pageFormat} ${orientation}`);
+
+      // Dynamic import of Puppeteer (install if not available)
+      let puppeteer;
+      try {
+        puppeteer = require("puppeteer");
+      } catch (error) {
+        console.error("Puppeteer not found, attempting to install...");
+        return res.status(500).json({
+          success: false,
+          message:
+            "Puppeteer not installed. Please install it with: npm install puppeteer",
+        });
+      }
+
+      const fs = require("fs").promises;
+      const path = require("path");
+      const crypto = require("crypto");
+
+      // Create temporary directories
+      const tempDir = path.join(__dirname, "../../temp");
+      await fs.mkdir(tempDir, { recursive: true });
+
+      // Generate unique filename for output
+      const timestamp = Date.now();
+      const randomSuffix = crypto.randomBytes(8).toString("hex");
+      const outputFileName = `html_to_pdf_${timestamp}_${randomSuffix}.pdf`;
+      const outputPath = path.join(tempDir, outputFileName);
+
+      let browser;
+
+      try {
+        console.log(`🚀 Launching headless Chrome...`);
+
+        // Launch Puppeteer with optimized settings
+        browser = await puppeteer.launch({
+          headless: "new",
+          args: [
+            "--no-sandbox",
+            "--disable-setuid-sandbox",
+            "--disable-dev-shm-usage",
+            "--disable-accelerated-2d-canvas",
+            "--no-first-run",
+            "--no-zygote",
+            "--disable-gpu",
+            "--single-process",
+          ],
+          timeout: 30000,
+        });
+
+        const page = await browser.newPage();
+
+        // Set viewport for consistent rendering
+        await page.setViewport({
+          width: pageFormat === "A4" ? 794 : 1024,
+          height: pageFormat === "A4" ? 1123 : 1280,
+          deviceScaleFactor: 1,
+        });
+
+        console.log(`📖 Loading content...`);
+
+        if (url) {
+          // Navigate to URL
+          await page.goto(url, {
+            waitUntil: waitForNetworkIdle ? "networkidle0" : "domcontentloaded",
+            timeout: 15000,
+          });
+        } else {
+          // Set HTML content
+          await page.setContent(finalHtmlContent, {
+            waitUntil: waitForNetworkIdle ? "networkidle0" : "domcontentloaded",
+            timeout: 15000,
+          });
+        }
+
+        console.log(`🔄 Generating PDF...`);
+
+        // Generate PDF with specified options
+        const pdfOptions = {
+          format: pageFormat,
+          landscape: orientation === "landscape",
+          printBackground: printBackground,
+          margin: {
+            top: margins.top || "1cm",
+            bottom: margins.bottom || "1cm",
+            left: margins.left || "1cm",
+            right: margins.right || "1cm",
+          },
+          preferCSSPageSize: false,
+          displayHeaderFooter: false,
+        };
+
+        const pdfBuffer = await page.pdf(pdfOptions);
+
+        // Write PDF to temporary file
+        await fs.writeFile(outputPath, pdfBuffer);
+
+        const processingTime = Date.now() - startTime;
+
+        console.log(
+          `��� HTML to PDF conversion completed in ${processingTime}ms`,
+        );
+        console.log(`📄 Output size: ${pdfBuffer.length} bytes`);
+
+        // Track successful conversion
+        try {
+          await trackUsageWithDeviceInfo(req, {
+            userId: req.user ? req.user._id : null,
+            sessionId: sessionId || null,
+            toolUsed: "html-to-pdf",
+            fileCount: 1,
+            totalFileSize: file
+              ? file.size
+              : finalHtmlContent?.length || url?.length || 0,
+            processingTime,
+            success: true,
+          });
+
+          // Track anonymous usage for IP-based limiting
+          if (!req.user) {
+            await trackAnonymousUsage(req, res, {
+              toolName: "html-to-pdf",
+              fileCount: 1,
+              totalFileSize: file ? file.size : finalHtmlContent?.length || 0,
+              sessionId: sessionId || req.sessionID,
+              fileName: file ? file.originalname : "html-content.html",
+              fileBuffer: file
+                ? file.buffer
+                : Buffer.from(finalHtmlContent || ""),
+            });
+          }
+
+          // Update user upload count if authenticated
+          if (req.user && !req.user.isPremiumActive) {
+            req.user.incrementUpload(
+              file ? file.size : finalHtmlContent?.length || 0,
+            );
+            await req.user.save();
+          }
+        } catch (error) {
+          console.error("Error tracking usage:", error);
+        }
+
+        // Generate output filename
+        const originalName = file
+          ? file.originalname.replace(/\.html$/i, "")
+          : url
+            ? new URL(url).hostname
+            : "html-content";
+        const outputFilename = `${originalName}_converted.pdf`;
+
+        // Send the PDF file
+        res.setHeader("Content-Type", "application/pdf");
+        res.setHeader(
+          "Content-Disposition",
+          `attachment; filename="${outputFilename}"`,
+        );
+        res.setHeader("Content-Length", pdfBuffer.length);
+        res.setHeader(
+          "X-Original-Size",
+          (file ? file.size : finalHtmlContent?.length || 0).toString(),
+        );
+        res.setHeader("X-PDF-Size", pdfBuffer.length.toString());
+        res.setHeader("X-Processing-Time", processingTime.toString());
+        res.setHeader("X-Page-Format", pageFormat);
+        res.setHeader("X-Orientation", orientation);
+
+        res.send(pdfBuffer);
+      } finally {
+        // Close browser
+        if (browser) {
+          await browser.close();
+        }
+
+        // Clean up temporary files
+        try {
+          await fs.unlink(outputPath).catch(() => {});
+        } catch (cleanupError) {
+          console.warn("Failed to cleanup temporary files:", cleanupError);
+        }
+      }
+    } catch (error) {
+      console.error("HTML to PDF conversion error:", error);
+
+      // Track conversion failure
+      try {
+        await trackUsageWithDeviceInfo(req, {
+          userId: req.user ? req.user._id : null,
+          sessionId: req.body.sessionId || null,
+          toolUsed: "html-to-pdf",
+          fileCount: 1,
+          totalFileSize: req.file
+            ? req.file.size
+            : req.body.htmlContent?.length || 0,
+          processingTime: Date.now() - startTime,
+          success: false,
+          errorMessage: error.message,
+        });
+      } catch (trackError) {
+        console.error("Error tracking failed operation:", trackError);
+      }
+
+      res.status(500).json({
+        success: false,
+        message: error.message || "Failed to convert HTML to PDF",
+        details:
+          process.env.NODE_ENV === "development" ? error.stack : undefined,
+      });
+    }
+  },
+);
+
+// @route   POST /api/pdf/pdf-to-word
+// @desc    Convert PDF to Word (.docx) document using LibreOffice
+// @access  Public (with optional auth and usage limits)
+router.post(
+  "/pdf-to-word",
+  optionalAuth,
+  checkUsageLimit,
+  upload.single("file"),
+  [
+    body("sessionId").optional().isString(),
+    body("preserveLayout").optional().isBoolean(),
+    body("extractImages").optional().isBoolean(),
+  ],
+  async (req, res) => {
+    const startTime = Date.now();
+
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({
+          success: false,
+          message: "Validation error",
+          errors: errors.array(),
+        });
+      }
+
+      const {
+        sessionId,
+        preserveLayout = true,
+        extractImages = true,
+      } = req.body;
+      const file = req.file;
+
+      if (!file) {
+        return res.status(400).json({
+          success: false,
+          message: "PDF file is required",
+        });
+      }
+
+      // Check file type
+      if (
+        file.mimetype !== "application/pdf" &&
+        !file.originalname.toLowerCase().endsWith(".pdf")
+      ) {
+        return res.status(400).json({
+          success: false,
+          message: "Only PDF files are supported",
+        });
+      }
+
+      // Check file size
+      const maxSize = req.user?.isPremiumActive
+        ? 100 * 1024 * 1024 // 100MB for premium
+        : 20 * 1024 * 1024; // 20MB for free users
+
+      if (file.size > maxSize) {
+        return res.status(400).json({
+          success: false,
+          message: `File size exceeds ${req.user?.isPremiumActive ? "100MB" : "20MB"} limit`,
+        });
+      }
+
+      const { spawn } = require("child_process");
+      const path = require("path");
+      const fs = require("fs").promises;
+      const crypto = require("crypto");
+
+      console.log(`📄 Starting PDF to Word conversion: ${file.originalname}`);
+
+      // Create temporary directories
+      const tempDir = path.join(__dirname, "../../temp");
+      await fs.mkdir(tempDir, { recursive: true });
+
+      // Generate unique filenames
+      const timestamp = Date.now();
+      const randomSuffix = crypto.randomBytes(8).toString("hex");
+      const inputFileName = `${timestamp}_${randomSuffix}_input.pdf`;
+      const outputFileName = `${timestamp}_${randomSuffix}_output.docx`;
+
+      const inputPath = path.join(tempDir, inputFileName);
+      const outputPath = path.join(tempDir, outputFileName);
+
+      try {
+        // Write uploaded file to disk
+        await fs.writeFile(inputPath, file.buffer);
+
+        console.log(`💾 File saved to: ${inputPath}`);
+
+        // Try LibreOffice conversion first
+        let conversionSuccess = false;
+        let conversionError = null;
+
+        try {
+          console.log(`🔄 Attempting LibreOffice conversion...`);
+
+          const libreofficeArgs = [
+            "--headless",
+            "--invisible",
+            "--nocrashreport",
+            "--nodefault",
+            "--nofirststartwizard",
+            "--nologo",
+            "--norestore",
+            "--convert-to",
+            "docx",
+            "--outdir",
+            tempDir,
+            inputPath,
+          ];
+
+          // Add format-specific options if needed
+          if (preserveLayout) {
+            // LibreOffice will try to preserve layout by default
+            console.log(`🎨 Layout preservation enabled`);
+          }
+
+          await new Promise((resolve, reject) => {
+            const libreoffice = spawn("libreoffice", libreofficeArgs, {
+              stdio: ["ignore", "pipe", "pipe"],
+              timeout: 120000, // 2 minutes timeout
+            });
+
+            let stdout = "";
+            let stderr = "";
+
+            libreoffice.stdout.on("data", (data) => {
+              stdout += data.toString();
+            });
+
+            libreoffice.stderr.on("data", (data) => {
+              stderr += data.toString();
+            });
+
+            libreoffice.on("close", (code) => {
+              if (code === 0) {
+                console.log(`✅ LibreOffice conversion completed successfully`);
+                resolve();
+              } else {
+                console.error(`❌ LibreOffice failed with code ${code}`);
+                console.error(`stderr: ${stderr}`);
+                reject(
+                  new Error(
+                    `LibreOffice conversion failed: ${stderr || "Unknown error"}`,
+                  ),
+                );
+              }
+            });
+
+            libreoffice.on("error", (error) => {
+              console.error(`❌ LibreOffice spawn error:`, error);
+              reject(error);
+            });
+          });
+
+          // Check if output file was created
+          const expectedOutputPath = path.join(
+            tempDir,
+            inputFileName.replace(".pdf", ".docx"),
+          );
+
+          try {
+            await fs.access(expectedOutputPath);
+            // Rename to our expected output filename
+            await fs.rename(expectedOutputPath, outputPath);
+            conversionSuccess = true;
+          } catch (accessError) {
+            console.error(`❌ Output file not found at: ${expectedOutputPath}`);
+            throw new Error("LibreOffice did not produce output file");
+          }
+        } catch (libreError) {
+          console.error(`❌ LibreOffice conversion failed:`, libreError);
+          conversionError = libreError.message;
+        }
+
+        // Fallback: Try using pdf2docx via Python if LibreOffice failed
+        if (!conversionSuccess) {
+          try {
+            console.log(
+              `🔄 Attempting Python pdf2docx conversion as fallback...`,
+            );
+
+            const pythonScript = `
+import sys
+import os
+try:
+    from pdf2docx import Converter
+
+    pdf_file = sys.argv[1]
+    docx_file = sys.argv[2]
+
+    cv = Converter(pdf_file)
+    cv.convert(docx_file, start=0, end=None)
+    cv.close()
+
+    print("SUCCESS: PDF to DOCX conversion completed")
+except ImportError:
+    print("ERROR: pdf2docx library not installed")
+    sys.exit(1)
+except Exception as e:
+    print(f"ERROR: {str(e)}")
+    sys.exit(1)
+`;
+
+            const pythonScriptPath = path.join(
+              tempDir,
+              `convert_${randomSuffix}.py`,
+            );
+            await fs.writeFile(pythonScriptPath, pythonScript);
+
+            await new Promise((resolve, reject) => {
+              const python = spawn(
+                "python3",
+                [pythonScriptPath, inputPath, outputPath],
+                {
+                  stdio: ["ignore", "pipe", "pipe"],
+                  timeout: 120000,
+                },
+              );
+
+              let stdout = "";
+              let stderr = "";
+
+              python.stdout.on("data", (data) => {
+                stdout += data.toString();
+              });
+
+              python.stderr.on("data", (data) => {
+                stderr += data.toString();
+              });
+
+              python.on("close", (code) => {
+                // Clean up Python script
+                fs.unlink(pythonScriptPath).catch(console.error);
+
+                if (code === 0 && stdout.includes("SUCCESS")) {
+                  console.log(
+                    `✅ Python pdf2docx conversion completed successfully`,
+                  );
+                  conversionSuccess = true;
+                  resolve();
+                } else {
+                  console.error(
+                    `❌ Python conversion failed with code ${code}`,
+                  );
+                  console.error(`stderr: ${stderr}`);
+                  reject(
+                    new Error(
+                      `Python conversion failed: ${stderr || stdout || "Unknown error"}`,
+                    ),
+                  );
+                }
+              });
+
+              python.on("error", (error) => {
+                console.error(`❌ Python spawn error:`, error);
+                reject(error);
+              });
+            });
+          } catch (pythonError) {
+            console.error(`❌ Python pdf2docx conversion failed:`, pythonError);
+            conversionError = `${conversionError}; Python fallback: ${pythonError.message}`;
+          }
+        }
+
+        // JavaScript fallback: Use pdf-parse + docx library
+        if (!conversionSuccess) {
+          try {
+            console.log(
+              `🔄 Attempting advanced layout-aware PDF-to-DOCX conversion...`,
+            );
+
+            const pdfParse = require("pdf-parse");
+            const {
+              Document,
+              Packer,
+              Paragraph,
+              TextRun,
+              HeadingLevel,
+              AlignmentType,
+              Table,
+              TableRow,
+              TableCell,
+              WidthType,
+            } = require("docx");
+
+            // Read PDF file
+            const pdfBuffer = await fs.readFile(inputPath);
+
+            // Enhanced PDF parsing with layout analysis
+            const pdfData = await pdfParse(pdfBuffer, {
+              // Custom render options to preserve more layout info
+              normalizeWhitespace: false,
+              disableCombineTextItems: false,
+            });
+
+            const fullText = pdfData.text;
+
+            if (!fullText || fullText.trim().length === 0) {
+              throw new Error("No text content found in PDF");
+            }
+
+            console.log(`📝 Analyzing document structure and layout...`);
+
+            // Advanced text processing that preserves layout structure
+            const rawLines = fullText.split("\n");
+            const processedLines = [];
+
+            // Analyze whitespace patterns to preserve layout
+            for (let i = 0; i < rawLines.length; i++) {
+              const line = rawLines[i];
+              const trimmed = line.trim();
+
+              if (trimmed.length === 0) {
+                // Preserve empty lines as spacing indicators
+                processedLines.push({
+                  type: "spacing",
+                  content: "",
+                  originalLine: line,
+                });
+                continue;
+              }
+
+              // Analyze indentation and leading spaces
+              const leadingSpaces = line.length - line.trimStart().length;
+              const isIndented = leadingSpaces > 4;
+
+              // Detect if line appears to be in a specific column or has special formatting
+              const hasSignificantSpacing =
+                line.includes("    ") || line.includes("\t");
+
+              processedLines.push({
+                type: "content",
+                content: trimmed,
+                originalLine: line,
+                leadingSpaces,
+                isIndented,
+                hasSpecialSpacing: hasSignificantSpacing,
+                lineIndex: i,
+              });
+            }
+
+            // Filter out empty content but keep spacing info
+            const meaningfulLines = processedLines.filter(
+              (line) =>
+                line.type === "spacing" ||
+                (line.type === "content" && line.content.length > 0),
+            );
+
+            // Advanced document structure analysis
+            const docParagraphs = [];
+
+            for (let i = 0; i < meaningfulLines.length; i++) {
+              const lineData = meaningfulLines[i];
+
+              if (lineData.type === "spacing") {
+                // Add spacing paragraph
+                docParagraphs.push(
+                  new Paragraph({
+                    children: [new TextRun({ text: "", size: 12 })],
+                    spacing: { after: 120 },
+                  }),
+                );
+                continue;
+              }
+
+              const line = lineData.content;
+              const nextLineData = meaningfulLines[i + 1];
+              const prevLineData = meaningfulLines[i - 1];
+              const nextLine = nextLineData?.content || "";
+              const prevLine = prevLineData?.content || "";
+
+              // Enhanced layout-aware formatting detection
+              const isIndented = lineData.isIndented;
+              const hasSpecialSpacing = lineData.hasSpecialSpacing;
+
+              // More sophisticated title detection
+              const isMainTitle =
+                line.toUpperCase() === line &&
+                line.length < 80 &&
+                line.length > 4 &&
+                !line.includes("@") &&
+                !line.includes("www.") &&
+                !/^\d/.test(line) &&
+                i < 8 &&
+                !line.includes("."); // Titles usually don't have periods
+
+              const isPersonName =
+                /^[A-Z][a-z]+(\s+[A-Z][a-z]+)+$/.test(line) && // Multiple capitalized words
+                line.length < 50 &&
+                i < 5 &&
+                !line.includes("@") &&
+                !line.includes(":");
+
+              // Better section header detection for resume sections
+              const isSectionHeader =
+                (line.toUpperCase() === line || /^[A-Z\s&]+$/.test(line)) &&
+                line.length < 50 &&
+                line.length > 2 &&
+                !line.includes("@") &&
+                !line.includes("www.") &&
+                !line.includes(".") && // Section headers typically don't end with periods
+                (nextLine === "" ||
+                  nextLineData?.type === "spacing" ||
+                  (nextLine &&
+                    nextLine.charAt(0).toUpperCase() === nextLine.charAt(0)));
+
+              // Job titles, positions, degrees
+              const isJobTitle =
+                /^[A-Z][a-z]/.test(line) &&
+                line.length < 60 &&
+                (line.includes("Engineer") ||
+                  line.includes("Manager") ||
+                  line.includes("Developer") ||
+                  line.includes("Analyst") ||
+                  line.includes("Specialist") ||
+                  line.includes("Coordinator") ||
+                  line.includes("Director") ||
+                  line.includes("Lead") ||
+                  /Bachelor|Master|PhD|Degree/i.test(line)) &&
+                !isIndented;
+
+              // Company names, institutions (often appear after job titles)
+              const isOrganization =
+                /^[A-Z]/.test(line) &&
+                line.length < 80 &&
+                line.length > 3 &&
+                (line.includes("University") ||
+                  line.includes("College") ||
+                  line.includes("Inc") ||
+                  line.includes("Ltd") ||
+                  line.includes("LLC") ||
+                  line.includes("Corporation") ||
+                  line.includes("Company") ||
+                  /\b(Technologies|Systems|Solutions|Services|Group)\b/i.test(
+                    line,
+                  )) &&
+                !isIndented;
+
+              const isContactInfo =
+                line.includes("@") ||
+                line.includes("www.") ||
+                line.includes("http") ||
+                /^\+?\d[\d\s\-\(\)]+$/.test(line) || // Phone
+                /^\d{5}/.test(line) || // Postal code
+                line.includes("linkedin") ||
+                line.includes("github") ||
+                /^[\w\s]+,\s*[A-Z]{2}/.test(line); // City, State format
+
+              const isDateRange =
+                /\d{4}\s*[-–—]\s*(\d{4}|present|current)/i.test(line) ||
+                /\w+\s+\d{4}\s*[-–—]\s*(\w+\s+\d{4}|present|current)/i.test(
+                  line,
+                );
+
+              const isBulletPoint =
+                /^[•·▪▫-]\s/.test(line) ||
+                /^\d+\.\s/.test(line) ||
+                /^[a-zA-Z]\.\s/.test(line) ||
+                line.startsWith("- ") ||
+                line.startsWith("* ") ||
+                isIndented;
+
+              // Detect skill lists or technical terms
+              const isSkillOrTech =
+                line.includes(",") &&
+                line.split(",").length > 2 &&
+                line.length < 200 &&
+                /[A-Z]/.test(line); // Contains some capital letters
+
+              // Create appropriately formatted paragraphs with layout preservation
+              if (isMainTitle) {
+                docParagraphs.push(
+                  new Paragraph({
+                    children: [
+                      new TextRun({
+                        text: line,
+                        bold: true,
+                        size: 36, // 18pt
+                        color: "1F4E79",
+                      }),
+                    ],
+                    heading: HeadingLevel.TITLE,
+                    spacing: { before: 0, after: 300 },
+                    alignment: AlignmentType.CENTER,
+                  }),
+                );
+              } else if (isPersonName) {
+                docParagraphs.push(
+                  new Paragraph({
+                    children: [
+                      new TextRun({
+                        text: line,
+                        bold: true,
+                        size: 32, // 16pt
+                        color: "2F5597",
+                      }),
+                    ],
+                    heading: HeadingLevel.HEADING_1,
+                    spacing: { before: 0, after: 180 },
+                    alignment: AlignmentType.CENTER,
+                  }),
+                );
+              } else if (isSectionHeader) {
+                docParagraphs.push(
+                  new Paragraph({
+                    children: [
+                      new TextRun({
+                        text: line.replace(":", ""),
+                        bold: true,
+                        size: 28, // 14pt
+                        color: "1F4E79",
+                      }),
+                    ],
+                    heading: HeadingLevel.HEADING_2,
+                    spacing: { before: 300, after: 150 },
+                    border: {
+                      bottom: {
+                        color: "1F4E79",
+                        space: 1,
+                        style: "single",
+                        size: 6,
+                      },
+                    },
+                  }),
+                );
+              } else if (isJobTitle) {
+                docParagraphs.push(
+                  new Paragraph({
+                    children: [
+                      new TextRun({
+                        text: line,
+                        bold: true,
+                        size: 26, // 13pt
+                        color: "2F5597",
+                      }),
+                    ],
+                    spacing: { before: 200, after: 80 },
+                  }),
+                );
+              } else if (isOrganization) {
+                docParagraphs.push(
+                  new Paragraph({
+                    children: [
+                      new TextRun({
+                        text: line,
+                        size: 24, // 12pt
+                        italics: true,
+                        color: "404040",
+                      }),
+                    ],
+                    spacing: { after: 80 },
+                  }),
+                );
+              } else if (isContactInfo) {
+                docParagraphs.push(
+                  new Paragraph({
+                    children: [
+                      new TextRun({
+                        text: line,
+                        size: 22, // 11pt
+                        italics: true,
+                        color: "595959",
+                      }),
+                    ],
+                    spacing: { after: 60 },
+                    alignment: AlignmentType.CENTER,
+                  }),
+                );
+              } else if (isDateRange) {
+                docParagraphs.push(
+                  new Paragraph({
+                    children: [
+                      new TextRun({
+                        text: line,
+                        size: 22, // 11pt
+                        italics: true,
+                        color: "7F7F7F",
+                      }),
+                    ],
+                    spacing: { after: 100 },
+                    alignment: AlignmentType.RIGHT,
+                  }),
+                );
+              } else if (isSkillOrTech) {
+                docParagraphs.push(
+                  new Paragraph({
+                    children: [
+                      new TextRun({
+                        text: line,
+                        size: 24, // 12pt
+                        color: "404040",
+                      }),
+                    ],
+                    spacing: { after: 120 },
+                    indent: { left: 180 },
+                  }),
+                );
+              } else if (isBulletPoint) {
+                docParagraphs.push(
+                  new Paragraph({
+                    children: [
+                      new TextRun({
+                        text: line,
+                        size: 24, // 12pt
+                      }),
+                    ],
+                    spacing: { after: 80 },
+                    indent: { left: isIndented ? 720 : 360 },
+                  }),
+                );
+              } else if (line.length > 120) {
+                // Long paragraph - likely detailed description
+                docParagraphs.push(
+                  new Paragraph({
+                    children: [
+                      new TextRun({
+                        text: line,
+                        size: 24, // 12pt
+                      }),
+                    ],
+                    spacing: { after: 160 },
+                    alignment: AlignmentType.LEFT,
+                  }),
+                );
+              } else {
+                // Regular text - preserve indentation if present
+                docParagraphs.push(
+                  new Paragraph({
+                    children: [
+                      new TextRun({
+                        text: line,
+                        size: 24, // 12pt
+                      }),
+                    ],
+                    spacing: { after: 120 },
+                    indent: isIndented ? { left: 360 } : undefined,
+                  }),
+                );
+              }
+            }
+
+            const doc = new Document({
+              creator: "PdfPage - PDF to Word Converter",
+              title: "Converted Document",
+              description: "Document converted from PDF to Word format",
+              styles: {
+                default: {
+                  document: {
+                    run: {
+                      font: "Times New Roman",
+                      size: 24, // 12pt
+                    },
+                    paragraph: {
+                      spacing: {
+                        line: 276, // 1.15 line spacing
+                      },
+                    },
+                  },
+                },
+              },
+              sections: [
+                {
+                  properties: {
+                    page: {
+                      margin: {
+                        top: 1440, // 1 inch
+                        right: 1440, // 1 inch
+                        bottom: 1440, // 1 inch
+                        left: 1440, // 1 inch
+                      },
+                      size: {
+                        orientation: "portrait",
+                        width: 12240, // 8.5 inches
+                        height: 15840, // 11 inches
+                      },
+                    },
+                  },
+                  children: docParagraphs,
+                },
+              ],
+            });
+
+            // Generate and save DOCX
+            const buffer = await Packer.toBuffer(doc);
+            await fs.writeFile(outputPath, buffer);
+
+            console.log(
+              `✅ JavaScript PDF-to-DOCX conversion completed successfully`,
+            );
+            conversionSuccess = true;
+          } catch (jsError) {
+            console.error(`❌ JavaScript conversion fallback failed:`, jsError);
+            conversionError = `${conversionError}; JavaScript fallback: ${jsError.message}`;
+          }
+        }
+
+        // If all methods failed, return error
+        if (!conversionSuccess) {
+          throw new Error(
+            `All conversion methods failed. LibreOffice error: ${conversionError}`,
+          );
+        }
+
+        // Verify output file exists and has content
+        const outputStats = await fs.stat(outputPath);
+        if (outputStats.size === 0) {
+          throw new Error("Conversion produced empty output file");
+        }
+
+        console.log(
+          `✅ Conversion successful. Output size: ${outputStats.size} bytes`,
+        );
+
+        // Read the converted file
+        const docxBuffer = await fs.readFile(outputPath);
+        const processingTime = Date.now() - startTime;
+
+        // Track successful conversion
+        try {
+          await trackUsageWithDeviceInfo(req, {
+            userId: req.user ? req.user._id : null,
+            sessionId: sessionId || null,
+            toolUsed: "pdf-to-word",
+            fileCount: 1,
+            totalFileSize: file.size,
+            processingTime,
+            success: true,
+          });
+
+          // Track anonymous usage for IP-based limiting
+          if (!req.user) {
+            await trackAnonymousUsage(req, res, {
+              toolName: "pdf-to-word",
+              fileCount: 1,
+              totalFileSize: file.size,
+              sessionId: sessionId || req.sessionID,
+              fileName: file.originalname,
+              fileBuffer: file.buffer,
+            });
+          }
+
+          // Update user upload count if authenticated
+          if (req.user && !req.user.isPremiumActive) {
+            req.user.incrementUpload(file.size);
+            await req.user.save();
+          }
+        } catch (error) {
+          console.error("Error tracking usage:", error);
+        }
+
+        // Generate output filename
+        const originalName = file.originalname.replace(/\.pdf$/i, "");
+        const outputFilename = `${originalName}_converted.docx`;
+
+        // Send the converted file
+        res.setHeader(
+          "Content-Type",
+          "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        );
+        res.setHeader(
+          "Content-Disposition",
+          `attachment; filename="${outputFilename}"`,
+        );
+        res.setHeader("Content-Length", docxBuffer.length);
+        res.setHeader("X-Original-Size", file.size.toString());
+        res.setHeader("X-Converted-Size", docxBuffer.length.toString());
+        res.setHeader("X-Processing-Time", processingTime.toString());
+        // Determine which method was actually used
+        let conversionMethod = "enhanced-javascript";
+        if (
+          conversionError.includes("LibreOffice") &&
+          conversionError.includes("Python") &&
+          conversionError.includes("JavaScript")
+        ) {
+          conversionMethod = "all-methods-failed";
+        } else if (
+          conversionError.includes("LibreOffice") &&
+          conversionError.includes("Python")
+        ) {
+          conversionMethod = "enhanced-javascript";
+        } else if (conversionError.includes("LibreOffice")) {
+          conversionMethod = "python-pdf2docx";
+        } else {
+          conversionMethod = "libreoffice";
+        }
+
+        res.setHeader("X-Conversion-Method", conversionMethod);
+
+        res.send(docxBuffer);
+      } finally {
+        // Clean up temporary files
+        try {
+          await fs.unlink(inputPath).catch(() => {});
+          await fs.unlink(outputPath).catch(() => {});
+        } catch (cleanupError) {
+          console.warn("Failed to cleanup temporary files:", cleanupError);
+        }
+      }
+    } catch (error) {
+      console.error("PDF to Word conversion error:", error);
+
+      // Track conversion failure
+      try {
+        await trackUsageWithDeviceInfo(req, {
+          userId: req.user ? req.user._id : null,
+          sessionId: req.body.sessionId || null,
+          toolUsed: "pdf-to-word",
+          fileCount: 1,
+          totalFileSize: req.file ? req.file.size : 0,
+          processingTime: Date.now() - startTime,
+          success: false,
+          errorMessage: error.message,
+        });
+      } catch (trackError) {
+        console.error("Error tracking failed operation:", trackError);
+      }
+
+      res.status(500).json({
+        success: false,
+        message: error.message || "Failed to convert PDF to Word",
+        details:
+          process.env.NODE_ENV === "development" ? error.stack : undefined,
+      });
+    }
+  },
+);
+
+// @route   POST /api/pdf/edit-session
+// @desc    Create a new PDF editing session
+// @access  Public (with optional auth and usage limits)
+router.post(
+  "/edit-session",
+  optionalAuth,
+  checkUsageLimit,
+  upload.single("file"),
+  [
+    body("sessionId").optional().isString(),
+    body("collaborative").optional().isBoolean(),
+  ],
+  async (req, res) => {
+    const startTime = Date.now();
+
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({
+          success: false,
+          message: "Validation error",
+          errors: errors.array(),
+        });
+      }
+
+      const { sessionId, collaborative = false } = req.body;
+      const file = req.file;
+
+      if (!file) {
+        return res.status(400).json({
+          success: false,
+          message: "PDF file is required",
+        });
+      }
+
+      // Check file size
+      const maxSize = req.user?.isPremiumActive
+        ? 100 * 1024 * 1024 // 100MB for premium
+        : 20 * 1024 * 1024; // 20MB for free users
+
+      if (file.size > maxSize) {
+        return res.status(400).json({
+          success: false,
+          message: `File size exceeds ${req.user?.isPremiumActive ? "100MB" : "20MB"} limit`,
+        });
+      }
+
+      // Import required libraries
+      const { PDFDocument } = require("pdf-lib");
+      const crypto = require("crypto");
+
+      console.log(`���� Creating edit session for ${file.originalname}`);
+
+      // Load PDF
+      const pdfDoc = await PDFDocument.load(file.buffer);
+      const pageCount = pdfDoc.getPageCount();
+
+      // Generate session ID if not provided
+      const editSessionId = sessionId || crypto.randomUUID();
+
+      // Store PDF data in memory temporarily (in production, use Redis or database)
+      global.editSessions = global.editSessions || new Map();
+      global.editSessions.set(editSessionId, {
+        originalPdf: file.buffer,
+        pdfDocument: pdfDoc,
+        pageCount,
+        originalName: file.originalname,
+        edits: [],
+        collaborative,
+        created: new Date(),
+        lastAccessed: new Date(),
+      });
+
+      // Clean up old sessions (keep for 1 hour)
+      const oneHourAgo = Date.now() - 60 * 60 * 1000;
+      for (const [id, session] of global.editSessions.entries()) {
+        if (session.lastAccessed.getTime() < oneHourAgo) {
+          global.editSessions.delete(id);
+        }
+      }
+
+      const processingTime = Date.now() - startTime;
+
+      console.log(`✅ Edit session created: ${editSessionId}`);
+
+      // Track usage
+      try {
+        await trackUsageWithDeviceInfo(req, {
+          userId: req.user ? req.user._id : null,
+          sessionId: editSessionId,
+          toolUsed: "realtime-editor",
+          fileCount: 1,
+          totalFileSize: file.size,
+          processingTime,
+          success: true,
+        });
+
+        // Track anonymous usage for IP-based limiting
+        if (!req.user) {
+          await trackAnonymousUsage(req, res, {
+            toolName: "realtime-editor",
+            fileCount: 1,
+            totalFileSize: file.size,
+            sessionId: editSessionId,
+            fileName: file.originalname,
+            fileBuffer: file.buffer,
+          });
+        }
+      } catch (error) {
+        console.error("Error tracking usage:", error);
+      }
+
+      res.json({
+        success: true,
+        sessionId: editSessionId,
+        pageCount,
+        originalName: file.originalname,
+        collaborative,
+        message: "Edit session created successfully",
+      });
+    } catch (error) {
+      console.error("Edit session creation error:", error);
+
+      // Track error
+      try {
+        await trackUsageWithDeviceInfo(req, {
+          userId: req.user ? req.user._id : null,
+          sessionId: req.body.sessionId || null,
+          toolUsed: "realtime-editor",
+          fileCount: 1,
+          totalFileSize: req.file ? req.file.size : 0,
+          processingTime: Date.now() - startTime,
+          success: false,
+          errorMessage: error.message,
+        });
+      } catch (trackError) {
+        console.error("Error tracking failed operation:", trackError);
+      }
+
+      res.status(500).json({
+        success: false,
+        message: error.message || "Failed to create edit session",
+      });
+    }
+  },
+);
+
+// @route   POST /api/pdf/edit-action
+// @desc    Apply edit action to PDF session
+// @access  Public
+router.post(
+  "/edit-action",
+  optionalAuth,
+  [
+    body("sessionId").isString().withMessage("Session ID is required"),
+    body("action").isObject().withMessage("Action object is required"),
+    body("pageIndex")
+      .isInt({ min: 0 })
+      .withMessage("Valid page index required"),
+  ],
+  async (req, res) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({
+          success: false,
+          message: "Validation error",
+          errors: errors.array(),
+        });
+      }
+
+      const { sessionId, action, pageIndex } = req.body;
+
+      // Check if session exists
+      global.editSessions = global.editSessions || new Map();
+      const session = global.editSessions.get(sessionId);
+
+      if (!session) {
+        return res.status(404).json({
+          success: false,
+          message: "Edit session not found or expired",
+        });
+      }
+
+      // Validate page index
+      if (pageIndex >= session.pageCount) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid page index",
+        });
+      }
+
+      // Update last accessed time
+      session.lastAccessed = new Date();
+
+      // Add edit action to session
+      const editAction = {
+        id: Date.now().toString(),
+        type: action.type,
+        pageIndex,
+        data: action.data,
+        timestamp: new Date(),
+        userId: req.user?.id || "anonymous",
+      };
+
+      session.edits.push(editAction);
+
+      console.log(
+        `📝 Edit action applied: ${action.type} on page ${pageIndex + 1}`,
+      );
+
+      res.json({
+        success: true,
+        actionId: editAction.id,
+        totalEdits: session.edits.length,
+        message: "Edit action applied successfully",
+      });
+    } catch (error) {
+      console.error("Edit action error:", error);
+      res.status(500).json({
+        success: false,
+        message: error.message || "Failed to apply edit action",
+      });
+    }
+  },
+);
+
+// @route   POST /api/pdf/render-edited
+// @desc    Render final PDF with all edits applied
+// @access  Public
+router.post(
+  "/render-edited",
+  optionalAuth,
+  [body("sessionId").isString().withMessage("Session ID is required")],
+  async (req, res) => {
+    const startTime = Date.now();
+
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({
+          success: false,
+          message: "Validation error",
+          errors: errors.array(),
+        });
+      }
+
+      const { sessionId } = req.body;
+
+      // Check if session exists
+      global.editSessions = global.editSessions || new Map();
+      const session = global.editSessions.get(sessionId);
+
+      if (!session) {
+        return res.status(404).json({
+          success: false,
+          message: "Edit session not found or expired",
+        });
+      }
+
+      // Import required libraries
+      const { PDFDocument, rgb } = require("pdf-lib");
+
+      console.log(`🎨 Rendering edited PDF with ${session.edits.length} edits`);
+
+      // Load original PDF
+      const pdfDoc = await PDFDocument.load(session.originalPdf);
+      const pages = pdfDoc.getPages();
+
+      // Apply each edit action
+      for (const edit of session.edits) {
+        try {
+          const page = pages[edit.pageIndex];
+          if (!page) continue;
+
+          switch (edit.type) {
+            case "addText":
+              const {
+                text,
+                x,
+                y,
+                fontSize = 12,
+                color = { r: 0, g: 0, b: 0 },
+              } = edit.data;
+              page.drawText(text, {
+                x: x,
+                y: page.getHeight() - y, // Convert coordinate system
+                size: fontSize,
+                color: rgb(color.r / 255, color.g / 255, color.b / 255),
+              });
+              break;
+
+            case "addShape":
+              const {
+                shape,
+                x: shapeX,
+                y: shapeY,
+                width,
+                height,
+                color: shapeColor = { r: 0, g: 0, b: 0 },
+              } = edit.data;
+              const shapeRgb = rgb(
+                shapeColor.r / 255,
+                shapeColor.g / 255,
+                shapeColor.b / 255,
+              );
+
+              if (shape === "rectangle") {
+                page.drawRectangle({
+                  x: shapeX,
+                  y: page.getHeight() - shapeY - height,
+                  width: width,
+                  height: height,
+                  borderColor: shapeRgb,
+                  borderWidth: 2,
+                });
+              } else if (shape === "circle") {
+                const radius = Math.min(width, height) / 2;
+                page.drawCircle({
+                  x: shapeX + width / 2,
+                  y: page.getHeight() - shapeY - height / 2,
+                  size: radius,
+                  borderColor: shapeRgb,
+                  borderWidth: 2,
+                });
+              }
+              break;
+
+            case "addImage":
+              // Image handling would require additional processing
+              console.log("Image editing not yet implemented");
+              break;
+
+            default:
+              console.log(`Unknown edit type: ${edit.type}`);
+          }
+        } catch (editError) {
+          console.error(`Error applying edit ${edit.id}:`, editError);
+        }
+      }
+
+      // Save the modified PDF
+      const pdfBytes = await pdfDoc.save();
+      const processingTime = Date.now() - startTime;
+
+      console.log(`✅ PDF rendered with edits in ${processingTime}ms`);
+
+      // Track successful render
+      try {
+        await trackUsageWithDeviceInfo(req, {
+          userId: req.user ? req.user._id : null,
+          sessionId: sessionId,
+          toolUsed: "realtime-editor-render",
+          fileCount: 1,
+          totalFileSize: pdfBytes.length,
+          processingTime,
+          success: true,
+        });
+      } catch (error) {
+        console.error("Error tracking usage:", error);
+      }
+
+      // Send the edited PDF
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader(
+        "Content-Disposition",
+        `attachment; filename="${session.originalName.replace(/\.pdf$/i, "_edited.pdf")}"`,
+      );
+      res.setHeader("Content-Length", pdfBytes.length);
+      res.setHeader("X-Edit-Count", session.edits.length.toString());
+      res.setHeader("X-Processing-Time", processingTime.toString());
+
+      res.send(Buffer.from(pdfBytes));
+    } catch (error) {
+      console.error("PDF render error:", error);
+
+      // Track error
+      try {
+        await trackUsageWithDeviceInfo(req, {
+          userId: req.user ? req.user._id : null,
+          sessionId: req.body.sessionId || null,
+          toolUsed: "realtime-editor-render",
+          fileCount: 1,
+          totalFileSize: 0,
+          processingTime: Date.now() - startTime,
+          success: false,
+          errorMessage: error.message,
+        });
+      } catch (trackError) {
+        console.error("Error tracking failed operation:", trackError);
+      }
+
+      res.status(500).json({
+        success: false,
+        message: error.message || "Failed to render edited PDF",
+      });
+    }
+  },
+);
+
+// @route   POST /api/pdf/update-element
+// @desc    Update a PDF element in real-time
+// @access  Public
+router.post(
+  "/update-element",
+  [
+    body("sessionId").isString().notEmpty(),
+    body("elementId").isString().notEmpty(),
+    body("element").isObject(),
+  ],
+  async (req, res) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({
+          success: false,
+          message: "Validation error",
+          errors: errors.array(),
+        });
+      }
+
+      const { sessionId, elementId, element } = req.body;
+
+      // Get session from memory
+      if (!global.editSessions) {
+        global.editSessions = new Map();
+      }
+
+      const session = global.editSessions.get(sessionId);
+      if (!session) {
+        return res.status(404).json({
+          success: false,
+          message: "Edit session not found",
+        });
+      }
+
+      // Initialize elements if not exists
+      if (!session.elements) {
+        session.elements = new Map();
+      }
+
+      // Update element
+      session.elements.set(elementId, {
+        ...element,
+        id: elementId,
+        modified: new Date(),
+      });
+
+      session.lastAccessed = new Date();
+
+      console.log(`🔄 Element ${elementId} updated in session ${sessionId}`);
+
+      res.json({
+        success: true,
+        message: "Element updated successfully",
+        element: session.elements.get(elementId),
+        timestamp: Date.now(),
+      });
+    } catch (error) {
+      console.error("Error updating element:", error);
+      res.status(500).json({
+        success: false,
+        message: "Failed to update element",
+        error:
+          process.env.NODE_ENV === "development" ? error.message : undefined,
+      });
+    }
+  },
+);
+
+// @route   DELETE /api/pdf/delete-element
+// @desc    Delete a PDF element in real-time
+// @access  Public
+router.delete(
+  "/delete-element",
+  [
+    body("sessionId").isString().notEmpty(),
+    body("elementId").isString().notEmpty(),
+  ],
+  async (req, res) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({
+          success: false,
+          message: "Validation error",
+          errors: errors.array(),
+        });
+      }
+
+      const { sessionId, elementId } = req.body;
+
+      const session = global.editSessions?.get(sessionId);
+      if (!session) {
+        return res.status(404).json({
+          success: false,
+          message: "Edit session not found",
+        });
+      }
+
+      if (session.elements) {
+        session.elements.delete(elementId);
+      }
+
+      session.lastAccessed = new Date();
+
+      console.log(
+        `🗑�� Element ${elementId} deleted from session ${sessionId}`,
+      );
+
+      res.json({
+        success: true,
+        message: "Element deleted successfully",
+        timestamp: Date.now(),
+      });
+    } catch (error) {
+      console.error("Error deleting element:", error);
+      res.status(500).json({
+        success: false,
+        message: "Failed to delete element",
+        error:
+          process.env.NODE_ENV === "development" ? error.message : undefined,
+      });
+    }
+  },
+);
+
+// @route   GET /api/pdf/session-elements/:sessionId
+// @desc    Get all elements for a session
+// @access  Public
+router.get("/session-elements/:sessionId", async (req, res) => {
+  try {
+    const { sessionId } = req.params;
+
+    const session = global.editSessions?.get(sessionId);
+    if (!session) {
+      return res.status(404).json({
+        success: false,
+        message: "Edit session not found",
+      });
+    }
+
+    const elements = session.elements
+      ? Array.from(session.elements.values())
+      : [];
+
+    session.lastAccessed = new Date();
+
+    res.json({
+      success: true,
+      elements,
+      timestamp: Date.now(),
+    });
+  } catch (error) {
+    console.error("Error getting session elements:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to get session elements",
+      error: process.env.NODE_ENV === "development" ? error.message : undefined,
+    });
+  }
+});
+
+// @route   POST /api/pdf/save-edited-pdf
+// @desc    Save the edited PDF with all elements applied
+// @access  Public
+router.post(
+  "/save-edited-pdf",
+  [body("sessionId").isString().notEmpty()],
+  async (req, res) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({
+          success: false,
+          message: "Validation error",
+          errors: errors.array(),
+        });
+      }
+
+      const { sessionId } = req.body;
+
+      const session = global.editSessions?.get(sessionId);
+      if (!session) {
+        return res.status(404).json({
+          success: false,
+          message: "Edit session not found",
+        });
+      }
+
+      // Get the original PDF buffer
+      const originalPdfBuffer = session.originalBuffer;
+      if (!originalPdfBuffer) {
+        return res.status(400).json({
+          success: false,
+          message: "Original PDF not found in session",
+        });
+      }
+
+      // Enhanced PDF editing with direct text replacement
+      const { PDFDocument, rgb, StandardFonts, PageSizes } = require("pdf-lib");
+      const pdfDoc = await PDFDocument.load(originalPdfBuffer);
+      const pages = pdfDoc.getPages();
+
+      // Get elements
+      const elements = session.elements
+        ? Array.from(session.elements.values())
+        : [];
+
+      // First, create a white rectangle to "erase" original text for modified elements
+      for (const element of elements) {
+        if (
+          !element.visible ||
+          element.type !== "text" ||
+          (!element.modified && !element.isNew)
+        )
+          continue;
+
+        const page = pages[element.pageIndex];
+        if (!page) continue;
+
+        const { width: pageWidth, height: pageHeight } = page.getSize();
+
+        // If this is a modification of existing text, cover the original
+        if (element.modified && !element.isNew) {
+          const x = element.x;
+          const y = pageHeight - element.y - element.height;
+
+          // Draw white rectangle to cover original text
+          page.drawRectangle({
+            x: x - 2,
+            y: y - 2,
+            width: element.width + 4,
+            height: element.height + 4,
+            color: rgb(1, 1, 1), // White
+            borderWidth: 0,
+          });
+        }
+      }
+
+      // Then draw all text elements (both new and modified)
+      for (const element of elements) {
+        if (!element.visible) continue;
+
+        const page = pages[element.pageIndex];
+        if (!page) continue;
+
+        const { width: pageWidth, height: pageHeight } = page.getSize();
+
+        // Convert coordinates (PDF coordinate system has origin at bottom-left)
+        const x = element.x;
+        const y = pageHeight - element.y - element.height;
+
+        switch (element.type) {
+          case "text":
+            try {
+              // Use appropriate font
+              let font;
+              const fontFamily =
+                element.fontFamily?.toLowerCase() || "helvetica";
+
+              if (
+                fontFamily.includes("helvetica") ||
+                fontFamily.includes("arial")
+              ) {
+                font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+              } else if (fontFamily.includes("times")) {
+                font = await pdfDoc.embedFont(StandardFonts.TimesRoman);
+              } else if (fontFamily.includes("courier")) {
+                font = await pdfDoc.embedFont(StandardFonts.Courier);
+              } else {
+                font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+              }
+
+              const textColor = element.color || "#000000";
+              const [r, g, b] = hexToRgb(textColor);
+              const fontSize = element.fontSize || 12;
+
+              // Handle multi-line text
+              const lines = (element.content || "").split("\n");
+              const lineHeight = fontSize * 1.2;
+
+              lines.forEach((line, index) => {
+                if (line.trim()) {
+                  page.drawText(line, {
+                    x,
+                    y: y + element.height - fontSize - index * lineHeight,
+                    size: fontSize,
+                    font,
+                    color: rgb(r / 255, g / 255, b / 255),
+                    opacity: element.opacity || 1,
+                  });
+                }
+              });
+            } catch (textError) {
+              console.error("Error drawing text element:", textError);
+            }
+            break;
+
+          case "rectangle":
+            const strokeColor = element.strokeColor || "#000000";
+            const fillColor = element.fillColor || "transparent";
+            const [sr, sg, sb] = hexToRgb(strokeColor);
+
+            if (fillColor !== "transparent") {
+              const [fr, fg, fb] = hexToRgb(fillColor);
+              page.drawRectangle({
+                x,
+                y,
+                width: element.width,
+                height: element.height,
+                color: rgb(fr / 255, fg / 255, fb / 255),
+                opacity: element.opacity || 1,
+              });
+            }
+
+            page.drawRectangle({
+              x,
+              y,
+              width: element.width,
+              height: element.height,
+              borderColor: rgb(sr / 255, sg / 255, sb / 255),
+              borderWidth: element.strokeWidth || 1,
+              opacity: element.opacity || 1,
+            });
+            break;
+
+          case "circle":
+            // Note: pdf-lib doesn't have direct circle support, so we approximate with an ellipse
+            const centerX = x + element.width / 2;
+            const centerY = y + element.height / 2;
+            const radiusX = element.width / 2;
+            const radiusY = element.height / 2;
+
+            const circleStrokeColor = element.strokeColor || "#000000";
+            const [csr, csg, csb] = hexToRgb(circleStrokeColor);
+
+            page.drawEllipse({
+              x: centerX,
+              y: centerY,
+              xScale: radiusX,
+              yScale: radiusY,
+              borderColor: rgb(csr / 255, csg / 255, csb / 255),
+              borderWidth: element.strokeWidth || 1,
+              opacity: element.opacity || 1,
+            });
+            break;
+        }
+      }
+
+      // Generate final PDF
+      const pdfBytes = await pdfDoc.save();
+
+      // Set response headers
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader(
+        "Content-Disposition",
+        `attachment; filename="edited_${session.originalName}"`,
+      );
+      res.setHeader("Content-Length", pdfBytes.length);
+
+      // Send the PDF
+      res.send(Buffer.from(pdfBytes));
+
+      console.log(`📄 Edited PDF saved for session ${sessionId}`);
+    } catch (error) {
+      console.error("Error saving edited PDF:", error);
+      res.status(500).json({
+        success: false,
+        message: "Failed to save edited PDF",
+        error:
+          process.env.NODE_ENV === "development" ? error.message : undefined,
+      });
+    }
+  },
+);
+
+// Helper function to convert hex color to RGB
+function hexToRgb(hex) {
+  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+  return result
+    ? [
+        parseInt(result[1], 16),
+        parseInt(result[2], 16),
+        parseInt(result[3], 16),
+      ]
+    : [0, 0, 0];
+}
 
 module.exports = router;

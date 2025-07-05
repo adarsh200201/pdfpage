@@ -34,16 +34,13 @@
 
   // Configure PDF.js with the best available worker source
   async function configurePDFWorker() {
-    console.log("PDF Worker Configuration: Testing worker sources...");
+    // Reduced logging for cleaner console output
 
     for (const src of WORKER_SOURCES) {
       try {
-        console.log(`Testing worker source: ${src}`);
         const isAccessible = await testWorkerSource(src);
 
         if (isAccessible) {
-          console.log(`PDF Worker Configuration: Using ${src}`);
-
           // Set global worker options if PDF.js is available
           if (window.pdfjsLib && window.pdfjsLib.GlobalWorkerOptions) {
             window.pdfjsLib.GlobalWorkerOptions.workerSrc = src;

@@ -69,9 +69,22 @@ export const useRealTimeStats = (
 
       setStats(formattedStats);
       setLastUpdated(new Date());
+      setError(null); // Clear any previous errors on successful fetch
     } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : "Unknown error";
       console.error("Failed to fetch real-time stats:", err);
-      setError("Failed to load real-time statistics");
+
+      // Set appropriate error message
+      if (
+        errorMessage.includes("Failed to fetch") ||
+        errorMessage.includes("Unable to connect")
+      ) {
+        setError("Backend server unavailable - showing offline data");
+      } else if (errorMessage.includes("timeout")) {
+        setError("Request timed out - showing cached data");
+      } else {
+        setError("Failed to load real-time statistics");
+      }
 
       // Fallback to minimal real stats (not dummy data)
       setStats([

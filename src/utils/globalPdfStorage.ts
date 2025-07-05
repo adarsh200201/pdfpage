@@ -15,26 +15,17 @@ class GlobalPDFStorage {
   static getInstance(): GlobalPDFStorage {
     if (!GlobalPDFStorage.instance) {
       GlobalPDFStorage.instance = new GlobalPDFStorage();
-      console.log(`🌍 [GLOBAL-STORAGE] Created global storage instance`);
     }
     return GlobalPDFStorage.instance;
   }
 
   store(sessionId: string, pages: Uint8Array[], componentId?: string): void {
-    console.log(
-      `🌍 [GLOBAL-STORAGE] Storing ${pages.length} pages for ${sessionId}`,
-    );
-
     this.storage.set(sessionId, {
       sessionId,
       pages,
       timestamp: Date.now(),
       componentId: componentId || "unknown",
     });
-
-    console.log(
-      `🌍 [GLOBAL-STORAGE] Global storage now has ${this.storage.size} sessions`,
-    );
   }
 
   retrieve(sessionId: string): Uint8Array[] | null {

@@ -18,10 +18,7 @@ export const authService = {
     const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
     const googleOAuthUrl = `${apiUrl}/auth/google`;
 
-    console.log(
-      "🔵 [AUTH-SERVICE] Redirecting to Google OAuth:",
-      googleOAuthUrl,
-    );
+    // Redirect to Google OAuth
 
     // Store the current location to redirect back after auth
     sessionStorage.setItem("authRedirectUrl", window.location.pathname);

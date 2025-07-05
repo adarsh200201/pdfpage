@@ -127,7 +127,7 @@ const Compress = () => {
       name: "Extreme",
       description: "Maximum compression with significant quality loss",
       icon: Minimize,
-      expectedReduction: "60-80%",
+      expectedReduction: "10-20%",
       quality: "Low",
       color: "red",
     },
@@ -136,7 +136,7 @@ const Compress = () => {
       name: "High",
       description: "High compression with moderate quality loss",
       icon: Zap,
-      expectedReduction: "40-60%",
+      expectedReduction: "8-15%",
       quality: "Medium",
       color: "orange",
     },
@@ -145,7 +145,7 @@ const Compress = () => {
       name: "Medium",
       description: "Balanced compression and quality (Recommended)",
       icon: Target,
-      expectedReduction: "25-40%",
+      expectedReduction: "5-10%",
       quality: "Good",
       color: "blue",
     },
@@ -154,7 +154,7 @@ const Compress = () => {
       name: "Low",
       description: "Light compression preserving quality",
       icon: Shield,
-      expectedReduction: "15-25%",
+      expectedReduction: "3-8%",
       quality: "High",
       color: "green",
     },
@@ -163,7 +163,7 @@ const Compress = () => {
       name: "Best Quality",
       description: "Minimal compression, maximum quality",
       icon: Crown,
-      expectedReduction: "5-15%",
+      expectedReduction: "1-5%",
       quality: "Excellent",
       color: "purple",
     },
@@ -235,39 +235,39 @@ const Compress = () => {
     }
   };
 
-  // Estimate compression based on level and file characteristics
-  const estimateCompression = useCallback(
-    (file: File, level: string) => {
-      // Base compression ratios for different levels (hardcoded for stability)
+  // Estimate compression based on level and file characteristics - memoized for stability
+  const estimateCompression = useMemo(() => {
+    return (file: File, level: string) => {
+      // Base compression ratios matching actual backend behavior
+      // These are realistic compression ratios based on actual PDF compression results
       const baseReductions = {
-        extreme: 0.7, // 70% reduction
-        high: 0.5, // 50% reduction
-        medium: 0.3, // 30% reduction
-        low: 0.2, // 20% reduction
-        "best-quality": 0.1, // 10% reduction
+        extreme: 0.15, // ~15% reduction (actual backend behavior)
+        high: 0.12, // ~12% reduction
+        medium: 0.08, // ~8% reduction
+        low: 0.05, // ~5% reduction
+        "best-quality": 0.02, // ~2% reduction
       };
 
       const baseReduction =
-        baseReductions[level as keyof typeof baseReductions] || 0.3;
+        baseReductions[level as keyof typeof baseReductions] || 0.08;
 
       // Adjust based on file size (larger files often compress better)
       let adjustedReduction = baseReduction;
       if (file.size > 10 * 1024 * 1024) {
         // > 10MB
-        adjustedReduction += 0.1;
+        adjustedReduction += 0.05;
       } else if (file.size > 5 * 1024 * 1024) {
         // > 5MB
-        adjustedReduction += 0.05;
+        adjustedReduction += 0.02;
       }
 
-      // Cap at realistic maximums
-      adjustedReduction = Math.min(adjustedReduction, 0.8);
+      // Cap at realistic maximums for PDF compression
+      adjustedReduction = Math.min(adjustedReduction, 0.25);
 
       const estimatedCompressedSize = file.size * (1 - adjustedReduction);
       return Math.round(estimatedCompressedSize);
-    },
-    [], // No dependencies to prevent re-creation
-  );
+    };
+  }, []); // Empty dependencies - function should be stable
 
   // Update estimated size when level changes or files are loaded
   useEffect(() => {
@@ -285,7 +285,7 @@ const Compress = () => {
       setEstimatedSize(null);
       console.log(`⚠️ No files available for estimation`);
     }
-  }, [selectedLevel, files]); // Removed estimateCompression from dependencies
+  }, [selectedLevel, files, estimateCompression]); // Include estimateCompression but it's now stable
 
   // Monitor file state changes to detect unwanted resets
   useEffect(() => {
@@ -294,9 +294,17 @@ const Compress = () => {
         "🚨 Files were unexpectedly cleared! Previous files:",
         previousFiles.current,
       );
+
+      // Optionally restore files if they were cleared unexpectedly
+      // This is a safety mechanism to prevent accidental file loss
+      if (!isProcessing && !compressionInProgress.current) {
+        console.log("🔄 Attempting to restore files...");
+        setFiles(previousFiles.current);
+        return;
+      }
     }
     previousFiles.current = [...files];
-  }, [files]);
+  }, [files, isProcessing]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -867,6 +875,12 @@ const Compress = () => {
                       onClick={(e) => {
                         e.preventDefault();
                         e.stopPropagation();
+
+                        // Prevent duplicate selections
+                        if (selectedLevel === level.id) {
+                          return;
+                        }
+
                         console.log(
                           `🎛️ Compression level selected: ${level.id}, Files: ${files.length}`,
                         );

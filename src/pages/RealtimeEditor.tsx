@@ -1,5 +1,5 @@
 import React from "react";
-import { RealtimePDFEditor } from "@/components/pdf-editor/RealtimePDFEditor";
+import { ProfessionalPDFEditor } from "@/components/pdf-editor/ProfessionalPDFEditor";
 import Header from "@/components/layout/Header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -182,17 +182,15 @@ export default function RealtimeEditor() {
         </div>
 
         {/* Main Editor */}
-        <Card className="border-2 border-dashed border-gray-300">
-          <CardContent className="p-0">
-            <RealtimePDFEditor
-              className="min-h-[600px]"
-              onSave={(pdfData) => {
-                console.log("PDF saved:", pdfData);
-                // Handle save logic here
-              }}
-            />
-          </CardContent>
-        </Card>
+        <div className="border-2 border-dashed border-gray-300 rounded-lg overflow-hidden">
+          <ProfessionalPDFEditor
+            className="min-h-[600px]"
+            onSave={(pdfData) => {
+              console.log("PDF saved:", pdfData);
+              // Handle save logic here
+            }}
+          />
+        </div>
 
         {/* Help Section */}
         <Card className="mt-8 bg-blue-50 border-blue-200">

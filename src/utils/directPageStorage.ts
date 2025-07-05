@@ -9,15 +9,12 @@ class DirectPageStorage {
   static getInstance(): DirectPageStorage {
     if (!DirectPageStorage.instance) {
       DirectPageStorage.instance = new DirectPageStorage();
-      console.log(`🔥 [DIRECT-STORAGE] Created direct storage instance`);
     }
     return DirectPageStorage.instance;
   }
 
   // Store pages directly - no session needed
   store(pages: Uint8Array[]): void {
-    console.log(`🔥 [DIRECT-STORAGE] Storing ${pages.length} pages directly`);
-
     this.currentPages = [...pages]; // Clone array
     this.lastUpdate = Date.now();
 

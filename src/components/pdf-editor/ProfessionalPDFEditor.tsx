@@ -1,806 +1,1064 @@
-import React, { useState, useRef, useCallback, useEffect } from "react";
-import { useToast } from "@/hooks/use-toast";
+import React, { useState, useEffect, useRef, useCallback } from "react";
+import { pdfjs } from "react-pdf";
+import * as fabric from "fabric";
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
+import { Slider } from "@/components/ui/slider";
+import { Textarea } from "@/components/ui/textarea";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
-  FileText,
-  MousePointer,
   Type,
-  PenTool,
-  Highlighter,
   Square,
   Circle,
-  ArrowRight,
+  MousePointer,
   Image,
-  Stamp,
-  StickyNote,
-  Undo,
-  Redo,
+  Pen,
+  Download,
+  Upload,
   ZoomIn,
   ZoomOut,
-  Download,
+  Undo,
+  Redo,
   Save,
-  Palette,
-  Settings,
-  ChevronLeft,
-  ChevronRight,
-  Grid,
-  Eye,
   Trash2,
+  Edit3,
+  Check,
+  X,
+  Move,
+  RotateCcw,
+  Bold,
+  Italic,
+  Underline,
+  AlignLeft,
+  AlignCenter,
+  AlignRight,
+  Palette,
+  FileImage,
+  Signature,
+  Layers,
+  Eye,
+  EyeOff,
+  Settings,
   Copy,
-  RotateCw,
+  Paste,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { useToast } from "@/hooks/use-toast";
+import { PDFService } from "@/services/pdfService";
 
-// Professional PDF Editor following the development guide
-interface Tool {
+interface TextObject {
   id: string;
-  name: string;
-  icon: React.ComponentType<any>;
-  category: "select" | "text" | "draw" | "shapes" | "elements";
-}
-
-interface EditElement {
-  id: string;
-  type:
-    | "text"
-    | "drawing"
-    | "rectangle"
-    | "circle"
-    | "arrow"
-    | "image"
-    | "signature"
-    | "note";
+  content: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  fontSize: number;
+  fontFamily: string;
+  color: string;
   pageIndex: number;
-  bounds: { x: number; y: number; width: number; height: number };
-  properties: any;
-  createdAt: number;
-  updatedAt: number;
+  isOriginal: boolean;
+  isEditing: boolean;
+  fabricObject?: fabric.Textbox;
 }
 
 interface ProfessionalPDFEditorProps {
-  file: File;
-  onSave?: (elements: EditElement[]) => void;
+  className?: string;
+  onSave?: (pdfData: ArrayBuffer) => void;
 }
 
-export default function ProfessionalPDFEditor({
-  file,
+export function ProfessionalPDFEditor({
+  className,
   onSave,
 }: ProfessionalPDFEditorProps) {
-  // Core state management
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const editCanvasRef = useRef<HTMLCanvasElement>(null);
-  const drawCanvasRef = useRef<HTMLCanvasElement>(null);
-  const overlayRef = useRef<HTMLDivElement>(null);
-
-  const [pdfDocument, setPdfDocument] = useState<any>(null);
-  const [pageViewport, setPageViewport] = useState<any>(null);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [zoom, setZoom] = useState(1.2);
-  const [isLoading, setIsLoading] = useState(true);
-
-  // Editor state
-  const [selectedTool, setSelectedTool] = useState<string>("select");
-  const [elements, setElements] = useState<EditElement[]>([]);
-  const [selectedElements, setSelectedElements] = useState<string[]>([]);
-  const [history, setHistory] = useState<EditElement[][]>([]);
-  const [historyIndex, setHistoryIndex] = useState(-1);
-  const [isDrawing, setIsDrawing] = useState(false);
-  const [currentDrawPath, setCurrentDrawPath] = useState<
-    { x: number; y: number }[]
-  >([]);
-
-  // Tool settings
-  const [strokeColor, setStrokeColor] = useState("#000000");
-  const [fillColor, setFillColor] = useState("transparent");
-  const [strokeWidth, setStrokeWidth] = useState(2);
-  const [fontSize, setFontSize] = useState(16);
-  const [fontFamily, setFontFamily] = useState("Arial");
-
   const { toast } = useToast();
 
-  // Professional tool categories following the guide
-  const tools: Tool[] = [
-    // Selection tools
-    { id: "select", name: "Select", icon: MousePointer, category: "select" },
+  // Core state
+  const [pdfDocument, setPdfDocument] = useState<any>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(0);
+  const [zoom, setZoom] = useState(1.0);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-    // Text tools
-    { id: "text", name: "Text", icon: Type, category: "text" },
+  // Canvas and editing
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const fabricCanvasRef = useRef<fabric.Canvas | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-    // Drawing tools
-    { id: "pen", name: "Pen", icon: PenTool, category: "draw" },
-    {
-      id: "highlighter",
-      name: "Highlighter",
-      icon: Highlighter,
-      category: "draw",
-    },
+  // PDF and text state
+  const [textObjects, setTextObjects] = useState<TextObject[]>([]);
+  const [selectedObject, setSelectedObject] = useState<string | null>(null);
+  const [activeTool, setActiveTool] = useState<string>("select");
+  const [sessionId, setSessionId] = useState<string | null>(null);
 
-    // Shape tools
-    { id: "rectangle", name: "Rectangle", icon: Square, category: "shapes" },
-    { id: "circle", name: "Circle", icon: Circle, category: "shapes" },
-    { id: "arrow", name: "Arrow", icon: ArrowRight, category: "shapes" },
+  // Text editing properties
+  const [textProperties, setTextProperties] = useState({
+    fontSize: 16,
+    fontFamily: "Arial",
+    color: "#000000",
+    backgroundColor: "transparent",
+    bold: false,
+    italic: false,
+    underline: false,
+    align: "left" as "left" | "center" | "right",
+  });
 
-    // Element tools
-    { id: "image", name: "Image", icon: Image, category: "elements" },
-    { id: "signature", name: "Signature", icon: Stamp, category: "elements" },
-    { id: "note", name: "Sticky Note", icon: StickyNote, category: "elements" },
-  ];
-
-  // Load PDF using PDF.js (following the guide)
+  // Configure PDF.js
   useEffect(() => {
-    const loadPDF = async () => {
+    if (!pdfjs.GlobalWorkerOptions.workerSrc) {
+      pdfjs.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
+    }
+  }, []);
+
+  // Initialize Fabric.js canvas
+  const initializeFabricCanvas = useCallback(() => {
+    if (!canvasRef.current) return;
+
+    // Dispose existing canvas
+    if (fabricCanvasRef.current) {
+      fabricCanvasRef.current.dispose();
+    }
+
+    // Create new fabric canvas
+    const fabricCanvas = new fabric.Canvas(canvasRef.current, {
+      selection: true,
+      preserveObjectStacking: true,
+      enableRetinaScaling: true,
+      backgroundColor: "transparent",
+      selectionBorderColor: "rgba(0, 123, 255, 0.8)",
+      selectionLineWidth: 2,
+      selectionDashArray: [5, 5],
+      skipOffscreen: false,
+      controlsAboveOverlay: true,
+    });
+
+    // Set up event handlers with error protection
+    fabricCanvas.on("object:selected", (e) => {
       try {
-        setIsLoading(true);
-        const pdfjsLib = await import("pdfjs-dist");
+        const obj = e.target;
+        if (obj && obj.data && obj.data.id) {
+          setSelectedObject(obj.data.id);
 
-        // Configure PDF.js worker
-        if (!pdfjsLib.GlobalWorkerOptions.workerSrc) {
-          pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdn.jsdelivr.net/npm/pdfjs-dist@4.8.69/build/pdf.worker.min.mjs`;
+          // Update text properties if it's a text object
+          if (obj.type === "textbox") {
+            const textObj = obj as fabric.Textbox;
+            setTextProperties({
+              fontSize: textObj.fontSize || 16,
+              fontFamily: textObj.fontFamily || "Arial",
+              color: (textObj.fill as string) || "#000000",
+              backgroundColor:
+                (textObj.backgroundColor as string) || "transparent",
+              bold: textObj.fontWeight === "bold",
+              italic: textObj.fontStyle === "italic",
+              underline: textObj.underline || false,
+              align: (textObj.textAlign as any) || "left",
+            });
+          }
         }
+      } catch (error) {
+        console.warn("Error in object:selected event:", error);
+        setSelectedObject(null);
+      }
+    });
 
-        const arrayBuffer = await file.arrayBuffer();
-        const loadingTask = pdfjsLib.getDocument({
-          data: arrayBuffer,
-          verbosity: 0,
+    fabricCanvas.on("selection:cleared", () => {
+      try {
+        setSelectedObject(null);
+      } catch (error) {
+        console.warn("Error in selection:cleared event:", error);
+      }
+    });
+
+    fabricCanvas.on("object:modified", (e) => {
+      try {
+        const obj = e.target;
+        if (obj && obj.data && obj.data.id) {
+          updateTextObject(obj.data.id, {
+            x: obj.left || 0,
+            y: obj.top || 0,
+            width: obj.width || 0,
+            height: obj.height || 0,
+          });
+        }
+      } catch (error) {
+        console.warn("Error in object:modified event:", error);
+      }
+    });
+
+    fabricCanvas.on("text:changed", (e) => {
+      try {
+        const obj = e.target as fabric.Textbox;
+        if (obj && obj.data && obj.data.id) {
+          updateTextObject(obj.data.id, {
+            content: obj.text || "",
+          });
+        }
+      } catch (error) {
+        console.warn("Error in text:changed event:", error);
+      }
+    });
+
+    fabricCanvasRef.current = fabricCanvas;
+    return fabricCanvas;
+  }, []);
+
+  // Update text object properties
+  const updateTextObject = useCallback(
+    (id: string, updates: Partial<TextObject>) => {
+      setTextObjects((prev) =>
+        prev.map((obj) => (obj.id === id ? { ...obj, ...updates } : obj)),
+      );
+
+      // Sync with backend
+      if (sessionId) {
+        const textObject = textObjects.find((obj) => obj.id === id);
+        if (textObject) {
+          PDFService.updateElement(sessionId, id, {
+            ...textObject,
+            ...updates,
+            type: "text",
+            modified: true,
+          }).catch(console.error);
+        }
+      }
+    },
+    [textObjects, sessionId],
+  );
+
+  // Handle file upload
+  const handleFileUpload = useCallback(
+    async (file: File) => {
+      if (!file || file.type !== "application/pdf") {
+        toast({
+          title: "Invalid file",
+          description: "Please select a valid PDF file",
+          variant: "destructive",
         });
+        return;
+      }
 
-        const pdf = await loadingTask.promise;
+      setIsLoading(true);
+      setError(null);
+      setTextObjects([]);
+
+      try {
+        // Create edit session
+        const sessionData = await PDFService.createEditSession(file, {
+          collaborative: true,
+        });
+        setSessionId(sessionData.sessionId);
+
+        // Load PDF
+        const arrayBuffer = await file.arrayBuffer();
+        const pdf = await pdfjs.getDocument({ data: arrayBuffer }).promise;
         setPdfDocument(pdf);
         setTotalPages(pdf.numPages);
-
-        await renderPDFPage(pdf, currentPage);
+        setCurrentPage(1);
 
         toast({
-          title: "✅ PDF Loaded Successfully",
-          description: `Professional editor ready with ${pdf.numPages} pages`,
+          title: "PDF loaded successfully",
+          description: `${pdf.numPages} pages ready for editing`,
         });
+
+        // Initialize canvas and extract text
+        const canvas = initializeFabricCanvas();
+        if (canvas) {
+          await extractAndRenderPage(pdf, 1, canvas);
+        }
       } catch (error) {
-        console.error("Error loading PDF:", error);
+        console.error("Failed to load PDF:", error);
+        setError("Failed to load PDF. Please try again.");
         toast({
-          title: "Error",
-          description: "Failed to load PDF file",
+          title: "Upload failed",
+          description: "Could not load the PDF file",
           variant: "destructive",
         });
       } finally {
         setIsLoading(false);
       }
+    },
+    [toast, initializeFabricCanvas],
+  );
+
+  // Extract text and render page
+  const extractAndRenderPage = useCallback(
+    async (pdf: any, pageNum: number, canvas: fabric.Canvas) => {
+      try {
+        const page = await pdf.getPage(pageNum);
+        const viewport = page.getViewport({ scale: zoom });
+
+        // Set canvas size
+        canvas.setDimensions({
+          width: viewport.width,
+          height: viewport.height,
+        });
+
+        // Clear existing objects
+        canvas.clear();
+
+        // Create background image from PDF page
+        const tempCanvas = document.createElement("canvas");
+        const tempContext = tempCanvas.getContext("2d");
+        if (!tempContext) return;
+
+        tempCanvas.width = viewport.width;
+        tempCanvas.height = viewport.height;
+
+        await page.render({
+          canvasContext: tempContext,
+          viewport: viewport,
+        }).promise;
+
+        // Add PDF background as image
+        const backgroundImage = tempCanvas.toDataURL();
+        fabric.Image.fromURL(backgroundImage, (img) => {
+          img.set({
+            selectable: false,
+            evented: false,
+            lockMovementX: true,
+            lockMovementY: true,
+            lockRotation: true,
+            lockScalingX: true,
+            lockScalingY: true,
+          });
+          canvas.add(img);
+          canvas.sendToBack(img);
+        });
+
+        // Extract text content for editing
+        const textContent = await page.getTextContent();
+        const pageTextObjects: TextObject[] = [];
+
+        textContent.items.forEach((item: any, index: number) => {
+          if (item.str && item.str.trim()) {
+            const transform = item.transform;
+            const x = transform[4];
+            const y = viewport.height - transform[5]; // Flip Y coordinate
+            const fontSize = Math.abs(transform[0]);
+            const width = item.width || fontSize * item.str.length * 0.6;
+            const height = item.height || fontSize;
+
+            const textObj: TextObject = {
+              id: `text-${pageNum}-${index}`,
+              content: item.str,
+              x,
+              y: y - height,
+              width,
+              height,
+              fontSize,
+              fontFamily: "Arial", // Default, could be extracted from PDF
+              color: "#000000",
+              pageIndex: pageNum - 1,
+              isOriginal: true,
+              isEditing: false,
+            };
+
+            // Create fabric textbox for this text
+            const fabricText = new fabric.Textbox(item.str, {
+              left: x,
+              top: y - height,
+              width: width,
+              fontSize: fontSize,
+              fontFamily: "Arial",
+              fill: "#000000",
+              backgroundColor: "rgba(255, 255, 255, 0.8)",
+              editable: true,
+              selectable: true,
+              lockRotation: false,
+              borderColor: "#007bff",
+              cornerColor: "#007bff",
+              cornerSize: 8,
+              transparentCorners: false,
+              data: { id: textObj.id, type: "original-text" },
+            });
+
+            textObj.fabricObject = fabricText;
+            pageTextObjects.push(textObj);
+            canvas.add(fabricText);
+          }
+        });
+
+        setTextObjects(pageTextObjects);
+        canvas.renderAll();
+
+        console.log(
+          `✅ Extracted ${pageTextObjects.length} editable text objects`,
+        );
+      } catch (error) {
+        console.error("Failed to extract text:", error);
+        toast({
+          title: "Text extraction failed",
+          description: "Some text may not be editable",
+          variant: "destructive",
+        });
+      }
+    },
+    [zoom, toast],
+  );
+
+  // Handle page change
+  const changePage = useCallback(
+    async (newPage: number) => {
+      if (!pdfDocument || !fabricCanvasRef.current) return;
+
+      setCurrentPage(newPage);
+      await extractAndRenderPage(pdfDocument, newPage, fabricCanvasRef.current);
+    },
+    [pdfDocument, extractAndRenderPage],
+  );
+
+  // Handle zoom change
+  const handleZoom = useCallback(
+    (newZoom: number) => {
+      setZoom(newZoom);
+      if (pdfDocument && fabricCanvasRef.current) {
+        extractAndRenderPage(pdfDocument, currentPage, fabricCanvasRef.current);
+      }
+    },
+    [pdfDocument, currentPage, extractAndRenderPage],
+  );
+
+  // Add new text
+  const addNewText = useCallback(() => {
+    if (!fabricCanvasRef.current) return;
+
+    const canvas = fabricCanvasRef.current;
+    const centerX = canvas.width! / 2;
+    const centerY = canvas.height! / 2;
+
+    const newTextObj: TextObject = {
+      id: `new-text-${Date.now()}`,
+      content: "New Text",
+      x: centerX - 50,
+      y: centerY - 10,
+      width: 100,
+      height: 20,
+      fontSize: textProperties.fontSize,
+      fontFamily: textProperties.fontFamily,
+      color: textProperties.color,
+      pageIndex: currentPage - 1,
+      isOriginal: false,
+      isEditing: true,
     };
 
-    loadPDF();
-  }, [file, toast]);
-
-  // Render PDF page with layered canvas system (guide recommendation)
-  const renderPDFPage = async (pdf: any, pageNum: number) => {
-    try {
-      const page = await pdf.getPage(pageNum);
-      const viewport = page.getViewport({ scale: zoom });
-      setPageViewport(viewport);
-
-      // Setup layered canvas system
-      setupCanvasLayers(viewport);
-
-      // Render PDF on base canvas with retry mechanism
-      const canvas = canvasRef.current;
-      if (!canvas) {
-        console.error("Canvas ref is null, retrying in 100ms");
-        setTimeout(() => renderPage(pageNum, zoom), 100);
-        return;
-      }
-
-      const context = canvas.getContext("2d");
-      if (!context) {
-        console.error("Cannot get 2D context from canvas");
-        return;
-      }
-
-      const renderContext = {
-        canvasContext: context,
-        viewport: viewport,
-      };
-
-      await page.render(renderContext).promise;
-      console.log(
-        `📄 Page ${pageNum} rendered at ${Math.round(zoom * 100)}% zoom`,
-      );
-    } catch (error) {
-      console.error("Error rendering page:", error);
-    }
-  };
-
-  // Setup layered canvas system (key architecture from guide)
-  const setupCanvasLayers = (viewport: any) => {
-    const canvases = [
-      canvasRef.current,
-      editCanvasRef.current,
-      drawCanvasRef.current,
-    ];
-
-    canvases.forEach((canvas) => {
-      if (canvas) {
-        canvas.width = viewport.width;
-        canvas.height = viewport.height;
-        canvas.style.width = `${viewport.width}px`;
-        canvas.style.height = `${viewport.height}px`;
-
-        const context = canvas.getContext("2d");
-        if (context) {
-          context.clearRect(0, 0, canvas.width, canvas.height);
-        }
-      }
+    const fabricText = new fabric.Textbox(newTextObj.content, {
+      left: newTextObj.x,
+      top: newTextObj.y,
+      width: newTextObj.width,
+      fontSize: newTextObj.fontSize,
+      fontFamily: newTextObj.fontFamily,
+      fill: newTextObj.color,
+      backgroundColor: "rgba(255, 255, 255, 0.9)",
+      editable: true,
+      selectable: true,
+      borderColor: "#28a745",
+      cornerColor: "#28a745",
+      data: { id: newTextObj.id, type: "new-text" },
     });
-  };
 
-  // History management for undo/redo (guide feature)
-  const addToHistory = useCallback(
-    (newElements: EditElement[]) => {
-      const newHistory = history.slice(0, historyIndex + 1);
-      newHistory.push([...newElements]);
-      setHistory(newHistory);
-      setHistoryIndex(newHistory.length - 1);
-    },
-    [history, historyIndex],
-  );
+    newTextObj.fabricObject = fabricText;
+    canvas.add(fabricText);
+    canvas.setActiveObject(fabricText);
 
-  const undo = useCallback(() => {
-    if (historyIndex > 0) {
-      setHistoryIndex(historyIndex - 1);
-      setElements([...history[historyIndex - 1]]);
+    setTextObjects((prev) => [...prev, newTextObj]);
+    setSelectedObject(newTextObj.id);
+
+    // Enter editing mode
+    fabricText.enterEditing();
+
+    canvas.renderAll();
+  }, [textProperties, currentPage]);
+
+  // Update selected object properties
+  const updateSelectedObjectProperties = useCallback(() => {
+    if (!selectedObject || !fabricCanvasRef.current) return;
+
+    const canvas = fabricCanvasRef.current;
+    const activeObject = canvas.getActiveObject() as fabric.Textbox;
+
+    if (activeObject && activeObject.type === "textbox") {
+      activeObject.set({
+        fontSize: textProperties.fontSize,
+        fontFamily: textProperties.fontFamily,
+        fill: textProperties.color,
+        backgroundColor:
+          textProperties.backgroundColor === "transparent"
+            ? ""
+            : textProperties.backgroundColor,
+        fontWeight: textProperties.bold ? "bold" : "normal",
+        fontStyle: textProperties.italic ? "italic" : "normal",
+        underline: textProperties.underline,
+        textAlign: textProperties.align,
+      });
+
+      canvas.renderAll();
+
+      // Update in state
+      updateTextObject(selectedObject, {
+        fontSize: textProperties.fontSize,
+        fontFamily: textProperties.fontFamily,
+        color: textProperties.color,
+      });
     }
-  }, [history, historyIndex]);
+  }, [selectedObject, textProperties, updateTextObject]);
 
-  const redo = useCallback(() => {
-    if (historyIndex < history.length - 1) {
-      setHistoryIndex(historyIndex + 1);
-      setElements([...history[historyIndex + 1]]);
+  // Delete selected object
+  const deleteSelectedObject = useCallback(() => {
+    if (!selectedObject || !fabricCanvasRef.current) return;
+
+    const canvas = fabricCanvasRef.current;
+    const activeObject = canvas.getActiveObject();
+
+    if (activeObject) {
+      canvas.remove(activeObject);
+      setTextObjects((prev) => prev.filter((obj) => obj.id !== selectedObject));
+      setSelectedObject(null);
+      canvas.renderAll();
+
+      // Sync deletion with backend
+      if (sessionId) {
+        PDFService.deleteElement(sessionId, selectedObject).catch(
+          console.error,
+        );
+      }
     }
-  }, [history, historyIndex]);
+  }, [selectedObject, sessionId]);
 
-  // Drawing functionality (guide recommendation)
-  const startDrawing = useCallback(
-    (e: React.MouseEvent) => {
-      if (selectedTool !== "pen" && selectedTool !== "highlighter") return;
-
-      const canvas = drawCanvasRef.current;
-      if (!canvas) return;
-
-      const rect = canvas.getBoundingClientRect();
-      const x = e.clientX - rect.left;
-      const y = e.clientY - rect.top;
-
-      setIsDrawing(true);
-      setCurrentDrawPath([{ x, y }]);
-    },
-    [selectedTool],
-  );
-
-  const continueDrawing = useCallback(
-    (e: React.MouseEvent) => {
-      if (!isDrawing) return;
-
-      const canvas = drawCanvasRef.current;
-      if (!canvas) return;
-
-      const rect = canvas.getBoundingClientRect();
-      const x = e.clientX - rect.left;
-      const y = e.clientY - rect.top;
-
-      const newPath = [...currentDrawPath, { x, y }];
-      setCurrentDrawPath(newPath);
-
-      // Draw on canvas (reuse existing canvas variable)
-      const context = canvas.getContext("2d");
-      if (!context) return;
-
-      context.strokeStyle = strokeColor;
-      context.lineWidth =
-        selectedTool === "highlighter" ? strokeWidth * 3 : strokeWidth;
-      context.lineCap = "round";
-      context.lineJoin = "round";
-
-      if (selectedTool === "highlighter") {
-        context.globalCompositeOperation = "multiply";
-        context.globalAlpha = 0.3;
-      } else {
-        context.globalCompositeOperation = "source-over";
-        context.globalAlpha = 1;
-      }
-
-      context.beginPath();
-      if (newPath.length > 1) {
-        const prev = newPath[newPath.length - 2];
-        const curr = newPath[newPath.length - 1];
-        context.moveTo(prev.x, prev.y);
-        context.lineTo(curr.x, curr.y);
-        context.stroke();
-      }
-    },
-    [isDrawing, currentDrawPath, strokeColor, strokeWidth, selectedTool],
-  );
-
-  const endDrawing = useCallback(() => {
-    if (!isDrawing || currentDrawPath.length < 2) {
-      setIsDrawing(false);
-      setCurrentDrawPath([]);
+  // Save edited PDF
+  const saveEditedPDF = useCallback(async () => {
+    if (!sessionId || !fabricCanvasRef.current) {
+      toast({
+        title: "Cannot save",
+        description: "Please upload a PDF first",
+        variant: "destructive",
+      });
       return;
     }
 
-    // Create drawing element
-    const minX = Math.min(...currentDrawPath.map((p) => p.x));
-    const minY = Math.min(...currentDrawPath.map((p) => p.y));
-    const maxX = Math.max(...currentDrawPath.map((p) => p.x));
-    const maxY = Math.max(...currentDrawPath.map((p) => p.y));
+    try {
+      toast({
+        title: "Saving PDF...",
+        description: "Applying all edits to your PDF",
+      });
 
-    const newElement: EditElement = {
-      id: `drawing-${Date.now()}`,
-      type: "drawing",
-      pageIndex: currentPage - 1,
-      bounds: {
-        x: minX,
-        y: minY,
-        width: maxX - minX,
-        height: maxY - minY,
-      },
-      properties: {
-        path: currentDrawPath,
-        strokeColor,
-        strokeWidth:
-          selectedTool === "highlighter" ? strokeWidth * 3 : strokeWidth,
-        toolType: selectedTool,
-      },
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
-    };
+      // Send all text objects to backend
+      for (const textObj of textObjects) {
+        await PDFService.updateElement(sessionId, textObj.id, {
+          ...textObj,
+          type: "text",
+          modified: !textObj.isOriginal,
+        });
+      }
 
-    const newElements = [...elements, newElement];
-    setElements(newElements);
-    addToHistory(newElements);
+      const pdfBuffer = await PDFService.saveEditedPDF(sessionId);
 
-    setIsDrawing(false);
-    setCurrentDrawPath([]);
-  }, [
-    isDrawing,
-    currentDrawPath,
-    strokeColor,
-    strokeWidth,
-    selectedTool,
-    currentPage,
-    elements,
-    addToHistory,
-  ]);
+      // Download the file
+      const blob = new Blob([pdfBuffer], { type: "application/pdf" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `edited_document_${Date.now()}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
 
-  // Text tool functionality
-  const addTextElement = useCallback(
-    (e: React.MouseEvent) => {
-      if (selectedTool !== "text") return;
+      toast({
+        title: "PDF saved successfully!",
+        description: "Your edited PDF has been downloaded",
+      });
 
-      const canvas = editCanvasRef.current;
-      if (!canvas) return;
-
-      const rect = canvas.getBoundingClientRect();
-      const x = e.clientX - rect.left;
-      const y = e.clientY - rect.top;
-
-      const newElement: EditElement = {
-        id: `text-${Date.now()}`,
-        type: "text",
-        pageIndex: currentPage - 1,
-        bounds: { x, y, width: 200, height: fontSize + 4 },
-        properties: {
-          text: "Click to edit text",
-          fontSize,
-          fontFamily,
-          color: strokeColor,
-          isEditing: true,
-        },
-        createdAt: Date.now(),
-        updatedAt: Date.now(),
-      };
-
-      const newElements = [...elements, newElement];
-      setElements(newElements);
-      addToHistory(newElements);
-    },
-    [
-      selectedTool,
-      currentPage,
-      fontSize,
-      fontFamily,
-      strokeColor,
-      elements,
-      addToHistory,
-    ],
-  );
-
-  // Shape tool functionality
-  const addShapeElement = useCallback(
-    (type: "rectangle" | "circle" | "arrow", bounds: any) => {
-      const newElement: EditElement = {
-        id: `${type}-${Date.now()}`,
-        type,
-        pageIndex: currentPage - 1,
-        bounds,
-        properties: {
-          strokeColor,
-          fillColor,
-          strokeWidth,
-        },
-        createdAt: Date.now(),
-        updatedAt: Date.now(),
-      };
-
-      const newElements = [...elements, newElement];
-      setElements(newElements);
-      addToHistory(newElements);
-    },
-    [currentPage, strokeColor, fillColor, strokeWidth, elements, addToHistory],
-  );
-
-  // Navigation controls
-  const goToPrevPage = () => {
-    if (currentPage > 1) {
-      setCurrentPage(currentPage - 1);
-      if (pdfDocument) renderPDFPage(pdfDocument, currentPage - 1);
+      if (onSave) {
+        onSave(pdfBuffer);
+      }
+    } catch (error) {
+      console.error("Failed to save PDF:", error);
+      toast({
+        title: "Save failed",
+        description: "Could not save the edited PDF",
+        variant: "destructive",
+      });
     }
-  };
+  }, [sessionId, textObjects, onSave, toast]);
 
-  const goToNextPage = () => {
-    if (currentPage < totalPages) {
-      setCurrentPage(currentPage + 1);
-      if (pdfDocument) renderPDFPage(pdfDocument, currentPage + 1);
-    }
-  };
-
-  // Zoom controls
-  const zoomIn = () => {
-    const newZoom = Math.min(zoom + 0.25, 3);
-    setZoom(newZoom);
-    if (pdfDocument) renderPDFPage(pdfDocument, currentPage);
-  };
-
-  const zoomOut = () => {
-    const newZoom = Math.max(zoom - 0.25, 0.5);
-    setZoom(newZoom);
-    if (pdfDocument) renderPDFPage(pdfDocument, currentPage);
-  };
-
-  // Save/Export functionality (guide feature)
-  const handleSave = useCallback(() => {
-    const pageElements = elements.filter(
-      (el) => el.pageIndex === currentPage - 1,
-    );
-
-    onSave?.(elements);
-
-    toast({
-      title: "💾 PDF Saved",
-      description: `${elements.length} elements saved across ${totalPages} pages`,
-    });
-  }, [elements, currentPage, totalPages, onSave, toast]);
-
-  // Auto-save using localStorage (guide pro tip)
+  // Apply property changes when they update
   useEffect(() => {
-    if (elements.length > 0) {
-      localStorage.setItem(`pdf-editor-${file.name}`, JSON.stringify(elements));
-    }
-  }, [elements, file.name]);
+    updateSelectedObjectProperties();
+  }, [textProperties, updateSelectedObjectProperties]);
 
-  // Load from localStorage on mount
+  // Handle tool changes
   useEffect(() => {
-    const saved = localStorage.getItem(`pdf-editor-${file.name}`);
-    if (saved) {
+    if (fabricCanvasRef.current) {
+      const canvas = fabricCanvasRef.current;
+
       try {
-        const savedElements = JSON.parse(saved);
-        setElements(savedElements);
-        addToHistory(savedElements);
+        switch (activeTool) {
+          case "select":
+            canvas.selection = true;
+            canvas.defaultCursor = "default";
+            canvas.hoverCursor = "move";
+            break;
+          case "text":
+            canvas.selection = true;
+            canvas.defaultCursor = "text";
+            canvas.hoverCursor = "text";
+            break;
+          default:
+            canvas.selection = true;
+            canvas.defaultCursor = "default";
+        }
+        canvas.renderAll();
       } catch (error) {
-        console.error("Error loading saved elements:", error);
+        console.warn("Error updating canvas tool state:", error);
       }
     }
-  }, [file.name, addToHistory]);
+  }, [activeTool]);
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-96">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
-          <p className="text-lg font-medium">
-            Loading Professional PDF Editor...
-          </p>
-        </div>
-      </div>
-    );
-  }
+  const currentPageTextObjects = textObjects.filter(
+    (obj) => obj.pageIndex === currentPage - 1,
+  );
 
   return (
-    <div className="h-screen flex flex-col bg-gray-50">
-      {/* Top Toolbar - Professional UI */}
-      <div className="bg-white border-b shadow-sm px-4 py-2">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-4">
-            <h1 className="text-lg font-semibold text-gray-800">{file.name}</h1>
-            <Badge variant="secondary">
-              {elements.filter((el) => el.pageIndex === currentPage - 1).length}{" "}
-              elements
-            </Badge>
-          </div>
+    <div className={cn("flex flex-col h-full bg-gray-50", className)}>
+      {/* Top Toolbar */}
+      <Card className="rounded-none border-x-0 border-t-0">
+        <CardContent className="p-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Button onClick={() => fileInputRef.current?.click()}>
+                <Upload className="w-4 h-4 mr-2" />
+                Upload PDF
+              </Button>
 
-          <div className="flex items-center space-x-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={undo}
-              disabled={historyIndex <= 0}
-            >
-              <Undo className="w-4 h-4" />
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={redo}
-              disabled={historyIndex >= history.length - 1}
-            >
-              <Redo className="w-4 h-4" />
-            </Button>
-            <Separator orientation="vertical" className="h-6" />
-            <Button variant="outline" size="sm" onClick={zoomOut}>
-              <ZoomOut className="w-4 h-4" />
-            </Button>
-            <span className="text-sm px-2">{Math.round(zoom * 100)}%</span>
-            <Button variant="outline" size="sm" onClick={zoomIn}>
-              <ZoomIn className="w-4 h-4" />
-            </Button>
-            <Separator orientation="vertical" className="h-6" />
-            <Button variant="outline" size="sm" onClick={handleSave}>
-              <Save className="w-4 h-4 mr-2" />
-              Save
-            </Button>
-            <Button size="sm" onClick={handleSave}>
-              <Download className="w-4 h-4 mr-2" />
-              Export PDF
-            </Button>
-          </div>
-        </div>
-      </div>
-
-      <div className="flex-1 flex">
-        {/* Left Sidebar - Tool Palette */}
-        <div className="w-64 bg-white border-r flex flex-col">
-          {/* Tools Section */}
-          <div className="p-4">
-            <h3 className="text-sm font-semibold text-gray-700 mb-3">Tools</h3>
-            <div className="space-y-2">
-              {Object.entries(
-                tools.reduce(
-                  (acc, tool) => {
-                    if (!acc[tool.category]) acc[tool.category] = [];
-                    acc[tool.category].push(tool);
-                    return acc;
-                  },
-                  {} as Record<string, Tool[]>,
-                ),
-              ).map(([category, categoryTools]) => (
-                <div key={category} className="space-y-1">
-                  <div className="text-xs font-medium text-gray-500 uppercase tracking-wide">
-                    {category}
-                  </div>
-                  <div className="grid grid-cols-3 gap-1">
-                    {categoryTools.map((tool) => (
-                      <Button
-                        key={tool.id}
-                        variant={selectedTool === tool.id ? "default" : "ghost"}
-                        size="sm"
-                        className="h-10 flex flex-col items-center"
-                        onClick={() => setSelectedTool(tool.id)}
-                        title={tool.name}
-                      >
-                        <tool.icon className="w-4 h-4" />
-                      </Button>
-                    ))}
-                  </div>
-                </div>
-              ))}
+              {pdfDocument && (
+                <Button variant="outline" onClick={saveEditedPDF}>
+                  <Save className="w-4 h-4 mr-2" />
+                  Save Edited PDF
+                </Button>
+              )}
             </div>
-          </div>
 
-          <Separator />
-
-          {/* Properties Panel */}
-          <div className="p-4 flex-1">
-            <h3 className="text-sm font-semibold text-gray-700 mb-3">
-              Properties
-            </h3>
-            <div className="space-y-4">
-              <div>
-                <label className="text-xs font-medium text-gray-600">
-                  Stroke Color
-                </label>
-                <div className="flex items-center space-x-2 mt-1">
-                  <input
-                    type="color"
-                    value={strokeColor}
-                    onChange={(e) => setStrokeColor(e.target.value)}
-                    className="w-8 h-8 rounded border"
-                  />
-                  <span className="text-sm text-gray-600">{strokeColor}</span>
-                </div>
+            <div className="flex items-center gap-4">
+              {/* Tools */}
+              <div className="flex gap-1">
+                <Button
+                  variant={activeTool === "select" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => {
+                    setActiveTool("select");
+                    // Ensure canvas is in selection mode
+                    if (fabricCanvasRef.current) {
+                      fabricCanvasRef.current.selection = true;
+                      fabricCanvasRef.current.defaultCursor = "default";
+                    }
+                  }}
+                >
+                  <MousePointer className="w-4 h-4" />
+                </Button>
+                <Button
+                  variant={activeTool === "text" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => {
+                    setActiveTool("text");
+                    addNewText();
+                  }}
+                >
+                  <Type className="w-4 h-4" />
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={deleteSelectedObject}
+                  disabled={!selectedObject}
+                >
+                  <Trash2 className="w-4 h-4" />
+                </Button>
               </div>
 
-              <div>
-                <label className="text-xs font-medium text-gray-600">
-                  Stroke Width
-                </label>
-                <input
-                  type="range"
-                  min="1"
-                  max="10"
-                  value={strokeWidth}
-                  onChange={(e) => setStrokeWidth(Number(e.target.value))}
-                  className="w-full mt-1"
-                />
-                <span className="text-xs text-gray-500">{strokeWidth}px</span>
+              {/* Zoom */}
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleZoom(zoom * 0.9)}
+                >
+                  <ZoomOut className="w-4 h-4" />
+                </Button>
+                <span className="text-sm w-16 text-center">
+                  {Math.round(zoom * 100)}%
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleZoom(zoom * 1.1)}
+                >
+                  <ZoomIn className="w-4 h-4" />
+                </Button>
               </div>
 
-              {selectedTool === "text" && (
-                <>
-                  <div>
-                    <label className="text-xs font-medium text-gray-600">
-                      Font Size
-                    </label>
-                    <input
-                      type="range"
-                      min="8"
-                      max="72"
-                      value={fontSize}
-                      onChange={(e) => setFontSize(Number(e.target.value))}
-                      className="w-full mt-1"
-                    />
-                    <span className="text-xs text-gray-500">{fontSize}px</span>
-                  </div>
-
-                  <div>
-                    <label className="text-xs font-medium text-gray-600">
-                      Font Family
-                    </label>
-                    <select
-                      value={fontFamily}
-                      onChange={(e) => setFontFamily(e.target.value)}
-                      className="w-full mt-1 text-sm border rounded px-2 py-1"
-                    >
-                      <option value="Arial">Arial</option>
-                      <option value="Times New Roman">Times New Roman</option>
-                      <option value="Helvetica">Helvetica</option>
-                      <option value="Courier">Courier</option>
-                    </select>
-                  </div>
-                </>
+              {sessionId && (
+                <Badge variant="secondary">
+                  Session: {sessionId.slice(-8)}
+                </Badge>
               )}
             </div>
           </div>
-        </div>
+        </CardContent>
+      </Card>
 
+      <div className="flex flex-1">
         {/* Main Editor Area */}
         <div className="flex-1 flex flex-col">
           {/* Page Navigation */}
-          <div className="bg-white border-b px-4 py-2 flex items-center justify-center space-x-4">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={goToPrevPage}
-              disabled={currentPage <= 1}
-            >
-              <ChevronLeft className="w-4 h-4" />
-            </Button>
-            <span className="text-sm font-medium">
-              Page {currentPage} of {totalPages}
-            </span>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={goToNextPage}
-              disabled={currentPage >= totalPages}
-            >
-              <ChevronRight className="w-4 h-4" />
-            </Button>
-          </div>
+          {pdfDocument && (
+            <div className="flex items-center justify-center p-2 bg-white border-b">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => changePage(Math.max(1, currentPage - 1))}
+                disabled={currentPage <= 1}
+              >
+                Previous
+              </Button>
+              <span className="mx-4 text-sm">
+                Page {currentPage} of {totalPages}
+              </span>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() =>
+                  changePage(Math.min(totalPages, currentPage + 1))
+                }
+                disabled={currentPage >= totalPages}
+              >
+                Next
+              </Button>
+            </div>
+          )}
 
-          {/* PDF Canvas Area with Layered System */}
-          <div className="flex-1 overflow-auto bg-gray-100 p-8">
-            <div className="flex justify-center">
-              <div className="relative shadow-2xl bg-white">
-                {/* Base PDF Canvas */}
-                <canvas
-                  ref={canvasRef}
-                  className="absolute inset-0"
-                  style={{ zIndex: 1 }}
-                />
+          {/* Canvas Container */}
+          <div
+            ref={containerRef}
+            className="flex-1 overflow-auto bg-gray-100 p-8 flex items-center justify-center"
+          >
+            {isLoading && (
+              <div className="text-center">
+                <div className="animate-spin w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full mx-auto mb-4"></div>
+                <p>Loading PDF and extracting text...</p>
+              </div>
+            )}
 
-                {/* Edit Elements Canvas */}
-                <canvas
-                  ref={editCanvasRef}
-                  className="absolute inset-0"
-                  style={{ zIndex: 2 }}
-                  onClick={addTextElement}
-                />
-
-                {/* Drawing Canvas */}
-                <canvas
-                  ref={drawCanvasRef}
-                  className="absolute inset-0 cursor-crosshair"
-                  style={{ zIndex: 3 }}
-                  onMouseDown={startDrawing}
-                  onMouseMove={continueDrawing}
-                  onMouseUp={endDrawing}
-                />
-
-                {/* Interactive Overlay for Elements */}
-                <div
-                  ref={overlayRef}
-                  className="absolute inset-0"
-                  style={{ zIndex: 4 }}
+            {error && (
+              <div className="text-center text-red-600">
+                <p>{error}</p>
+                <Button
+                  variant="outline"
+                  onClick={() => setError(null)}
+                  className="mt-2"
                 >
-                  {elements
-                    .filter((el) => el.pageIndex === currentPage - 1)
-                    .map((element) => (
-                      <div
-                        key={element.id}
-                        className={cn(
-                          "absolute border-2 border-transparent hover:border-blue-400",
-                          selectedElements.includes(element.id) &&
-                            "border-blue-500",
-                        )}
-                        style={{
-                          left: element.bounds.x,
-                          top: element.bounds.y,
-                          width: element.bounds.width,
-                          height: element.bounds.height,
-                        }}
-                        onClick={() => {
-                          if (selectedTool === "select") {
-                            setSelectedElements([element.id]);
-                          }
-                        }}
-                      >
-                        {element.type === "text" && (
-                          <div
-                            style={{
-                              fontSize: element.properties.fontSize,
-                              fontFamily: element.properties.fontFamily,
-                              color: element.properties.color,
-                              padding: "2px",
-                            }}
-                          >
-                            {element.properties.text}
-                          </div>
-                        )}
-                      </div>
-                    ))}
+                  Dismiss
+                </Button>
+              </div>
+            )}
+
+            {!pdfDocument && !isLoading && !error && (
+              <div className="text-center">
+                <Upload className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                <h3 className="text-lg font-medium mb-2">
+                  Upload PDF for Professional Editing
+                </h3>
+                <p className="text-gray-600 mb-4">
+                  Direct text editing with fabric.js - exactly like LightPDF
+                </p>
+                <Button onClick={() => fileInputRef.current?.click()}>
+                  Choose PDF File
+                </Button>
+              </div>
+            )}
+
+            {pdfDocument && (
+              <div className="relative shadow-lg">
+                <canvas ref={canvasRef} className="block bg-white" />
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Right Properties Panel */}
+        {pdfDocument && (
+          <Card className="w-80 rounded-none border-y-0 border-r-0">
+            <CardHeader>
+              <CardTitle className="text-lg">Direct Edit Properties</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {/* Instructions */}
+              <div className="space-y-2">
+                <h4 className="font-medium flex items-center gap-2">
+                  <Edit3 className="w-4 h-4" />
+                  Instructions
+                </h4>
+                <div className="text-sm text-gray-600 space-y-1">
+                  <p>• Click on any text in the PDF to edit it directly</p>
+                  <p>• Use the Text tool to add new text elements</p>
+                  <p>• Double-click text to enter editing mode</p>
+                  <p>• Drag corners to resize text boxes</p>
+                  <p>• Use properties panel to format text</p>
                 </div>
               </div>
-            </div>
-          </div>
-        </div>
+
+              <Separator />
+
+              {/* Text Properties */}
+              {selectedObject && (
+                <div className="space-y-4">
+                  <h4 className="font-medium">Text Properties</h4>
+
+                  <div className="space-y-3">
+                    <div>
+                      <Label>Font Size</Label>
+                      <Slider
+                        value={[textProperties.fontSize]}
+                        onValueChange={([value]) =>
+                          setTextProperties((prev) => ({
+                            ...prev,
+                            fontSize: value,
+                          }))
+                        }
+                        min={8}
+                        max={72}
+                        step={1}
+                        className="mt-1"
+                      />
+                      <span className="text-sm text-gray-500">
+                        {textProperties.fontSize}px
+                      </span>
+                    </div>
+
+                    <div>
+                      <Label>Font Family</Label>
+                      <Select
+                        value={textProperties.fontFamily}
+                        onValueChange={(value) =>
+                          setTextProperties((prev) => ({
+                            ...prev,
+                            fontFamily: value,
+                          }))
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Arial">Arial</SelectItem>
+                          <SelectItem value="Times">Times</SelectItem>
+                          <SelectItem value="Courier">Courier</SelectItem>
+                          <SelectItem value="Helvetica">Helvetica</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div>
+                      <Label>Text Color</Label>
+                      <div className="flex gap-2 mt-1">
+                        <Input
+                          type="color"
+                          value={textProperties.color}
+                          onChange={(e) =>
+                            setTextProperties((prev) => ({
+                              ...prev,
+                              color: e.target.value,
+                            }))
+                          }
+                          className="w-12 h-8 p-1"
+                        />
+                        <Input
+                          value={textProperties.color}
+                          onChange={(e) =>
+                            setTextProperties((prev) => ({
+                              ...prev,
+                              color: e.target.value,
+                            }))
+                          }
+                          className="flex-1 text-xs"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex gap-2">
+                      <Button
+                        variant={textProperties.bold ? "default" : "outline"}
+                        size="sm"
+                        onClick={() =>
+                          setTextProperties((prev) => ({
+                            ...prev,
+                            bold: !prev.bold,
+                          }))
+                        }
+                      >
+                        <Bold className="w-4 h-4" />
+                      </Button>
+                      <Button
+                        variant={textProperties.italic ? "default" : "outline"}
+                        size="sm"
+                        onClick={() =>
+                          setTextProperties((prev) => ({
+                            ...prev,
+                            italic: !prev.italic,
+                          }))
+                        }
+                      >
+                        <Italic className="w-4 h-4" />
+                      </Button>
+                      <Button
+                        variant={
+                          textProperties.underline ? "default" : "outline"
+                        }
+                        size="sm"
+                        onClick={() =>
+                          setTextProperties((prev) => ({
+                            ...prev,
+                            underline: !prev.underline,
+                          }))
+                        }
+                      >
+                        <Underline className="w-4 h-4" />
+                      </Button>
+                    </div>
+
+                    <div className="flex gap-2">
+                      <Button
+                        variant={
+                          textProperties.align === "left"
+                            ? "default"
+                            : "outline"
+                        }
+                        size="sm"
+                        onClick={() =>
+                          setTextProperties((prev) => ({
+                            ...prev,
+                            align: "left",
+                          }))
+                        }
+                      >
+                        <AlignLeft className="w-4 h-4" />
+                      </Button>
+                      <Button
+                        variant={
+                          textProperties.align === "center"
+                            ? "default"
+                            : "outline"
+                        }
+                        size="sm"
+                        onClick={() =>
+                          setTextProperties((prev) => ({
+                            ...prev,
+                            align: "center",
+                          }))
+                        }
+                      >
+                        <AlignCenter className="w-4 h-4" />
+                      </Button>
+                      <Button
+                        variant={
+                          textProperties.align === "right"
+                            ? "default"
+                            : "outline"
+                        }
+                        size="sm"
+                        onClick={() =>
+                          setTextProperties((prev) => ({
+                            ...prev,
+                            align: "right",
+                          }))
+                        }
+                      >
+                        <AlignRight className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <Separator />
+
+              {/* Text Objects List */}
+              <div className="space-y-4">
+                <h4 className="font-medium">Current Page Text</h4>
+                <div className="space-y-2 max-h-40 overflow-y-auto">
+                  {currentPageTextObjects.map((obj) => (
+                    <div
+                      key={obj.id}
+                      className={cn(
+                        "p-2 rounded text-xs border cursor-pointer transition-colors",
+                        selectedObject === obj.id
+                          ? "border-blue-500 bg-blue-50"
+                          : "border-gray-200 hover:border-gray-300",
+                        !obj.isOriginal && "border-green-500 bg-green-50",
+                      )}
+                      onClick={() => {
+                        if (fabricCanvasRef.current && obj.fabricObject) {
+                          fabricCanvasRef.current.setActiveObject(
+                            obj.fabricObject,
+                          );
+                          fabricCanvasRef.current.renderAll();
+                        }
+                      }}
+                    >
+                      <div className="font-medium truncate">{obj.content}</div>
+                      <div className="text-gray-500 mt-1">
+                        {obj.fontSize}px • {obj.fontFamily}
+                        {!obj.isOriginal && " • New"}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <Separator />
+
+              <div className="space-y-2">
+                <h4 className="font-medium">Statistics</h4>
+                <div className="text-sm text-gray-600">
+                  <p>Total objects: {textObjects.length}</p>
+                  <p>Current page: {currentPageTextObjects.length}</p>
+                  <p>
+                    New objects:{" "}
+                    {textObjects.filter((obj) => !obj.isOriginal).length}
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
       </div>
 
-      {/* Status Bar */}
-      <div className="bg-white border-t px-4 py-2 text-sm text-gray-600">
-        <div className="flex items-center justify-between">
-          <div>Ready • {elements.length} total elements • Auto-saved</div>
-          <div>
-            Zoom: {Math.round(zoom * 100)}% • Tool:{" "}
-            {tools.find((t) => t.id === selectedTool)?.name}
-          </div>
-        </div>
-      </div>
+      {/* Hidden file input */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".pdf"
+        className="hidden"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (file) {
+            handleFileUpload(file);
+          }
+        }}
+      />
     </div>
   );
 }
+
+export default ProfessionalPDFEditor;

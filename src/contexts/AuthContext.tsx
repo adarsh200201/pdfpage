@@ -50,7 +50,22 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (!context) {
-    throw new Error("useAuth must be used within an AuthProvider");
+    // Provide fallback values instead of throwing error immediately
+    console.warn(
+      "useAuth used outside AuthProvider - providing fallback values",
+    );
+    return {
+      user: null,
+      isAuthenticated: false,
+      isLoading: false,
+      login: async () => ({ user: null as any }),
+      register: async () => ({ user: null as any }),
+      loginWithGoogle: async () => ({ user: null, conversion: null }),
+      logout: async () => {},
+      clearAuth: () => {},
+      refreshAuth: async () => {},
+      updateUser: (updates: any) => {},
+    };
   }
   return context;
 };
@@ -207,7 +222,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   };
 
   const loginWithGoogle = async () => {
-    console.log("🔵 [FRONTEND] Initiating Google OAuth login");
     try {
       // The authService.loginWithGoogle() method redirects the browser
       // It doesn't return a Promise, so we handle it differently
@@ -232,7 +246,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   };
 
   const updateUser = (userData: Partial<User>) => {
-    setUser((prev) => (prev ? { ...prev, ...userData } : null));
+    setUser((prev) => {
+      if (prev) {
+        // Update existing user
+        return { ...prev, ...userData };
+      } else if (userData && Object.keys(userData).length > 0) {
+        // Create new user if userData contains essential fields
+        return userData as User;
+      } else {
+        return null;
+      }
+    });
   };
 
   const refreshUser = async () => {

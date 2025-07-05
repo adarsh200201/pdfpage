@@ -35,6 +35,20 @@
       // Set FullStory namespace to prevent conflicts
       window["_fs_namespace"] = "FS_PDF";
 
+      // Completely disable FullStory to prevent namespace conflicts with PDF.js
+      window.FS_DISABLE = true;
+
+      // Override any existing FullStory initialization
+      window.FS = window.FS || {
+        identify: function () {},
+        setUserVars: function () {},
+        setVars: function () {},
+        consent: function () {},
+        restart: function () {},
+        shutdown: function () {},
+        log: function () {},
+      };
+
       // Prevent FullStory initialization conflicts with PDF processing
       if (
         typeof process !== "undefined" &&
@@ -66,7 +80,6 @@
           );
 
           translateInitialized = true;
-          console.log("Google Translate initialized successfully");
 
           // Hide the Google Translate widget but keep functionality
           setTimeout(() => {
@@ -76,7 +89,7 @@
             }
           }, 1000);
         } catch (error) {
-          console.warn("Google Translate initialization failed:", error);
+          // Google Translate initialization failed silently
         }
       }
 
@@ -181,7 +194,7 @@
     </script>
     <script
       type="text/javascript"
-      src="//translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"
+      src="https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"
     ></script>
 
     <script

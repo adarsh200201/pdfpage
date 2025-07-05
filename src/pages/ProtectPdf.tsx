@@ -1,14 +1,25 @@
-import { useState } from "react";
-import { Link } from "react-router-dom";
+import { useState, useEffect, useRef, useCallback } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import Header from "@/components/layout/Header";
-import FileUpload from "@/components/ui/file-upload";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PromoBanner } from "@/components/ui/promo-banner";
-import AuthModal from "@/components/auth/AuthModal";
-import { useAuth } from "@/contexts/AuthContext";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Progress } from "@/components/ui/progress";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { cn } from "@/lib/utils";
 import { PDFService } from "@/services/pdfService";
+import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
+import { useToolTracking } from "@/hooks/useToolTracking";
+import AuthModal from "@/components/auth/AuthModal";
+import { useFloatingPopup } from "@/contexts/FloatingPopupContext";
 import {
   ArrowLeft,
   Download,
@@ -17,12 +28,34 @@ import {
   Lock,
   Eye,
   EyeOff,
-  Crown,
-  Star,
+  CheckCircle,
+  Loader2,
+  Upload,
+  X,
+  Settings,
+  Info,
 } from "lucide-react";
 
+interface ProcessedFile {
+  id: string;
+  file: File;
+  name: string;
+  size: number;
+  thumbnails?: string[];
+  pageCount?: number;
+  loadingThumbnails?: boolean;
+}
+
+interface ProtectionResult {
+  originalSize: number;
+  protectedSize: number;
+  downloadUrl: string;
+  filename: string;
+  protectionLevel: string;
+}
+
 const ProtectPdf = () => {
-  const [files, setFiles] = useState<File[]>([]);
+  const [files, setFiles] = useState<ProcessedFile[]>([]);
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -32,27 +65,234 @@ const ProtectPdf = () => {
     editing: false,
     filling: true,
   });
-  const [protectedFiles, setProtectedFiles] = useState<
-    { name: string; url: string; size: number }[]
-  >([]);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [isComplete, setIsComplete] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [isDragging, setIsDragging] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
+  const [protectionResult, setProtectionResult] =
+    useState<ProtectionResult | null>(null);
 
-  const { isAuthenticated, user } = useAuth();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const protectionInProgress = useRef<boolean>(false);
+  const previousFiles = useRef<ProcessedFile[]>([]);
+
+  const { user, isAuthenticated } = useAuth();
   const { toast } = useToast();
+  const navigate = useNavigate();
 
-  const handleFileUpload = (uploadedFiles: File[]) => {
-    setFiles(uploadedFiles);
-    setIsComplete(false);
-    setProtectedFiles([]);
+  // Floating popup tracking
+  const { trackToolUsage } = useFloatingPopup();
+
+  // Mixpanel tracking
+  const tracking = useToolTracking({
+    toolName: "protect",
+    category: "PDF Tool",
+    trackPageView: true,
+    trackFunnel: true,
+  });
+
+  // Generate thumbnails using PDF.js
+  const generateThumbnails = useCallback(
+    async (pdfFile: File): Promise<string[]> => {
+      try {
+        const arrayBuffer = await pdfFile.arrayBuffer();
+        const pdfjsLib = await import("pdfjs-dist");
+
+        // Set up worker
+        pdfjsLib.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
+
+        const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+        const thumbnails: string[] = [];
+        const maxPages = Math.min(pdf.numPages, 3); // Show first 3 pages
+
+        for (let i = 1; i <= maxPages; i++) {
+          try {
+            const page = await pdf.getPage(i);
+            const viewport = page.getViewport({ scale: 0.5 });
+
+            const canvas = document.createElement("canvas");
+            const context = canvas.getContext("2d");
+
+            if (context) {
+              canvas.height = viewport.height;
+              canvas.width = viewport.width;
+
+              await page.render({
+                canvasContext: context,
+                viewport: viewport,
+              }).promise;
+
+              thumbnails.push(canvas.toDataURL());
+            }
+          } catch (pageError) {
+            console.warn(
+              `Failed to generate thumbnail for page ${i}:`,
+              pageError,
+            );
+          }
+        }
+
+        return thumbnails;
+      } catch (error) {
+        console.error("Error generating thumbnails:", error);
+        return [];
+      }
+    },
+    [],
+  );
+
+  // Get page count from PDF
+  const getPageCount = async (pdfFile: File): Promise<number> => {
+    try {
+      const arrayBuffer = await pdfFile.arrayBuffer();
+      const pdfjsLib = await import("pdfjs-dist");
+
+      pdfjsLib.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
+
+      const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+      return pdf.numPages;
+    } catch (error) {
+      console.error("Error getting page count:", error);
+      return 1;
+    }
   };
 
-  const handleProtect = async () => {
+  // Monitor file state changes to detect unwanted resets
+  useEffect(() => {
+    if (previousFiles.current.length > 0 && files.length === 0) {
+      console.warn(
+        "🚨 Files were unexpectedly cleared! Previous files:",
+        previousFiles.current,
+      );
+    }
+    previousFiles.current = [...files];
+  }, [files, isProcessing]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      // Clean up any download URLs to prevent memory leaks
+      if (protectionResult?.downloadUrl) {
+        URL.revokeObjectURL(protectionResult.downloadUrl);
+      }
+    };
+  }, [protectionResult?.downloadUrl]);
+
+  const handleFileSelect = useCallback(
+    async (selectedFiles: File[]) => {
+      const validFiles = selectedFiles.filter((file) => {
+        if (file.type !== "application/pdf") {
+          toast({
+            title: "Invalid file type",
+            description: "Please select PDF files only.",
+            variant: "destructive",
+          });
+          return false;
+        }
+
+        const maxSize = 100 * 1024 * 1024; // 100MB for all users
+        if (file.size > maxSize) {
+          toast({
+            title: "File too large",
+            description: `File size exceeds 100MB limit.`,
+            variant: "destructive",
+          });
+          return false;
+        }
+
+        return true;
+      });
+
+      if (validFiles.length === 0) return;
+
+      // For protection, we only handle one file at a time
+      const file = validFiles[0];
+
+      const processedFile: ProcessedFile = {
+        id: Date.now().toString(),
+        file,
+        name: file.name,
+        size: file.size,
+        loadingThumbnails: true,
+      };
+
+      // Clear any existing download URLs to prevent memory leaks
+      if (protectionResult?.downloadUrl) {
+        URL.revokeObjectURL(protectionResult.downloadUrl);
+      }
+
+      // Reset all protection state when new file is selected
+      protectionInProgress.current = false;
+      setIsProcessing(false);
+      setFiles([processedFile]);
+      setProtectionResult(null);
+      setProgress(0);
+
+      console.log("🔄 File changed, protection state reset");
+
+      // Track file upload
+      tracking.trackFileUpload([file]);
+
+      // Generate thumbnails and get page count
+      try {
+        const [thumbnails, pageCount] = await Promise.all([
+          generateThumbnails(file),
+          getPageCount(file),
+        ]);
+
+        setFiles([
+          {
+            ...processedFile,
+            thumbnails,
+            pageCount,
+            loadingThumbnails: false,
+          },
+        ]);
+      } catch (error) {
+        console.error("Error processing file:", error);
+        setFiles([
+          {
+            ...processedFile,
+            loadingThumbnails: false,
+          },
+        ]);
+      }
+    },
+    [toast, generateThumbnails, getPageCount, tracking],
+  );
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFiles = Array.from(e.target.files || []);
+    handleFileSelect(selectedFiles);
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = () => {
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const droppedFiles = Array.from(e.dataTransfer.files);
+    handleFileSelect(droppedFiles);
+  };
+
+  const removeFile = (fileId: string) => {
+    setFiles(files.filter((f) => f.id !== fileId));
+    setProtectionResult(null);
+  };
+
+  const protectFiles = async () => {
+    // Multiple safety checks to prevent duplicate requests
     if (files.length === 0) {
       toast({
         title: "No files selected",
-        description: "Please select PDF files to protect.",
+        description: "Please select a PDF file to protect.",
         variant: "destructive",
       });
       return;
@@ -85,250 +325,361 @@ const ProtectPdf = () => {
       return;
     }
 
-    // Check usage limits
-    try {
-      const usageCheck = await PDFService.checkUsageLimit();
-      if (!usageCheck.canUpload) {
-        setShowAuthModal(true);
-        return;
-      }
-    } catch (error) {
-      console.error("Error checking usage limit:", error);
+    if (!user) {
+      tracking.trackAuthRequired();
+      setShowAuthModal(true);
+      return;
     }
 
+    // Triple check to prevent multiple simultaneous protection requests
+    if (isProcessing || protectionInProgress.current) {
+      console.log(
+        "⚠️ Protection already in progress, ignoring duplicate request",
+      );
+      return;
+    }
+
+    // Set flags to prevent duplicates
+    protectionInProgress.current = true;
     setIsProcessing(true);
+    setProgress(0);
+    setProtectionResult(null); // Clear any previous results
+
+    console.log(`🚀 Starting protection...`);
 
     try {
-      const protectedResults: { name: string; url: string; size: number }[] =
-        [];
+      const file = files[0];
+      const startTime = Date.now();
 
-      for (const file of files) {
-        try {
-          toast({
-            title: `🔄 Protecting ${file.name}...`,
-            description: "Adding password protection to PDF",
-          });
+      // Track protection start
+      tracking.trackConversionStart("PDF", "PDF Protected", [file.file]);
 
-          // Protect PDF with password
-          const protectedPdf = await protectPdfWithPassword(file, {
-            password,
-            permissions,
-          });
-
-          const blob = new Blob([protectedPdf], { type: "application/pdf" });
-          const url = URL.createObjectURL(blob);
-
-          protectedResults.push({
-            name: file.name.replace(/\.pdf$/i, "_protected.pdf"),
-            url,
-            size: blob.size,
-          });
-
-          toast({
-            title: `✅ ${file.name} protected successfully`,
-            description: "Password protection added to PDF",
-          });
-        } catch (error) {
-          console.error(`Error protecting ${file.name}:`, error);
-          toast({
-            title: `❌ Error protecting ${file.name}`,
-            description: "Failed to add protection to this PDF file.",
-            variant: "destructive",
-          });
-        }
-      }
-
-      if (protectedResults.length > 0) {
-        setProtectedFiles(protectedResults);
-        setIsComplete(true);
-
-        // Track usage for revenue analytics
-        await PDFService.trackUsage(
-          "protect-pdf",
-          files.length,
-          files.reduce((sum, file) => sum + file.size, 0),
-        );
-
-        toast({
-          title: "🎉 Protection completed!",
-          description: `Successfully protected ${protectedResults.length} PDF(s).`,
+      // Simulate progress
+      const progressInterval = setInterval(() => {
+        setProgress((prev) => {
+          if (prev >= 90) return prev;
+          return prev + Math.random() * 10;
         });
+      }, 200);
+
+      console.log(`Protecting with password and permissions`);
+
+      const result = await PDFService.protectPDF(file.file, {
+        password,
+        permissions,
+        sessionId: `protect_${Date.now()}`,
+        onProgress: setProgress,
+      });
+
+      clearInterval(progressInterval);
+      setProgress(100);
+
+      // Extract protection info from response headers
+      const originalSize = parseInt(
+        result.headers?.["x-original-size"] || file.size.toString(),
+      );
+
+      // Handle ArrayBuffer result data correctly
+      const actualProtectedSize =
+        result.data instanceof ArrayBuffer
+          ? result.data.byteLength
+          : (result.data as any).size || 0;
+
+      const protectedSize = parseInt(
+        result.headers?.["x-protected-size"] || actualProtectedSize.toString(),
+      );
+
+      const protectionLevel =
+        result.headers?.["x-protection-level"] || "standard";
+
+      console.log(`📊 Protection results:`, {
+        originalSize,
+        protectedSize,
+        protectionLevel,
+        dataType:
+          result.data instanceof ArrayBuffer
+            ? "ArrayBuffer"
+            : typeof result.data,
+      });
+
+      // Create download URL
+      const blob = new Blob([result.data], { type: "application/pdf" });
+      const downloadUrl = URL.createObjectURL(blob);
+
+      const protectionResult: ProtectionResult = {
+        originalSize,
+        protectedSize,
+        protectionLevel,
+        downloadUrl,
+        filename: `${file.name.replace(/\.pdf$/i, "")}_protected.pdf`,
+      };
+
+      setProtectionResult(protectionResult);
+
+      // Track successful protection
+      const conversionTime = Date.now() - startTime;
+      tracking.trackConversionComplete(
+        "PDF",
+        "PDF Protected",
+        {
+          fileName: file.file.name,
+          fileSize: file.file.size,
+          fileType: file.file.type,
+        },
+        protectedSize,
+        conversionTime,
+      );
+
+      // Track for floating popup (only for anonymous users)
+      if (!isAuthenticated) {
+        trackToolUsage();
       }
-    } catch (error) {
-      console.error("Error protecting PDFs:", error);
+
       toast({
-        title: "Protection failed",
+        title: "Protection Complete!",
+        description: `PDF protected with password successfully`,
+      });
+    } catch (error: any) {
+      console.error("Protection failed:", error);
+
+      // Clear any partial progress
+      setProgress(0);
+      setProtectionResult(null);
+
+      toast({
+        title: "Protection Failed",
         description:
-          "There was an error protecting your PDFs. Please try again.",
+          error.response?.data?.message ||
+          error.message ||
+          "An error occurred during protection.",
         variant: "destructive",
       });
+
+      // Track protection failure
+      tracking.trackConversionFailed("PDF", "PDF Protected", error.message);
     } finally {
+      // Reset all protection flags
+      protectionInProgress.current = false;
       setIsProcessing(false);
+
+      console.log(`✅ Protection cleanup completed`);
     }
   };
 
-  const protectPdfWithPassword = async (
-    file: File,
-    options: {
-      password: string;
-      permissions: any;
-    },
-  ): Promise<Uint8Array> => {
-    console.log("🔄 Adding password protection to PDF...");
+  const downloadResult = () => {
+    if (!protectionResult) {
+      toast({
+        title: "No file to download",
+        description: "Please protect a PDF first.",
+        variant: "destructive",
+      });
+      return;
+    }
 
     try {
-      const { PDFDocument } = await import("pdf-lib");
+      console.log(`📥 Downloading: ${protectionResult.filename}`);
 
-      // Load the PDF
-      const arrayBuffer = await file.arrayBuffer();
-      const pdfDoc = await PDFDocument.load(arrayBuffer);
+      const link = document.createElement("a");
+      link.href = protectionResult.downloadUrl;
+      link.download = protectionResult.filename;
+      link.style.display = "none";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
 
-      console.log(`📑 Protecting PDF with ${pdfDoc.getPageCount()} pages`);
-
-      // Add metadata indicating protection
-      pdfDoc.setSubject(`Protected PDF - Password required for access`);
-      pdfDoc.setCreator(`PdfPage - PDF Protection Tool`);
-      pdfDoc.setProducer(`PdfPage Protection Service`);
-
-      // Save with encryption simulation (Note: pdf-lib doesn't support real encryption)
-      // In a real implementation, you'd use a library that supports PDF encryption
-      const pdfBytes = await pdfDoc.save({
-        useObjectStreams: false,
-        addDefaultPage: false,
+      toast({
+        title: "Download started",
+        description: `Downloading ${protectionResult.filename}`,
       });
 
-      // For demonstration, we'll add protection metadata
-      // Real implementation would use proper PDF encryption libraries
-      console.log(`🔐 Password protection applied (simulation)`);
-      console.log(`📊 Permissions set:`, options.permissions);
-
-      return pdfBytes;
+      // Track successful download
+      tracking.trackDownload(
+        protectionResult.filename,
+        protectionResult.protectedSize,
+      );
     } catch (error) {
-      console.error("PDF protection failed:", error);
-      throw error;
+      console.error("Download failed:", error);
+      toast({
+        title: "Download failed",
+        description: "There was an error downloading your file.",
+        variant: "destructive",
+      });
     }
   };
 
-  const downloadFile = (url: string, filename: string) => {
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = filename;
-    link.click();
-  };
-
-  const downloadAll = () => {
-    protectedFiles.forEach((file, index) => {
-      setTimeout(() => downloadFile(file.url, file.name), index * 100);
-    });
-  };
-
-  const reset = () => {
-    setFiles([]);
-    setProtectedFiles([]);
-    setIsComplete(false);
-    setPassword("");
-    setConfirmPassword("");
+  const formatFileSize = (bytes: number): string => {
+    if (bytes === 0) return "0 Bytes";
+    const k = 1024;
+    const sizes = ["Bytes", "KB", "MB", "GB"];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
   };
 
   return (
-    <div className="min-h-screen bg-bg-light">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-100">
       <Header />
 
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <PromoBanner className="mb-8" />
-
-        {/* Navigation */}
-        <div className="flex items-center space-x-2 mb-8">
+      <div className="container mx-auto px-6 py-8">
+        {/* Header */}
+        <div className="flex items-center gap-4 mb-8">
           <Link
             to="/"
-            className="text-body-medium text-text-light hover:text-brand-red"
+            className="flex items-center gap-2 text-gray-600 hover:text-gray-900"
           >
-            <ArrowLeft className="w-4 h-4 mr-1 inline" />
-            Back to Home
+            <ArrowLeft className="w-5 h-5" />
+            <span>Back to Home</span>
           </Link>
         </div>
 
-        {/* Header */}
-        <div className="text-center mb-8">
-          <div className="w-16 h-16 bg-gradient-to-br from-red-500 to-red-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
-            <Shield className="w-8 h-8 text-white" />
+        {/* Title Section */}
+        <div className="text-center mb-12">
+          <div className="flex items-center justify-center gap-3 mb-4">
+            <div className="p-3 bg-red-600 rounded-2xl">
+              <Shield className="w-8 h-8 text-white" />
+            </div>
+            <h1 className="text-4xl font-bold text-gray-900">Protect PDF</h1>
           </div>
-          <h1 className="text-heading-medium text-text-dark mb-4">
-            Protect PDF
-          </h1>
-          <p className="text-body-large text-text-light max-w-2xl mx-auto">
-            Protect PDF files with a password. Encrypt PDF documents to prevent
-            unauthorized access and control permissions.
+          <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+            Add password protection to PDF files. Control access permissions and
+            secure your documents with encryption.
           </p>
-          <div className="mt-4 inline-flex items-center px-3 py-1 rounded-full text-sm bg-green-100 text-green-800">
-            <span className="mr-2">🔐</span>
-            Real PDF protection with password encryption!
-          </div>
         </div>
 
-        {/* Main Content */}
-        {!isComplete ? (
-          <div className="space-y-8">
-            {/* File Upload */}
-            {files.length === 0 && (
-              <div className="bg-white rounded-xl p-8 shadow-sm border border-gray-100">
-                <FileUpload
-                  onFilesSelect={handleFileUpload}
-                  accept=".pdf"
-                  multiple={true}
-                  maxSize={50}
-                  allowedTypes={["pdf"]}
-                  uploadText="Select PDF files or drop PDF files here"
-                  supportText="Supports PDF format"
+        <div className="max-w-4xl mx-auto">
+          {/* File Upload Area */}
+          <Card className="mb-8">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Upload className="w-5 h-5" />
+                Upload PDF File
+              </CardTitle>
+              <CardDescription>
+                Select a PDF file to protect with password (max 100MB)
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div
+                className={cn(
+                  "border-2 border-dashed rounded-lg p-4 sm:p-8 text-center transition-colors",
+                  isDragging
+                    ? "border-red-500 bg-red-50"
+                    : "border-gray-300 hover:border-gray-400",
+                )}
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
+                onClick={() => fileInputRef.current?.click()}
+              >
+                <Upload className="w-12 h-12 mx-auto mb-4 text-gray-400" />
+                <h3 className="text-lg font-semibold mb-2">
+                  {isDragging
+                    ? "Drop your PDF here"
+                    : "Choose PDF file or drag & drop"}
+                </h3>
+                <p className="text-gray-500 mb-4">
+                  Supports PDF files up to 100MB
+                </p>
+                <Button variant="outline">Browse Files</Button>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".pdf,application/pdf"
+                  onChange={handleFileChange}
+                  className="hidden"
+                  multiple={false}
                 />
               </div>
-            )}
+            </CardContent>
+          </Card>
 
-            {/* File List */}
-            {files.length > 0 && (
-              <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
-                <h3 className="text-lg font-semibold text-text-dark mb-4">
-                  Selected Files ({files.length})
-                </h3>
-                <div className="space-y-3 mb-6">
-                  {files.map((file, index) => (
-                    <div
-                      key={index}
-                      className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
-                    >
-                      <div className="flex items-center space-x-3">
-                        <FileText className="w-5 h-5 text-red-500" />
+          {/* File Preview */}
+          {files.length > 0 && (
+            <Card className="mb-8">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Eye className="w-5 h-5" />
+                  File Preview
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {files.map((file) => (
+                  <div key={file.id} className="border rounded-lg p-4">
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center gap-3">
+                        <FileText className="w-8 h-8 text-red-500" />
                         <div>
-                          <p className="font-medium text-text-dark">
-                            {file.name}
-                          </p>
-                          <p className="text-sm text-text-light">
-                            {(file.size / 1024 / 1024).toFixed(2)} MB
+                          <h3 className="font-semibold">{file.name}</h3>
+                          <p className="text-sm text-gray-500">
+                            {formatFileSize(file.size)} • {file.pageCount || 0}{" "}
+                            pages
                           </p>
                         </div>
                       </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => removeFile(file.id)}
+                      >
+                        <X className="w-4 h-4" />
+                      </Button>
                     </div>
-                  ))}
-                </div>
 
-                {/* Protection Settings */}
-                <div className="space-y-6">
-                  <h4 className="text-md font-semibold text-text-dark">
-                    Protection Settings
-                  </h4>
+                    {/* Thumbnails */}
+                    {file.loadingThumbnails ? (
+                      <div className="flex items-center justify-center py-8">
+                        <Loader2 className="w-6 h-6 animate-spin" />
+                        <span className="ml-2">Generating preview...</span>
+                      </div>
+                    ) : file.thumbnails && file.thumbnails.length > 0 ? (
+                      <div className="flex gap-2 mb-4">
+                        {file.thumbnails.map((thumbnail, index) => (
+                          <img
+                            key={index}
+                            src={thumbnail}
+                            alt={`Page ${index + 1}`}
+                            className="w-16 h-20 object-cover border rounded shadow-sm"
+                          />
+                        ))}
+                        {file.pageCount && file.pageCount > 3 && (
+                          <div className="w-16 h-20 border rounded shadow-sm flex items-center justify-center bg-gray-50">
+                            <span className="text-xs text-gray-500">
+                              +{file.pageCount - 3}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    ) : null}
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          )}
 
-                  {/* Password */}
+          {/* Protection Settings - Shown after upload */}
+          {files.length > 0 && (
+            <Card className="mb-8">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Settings className="w-5 h-5" />
+                  Protection Settings
+                </CardTitle>
+                <CardDescription>
+                  Configure password and permissions for your PDF
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {/* Password Fields */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-text-dark mb-2">
-                      Password *
-                    </label>
+                    <Label htmlFor="password">Password *</Label>
                     <div className="relative">
-                      <input
+                      <Input
+                        id="password"
                         type={showPassword ? "text" : "password"}
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
-                        className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
                         placeholder="Enter password (min 6 characters)"
+                        className="pr-10"
                       />
                       <button
                         type="button"
@@ -343,223 +694,250 @@ const ProtectPdf = () => {
                       </button>
                     </div>
                   </div>
-
-                  {/* Confirm Password */}
                   <div>
-                    <label className="block text-sm font-medium text-text-dark mb-2">
-                      Confirm Password *
-                    </label>
-                    <input
+                    <Label htmlFor="confirmPassword">Confirm Password *</Label>
+                    <Input
+                      id="confirmPassword"
                       type={showPassword ? "text" : "password"}
                       value={confirmPassword}
                       onChange={(e) => setConfirmPassword(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
                       placeholder="Confirm password"
                     />
                   </div>
+                </div>
 
-                  {/* Permissions */}
-                  <div>
-                    <label className="block text-sm font-medium text-text-dark mb-2">
-                      Permissions
+                {/* Permissions */}
+                <div>
+                  <Label className="text-base font-semibold">Permissions</Label>
+                  <p className="text-sm text-gray-500 mb-3">
+                    Control what users can do with the protected PDF
+                  </p>
+                  <div className="grid grid-cols-2 gap-3">
+                    <label className="flex items-center space-x-2">
+                      <input
+                        type="checkbox"
+                        checked={permissions.printing}
+                        onChange={(e) =>
+                          setPermissions({
+                            ...permissions,
+                            printing: e.target.checked,
+                          })
+                        }
+                        className="rounded border-gray-300 text-red-600 focus:ring-red-500"
+                      />
+                      <span className="text-sm">Allow printing</span>
                     </label>
-                    <div className="space-y-3">
-                      <label className="flex items-center">
-                        <input
-                          type="checkbox"
-                          checked={permissions.printing}
-                          onChange={(e) =>
-                            setPermissions({
-                              ...permissions,
-                              printing: e.target.checked,
-                            })
-                          }
-                          className="rounded border-gray-300 text-red-600 focus:ring-red-500"
-                        />
-                        <span className="ml-2 text-sm text-gray-700">
-                          Allow printing
-                        </span>
-                      </label>
-                      <label className="flex items-center">
-                        <input
-                          type="checkbox"
-                          checked={permissions.copying}
-                          onChange={(e) =>
-                            setPermissions({
-                              ...permissions,
-                              copying: e.target.checked,
-                            })
-                          }
-                          className="rounded border-gray-300 text-red-600 focus:ring-red-500"
-                        />
-                        <span className="ml-2 text-sm text-gray-700">
-                          Allow copying text
-                        </span>
-                      </label>
-                      <label className="flex items-center">
-                        <input
-                          type="checkbox"
-                          checked={permissions.editing}
-                          onChange={(e) =>
-                            setPermissions({
-                              ...permissions,
-                              editing: e.target.checked,
-                            })
-                          }
-                          className="rounded border-gray-300 text-red-600 focus:ring-red-500"
-                        />
-                        <span className="ml-2 text-sm text-gray-700">
-                          Allow editing
-                        </span>
-                      </label>
-                      <label className="flex items-center">
-                        <input
-                          type="checkbox"
-                          checked={permissions.filling}
-                          onChange={(e) =>
-                            setPermissions({
-                              ...permissions,
-                              filling: e.target.checked,
-                            })
-                          }
-                          className="rounded border-gray-300 text-red-600 focus:ring-red-500"
-                        />
-                        <span className="ml-2 text-sm text-gray-700">
-                          Allow form filling
-                        </span>
-                      </label>
-                    </div>
+                    <label className="flex items-center space-x-2">
+                      <input
+                        type="checkbox"
+                        checked={permissions.copying}
+                        onChange={(e) =>
+                          setPermissions({
+                            ...permissions,
+                            copying: e.target.checked,
+                          })
+                        }
+                        className="rounded border-gray-300 text-red-600 focus:ring-red-500"
+                      />
+                      <span className="text-sm">Allow copying text</span>
+                    </label>
+                    <label className="flex items-center space-x-2">
+                      <input
+                        type="checkbox"
+                        checked={permissions.editing}
+                        onChange={(e) =>
+                          setPermissions({
+                            ...permissions,
+                            editing: e.target.checked,
+                          })
+                        }
+                        className="rounded border-gray-300 text-red-600 focus:ring-red-500"
+                      />
+                      <span className="text-sm">Allow editing</span>
+                    </label>
+                    <label className="flex items-center space-x-2">
+                      <input
+                        type="checkbox"
+                        checked={permissions.filling}
+                        onChange={(e) =>
+                          setPermissions({
+                            ...permissions,
+                            filling: e.target.checked,
+                          })
+                        }
+                        className="rounded border-gray-300 text-red-600 focus:ring-red-500"
+                      />
+                      <span className="text-sm">Allow form filling</span>
+                    </label>
                   </div>
                 </div>
+              </CardContent>
+            </Card>
+          )}
 
-                {/* Action Buttons */}
-                <div className="flex flex-col sm:flex-row gap-3 mt-6">
-                  <Button
-                    onClick={handleProtect}
-                    disabled={
-                      isProcessing || !password || password !== confirmPassword
-                    }
-                    className="flex-1"
-                  >
-                    {isProcessing ? (
-                      <>
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                        Protecting...
-                      </>
-                    ) : (
-                      <>
-                        <Lock className="w-4 h-4 mr-2" />
-                        Protect PDF
-                      </>
-                    )}
-                  </Button>
-                  <Button variant="outline" onClick={() => setFiles([])}>
-                    Clear Files
-                  </Button>
-                </div>
-              </div>
-            )}
-
-            {/* Premium Features */}
-            {!user?.isPremium && (
-              <Card className="border-brand-yellow bg-gradient-to-r from-yellow-50 to-orange-50">
-                <CardHeader>
-                  <CardTitle className="flex items-center text-orange-800">
-                    <Crown className="w-5 h-5 mr-2 text-brand-yellow" />
-                    Unlock Premium Features
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <ul className="space-y-2 text-sm text-orange-700 mb-4">
-                    <li className="flex items-center">
-                      <Star className="w-4 h-4 mr-2 text-brand-yellow" />
-                      Advanced encryption levels
-                    </li>
-                    <li className="flex items-center">
-                      <Star className="w-4 h-4 mr-2 text-brand-yellow" />
-                      Digital certificate protection
-                    </li>
-                    <li className="flex items-center">
-                      <Star className="w-4 h-4 mr-2 text-brand-yellow" />
-                      Batch protection
-                    </li>
-                    <li className="flex items-center">
-                      <Star className="w-4 h-4 mr-2 text-brand-yellow" />
-                      Custom security policies
-                    </li>
-                  </ul>
-                  <Button className="bg-brand-yellow text-black hover:bg-yellow-400">
-                    <Crown className="w-4 h-4 mr-2" />
-                    Get Premium
-                  </Button>
-                </CardContent>
-              </Card>
-            )}
-          </div>
-        ) : (
-          /* Results */
-          <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
-            <div className="text-center mb-6">
-              <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Shield className="w-8 h-8 text-green-600" />
-              </div>
-              <h3 className="text-xl font-semibold text-text-dark mb-2">
-                Protection Complete!
-              </h3>
-              <p className="text-text-light">
-                Successfully protected {files.length} PDF(s) with password
-              </p>
-            </div>
-
-            {/* File List */}
-            <div className="space-y-3 mb-6">
-              {protectedFiles.map((file, index) => (
-                <div
-                  key={index}
-                  className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
-                >
-                  <div className="flex items-center space-x-3">
-                    <Shield className="w-5 h-5 text-red-500" />
-                    <div>
-                      <p className="font-medium text-text-dark">{file.name}</p>
-                      <p className="text-sm text-text-light">
-                        {(file.size / 1024 / 1024).toFixed(2)} MB • Password
-                        Protected
+          {/* Protection Results */}
+          {protectionResult && (
+            <Card className="mb-8">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <CheckCircle className="w-5 h-5 text-green-600" />
+                  Protection Complete
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="bg-green-50 border border-green-200 rounded-lg p-6">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                    <div className="text-center">
+                      <p className="text-sm text-gray-600">Original Size</p>
+                      <p className="text-lg font-bold">
+                        {formatFileSize(protectionResult.originalSize)}
+                      </p>
+                    </div>
+                    <div className="text-center">
+                      <p className="text-sm text-gray-600">Protected Size</p>
+                      <p className="text-lg font-bold text-blue-600">
+                        {formatFileSize(protectionResult.protectedSize)}
+                      </p>
+                    </div>
+                    <div className="text-center">
+                      <p className="text-sm text-gray-600">Protection Level</p>
+                      <p className="text-lg font-bold text-green-600">
+                        {protectionResult.protectionLevel}
                       </p>
                     </div>
                   </div>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => downloadFile(file.url, file.name)}
-                  >
-                    <Download className="w-4 h-4 mr-1" />
-                    Download
-                  </Button>
-                </div>
-              ))}
-            </div>
 
-            {/* Action Buttons */}
-            <div className="flex flex-col sm:flex-row gap-3">
-              <Button onClick={downloadAll} className="flex-1">
-                <Download className="w-4 h-4 mr-2" />
-                Download All Files
-              </Button>
-              <Button variant="outline" onClick={reset}>
-                Protect More Files
-              </Button>
-            </div>
-          </div>
-        )}
+                  <div className="text-center">
+                    <Button
+                      onClick={downloadResult}
+                      className="bg-green-600 hover:bg-green-700"
+                    >
+                      <Download className="w-4 h-4 mr-2" />
+                      Download Protected PDF
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Action Buttons */}
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex gap-4 justify-center">
+                <Button
+                  onClick={protectFiles}
+                  disabled={
+                    files.length === 0 ||
+                    isProcessing ||
+                    protectionInProgress.current ||
+                    !user ||
+                    !password ||
+                    password !== confirmPassword ||
+                    password.length < 6
+                  }
+                  className="bg-red-600 hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  size="lg"
+                >
+                  {isProcessing || protectionInProgress.current ? (
+                    <>
+                      <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                      Protecting... ({Math.round(progress)}%)
+                    </>
+                  ) : (
+                    <>
+                      <Lock className="w-5 h-5 mr-2" />
+                      Protect PDF
+                    </>
+                  )}
+                </Button>
+
+                {files.length > 0 && (
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setFiles([]);
+                      setProtectionResult(null);
+                      setPassword("");
+                      setConfirmPassword("");
+                    }}
+                  >
+                    Clear All
+                  </Button>
+                )}
+              </div>
+
+              {/* Progress Bar */}
+              {isProcessing && (
+                <div className="mt-6">
+                  <div className="flex justify-between text-sm mb-2">
+                    <span>Protecting PDF...</span>
+                    <span>{Math.round(progress)}%</span>
+                  </div>
+                  <Progress value={progress} className="h-2" />
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Info Section */}
+        <div className="max-w-4xl mx-auto mt-12">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Info className="w-5 h-5" />
+                PDF Protection Information
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <h3 className="font-semibold mb-2">Protection Features:</h3>
+                  <ul className="space-y-2 text-sm">
+                    <li>• Password protection for document access</li>
+                    <li>• Granular permission controls</li>
+                    <li>• Secure server-side processing</li>
+                    <li>• Metadata privacy protection</li>
+                    <li>• Industry-standard encryption</li>
+                  </ul>
+                </div>
+                <div>
+                  <h3 className="font-semibold mb-2">Permission Options:</h3>
+                  <ul className="space-y-2 text-sm">
+                    <li>
+                      • <strong>Printing:</strong> Allow/prevent document
+                      printing
+                    </li>
+                    <li>
+                      • <strong>Copying:</strong> Control text selection and
+                      copying
+                    </li>
+                    <li>
+                      • <strong>Editing:</strong> Allow/prevent document
+                      modifications
+                    </li>
+                    <li>
+                      • <strong>Form Filling:</strong> Control form field
+                      editing
+                    </li>
+                  </ul>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        <PromoBanner />
       </div>
 
-      {/* Auth Modal */}
-      <AuthModal
-        isOpen={showAuthModal}
-        onClose={() => setShowAuthModal(false)}
-        defaultTab="register"
-      />
+      {showAuthModal && (
+        <AuthModal
+          isOpen={showAuthModal}
+          onClose={() => setShowAuthModal(false)}
+          defaultMode="login"
+        />
+      )}
     </div>
   );
 };
