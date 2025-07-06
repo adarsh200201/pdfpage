@@ -162,10 +162,58 @@ app.use(
       "https://accounts.google.com", // Google OAuth
     ],
     credentials: true,
-    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization"],
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD"],
+    allowedHeaders: [
+      "Content-Type",
+      "Authorization",
+      "X-Requested-With",
+      "Accept",
+      "Origin",
+      "Cache-Control",
+      "Pragma",
+    ],
+    exposedHeaders: [
+      "X-Compression-Ratio",
+      "X-Original-Size",
+      "X-Compressed-Size",
+      "X-Size-Saved",
+      "X-Compression-Level",
+    ],
+    optionsSuccessStatus: 200, // For legacy browser support
+    preflightContinue: false,
   }),
 );
+
+// CORS debugging middleware (only in development)
+if (process.env.NODE_ENV === "development") {
+  app.use((req, res, next) => {
+    console.log(`🌐 CORS Request: ${req.method} ${req.path}`);
+    console.log(`🌐 Origin: ${req.headers.origin}`);
+    console.log(
+      `🌐 User-Agent: ${req.headers["user-agent"]?.substring(0, 50)}...`,
+    );
+    next();
+  });
+}
+
+// Explicit preflight handler for all OPTIONS requests
+app.options("*", (req, res) => {
+  const origin = req.headers.origin;
+  console.log(`🔧 OPTIONS preflight from: ${origin}`);
+
+  res.header("Access-Control-Allow-Origin", origin || "*");
+  res.header("Access-Control-Allow-Credentials", "true");
+  res.header(
+    "Access-Control-Allow-Methods",
+    "GET,POST,PUT,DELETE,OPTIONS,HEAD",
+  );
+  res.header(
+    "Access-Control-Allow-Headers",
+    "Content-Type,Authorization,X-Requested-With,Accept,Origin,Cache-Control,Pragma",
+  );
+  res.header("Access-Control-Max-Age", "86400"); // 24 hours
+  res.sendStatus(200);
+});
 
 // Body parsing middleware
 app.use(express.json({ limit: "50mb" }));
