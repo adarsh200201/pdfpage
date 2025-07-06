@@ -48,6 +48,7 @@ interface FileStatus {
     fileSize: number;
     sheetsConverted: number;
     processingTime: number;
+    conversionMethod: string;
   };
   error?: string;
 }
@@ -180,31 +181,72 @@ const ExcelToPdf = () => {
           tracking.trackConversionStart("Excel", "PDF", [fileStatus.file]);
 
           let result;
+          let usedMethod = conversionSettings.conversionMethod;
 
           if (conversionSettings.conversionMethod === "libreoffice") {
-            // Use LibreOffice conversion
-            const conversionResult =
-              await PDFService.convertExcelToPdfLibreOffice(fileStatus.file, {
-                quality: conversionSettings.quality,
-                preserveFormatting: conversionSettings.preserveFormatting,
-                preserveImages: conversionSettings.preserveImages,
-                pageSize: conversionSettings.pageSize,
-                orientation: conversionSettings.orientation,
-              });
+            try {
+              // Use LibreOffice conversion
+              const conversionResult =
+                await PDFService.convertExcelToPdfLibreOffice(fileStatus.file, {
+                  quality: conversionSettings.quality,
+                  preserveFormatting: conversionSettings.preserveFormatting,
+                  preserveImages: conversionSettings.preserveImages,
+                  pageSize: conversionSettings.pageSize,
+                  orientation: conversionSettings.orientation,
+                });
 
-            // Create URL for download
-            const downloadUrl = URL.createObjectURL(conversionResult.blob);
-            result = {
-              downloadUrl,
-              blob: conversionResult.blob,
-              stats: conversionResult.stats,
-              headers: {
-                "x-conversion-engine": conversionResult.stats.conversionEngine,
-                "x-page-count": conversionResult.stats.pages.toString(),
-                "x-processing-time":
-                  conversionResult.stats.processingTime.toString(),
-              },
-            };
+              // Create URL for download
+              const downloadUrl = URL.createObjectURL(conversionResult.blob);
+              result = {
+                downloadUrl,
+                blob: conversionResult.blob,
+                stats: conversionResult.stats,
+                headers: {
+                  "x-conversion-engine":
+                    conversionResult.stats.conversionEngine,
+                  "x-page-count": conversionResult.stats.pages.toString(),
+                  "x-processing-time":
+                    conversionResult.stats.processingTime.toString(),
+                },
+              };
+            } catch (libreOfficeError: any) {
+              // If LibreOffice fails, automatically try the basic converter
+              if (
+                libreOfficeError.message?.includes("LibreOffice") ||
+                libreOfficeError.message?.includes("not available") ||
+                libreOfficeError.message?.includes("soffice") ||
+                libreOfficeError.message?.includes("Command failed")
+              ) {
+                console.log(
+                  "LibreOffice failed, falling back to basic converter...",
+                );
+
+                // Update progress to show fallback attempt
+                setFiles((prev) =>
+                  prev.map((f, idx) =>
+                    idx === i ? { ...f, progress: 20 } : f,
+                  ),
+                );
+
+                // Try with basic converter
+                result = await PDFService.excelToPdf(fileStatus.file, {
+                  pageFormat: conversionSettings.pageSize,
+                  orientation: conversionSettings.orientation,
+                  preserveLayout: conversionSettings.preserveFormatting,
+                  sessionId: `excel_to_pdf_${Date.now()}`,
+                  onProgress: (progress) => {
+                    setFiles((prev) =>
+                      prev.map((f, idx) =>
+                        idx === i ? { ...f, progress } : f,
+                      ),
+                    );
+                  },
+                });
+                usedMethod = "basic";
+              } else {
+                throw libreOfficeError;
+              }
+            }
           } else {
             // Fallback to basic conversion
             result = await PDFService.excelToPdf(fileStatus.file, {
@@ -248,6 +290,7 @@ const ExcelToPdf = () => {
                       fileSize: result.data.byteLength,
                       sheetsConverted,
                       processingTime,
+                      conversionMethod: usedMethod,
                     },
                   }
                 : f,
@@ -274,7 +317,7 @@ const ExcelToPdf = () => {
 
           toast({
             title: "Conversion Complete!",
-            description: `${fileStatus.file.name} converted successfully. Processed ${sheetsConverted} sheets.`,
+            description: `${fileStatus.file.name} converted successfully using ${usedMethod === "basic" ? "Basic PDF Engine" : "LibreOffice"}. Processed ${sheetsConverted} sheets.`,
           });
         } catch (error) {
           console.error(`Error converting ${fileStatus.file.name}:`, error);
@@ -422,11 +465,16 @@ const ExcelToPdf = () => {
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="libreoffice">
-                          LibreOffice (Recommended)
+                          LibreOffice (Auto-fallback)
                         </SelectItem>
                         <SelectItem value="basic">Basic Converter</SelectItem>
                       </SelectContent>
                     </Select>
+                    <p className="text-xs text-gray-500 mt-1">
+                      {conversionSettings.conversionMethod === "libreoffice"
+                        ? "Will automatically use Basic Converter if LibreOffice is unavailable"
+                        : "Direct conversion using basic PDF engine"}
+                    </p>
                   </div>
                   <div>
                     <Label htmlFor="quality">Quality</Label>
@@ -632,7 +680,24 @@ const ExcelToPdf = () => {
                                 Conversion Complete
                               </span>
                             </div>
-                            <div className="grid grid-cols-2 gap-4 text-sm">
+                            <div className="grid grid-cols-3 gap-4 text-sm">
+                              <div>
+                                <span className="text-gray-600">Method:</span>
+                                <span className="ml-2 font-medium">
+                                  {fileStatus.result.conversionMethod ===
+                                  "basic"
+                                    ? "Basic Engine"
+                                    : "LibreOffice"}
+                                  {fileStatus.result.conversionMethod ===
+                                    "basic" &&
+                                    conversionSettings.conversionMethod ===
+                                      "libreoffice" && (
+                                      <span className="text-xs text-orange-600 ml-1">
+                                        (fallback)
+                                      </span>
+                                    )}
+                                </span>
+                              </div>
                               <div>
                                 <span className="text-gray-600">
                                   Sheets Converted:

@@ -192,7 +192,7 @@ function getGhostscriptExecutable() {
           encoding: "utf8",
           timeout: 5000,
         });
-        console.log(`��� Found Ghostscript at: ${sysPath}`);
+        console.log(`���� Found Ghostscript at: ${sysPath}`);
         console.log(`   Version info: ${result.trim().split("\n")[0]}`);
         return sysPath;
       }
@@ -3860,7 +3860,7 @@ router.post(
         .replace(/【HEADING3】(.*?)【\/HEADING3】/g, "\n\n▓ $1 ▓\n\n")
         .replace(/【BOLD】(.*?)【\/BOLD��/g, "���B:$1】")
         .replace(/【ITALIC】(.*?)�����\/ITALIC】/g, "��I:$1】")
-        .replace(/【UNDERLINE】(.*?)【\/UNDERLINE】/g, "【U:$1】")
+        .replace(/【UNDERLINE】(.*?)【\/UNDERLINE���/g, "【U:$1】")
         .replace(/���PARAGRAPH】(.*?)【\/PARAGRAPH��/g, "$1\n")
 
         // Clean up excessive whitespace while preserving structure
@@ -3915,6 +3915,18 @@ router.post(
         boldItalic: await pdfDoc.embedFont(StandardFonts.HelveticaBoldOblique),
       };
 
+      // Function to sanitize text for WinAnsi encoding compatibility
+      const sanitizeTextForPDF = (text) => {
+        return text
+          .replace(/【/g, "[") // U+3010 → ASCII bracket
+          .replace(/】/g, "]") // U+3011 → ASCII bracket
+          .replace(/[""]/g, '"') // Smart quotes → ASCII quotes
+          .replace(/['']/g, "'") // Smart apostrophes → ASCII apostrophe
+          .replace(/[—–]/g, "-") // Em/en dashes → ASCII hyphen
+          .replace(/[…]/g, "...") // Ellipsis → ASCII dots
+          .replace(/[^\x20-\x7E\u00A0-\u00FF]/g, "?"); // Replace other non-WinAnsi chars
+      };
+
       // Quality-based font sizing
       const baseFontSize =
         quality === "premium" ? 12 : quality === "high" ? 11 : 10;
@@ -3929,7 +3941,7 @@ router.post(
       let pageCount = 1;
 
       // Process content with advanced formatting
-      const sections = formattedText
+      const sections = sanitizeTextForPDF(formattedText)
         .split(/\n\s*\n/)
         .filter((section) => section.trim());
 
@@ -3943,10 +3955,10 @@ router.post(
         let isSpecialFormat = false;
 
         // Parse and apply formatting
-        let displayText = section.trim();
+        let displayText = sanitizeTextForPDF(section.trim());
 
         // Enhanced heading formatting with better patterns
-        if (displayText.startsWith("��▓▓ ") && displayText.endsWith(" ▓▓▓")) {
+        if (displayText.startsWith("��▓▓ ") && displayText.endsWith(" ���▓▓")) {
           displayText = displayText.slice(4, -4).trim();
           font = fonts.bold;
           fontSize = baseFontSize + 8;
@@ -4026,17 +4038,15 @@ router.post(
         // Process inline formatting within the text - enhanced
         const originalText = displayText;
         displayText = displayText
-          .replace(/【B:([^】]+)】/g, "$1") // Bold text
-          .replace(/【I:([^】]+)】/g, "$1") // Italic text
-          .replace(/【U:([^】]+)】/g, "$1") // Underline text
-          .replace(/【BI:([^��]+)】/g, "$1"); // Bold italic
+          .replace(/\[B:([^\]]+)\]/g, "$1") // Bold text
+          .replace(/\[I:([^\]]+)\]/g, "$1") // Italic text
+          .replace(/\[U:([^\]]+)\]/g, "$1") // Underline text
+          .replace(/\[BI:([^\]]+)\]/g, "$1"); // Bold italic
 
         // Determine font style based on formatting markers in original text
-        const hasBold =
-          originalText.includes("【B:") || originalText.includes("【BI:");
-        const hasItalic =
-          originalText.includes("【I:") || originalText.includes("【BI:");
-        const hasUnderline = originalText.includes("【U:");
+        const hasBold = section.includes("[B:") || section.includes("[BI:");
+        const hasItalic = section.includes("[I:") || section.includes("[BI:");
+        const hasUnderline = section.includes("[U:");
 
         // Apply appropriate font style
         if (hasBold && hasItalic) {
@@ -4078,7 +4088,7 @@ router.post(
             }
 
             // Draw the current line
-            currentPage.drawText(currentLine, {
+            currentPage.drawText(sanitizeTextForPDF(currentLine), {
               x: margin,
               y: currentY,
               size: fontSize,
@@ -4104,7 +4114,7 @@ router.post(
             pageCount++;
           }
 
-          currentPage.drawText(currentLine, {
+          currentPage.drawText(sanitizeTextForPDF(currentLine), {
             x: margin,
             y: currentY,
             size: fontSize,
@@ -5061,7 +5071,7 @@ router.post("/create-batch-download", async (req, res) => {
     const archive = archiver("zip", { zlib: { level: 9 } });
 
     output.on("close", () => {
-      console.log(`����� ZIP created: ${archive.pointer()} total bytes`);
+      console.log(`������ ZIP created: ${archive.pointer()} total bytes`);
 
       // Send download URL (in production, use proper file serving)
       const downloadUrl = `/api/pdf/download-temp/${zipFilename}`;
