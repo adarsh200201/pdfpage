@@ -216,7 +216,9 @@ export default function Compress() {
 
       const startTime = Date.now();
 
-      const response = await fetch("/api/pdf/compress-pro", {
+      const apiUrl =
+        import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+      const response = await fetch(`${apiUrl}/pdf/compress-pro`, {
         method: "POST",
         body: formData,
         signal: abortControllerRef.current.signal,

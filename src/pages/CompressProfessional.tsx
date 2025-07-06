@@ -207,7 +207,9 @@ const CompressProfessional = () => {
       setProgress(10);
       setProcessingStatus("Uploading and analyzing document...");
 
-      const response = await fetch("/api/pdf/compress", {
+      const apiUrl =
+        import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+      const response = await fetch(`${apiUrl}/pdf/compress`, {
         method: "POST",
         body: formData,
       });

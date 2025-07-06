@@ -1,6 +1,7 @@
 const express = require("express");
 const { PDFDocument } = require("pdf-lib");
 const fs = require("fs");
+const fsPromises = require("fs").promises;
 const path = require("path");
 // GHOSTSCRIPT-ONLY: No compress-pdf dependency - using direct Ghostscript CLI
 const { body, validationResult } = require("express-validator");
@@ -191,7 +192,7 @@ function getGhostscriptExecutable() {
           encoding: "utf8",
           timeout: 5000,
         });
-        console.log(`✅ Found Ghostscript at: ${sysPath}`);
+        console.log(`��� Found Ghostscript at: ${sysPath}`);
         console.log(`   Version info: ${result.trim().split("\n")[0]}`);
         return sysPath;
       }
@@ -370,7 +371,7 @@ async function performEnterpriseCompression(inputPath, outputPath, options) {
         }
       }
 
-      console.log(`🚀 Executing: ${executable} with params:`, processParams);
+      console.log(`�� Executing: ${executable} with params:`, processParams);
 
       const gsProcess = spawn(executable, processParams, {
         stdio: ["pipe", "pipe", "pipe"],
@@ -919,7 +920,7 @@ router.post(
       // GHOSTSCRIPT-ONLY COMPRESSION - NO FALLBACKS
       try {
         // Write input file securely
-        await fs.writeFile(inputPath, file.buffer);
+        await fsPromises.writeFile(inputPath, file.buffer);
 
         // Use ONLY performEnterpriseCompression (Ghostscript)
         const compressionResult = await performEnterpriseCompression(
@@ -934,7 +935,7 @@ router.post(
         );
 
         if (compressionResult.success) {
-          pdfBytes = await fs.readFile(outputPath);
+          pdfBytes = await fsPromises.readFile(outputPath);
           console.log(
             `✅ GHOSTSCRIPT-ONLY compression successful: ${compressionResult.stats.reduction}% reduction`,
           );
@@ -995,8 +996,8 @@ router.post(
         res.send(Buffer.from(pdfBytes));
       } catch (compressionError) {
         // Clean up temporary files in case of error
-        await fs.unlink(inputPath).catch(() => {});
-        await fs.unlink(outputPath).catch(() => {});
+        await fsPromises.unlink(inputPath).catch(() => {});
+        await fsPromises.unlink(outputPath).catch(() => {});
         throw compressionError;
       }
     } catch (error) {
@@ -1122,7 +1123,7 @@ router.post(
         process.platform === "win32"
           ? path.join(os.tmpdir(), "pdfpage-compression")
           : path.join(__dirname, "../temp");
-      await fs.mkdir(tempDir, { recursive: true });
+      await fsPromises.mkdir(tempDir, { recursive: true });
 
       const sessionId = uuidv4();
       const inputPath = path.join(tempDir, `input_${sessionId}.pdf`);
@@ -1133,7 +1134,7 @@ router.post(
 
       try {
         // Write input file securely
-        await fs.writeFile(inputPath, file.buffer);
+        await fsPromises.writeFile(inputPath, file.buffer);
 
         // Enterprise Ghostscript compression
         const compressionResult = await performEnterpriseCompression(
@@ -1148,7 +1149,7 @@ router.post(
         );
 
         if (compressionResult.success) {
-          pdfBytes = await fs.readFile(outputPath);
+          pdfBytes = await fsPromises.readFile(outputPath);
           compressionSuccess = true;
           console.log(
             `✅ Ghostscript compression successful: ${compressionResult.stats.reduction}% reduction`,
@@ -1165,8 +1166,8 @@ router.post(
         );
       } finally {
         // Secure cleanup - always remove temporary files
-        await fs.unlink(inputPath).catch(() => {});
-        await fs.unlink(outputPath).catch(() => {});
+        await fsPromises.unlink(inputPath).catch(() => {});
+        await fsPromises.unlink(outputPath).catch(() => {});
       }
 
       // Calculate compression statistics
@@ -1303,7 +1304,7 @@ router.post(
 
       // Create temporary file for processing
       const tempDir = path.join(__dirname, "../temp");
-      await fs.mkdir(tempDir, { recursive: true });
+      await fsPromises.mkdir(tempDir, { recursive: true });
 
       const inputPath = path.join(
         tempDir,
@@ -1311,7 +1312,7 @@ router.post(
       );
 
       // Write input file
-      await fs.writeFile(inputPath, file.buffer);
+      await fsPromises.writeFile(inputPath, file.buffer);
 
       // Use advanced compression service
       const compressionResult = await advancedCompressionService.compressPdf(
@@ -1323,7 +1324,7 @@ router.post(
       );
 
       // Clean up temporary file
-      await fs.unlink(inputPath).catch(() => {});
+      await fsPromises.unlink(inputPath).catch(() => {});
 
       const { compressedBytes, stats } = compressionResult;
 
@@ -1903,7 +1904,7 @@ router.post(
           info = pdfData.info || {};
 
           console.log(
-            `�� Standard extraction: ${text.length} characters from PDF`,
+            `��� Standard extraction: ${text.length} characters from PDF`,
           );
         } catch (standardError) {
           console.log(
@@ -3808,7 +3809,7 @@ router.post(
               return `\n• ${cleanContent}`;
             },
           );
-          return `\n【BULLET_LIST】${bulletItems}\n【/BULLET_LIST】\n`;
+          return `\n【BULLET_LIST】${bulletItems}\n���/BULLET_LIST】\n`;
         },
       );
 
@@ -3858,7 +3859,7 @@ router.post(
         .replace(/【HEADING2】(.*?)���\/HEADING2】/g, "\n\n▓▓ $1 ▓���\n\n")
         .replace(/【HEADING3】(.*?)【\/HEADING3】/g, "\n\n▓ $1 ▓\n\n")
         .replace(/【BOLD】(.*?)【\/BOLD��/g, "���B:$1】")
-        .replace(/【ITALIC】(.*?)����\/ITALIC】/g, "��I:$1】")
+        .replace(/【ITALIC】(.*?)�����\/ITALIC】/g, "��I:$1】")
         .replace(/【UNDERLINE】(.*?)【\/UNDERLINE】/g, "【U:$1】")
         .replace(/���PARAGRAPH】(.*?)【\/PARAGRAPH��/g, "$1\n")
 
@@ -5850,7 +5851,7 @@ router.post(
 
       // Clean up uploaded file
       try {
-        await fs.unlink(req.file.path);
+        await fsPromises.unlink(req.file.path);
       } catch (cleanupError) {
         console.warn("Failed to cleanup uploaded file:", cleanupError);
       }
@@ -5875,7 +5876,7 @@ router.post(
       // Clean up file if it exists
       if (req.file) {
         try {
-          await fs.unlink(req.file.path);
+          await fsPromises.unlink(req.file.path);
         } catch (cleanupError) {
           console.warn("Failed to cleanup file after error:", cleanupError);
         }
@@ -6326,7 +6327,7 @@ router.post(
 
       // Create temporary directories
       const tempDir = path.join(__dirname, "../../temp");
-      await fs.mkdir(tempDir, { recursive: true });
+      await fsPromises.mkdir(tempDir, { recursive: true });
 
       // Generate unique filename for output
       const timestamp = Date.now();
@@ -6400,7 +6401,7 @@ router.post(
         const pdfBuffer = await page.pdf(pdfOptions);
 
         // Write PDF to temporary file
-        await fs.writeFile(outputPath, pdfBuffer);
+        await fsPromises.writeFile(outputPath, pdfBuffer);
 
         const processingTime = Date.now() - startTime;
 
@@ -6481,7 +6482,7 @@ router.post(
 
         // Clean up temporary files
         try {
-          await fs.unlink(outputPath).catch(() => {});
+          await fsPromises.unlink(outputPath).catch(() => {});
         } catch (cleanupError) {
           console.warn("Failed to cleanup temporary files:", cleanupError);
         }
@@ -6589,7 +6590,7 @@ router.post(
 
       // Create temporary directories
       const tempDir = path.join(__dirname, "../../temp");
-      await fs.mkdir(tempDir, { recursive: true });
+      await fsPromises.mkdir(tempDir, { recursive: true });
 
       // Generate unique filenames
       const timestamp = Date.now();
@@ -6602,7 +6603,7 @@ router.post(
 
       try {
         // Write uploaded file to disk
-        await fs.writeFile(inputPath, file.buffer);
+        await fsPromises.writeFile(inputPath, file.buffer);
 
         console.log(`💾 File saved to: ${inputPath}`);
 
@@ -6725,7 +6726,7 @@ except Exception as e:
               tempDir,
               `convert_${randomSuffix}.py`,
             );
-            await fs.writeFile(pythonScriptPath, pythonScript);
+            await fsPromises.writeFile(pythonScriptPath, pythonScript);
 
             await new Promise((resolve, reject) => {
               const python = spawn(
@@ -6804,7 +6805,7 @@ except Exception as e:
             } = require("docx");
 
             // Read PDF file
-            const pdfBuffer = await fs.readFile(inputPath);
+            const pdfBuffer = await fsPromises.readFile(inputPath);
 
             // Enhanced PDF parsing with layout analysis
             const pdfData = await pdfParse(pdfBuffer, {
@@ -7202,7 +7203,7 @@ except Exception as e:
 
             // Generate and save DOCX
             const buffer = await Packer.toBuffer(doc);
-            await fs.writeFile(outputPath, buffer);
+            await fsPromises.writeFile(outputPath, buffer);
 
             console.log(
               `✅ JavaScript PDF-to-DOCX conversion completed successfully`,
@@ -7232,7 +7233,7 @@ except Exception as e:
         );
 
         // Read the converted file
-        const docxBuffer = await fs.readFile(outputPath);
+        const docxBuffer = await fsPromises.readFile(outputPath);
         const processingTime = Date.now() - startTime;
 
         // Track successful conversion
@@ -7310,8 +7311,8 @@ except Exception as e:
       } finally {
         // Clean up temporary files
         try {
-          await fs.unlink(inputPath).catch(() => {});
-          await fs.unlink(outputPath).catch(() => {});
+          await fsPromises.unlink(inputPath).catch(() => {});
+          await fsPromises.unlink(outputPath).catch(() => {});
         } catch (cleanupError) {
           console.warn("Failed to cleanup temporary files:", cleanupError);
         }

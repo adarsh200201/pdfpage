@@ -134,7 +134,9 @@ const OcrPdfEnhanced = () => {
   useEffect(() => {
     const loadSupportedLanguages = async () => {
       try {
-        const response = await fetch("/api/ocr/languages");
+        const apiUrl =
+          import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+        const response = await fetch(`${apiUrl}/ocr/languages`);
         const data = await response.json();
         if (data.success) {
           // Filter out any existing "auto" option to avoid duplicates
@@ -220,7 +222,9 @@ const OcrPdfEnhanced = () => {
       setProcessingStatus("Uploading document...");
 
       // Call backend OCR API
-      const response = await fetch("/api/ocr/process", {
+      const apiUrl =
+        import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+      const response = await fetch(`${apiUrl}/ocr/process`, {
         method: "POST",
         body: formData,
       });
