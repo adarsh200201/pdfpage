@@ -64,7 +64,7 @@
     "docx": "9.5.1",
     "embla-carousel-react": "^8.3.0",
     "fabric": "^6.7.0",
-    "file-saver": "^2.0.5",
+    "file-saver": "2.0.5",
     "framer-motion": "^12.6.2",
     "html2canvas": "1.4.1",
     "input-otp": "^1.2.4",
@@ -100,6 +100,7 @@
     "three": "^0.176.0",
     "uuid": "11.1.0",
     "vaul": "^0.9.3",
+    "xlsx": "0.18.5",
     "zod": "^3.23.8"
   },
   "devDependencies": {

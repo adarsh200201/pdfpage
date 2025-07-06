@@ -274,11 +274,34 @@ const BasePDFTool = ({
 
             <div className="flex items-center justify-center space-x-4">
               <Button
+                onClick={async () => {
+                  try {
+                    // Re-process files to trigger download again
+                    await onProcess(files);
+                    toast({
+                      title: "Download started",
+                      description: "Your file is being downloaded.",
+                    });
+                  } catch (error) {
+                    console.error("Download failed:", error);
+                    toast({
+                      title: "Download failed",
+                      description: "Please try processing the file again.",
+                      variant: "destructive",
+                    });
+                  }
+                }}
+                className={`bg-${color}-500 hover:bg-${color}-600`}
+              >
+                <Download className="w-4 h-4 mr-2" />
+                Download File
+              </Button>
+              <Button
                 onClick={() => {
                   setFiles([]);
                   setIsComplete(false);
                 }}
-                className={`bg-${color}-500 hover:bg-${color}-600`}
+                variant="outline"
               >
                 Process More Files
               </Button>
@@ -454,12 +477,59 @@ export const UnlockPdf = () => {
 
 export const ProtectPdf = () => {
   const [password, setPassword] = useState("");
+  const [isProcessing, setIsProcessing] = useState(false);
 
   const handleProcess = async (files: ProcessedFile[]) => {
     const file = files[0];
-    const result = await PDFService.protectPdf(file.file, password);
-    PDFService.downloadFile(result, `protected-${file.name}`);
-    await PDFService.trackUsage("protect", 1, file.size);
+
+    // Prevent multiple simultaneous calls
+    if (isProcessing) {
+      console.log("⚠️ Already processing, ignoring duplicate request");
+      return;
+    }
+
+    // Validate password before processing
+    if (!password || password.trim().length < 6) {
+      throw new Error(
+        "Password is required and must be at least 6 characters long",
+      );
+    }
+
+    setIsProcessing(true);
+    console.log(`🔐 Protecting PDF with password length: ${password.length}`);
+
+    try {
+      // Use the enhanced protectPDF function with real encryption
+      const result = await PDFService.protectPDF(file.file, {
+        password: password.trim(),
+        permissions: {
+          printing: true,
+          copying: false,
+          editing: false,
+          filling: true,
+        },
+        sessionId: `protect_alltools_${Date.now()}`,
+      });
+
+      // Create download blob and trigger download
+      const blob = new Blob([result.data], { type: "application/pdf" });
+      const downloadUrl = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = downloadUrl;
+      link.download = `protected-${file.name}`;
+      link.style.display = "none";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(downloadUrl);
+
+      await PDFService.trackUsage("protect", 1, file.size);
+    } catch (error) {
+      console.error("Protection failed:", error);
+      throw error;
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   return (
@@ -478,9 +548,18 @@ export const ProtectPdf = () => {
           type="password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          placeholder="Enter new password"
+          placeholder="Enter new password (min 6 characters)"
           className="w-full p-2 border border-gray-300 rounded-md"
+          disabled={isProcessing}
+          minLength={6}
+          required
         />
+        {isProcessing && (
+          <p className="text-sm text-blue-600 mt-1 flex items-center gap-1">
+            <span className="animate-spin">🔄</span>
+            Applying real password protection...
+          </p>
+        )}
       </div>
     </BasePDFTool>
   );
@@ -1306,12 +1385,29 @@ export const RedactPdf = () => {
 export const PowerPointToPdf = () => {
   const handleProcess = async (files: ProcessedFile[]) => {
     const file = files[0];
-    const result = await PDFService.convertWordToPdf(file.file); // Placeholder logic
-    PDFService.downloadFile(
-      result,
-      `${file.name.replace(/\.(ppt|pptx)$/i, "")}.pdf`,
-    );
-    await PDFService.trackUsage("powerpoint-to-pdf", 1, file.size);
+    try {
+      // Use LibreOffice conversion for PowerPoint
+      const conversionResult =
+        await PDFService.convertPowerPointToPdfLibreOffice(file.file, {
+          quality: "high",
+          preserveFormatting: true,
+          preserveImages: true,
+          pageSize: "A4",
+          orientation: "auto",
+        });
+
+      const downloadUrl = URL.createObjectURL(conversionResult.blob);
+      const link = document.createElement("a");
+      link.href = downloadUrl;
+      link.download = `${file.name.replace(/\.(ppt|pptx)$/i, "")}.pdf`;
+      link.click();
+      URL.revokeObjectURL(downloadUrl);
+
+      await PDFService.trackUsage("powerpoint-to-pdf", 1, file.size);
+    } catch (error) {
+      console.error("PowerPoint conversion failed:", error);
+      throw error;
+    }
   };
 
   return (
@@ -1329,12 +1425,34 @@ export const PowerPointToPdf = () => {
 export const ExcelToPdf = () => {
   const handleProcess = async (files: ProcessedFile[]) => {
     const file = files[0];
-    const result = await PDFService.convertWordToPdf(file.file); // Placeholder logic
-    PDFService.downloadFile(
-      result,
-      `${file.name.replace(/\.(xls|xlsx)$/i, "")}.pdf`,
-    );
-    await PDFService.trackUsage("excel-to-pdf", 1, file.size);
+    try {
+      // Use LibreOffice conversion for Excel
+      const conversionResult = await PDFService.convertExcelToPdfLibreOffice(
+        file.file,
+        {
+          quality: "high",
+          preserveFormatting: true,
+          preserveImages: true,
+          pageSize: "A4",
+          orientation: "auto",
+        },
+      );
+
+      const downloadUrl = URL.createObjectURL(conversionResult.blob);
+      const link = document.createElement("a");
+      link.href = downloadUrl;
+      link.download = `${file.name.replace(/\.(xls|xlsx)$/i, "")}.pdf`;
+      link.style.display = "none";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(downloadUrl);
+
+      await PDFService.trackUsage("excel-to-pdf", 1, file.size);
+    } catch (error) {
+      console.error("Excel conversion failed:", error);
+      throw error;
+    }
   };
 
   return (

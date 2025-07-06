@@ -235,7 +235,8 @@ const ImgFooter = () => {
             <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
               <div className="flex flex-col md:flex-row justify-between items-center">
                 <div className="text-gray-400 text-sm">
-                  © {currentYear} ImgPage. All rights reserved.
+                  © {currentYear} G Initiations eServices Pvt. Ltd. All Rights
+                  Reserved.
                 </div>
 
                 {/* Trust Badges */}

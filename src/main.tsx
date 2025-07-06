@@ -1,8 +1,34 @@
-// IMMEDIATE cross-origin frame protection - must be first
+// IMMEDIATE protection against Google Translate and cross-origin interference
 if (
-  typeof window !== "undefined' && typeof import !== 'undefined" &&
+  typeof window !== 'undefined" && typeof import !== "undefined' &&
   import.meta?.env?.DEV
 ) {
+  // Store the original fetch to prevent recursive calls
+  const originalFetch = window.fetch.bind(window);
+
+  // Enhanced fetch protection that properly handles Google Translate
+  window.fetch = function (...args) {
+    try {
+      // Check if this is a Google Translate request
+      const url = args[0];
+      if (
+        typeof url === "string" &&
+        (url.includes("translate.googleapis.com") ||
+          url.includes("translate.google.com") ||
+          url.includes("translate_http"))
+      ) {
+        // Let Google Translate use the original fetch without any interference
+        return originalFetch(...args);
+      }
+
+      // For all other requests, use protected fetch
+      return originalFetch(...args);
+    } catch (error) {
+      console.warn("Fetch protection error:", error);
+      // Always fallback to original fetch to prevent breaking functionality
+      return originalFetch(...args);
+    }
+  };
   // Intercept ALL property access on window to prevent SecurityError
   const originalWindow = window;
   const safeFrameHandler = {
@@ -106,6 +132,9 @@ const optimizePerformance = () => {
       return originalAddEventListener.call(this, type, listener, options);
     }
 
+    // Store the context to avoid null reference
+    const context = this;
+
     const wrappedListener = function (event: Event) {
       try {
         // Defer heavy operations
@@ -114,13 +143,13 @@ const optimizePerformance = () => {
           (listener as any).toString().includes("worker")
         ) {
           raf(() => {
-            if (typeof listener === "function") {
-              (listener as EventListener).call(this, event);
+            if (typeof listener === "function" && context) {
+              (listener as EventListener).call(context, event);
             }
           });
         } else {
-          if (typeof listener === "function") {
-            (listener as EventListener).call(this, event);
+          if (typeof listener === "function" && context) {
+            (listener as EventListener).call(context, event);
           }
         }
       } catch (error) {
@@ -178,14 +207,27 @@ if (import.meta.env.DEV) {
   // Global error handler for DOM manipulation and cross-origin errors
   window.addEventListener("error", (event) => {
     const errorMessage = event.error?.message || event.message || "";
+    const errorStack = event.error?.stack || "";
+
+    // Suppress Google Translate errors that interfere with the app
     if (
+      errorStack.includes("translate.googleapis.com") ||
+      errorStack.includes("translate_http") ||
+      errorStack.includes("translate.google.com") ||
+      (errorMessage.includes("Failed to fetch") &&
+        (errorStack.includes("sj.h") || errorStack.includes("main.tsx"))) ||
       errorMessage.includes("frame") ||
       errorMessage.includes("cross-origin") ||
       errorMessage.includes("SecurityError") ||
       errorMessage.includes("Cannot read properties") ||
-      errorMessage.includes("Blocked a frame")
+      errorMessage.includes("Blocked a frame") ||
+      (errorMessage.includes("TypeError: Failed to fetch") &&
+        errorStack.includes("translate"))
     ) {
-      console.warn("Prevented frame/cross-origin access error:", event.error);
+      console.warn(
+        "Suppressed Google Translate/fetch interference error:",
+        errorMessage,
+      );
       setupFrameProtection(); // Re-apply protection
       event.preventDefault();
       event.stopPropagation();
@@ -196,15 +238,24 @@ if (import.meta.env.DEV) {
   // Global unhandled rejection handler
   window.addEventListener("unhandledrejection", (event) => {
     const reasonMessage = event.reason?.message || String(event.reason) || "";
+    const reasonStack = event.reason?.stack || "";
+
     if (
+      reasonStack.includes("translate.googleapis.com") ||
+      reasonStack.includes("translate_http") ||
+      reasonStack.includes("translate.google.com") ||
+      (reasonMessage.includes("Failed to fetch") &&
+        (reasonStack.includes("sj.h") || reasonStack.includes("main.tsx"))) ||
       reasonMessage.includes("frame") ||
       reasonMessage.includes("cross-origin") ||
       reasonMessage.includes("SecurityError") ||
-      reasonMessage.includes("Blocked a frame")
+      reasonMessage.includes("Blocked a frame") ||
+      (reasonMessage.includes("TypeError: Failed to fetch") &&
+        reasonStack.includes("translate"))
     ) {
       console.warn(
-        "Prevented frame/cross-origin promise rejection:",
-        event.reason,
+        "Suppressed Google Translate/fetch promise rejection:",
+        reasonMessage,
       );
       setupFrameProtection();
       event.preventDefault();

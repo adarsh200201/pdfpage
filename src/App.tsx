@@ -73,12 +73,12 @@ import Gdpr from "./pages/Gdpr";
 import Security from "./pages/Security";
 import ApiDocs from "./pages/ApiDocs";
 import Status from "./pages/Status";
+import UnlockPdf from "./pages/UnlockPdf";
 
 // Import all the real tool implementations from AllTools
 import {
   PdfToPowerPoint,
   Watermark,
-  UnlockPdf,
   ProtectPdf,
   OrganizePdf,
   RotatePdf,
@@ -93,6 +93,12 @@ import {
   PowerPointToPdf,
   ExcelToPdf,
 } from "./pages/AllTools";
+
+// Import professional OCR PDF component
+import OcrPdfProfessional from "./pages/OcrPdfProfessional";
+
+// Import production-grade compression component
+import CompressPro from "./pages/Compress";
 
 // Import dedicated PDF to Excel component
 import PdfToExcel from "./pages/PdfToExcel";
@@ -116,6 +122,7 @@ import AvailableTools from "./pages/AvailableTools";
 import AuthCallback from "./pages/AuthCallback";
 import AccountTest from "./pages/AccountTest";
 import AdminRoute from "./components/admin/AdminRoute";
+import LibreOfficeTools from "./pages/LibreOfficeTools";
 
 const queryClient = new QueryClient();
 
@@ -239,7 +246,7 @@ const App = () => {
                       {/* Core PDF Tools - REAL-TIME IMPLEMENTATIONS */}
                       <Route path="/merge" element={<Merge />} />
                       <Route path="/split" element={<Split />} />
-                      <Route path="/compress" element={<Compress />} />
+                      <Route path="/compress" element={<CompressPro />} />
                       <Route
                         path="/compress-processing"
                         element={<CompressProcessing />}
@@ -268,6 +275,12 @@ const App = () => {
                       />
                       <Route path="/excel-to-pdf" element={<ExcelToPdf />} />
                       <Route path="/html-to-pdf" element={<HtmlToPdf />} />
+
+                      {/* LibreOffice Tools */}
+                      <Route
+                        path="/libreoffice"
+                        element={<LibreOfficeTools />}
+                      />
 
                       {/* PDF Enhancement Tools - ALL WORKING */}
                       <Route path="/edit-pdf" element={<EditPdf />} />
@@ -299,7 +312,7 @@ const App = () => {
                       <Route path="/pdf-to-pdfa" element={<PdfToPdfA />} />
                       <Route path="/repair-pdf" element={<RepairPdf />} />
                       <Route path="/scan-to-pdf" element={<ScanToPdf />} />
-                      <Route path="/ocr-pdf" element={<OcrPdf />} />
+                      <Route path="/ocr-pdf" element={<OcrPdfProfessional />} />
                       <Route path="/compare-pdf" element={<ComparePdf />} />
                       <Route path="/redact-pdf" element={<RedactPdf />} />
                       <Route

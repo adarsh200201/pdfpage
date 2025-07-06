@@ -115,17 +115,17 @@ export default function PDFEditorCanvas({
 
         // Set worker with a more reliable CDN and version
         if (!pdfjsLib.GlobalWorkerOptions.workerSrc) {
-          pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdn.jsdelivr.net/npm/pdfjs-dist@4.8.69/build/pdf.worker.min.mjs`;
+          pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js`;
         }
 
         // Load the PDF with better error handling
         const arrayBuffer = await file.arrayBuffer();
         const loadingTask = pdfjsLib.getDocument({
           data: arrayBuffer,
-          cMapUrl: "https://cdn.jsdelivr.net/npm/pdfjs-dist@4.8.69/cmaps/",
+          cMapUrl: "https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/cmaps/",
           cMapPacked: true,
           standardFontDataUrl:
-            "https://cdn.jsdelivr.net/npm/pdfjs-dist@4.8.69/standard_fonts/",
+            "https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/standard_fonts/",
           verbosity: 0, // Reduce console noise
         });
 

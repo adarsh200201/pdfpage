@@ -57,9 +57,12 @@ const ExcelToPdf = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [conversionSettings, setConversionSettings] = useState({
-    pageFormat: "A4",
-    orientation: "portrait",
-    preserveLayout: true,
+    conversionMethod: "libreoffice" as "basic" | "libreoffice",
+    quality: "high" as "standard" | "high" | "premium",
+    pageSize: "A4" as "A4" | "Letter" | "Legal" | "auto",
+    orientation: "auto" as "auto" | "portrait" | "landscape",
+    preserveFormatting: true,
+    preserveImages: true,
   });
 
   const { isAuthenticated, user } = useAuth();
@@ -176,17 +179,46 @@ const ExcelToPdf = () => {
           // Track conversion start
           tracking.trackConversionStart("Excel", "PDF", [fileStatus.file]);
 
-          const result = await PDFService.excelToPdf(fileStatus.file, {
-            pageFormat: conversionSettings.pageFormat,
-            orientation: conversionSettings.orientation,
-            preserveLayout: conversionSettings.preserveLayout,
-            sessionId: `excel_to_pdf_${Date.now()}`,
-            onProgress: (progress) => {
-              setFiles((prev) =>
-                prev.map((f, idx) => (idx === i ? { ...f, progress } : f)),
-              );
-            },
-          });
+          let result;
+
+          if (conversionSettings.conversionMethod === "libreoffice") {
+            // Use LibreOffice conversion
+            const conversionResult =
+              await PDFService.convertExcelToPdfLibreOffice(fileStatus.file, {
+                quality: conversionSettings.quality,
+                preserveFormatting: conversionSettings.preserveFormatting,
+                preserveImages: conversionSettings.preserveImages,
+                pageSize: conversionSettings.pageSize,
+                orientation: conversionSettings.orientation,
+              });
+
+            // Create URL for download
+            const downloadUrl = URL.createObjectURL(conversionResult.blob);
+            result = {
+              downloadUrl,
+              blob: conversionResult.blob,
+              stats: conversionResult.stats,
+              headers: {
+                "x-conversion-engine": conversionResult.stats.conversionEngine,
+                "x-page-count": conversionResult.stats.pages.toString(),
+                "x-processing-time":
+                  conversionResult.stats.processingTime.toString(),
+              },
+            };
+          } else {
+            // Fallback to basic conversion
+            result = await PDFService.excelToPdf(fileStatus.file, {
+              pageFormat: conversionSettings.pageSize,
+              orientation: conversionSettings.orientation,
+              preserveLayout: conversionSettings.preserveFormatting,
+              sessionId: `excel_to_pdf_${Date.now()}`,
+              onProgress: (progress) => {
+                setFiles((prev) =>
+                  prev.map((f, idx) => (idx === i ? { ...f, progress } : f)),
+                );
+              },
+            });
+          }
 
           const processingTime = Date.now() - startTime;
 
@@ -373,15 +405,15 @@ const ExcelToPdf = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                   <div>
-                    <Label htmlFor="pageFormat">Page Format</Label>
+                    <Label htmlFor="conversionMethod">Conversion Engine</Label>
                     <Select
-                      value={conversionSettings.pageFormat}
-                      onValueChange={(value) =>
+                      value={conversionSettings.conversionMethod}
+                      onValueChange={(value: "basic" | "libreoffice") =>
                         setConversionSettings({
                           ...conversionSettings,
-                          pageFormat: value,
+                          conversionMethod: value,
                         })
                       }
                     >
@@ -389,8 +421,56 @@ const ExcelToPdf = () => {
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
+                        <SelectItem value="libreoffice">
+                          LibreOffice (Recommended)
+                        </SelectItem>
+                        <SelectItem value="basic">Basic Converter</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label htmlFor="quality">Quality</Label>
+                    <Select
+                      value={conversionSettings.quality}
+                      onValueChange={(value: "standard" | "high" | "premium") =>
+                        setConversionSettings({
+                          ...conversionSettings,
+                          quality: value,
+                        })
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="standard">Standard</SelectItem>
+                        <SelectItem value="high">High</SelectItem>
+                        <SelectItem value="premium">Premium</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="pageSize">Page Size</Label>
+                    <Select
+                      value={conversionSettings.pageSize}
+                      onValueChange={(
+                        value: "A4" | "Letter" | "Legal" | "auto",
+                      ) =>
+                        setConversionSettings({
+                          ...conversionSettings,
+                          pageSize: value,
+                        })
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="auto">Auto</SelectItem>
                         <SelectItem value="A4">A4</SelectItem>
-                        <SelectItem value="A3">A3</SelectItem>
                         <SelectItem value="Letter">Letter</SelectItem>
                         <SelectItem value="Legal">Legal</SelectItem>
                       </SelectContent>
@@ -400,7 +480,9 @@ const ExcelToPdf = () => {
                     <Label htmlFor="orientation">Orientation</Label>
                     <Select
                       value={conversionSettings.orientation}
-                      onValueChange={(value) =>
+                      onValueChange={(
+                        value: "auto" | "portrait" | "landscape",
+                      ) =>
                         setConversionSettings({
                           ...conversionSettings,
                           orientation: value,
@@ -411,31 +493,70 @@ const ExcelToPdf = () => {
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
+                        <SelectItem value="auto">Auto</SelectItem>
                         <SelectItem value="portrait">Portrait</SelectItem>
                         <SelectItem value="landscape">Landscape</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="font-medium">Preserve Layout</p>
+                      <p className="font-medium">Preserve Formatting</p>
                       <p className="text-sm text-gray-500">
-                        Maintain original formatting
+                        Maintain original Excel formatting
                       </p>
                     </div>
                     <input
                       type="checkbox"
-                      checked={conversionSettings.preserveLayout}
+                      checked={conversionSettings.preserveFormatting}
                       onChange={(e) =>
                         setConversionSettings({
                           ...conversionSettings,
-                          preserveLayout: e.target.checked,
+                          preserveFormatting: e.target.checked,
+                        })
+                      }
+                      className="w-4 h-4"
+                    />
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-medium">Preserve Images</p>
+                      <p className="text-sm text-gray-500">
+                        Include charts and images
+                      </p>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={conversionSettings.preserveImages}
+                      onChange={(e) =>
+                        setConversionSettings({
+                          ...conversionSettings,
+                          preserveImages: e.target.checked,
                         })
                       }
                       className="w-4 h-4"
                     />
                   </div>
                 </div>
+
+                {conversionSettings.conversionMethod === "libreoffice" && (
+                  <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-lg">
+                    <div className="flex items-center gap-2">
+                      <Crown className="h-4 w-4 text-green-600" />
+                      <p className="text-sm font-medium text-green-800">
+                        LibreOffice Engine Active
+                      </p>
+                    </div>
+                    <p className="text-xs text-green-700 mt-1">
+                      Using professional LibreOffice engine for highest quality
+                      Excel to PDF conversion with advanced formatting
+                      preservation.
+                    </p>
+                  </div>
+                )}
               </CardContent>
             </Card>
           )}

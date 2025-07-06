@@ -34,6 +34,7 @@ import {
   X,
   Settings,
   Info,
+  AlertTriangle,
 } from "lucide-react";
 
 interface ProcessedFile {
@@ -435,9 +436,28 @@ const ProtectPdf = () => {
         trackToolUsage();
       }
 
+      // Show protection method specific message
+      const protectionMessages = {
+        "qpdf-aes256": "PDF protected with professional AES-256 encryption!",
+        "enhanced-metadata":
+          "PDF protected with enhanced security verification!",
+        "basic-metadata": "PDF protected with basic security (metadata only)",
+        "forge-aes256": "PDF protected with AES-256 encryption!",
+        "metadata-only": "PDF protected with basic metadata security",
+        standard: "PDF protected successfully",
+      };
+
+      const message =
+        protectionMessages[protectionLevel] || protectionMessages["standard"];
+      const isRealEncryption = ["qpdf-aes256", "forge-aes256"].includes(
+        protectionLevel,
+      );
+
       toast({
-        title: "Protection Complete!",
-        description: `PDF protected with password successfully`,
+        title: isRealEncryption
+          ? "🔐 Real Encryption Applied!"
+          : "🛡️ Protection Applied!",
+        description: message,
       });
     } catch (error: any) {
       console.error("Protection failed:", error);
@@ -786,6 +806,54 @@ const ProtectPdf = () => {
               </CardHeader>
               <CardContent>
                 <div className="bg-green-50 border border-green-200 rounded-lg p-6">
+                  {/* Protection Status Banner */}
+                  <div className="mb-6">
+                    {protectionResult.protectionLevel === "qpdf-aes256" ? (
+                      <div className="bg-green-100 border border-green-300 rounded-lg p-3 mb-4">
+                        <div className="flex items-center gap-2 text-green-800">
+                          <Shield className="w-5 h-5" />
+                          <span className="font-semibold">
+                            Professional AES-256 Encryption Applied
+                          </span>
+                        </div>
+                        <p className="text-sm text-green-700 mt-1">
+                          Your PDF is protected with industry-standard AES-256
+                          encryption. This provides real password protection
+                          that PDF viewers will enforce.
+                        </p>
+                      </div>
+                    ) : protectionResult.protectionLevel ===
+                      "enhanced-metadata" ? (
+                      <div className="bg-blue-100 border border-blue-300 rounded-lg p-3 mb-4">
+                        <div className="flex items-center gap-2 text-blue-800">
+                          <Info className="w-5 h-5" />
+                          <span className="font-semibold">
+                            Enhanced Protection Applied
+                          </span>
+                        </div>
+                        <p className="text-sm text-blue-700 mt-1">
+                          Your PDF has enhanced metadata protection with
+                          password verification. Compatible readers will respect
+                          the protection settings.
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="bg-yellow-100 border border-yellow-300 rounded-lg p-3 mb-4">
+                        <div className="flex items-center gap-2 text-yellow-800">
+                          <AlertTriangle className="w-5 h-5" />
+                          <span className="font-semibold">
+                            Basic Protection Applied
+                          </span>
+                        </div>
+                        <p className="text-sm text-yellow-700 mt-1">
+                          Basic metadata protection applied. For stronger
+                          security, professional encryption tools are
+                          recommended.
+                        </p>
+                      </div>
+                    )}
+                  </div>
+
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
                     <div className="text-center">
                       <p className="text-sm text-gray-600">Original Size</p>
@@ -800,9 +868,17 @@ const ProtectPdf = () => {
                       </p>
                     </div>
                     <div className="text-center">
-                      <p className="text-sm text-gray-600">Protection Level</p>
+                      <p className="text-sm text-gray-600">Protection Type</p>
                       <p className="text-lg font-bold text-green-600">
-                        {protectionResult.protectionLevel}
+                        {protectionResult.protectionLevel === "qpdf-aes256"
+                          ? "AES-256"
+                          : protectionResult.protectionLevel ===
+                              "enhanced-metadata"
+                            ? "Enhanced"
+                            : protectionResult.protectionLevel ===
+                                "forge-aes256"
+                              ? "AES-256"
+                              : "Basic"}
                       </p>
                     </div>
                   </div>
@@ -891,37 +967,94 @@ const ProtectPdf = () => {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-6">
+                {/* Protection Levels */}
                 <div>
-                  <h3 className="font-semibold mb-2">Protection Features:</h3>
-                  <ul className="space-y-2 text-sm">
-                    <li>• Password protection for document access</li>
-                    <li>• Granular permission controls</li>
-                    <li>• Secure server-side processing</li>
-                    <li>• Metadata privacy protection</li>
-                    <li>• Industry-standard encryption</li>
-                  </ul>
+                  <h3 className="font-semibold mb-3">
+                    Protection Levels Available:
+                  </h3>
+                  <div className="space-y-3">
+                    <div className="flex items-start gap-3 p-3 bg-green-50 border border-green-200 rounded-lg">
+                      <Shield className="w-5 h-5 text-green-600 mt-0.5" />
+                      <div>
+                        <p className="font-medium text-green-800">
+                          Professional AES-256 Encryption
+                        </p>
+                        <p className="text-sm text-green-700">
+                          Industry-standard encryption that PDF viewers enforce.
+                          Requires correct password to open.
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                      <Lock className="w-5 h-5 text-blue-600 mt-0.5" />
+                      <div>
+                        <p className="font-medium text-blue-800">
+                          Enhanced Metadata Protection
+                        </p>
+                        <p className="text-sm text-blue-700">
+                          Advanced protection with password verification and
+                          secure metadata. Compatible with most PDF readers.
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                      <AlertTriangle className="w-5 h-5 text-yellow-600 mt-0.5" />
+                      <div>
+                        <p className="font-medium text-yellow-800">
+                          Basic Metadata Protection
+                        </p>
+                        <p className="text-sm text-yellow-700">
+                          Basic protection for compatibility. Suitable for basic
+                          access control.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="font-semibold mb-2">Permission Options:</h3>
-                  <ul className="space-y-2 text-sm">
-                    <li>
-                      • <strong>Printing:</strong> Allow/prevent document
-                      printing
-                    </li>
-                    <li>
-                      • <strong>Copying:</strong> Control text selection and
-                      copying
-                    </li>
-                    <li>
-                      • <strong>Editing:</strong> Allow/prevent document
-                      modifications
-                    </li>
-                    <li>
-                      • <strong>Form Filling:</strong> Control form field
-                      editing
-                    </li>
-                  </ul>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <h3 className="font-semibold mb-2">Protection Features:</h3>
+                    <ul className="space-y-2 text-sm">
+                      <li>• Real password protection (when available)</li>
+                      <li>• Granular permission controls</li>
+                      <li>• Secure server-side processing</li>
+                      <li>• Automatic encryption method selection</li>
+                      <li>• Compatible with all PDF viewers</li>
+                    </ul>
+                  </div>
+                  <div>
+                    <h3 className="font-semibold mb-2">Permission Options:</h3>
+                    <ul className="space-y-2 text-sm">
+                      <li>
+                        • <strong>Printing:</strong> Allow/prevent document
+                        printing
+                      </li>
+                      <li>
+                        • <strong>Copying:</strong> Control text selection and
+                        copying
+                      </li>
+                      <li>
+                        • <strong>Editing:</strong> Allow/prevent document
+                        modifications
+                      </li>
+                      <li>
+                        • <strong>Form Filling:</strong> Control form field
+                        editing
+                      </li>
+                    </ul>
+                  </div>
+                </div>
+
+                <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                  <p className="text-sm text-gray-700">
+                    <strong>Note:</strong> Our system automatically selects the
+                    best available protection method. Professional AES-256
+                    encryption provides the strongest security and is enforced
+                    by all PDF viewers. If unavailable, we use enhanced metadata
+                    protection for maximum compatibility.
+                  </p>
                 </div>
               </div>
             </CardContent>

@@ -1,646 +1,145 @@
-import { useState, useEffect, useRef, useCallback, useMemo } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import React, { useState, useCallback, useRef, useEffect } from "react";
+import { useDropzone } from "react-dropzone";
+import { Link } from "react-router-dom";
 import Header from "@/components/layout/Header";
 import { Button } from "@/components/ui/button";
-import { PromoBanner } from "@/components/ui/promo-banner";
-import { Slider } from "@/components/ui/slider";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Separator } from "@/components/ui/separator";
+import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
 import {
-  ArrowLeft,
-  Download,
-  FileText,
-  Minimize,
-  CheckCircle,
-  Loader2,
-  Crown,
-  AlertTriangle,
-  Info,
   Upload,
-  X,
-  Eye,
-  Settings,
+  FileText,
+  Download,
+  Trash2,
+  CheckCircle,
+  AlertCircle,
   Zap,
-  Clock,
-  HardDrive,
-  Target,
   Shield,
   Gauge,
+  Eye,
+  Share2,
+  Cloud,
+  Loader2,
+  ArrowLeft,
+  RefreshCw,
+  Target,
+  Minimize2,
+  Crown,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
-import { PDFService } from "@/services/pdfService";
-import { useAuth } from "@/contexts/AuthContext";
-import { useToast } from "@/hooks/use-toast";
-import { useToolTracking } from "@/hooks/useToolTracking";
-import AuthModal from "@/components/auth/AuthModal";
-import { useFloatingPopup } from "@/contexts/FloatingPopupContext";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Label } from "@/components/ui/label";
-import { Progress } from "@/components/ui/progress";
-import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
 
-interface ProcessedFile {
+interface UploadedFile {
   id: string;
   file: File;
   name: string;
   size: number;
-  thumbnails?: string[];
-  pageCount?: number;
-  loadingThumbnails?: boolean;
-}
-
-interface CompressionLevel {
-  id: string;
-  name: string;
-  description: string;
-  icon: any;
-  expectedReduction: string;
-  quality: string;
-  color: string;
+  preview?: string;
 }
 
 interface CompressionResult {
+  id: string;
   originalSize: number;
   compressedSize: number;
   compressionRatio: number;
   sizeSaved: number;
-  level: string;
   downloadUrl: string;
-  filename: string;
+  fileName: string;
+  quality: string;
+  processingTime: number;
 }
 
-const Compress = () => {
-  const [files, setFiles] = useState<ProcessedFile[]>([]);
+interface CompressionLevel {
+  id: "high" | "balanced" | "low";
+  name: string;
+  description: string;
+  quality: string;
+  expectedReduction: string;
+  icon: React.ReactNode;
+  gradient: string;
+  settings: {
+    dpi: number;
+    jpegQuality: number;
+    pdfSettings: string;
+  };
+}
+
+const COMPRESSION_LEVELS: CompressionLevel[] = [
+  {
+    id: "high",
+    name: "High Compression",
+    description: "Maximum file size reduction for web sharing and email",
+    quality: "Good Quality",
+    expectedReduction: "60-85%",
+    icon: <Minimize2 className="w-5 h-5" />,
+    gradient: "from-red-500 to-orange-500",
+    settings: {
+      dpi: 72,
+      jpegQuality: 50,
+      pdfSettings: "/screen",
+    },
+  },
+  {
+    id: "balanced",
+    name: "Balanced",
+    description: "Optimal balance between file size and visual quality",
+    quality: "High Quality",
+    expectedReduction: "35-60%",
+    icon: <Target className="w-5 h-5" />,
+    gradient: "from-blue-500 to-cyan-500",
+    settings: {
+      dpi: 150,
+      jpegQuality: 75,
+      pdfSettings: "/ebook",
+    },
+  },
+  {
+    id: "low",
+    name: "Low Compression",
+    description: "Minimal compression, preserves visual quality",
+    quality: "Excellent Quality",
+    expectedReduction: "15-35%",
+    icon: <Crown className="w-5 h-5" />,
+    gradient: "from-green-500 to-emerald-500",
+    settings: {
+      dpi: 300,
+      jpegQuality: 85,
+      pdfSettings: "/prepress",
+    },
+  },
+];
+
+const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB
+const ACCEPTED_TYPES = ["application/pdf"];
+
+export default function Compress() {
+  const [uploadedFile, setUploadedFile] = useState<UploadedFile | null>(null);
+  const [selectedLevel, setSelectedLevel] = useState<CompressionLevel>(
+    COMPRESSION_LEVELS[1],
+  );
   const [isProcessing, setIsProcessing] = useState(false);
   const [progress, setProgress] = useState(0);
-  const [isDragging, setIsDragging] = useState(false);
-  const [selectedLevel, setSelectedLevel] = useState<string>("medium");
-  const previousFiles = useRef<ProcessedFile[]>([]);
-  const [showAuthModal, setShowAuthModal] = useState(false);
-  const [compressionResult, setCompressionResult] =
-    useState<CompressionResult | null>(null);
-  const [estimatedSize, setEstimatedSize] = useState<number | null>(null);
-
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const compressionInProgress = useRef<boolean>(false);
-  const { user, isAuthenticated } = useAuth();
+  const [processingStage, setProcessingStage] = useState("");
+  const [result, setResult] = useState<CompressionResult | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const { user } = useAuth();
   const { toast } = useToast();
-  const navigate = useNavigate();
+  const abortControllerRef = useRef<AbortController | null>(null);
 
-  // Floating popup tracking
-  const { trackToolUsage } = useFloatingPopup();
-
-  // Mixpanel tracking
-  const tracking = useToolTracking({
-    toolName: "compress",
-    category: "PDF Tool",
-    trackPageView: true,
-    trackFunnel: true,
-  });
-
-  // Debounced compression function to prevent rapid clicks
-  const debouncedCompressFiles = useMemo(() => {
-    let timeoutId: NodeJS.Timeout;
-    return () => {
-      clearTimeout(timeoutId);
-      timeoutId = setTimeout(() => {
-        compressFiles();
-      }, 300); // 300ms debounce
-    };
+  // File validation
+  const validateFile = useCallback((file: File): string | null => {
+    if (!ACCEPTED_TYPES.includes(file.type)) {
+      return "Please upload a valid PDF file";
+    }
+    if (file.size > MAX_FILE_SIZE) {
+      return `File size must be less than ${formatFileSize(MAX_FILE_SIZE)}`;
+    }
+    return null;
   }, []);
 
-  const compressionLevels: CompressionLevel[] = [
-    {
-      id: "extreme",
-      name: "Extreme",
-      description: "Maximum compression with significant quality loss",
-      icon: Minimize,
-      expectedReduction: "10-20%",
-      quality: "Low",
-      color: "red",
-    },
-    {
-      id: "high",
-      name: "High",
-      description: "High compression with moderate quality loss",
-      icon: Zap,
-      expectedReduction: "8-15%",
-      quality: "Medium",
-      color: "orange",
-    },
-    {
-      id: "medium",
-      name: "Medium",
-      description: "Balanced compression and quality (Recommended)",
-      icon: Target,
-      expectedReduction: "5-10%",
-      quality: "Good",
-      color: "blue",
-    },
-    {
-      id: "low",
-      name: "Low",
-      description: "Light compression preserving quality",
-      icon: Shield,
-      expectedReduction: "3-8%",
-      quality: "High",
-      color: "green",
-    },
-    {
-      id: "best-quality",
-      name: "Best Quality",
-      description: "Minimal compression, maximum quality",
-      icon: Crown,
-      expectedReduction: "1-5%",
-      quality: "Excellent",
-      color: "purple",
-    },
-  ];
-
-  // Generate thumbnails using PDF.js
-  const generateThumbnails = useCallback(
-    async (pdfFile: File): Promise<string[]> => {
-      try {
-        const arrayBuffer = await pdfFile.arrayBuffer();
-        const pdfjsLib = await import("pdfjs-dist");
-
-        // Set up worker
-        pdfjsLib.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
-
-        const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-        const thumbnails: string[] = [];
-        const maxPages = Math.min(pdf.numPages, 3); // Show first 3 pages
-
-        for (let i = 1; i <= maxPages; i++) {
-          try {
-            const page = await pdf.getPage(i);
-            const viewport = page.getViewport({ scale: 0.5 });
-
-            const canvas = document.createElement("canvas");
-            const context = canvas.getContext("2d");
-
-            if (context) {
-              canvas.height = viewport.height;
-              canvas.width = viewport.width;
-
-              await page.render({
-                canvasContext: context,
-                viewport: viewport,
-              }).promise;
-
-              thumbnails.push(canvas.toDataURL());
-            }
-          } catch (pageError) {
-            console.warn(
-              `Failed to generate thumbnail for page ${i}:`,
-              pageError,
-            );
-          }
-        }
-
-        return thumbnails;
-      } catch (error) {
-        console.error("Error generating thumbnails:", error);
-        return [];
-      }
-    },
-    [],
-  );
-
-  // Get page count from PDF
-  const getPageCount = async (pdfFile: File): Promise<number> => {
-    try {
-      const arrayBuffer = await pdfFile.arrayBuffer();
-      const pdfjsLib = await import("pdfjs-dist");
-
-      pdfjsLib.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
-
-      const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-      return pdf.numPages;
-    } catch (error) {
-      console.error("Error getting page count:", error);
-      return 1;
-    }
-  };
-
-  // Estimate compression based on level and file characteristics - memoized for stability
-  const estimateCompression = useMemo(() => {
-    return (file: File, level: string) => {
-      // Base compression ratios matching actual backend behavior
-      // These are realistic compression ratios based on actual PDF compression results
-      const baseReductions = {
-        extreme: 0.15, // ~15% reduction (actual backend behavior)
-        high: 0.12, // ~12% reduction
-        medium: 0.08, // ~8% reduction
-        low: 0.05, // ~5% reduction
-        "best-quality": 0.02, // ~2% reduction
-      };
-
-      const baseReduction =
-        baseReductions[level as keyof typeof baseReductions] || 0.08;
-
-      // Adjust based on file size (larger files often compress better)
-      let adjustedReduction = baseReduction;
-      if (file.size > 10 * 1024 * 1024) {
-        // > 10MB
-        adjustedReduction += 0.05;
-      } else if (file.size > 5 * 1024 * 1024) {
-        // > 5MB
-        adjustedReduction += 0.02;
-      }
-
-      // Cap at realistic maximums for PDF compression
-      adjustedReduction = Math.min(adjustedReduction, 0.25);
-
-      const estimatedCompressedSize = file.size * (1 - adjustedReduction);
-      return Math.round(estimatedCompressedSize);
-    };
-  }, []); // Empty dependencies - function should be stable
-
-  // Update estimated size when level changes or files are loaded
-  useEffect(() => {
-    console.log(
-      `📊 Compression level changed to: ${selectedLevel}, Files count: ${files.length}`,
-    );
-
-    if (files.length > 0 && !files[0].loadingThumbnails) {
-      const estimated = estimateCompression(files[0].file, selectedLevel);
-      setEstimatedSize(estimated);
-      console.log(
-        `💡 Estimated size for ${selectedLevel}: ${estimated ? (estimated / 1024).toFixed(1) + "KB" : "N/A"}`,
-      );
-    } else if (files.length === 0) {
-      setEstimatedSize(null);
-      console.log(`⚠️ No files available for estimation`);
-    }
-  }, [selectedLevel, files, estimateCompression]); // Include estimateCompression but it's now stable
-
-  // Monitor file state changes to detect unwanted resets
-  useEffect(() => {
-    if (previousFiles.current.length > 0 && files.length === 0) {
-      console.warn(
-        "🚨 Files were unexpectedly cleared! Previous files:",
-        previousFiles.current,
-      );
-
-      // Optionally restore files if they were cleared unexpectedly
-      // This is a safety mechanism to prevent accidental file loss
-      if (!isProcessing && !compressionInProgress.current) {
-        console.log("🔄 Attempting to restore files...");
-        setFiles(previousFiles.current);
-        return;
-      }
-    }
-    previousFiles.current = [...files];
-  }, [files, isProcessing]);
-
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      // Clean up any download URLs to prevent memory leaks
-      if (compressionResult?.downloadUrl) {
-        URL.revokeObjectURL(compressionResult.downloadUrl);
-      }
-    };
-  }, [compressionResult?.downloadUrl]);
-
-  const handleFileSelect = useCallback(
-    async (selectedFiles: File[]) => {
-      const validFiles = selectedFiles.filter((file) => {
-        if (file.type !== "application/pdf") {
-          toast({
-            title: "Invalid file type",
-            description: "Please select PDF files only.",
-            variant: "destructive",
-          });
-          return false;
-        }
-
-        const maxSize = 100 * 1024 * 1024; // 100MB for all users
-        if (file.size > maxSize) {
-          toast({
-            title: "File too large",
-            description: `File size exceeds 100MB limit.`,
-            variant: "destructive",
-          });
-          return false;
-        }
-
-        return true;
-      });
-
-      if (validFiles.length === 0) return;
-
-      // For compression, we only handle one file at a time
-      const file = validFiles[0];
-
-      const processedFile: ProcessedFile = {
-        id: Date.now().toString(),
-        file,
-        name: file.name,
-        size: file.size,
-        loadingThumbnails: true,
-      };
-
-      // Clear any existing download URLs to prevent memory leaks
-      if (compressionResult?.downloadUrl) {
-        URL.revokeObjectURL(compressionResult.downloadUrl);
-      }
-
-      // Reset all compression state when new file is selected
-      compressionInProgress.current = false;
-      setIsProcessing(false);
-      setFiles([processedFile]);
-      setCompressionResult(null);
-      setProgress(0);
-
-      console.log("🔄 File changed, compression state reset");
-
-      // Track file upload
-      tracking.trackFileUpload([file]);
-
-      // Generate thumbnails and get page count
-      try {
-        const [thumbnails, pageCount] = await Promise.all([
-          generateThumbnails(file),
-          getPageCount(file),
-        ]);
-
-        setFiles([
-          {
-            ...processedFile,
-            thumbnails,
-            pageCount,
-            loadingThumbnails: false,
-          },
-        ]);
-      } catch (error) {
-        console.error("Error processing file:", error);
-        setFiles([
-          {
-            ...processedFile,
-            loadingThumbnails: false,
-          },
-        ]);
-      }
-    },
-    [toast, generateThumbnails, getPageCount],
-  );
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const selectedFiles = Array.from(e.target.files || []);
-    handleFileSelect(selectedFiles);
-  };
-
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(true);
-  };
-
-  const handleDragLeave = () => {
-    setIsDragging(false);
-  };
-
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(false);
-    const droppedFiles = Array.from(e.dataTransfer.files);
-    handleFileSelect(droppedFiles);
-  };
-
-  const removeFile = (fileId: string) => {
-    setFiles(files.filter((f) => f.id !== fileId));
-    setCompressionResult(null);
-    setEstimatedSize(null);
-  };
-
-  const compressFiles = async () => {
-    // Multiple safety checks to prevent duplicate requests
-    if (files.length === 0) {
-      toast({
-        title: "No files selected",
-        description: "Please select a PDF file to compress.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (!user) {
-      tracking.trackAuthRequired();
-      setShowAuthModal(true);
-      return;
-    }
-
-    // Triple check to prevent multiple simultaneous compression requests
-    if (isProcessing || compressionInProgress.current) {
-      console.log(
-        "⚠️ Compression already in progress, ignoring duplicate request",
-      );
-      return;
-    }
-
-    // Set flags to prevent duplicates
-    compressionInProgress.current = true;
-    setIsProcessing(true);
-    setProgress(0);
-    setCompressionResult(null); // Clear any previous results
-
-    console.log(`🚀 Starting compression...`);
-
-    try {
-      const file = files[0];
-      const startTime = Date.now();
-
-      // Compression ID will be validated later if needed
-
-      // Track compression start
-      tracking.trackConversionStart("PDF", "PDF Compressed", [file.file]);
-
-      // Simulate progress
-      const progressInterval = setInterval(() => {
-        setProgress((prev) => {
-          if (prev >= 90) return prev;
-          return prev + Math.random() * 10;
-        });
-      }, 200);
-
-      console.log(`Compressing with level: ${selectedLevel}`);
-
-      const result = await PDFService.compressPDF(file.file, {
-        level: selectedLevel,
-        sessionId: `compress_${Date.now()}`,
-      });
-
-      clearInterval(progressInterval);
-      setProgress(100);
-
-      // Extract compression info from response headers
-      const compressionRatio = parseFloat(
-        result.headers?.["x-compression-ratio"] || "0",
-      );
-      const originalSize = parseInt(
-        result.headers?.["x-original-size"] || file.size.toString(),
-      );
-
-      // Handle ArrayBuffer result data correctly
-      const actualCompressedSize =
-        result.data instanceof ArrayBuffer
-          ? result.data.byteLength
-          : (result.data as any).size || 0;
-
-      const compressedSize = parseInt(
-        result.headers?.["x-compressed-size"] ||
-          actualCompressedSize.toString(),
-      );
-
-      // Calculate size saved if not provided in headers
-      const calculatedSizeSaved = originalSize - compressedSize;
-      const sizeSaved = parseInt(
-        result.headers?.["x-size-saved"] || calculatedSizeSaved.toString(),
-      );
-
-      // Recalculate compression ratio if not accurate in headers
-      const calculatedCompressionRatio =
-        originalSize > 0
-          ? ((originalSize - compressedSize) / originalSize) * 100
-          : 0;
-
-      const finalCompressionRatio =
-        compressionRatio > 0 ? compressionRatio : calculatedCompressionRatio;
-
-      console.log(`📊 Compression results:`, {
-        originalSize,
-        compressedSize,
-        sizeSaved,
-        compressionRatio: finalCompressionRatio,
-        dataType:
-          result.data instanceof ArrayBuffer
-            ? "ArrayBuffer"
-            : typeof result.data,
-      });
-
-      // Create download URL
-      const blob = new Blob([result.data], { type: "application/pdf" });
-      const downloadUrl = URL.createObjectURL(blob);
-
-      const compressionResult: CompressionResult = {
-        originalSize,
-        compressedSize,
-        compressionRatio: finalCompressionRatio,
-        sizeSaved,
-        level: selectedLevel,
-        downloadUrl,
-        filename: `compressed-${selectedLevel}-${file.name}`,
-      };
-
-      setCompressionResult(compressionResult);
-
-      // Track successful compression
-      const conversionTime = Date.now() - startTime;
-      tracking.trackConversionComplete(
-        "PDF",
-        "PDF Compressed",
-        {
-          fileName: file.file.name,
-          fileSize: file.file.size,
-          fileType: file.file.type,
-        },
-        compressedSize,
-        conversionTime,
-      );
-
-      // Track compression settings
-      tracking.trackSettingsChange("compression_level", selectedLevel);
-
-      // Track for floating popup (only for anonymous users)
-      if (!isAuthenticated) {
-        trackToolUsage();
-      }
-
-      toast({
-        title: "Compression Complete!",
-        description: `File size reduced by ${finalCompressionRatio.toFixed(1)}%`,
-      });
-    } catch (error: any) {
-      console.error("Compression failed:", error);
-
-      // Clear any partial progress
-      setProgress(0);
-      setCompressionResult(null);
-
-      toast({
-        title: "Compression Failed",
-        description:
-          error.response?.data?.message ||
-          error.message ||
-          "An error occurred during compression.",
-        variant: "destructive",
-      });
-
-      // Track compression failure
-      tracking.trackConversionFailed("PDF", "PDF Compressed", error.message);
-    } finally {
-      // Reset all compression flags
-      compressionInProgress.current = false;
-      setIsProcessing(false);
-
-      console.log(`✅ Compression cleanup completed`);
-    }
-  };
-
-  const downloadResult = () => {
-    if (!compressionResult) {
-      toast({
-        title: "No file to download",
-        description: "Please compress a PDF first.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    try {
-      console.log(`📥 Downloading: ${compressionResult.filename}`);
-
-      const link = document.createElement("a");
-      link.href = compressionResult.downloadUrl;
-      link.download = compressionResult.filename;
-      link.style.display = "none";
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-
-      toast({
-        title: "Download started",
-        description: `Downloading ${compressionResult.filename}`,
-      });
-
-      // Track successful download
-      tracking.trackDownload(
-        compressionResult.filename,
-        compressionResult.compressedSize,
-      );
-    } catch (error) {
-      console.error("Download failed:", error);
-      toast({
-        title: "Download failed",
-        description: "There was an error downloading your file.",
-        variant: "destructive",
-      });
-    }
-  };
-
+  // Format file size
   const formatFileSize = (bytes: number): string => {
     if (bytes === 0) return "0 Bytes";
     const k = 1024;
@@ -649,472 +148,526 @@ const Compress = () => {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
   };
 
-  const getColorClass = (color: string) => {
-    const colors = {
-      red: "border-red-500 bg-red-50 text-red-700",
-      orange: "border-orange-500 bg-orange-50 text-orange-700",
-      blue: "border-blue-500 bg-blue-50 text-blue-700",
-      green: "border-green-500 bg-green-50 text-green-700",
-      purple: "border-purple-500 bg-purple-50 text-purple-700",
-    };
-    return colors[color as keyof typeof colors] || colors.blue;
+  // Dropzone configuration
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+    onDrop: useCallback(
+      (acceptedFiles: File[]) => {
+        if (acceptedFiles.length === 0) return;
+
+        const file = acceptedFiles[0];
+        const validationError = validateFile(file);
+
+        if (validationError) {
+          setError(validationError);
+          toast({
+            title: "Upload Error",
+            description: validationError,
+            variant: "destructive",
+          });
+          return;
+        }
+
+        setUploadedFile({
+          id: Math.random().toString(36).substr(2, 9),
+          file,
+          name: file.name,
+          size: file.size,
+        });
+        setResult(null);
+        setError(null);
+      },
+      [validateFile, toast],
+    ),
+    accept: {
+      "application/pdf": [".pdf"],
+    },
+    maxFiles: 1,
+    multiple: false,
+  });
+
+  // Compression function
+  const compressPDF = async () => {
+    if (!uploadedFile || !user) {
+      toast({
+        title: "Authentication Required",
+        description: "Please sign in to compress PDFs",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsProcessing(true);
+    setProgress(0);
+    setError(null);
+
+    // Create abort controller for cancellation
+    abortControllerRef.current = new AbortController();
+
+    try {
+      const formData = new FormData();
+      formData.append("file", uploadedFile.file);
+      formData.append("level", selectedLevel.id);
+      formData.append("quality", selectedLevel.settings.jpegQuality.toString());
+      formData.append("dpi", selectedLevel.settings.dpi.toString());
+      formData.append("pdfSettings", selectedLevel.settings.pdfSettings);
+
+      setProcessingStage("Uploading file...");
+      setProgress(10);
+
+      const startTime = Date.now();
+
+      const response = await fetch("/api/pdf/compress-pro", {
+        method: "POST",
+        body: formData,
+        signal: abortControllerRef.current.signal,
+      });
+
+      setProgress(90);
+      setProcessingStage("Finalizing compression...");
+
+      if (!response.ok) {
+        let errorMessage = "Compression failed";
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.message || errorMessage;
+        } catch {
+          errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+        }
+        throw new Error(errorMessage);
+      }
+
+      // Get compression stats from headers
+      const originalSize = parseInt(
+        response.headers.get("X-Original-Size") || uploadedFile.size.toString(),
+      );
+      const compressedSize = parseInt(
+        response.headers.get("X-Compressed-Size") || "0",
+      );
+      const compressionRatio = parseFloat(
+        response.headers.get("X-Compression-Ratio") || "0",
+      );
+      const processingTime = Date.now() - startTime;
+
+      // Get the compressed PDF as blob
+      const blob = await response.blob();
+      const downloadUrl = URL.createObjectURL(blob);
+
+      setProgress(100);
+      setProcessingStage("Compression complete!");
+
+      const compressionResult: CompressionResult = {
+        id: uploadedFile.id,
+        originalSize,
+        compressedSize: blob.size,
+        compressionRatio:
+          Math.round(((originalSize - blob.size) / originalSize) * 100 * 10) /
+          10,
+        sizeSaved: originalSize - blob.size,
+        downloadUrl,
+        fileName: `compressed-${selectedLevel.id}-${uploadedFile.name}`,
+        quality: selectedLevel.quality,
+        processingTime,
+      };
+
+      setResult(compressionResult);
+
+      // Success toast
+      toast({
+        title: "🎉 Compression Complete!",
+        description: `Reduced file size by ${compressionResult.compressionRatio}% (${formatFileSize(compressionResult.sizeSaved)} saved)`,
+      });
+    } catch (error: any) {
+      if (error.name === "AbortError") {
+        setProcessingStage("Compression cancelled");
+        toast({
+          title: "Compression Cancelled",
+          description: "The compression process was cancelled",
+        });
+      } else {
+        const errorMessage = error.message || "Failed to compress PDF";
+        setError(errorMessage);
+
+        // Check if it's a Ghostscript error
+        if (
+          errorMessage.includes("GHOSTSCRIPT") ||
+          errorMessage.includes("service unavailable")
+        ) {
+          toast({
+            title: "⚙️ Ghostscript Required",
+            description:
+              "PDF compression requires Ghostscript to be installed on the server.",
+            variant: "destructive",
+            duration: 8000,
+          });
+        } else {
+          toast({
+            title: "Compression Failed",
+            description: errorMessage,
+            variant: "destructive",
+          });
+        }
+      }
+    } finally {
+      setIsProcessing(false);
+      abortControllerRef.current = null;
+    }
   };
 
+  // Cancel compression
+  const cancelCompression = () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+  };
+
+  // Download file
+  const downloadFile = () => {
+    if (!result) return;
+
+    const link = document.createElement("a");
+    link.href = result.downloadUrl;
+    link.download = result.fileName;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    toast({
+      title: "Download Started",
+      description: `Downloading ${result.fileName}`,
+    });
+  };
+
+  // Reset state
+  const reset = () => {
+    setUploadedFile(null);
+    setResult(null);
+    setError(null);
+    setProgress(0);
+    setProcessingStage("");
+    if (result?.downloadUrl) {
+      URL.revokeObjectURL(result.downloadUrl);
+    }
+  };
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (result?.downloadUrl) {
+        URL.revokeObjectURL(result.downloadUrl);
+      }
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
+  }, [result]);
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-100">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
       <Header />
 
-      <div className="container mx-auto px-6 py-8">
-        {/* Header */}
-        <div className="flex items-center gap-4 mb-8">
-          <Link
-            to="/"
-            className="flex items-center gap-2 text-gray-600 hover:text-gray-900"
-          >
-            <ArrowLeft className="w-5 h-5" />
-            <span>Back to Home</span>
-          </Link>
+      <div className="container mx-auto px-4 py-8 max-w-4xl">
+        {/* Back to Home */}
+        <div className="mb-6">
+          <Button variant="outline" asChild>
+            <Link to="/" className="inline-flex items-center gap-2">
+              <ArrowLeft className="w-4 h-4" />
+              Back to Home
+            </Link>
+          </Button>
         </div>
 
-        {/* Title Section */}
-        <div className="text-center mb-12">
+        {/* Header */}
+        <div className="text-center mb-8">
           <div className="flex items-center justify-center gap-3 mb-4">
-            <div className="p-3 bg-blue-600 rounded-2xl">
-              <Minimize className="w-8 h-8 text-white" />
+            <div className="p-3 bg-gradient-to-r from-red-500 to-orange-500 rounded-full text-white">
+              <Minimize2 className="w-8 h-8" />
             </div>
-            <h1 className="text-4xl font-bold text-gray-900">Compress PDF</h1>
+            <h1 className="text-4xl font-bold text-gray-900">
+              PDF Compressor Pro
+            </h1>
+            <Badge className="bg-gradient-to-r from-purple-500 to-blue-500 text-white">
+              <Zap className="w-4 h-4 mr-1" />
+              Enterprise Grade
+            </Badge>
           </div>
-          <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-            Reduce PDF file size with our advanced compression engine. Choose
-            from 5 compression levels to balance file size and quality.
+          <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+            <strong className="text-red-600">Ghostscript-powered</strong>{" "}
+            compression achieving up to 85% size reduction. Enterprise-grade
+            technology for professional PDF optimization up to 100MB.
           </p>
         </div>
 
-        <div className="max-w-4xl mx-auto">
-          {/* File Upload Area - Mobile First */}
-          <Card className="mb-8">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Upload className="w-5 h-5" />
-                Upload PDF File
-              </CardTitle>
-              <CardDescription>
-                Select a PDF file to compress (max 100MB)
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
+        {/* Main Content */}
+        {!uploadedFile && !result && (
+          <Card className="mb-8 border-dashed border-2 border-gray-300 hover:border-gray-400 transition-colors">
+            <CardContent className="p-8">
               <div
-                className={cn(
-                  "border-2 border-dashed rounded-lg p-4 sm:p-8 text-center transition-colors",
-                  isDragging
-                    ? "border-blue-500 bg-blue-50"
-                    : "border-gray-300 hover:border-gray-400",
-                )}
-                onDragOver={handleDragOver}
-                onDragLeave={handleDragLeave}
-                onDrop={handleDrop}
-                onClick={() => fileInputRef.current?.click()}
+                {...getRootProps()}
+                className={`text-center cursor-pointer rounded-lg p-8 transition-all ${
+                  isDragActive
+                    ? "bg-blue-50 border-blue-300 border-2 border-dashed"
+                    : "hover:bg-gray-50"
+                }`}
               >
-                <Upload className="w-12 h-12 mx-auto mb-4 text-gray-400" />
-                <h3 className="text-lg font-semibold mb-2">
-                  {isDragging
-                    ? "Drop your PDF here"
-                    : "Choose PDF file or drag & drop"}
-                </h3>
-                <p className="text-gray-500 mb-4">
-                  Supports PDF files up to 100MB
-                </p>
-                <Button variant="outline">Browse Files</Button>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept=".pdf,application/pdf"
-                  onChange={handleFileChange}
-                  className="hidden"
-                  multiple={false}
-                />
+                <input {...getInputProps()} />
+                <div className="flex flex-col items-center gap-4">
+                  <div className="p-4 bg-gray-100 rounded-full">
+                    <Upload className="w-12 h-12 text-gray-600" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                      {isDragActive
+                        ? "Drop your PDF here"
+                        : "Upload PDF to compress"}
+                    </h3>
+                    <p className="text-gray-600 mb-4">
+                      Drag & drop your PDF file or click to browse
+                    </p>
+                    <div className="flex flex-wrap justify-center gap-4 text-sm text-gray-500">
+                      <span>• Max file size: 100MB</span>
+                      <span>• PDF files only</span>
+                      <span>• Secure processing</span>
+                    </div>
+                  </div>
+                  <Button className="mt-4">
+                    <Upload className="w-4 h-4 mr-2" />
+                    Choose PDF File
+                  </Button>
+                </div>
               </div>
             </CardContent>
           </Card>
+        )}
 
-          {/* Debug File State */}
-          {process.env.NODE_ENV === "development" && (
-            <div className="mb-4 p-2 bg-yellow-50 border border-yellow-200 rounded text-xs">
-              <strong>Debug:</strong> Files length: {files.length} | Processing:{" "}
-              {isProcessing ? "Yes" : "No"} | Level: {selectedLevel} | Files:{" "}
-              {JSON.stringify(
-                files.map((f) => ({ id: f.id, name: f.name, size: f.size })),
-              )}
-            </div>
-          )}
-
-          {/* File Preview */}
-          {files.length > 0 && (
-            <Card className="mb-8">
+        {/* File Preview & Compression Levels */}
+        {uploadedFile && !result && (
+          <div className="space-y-6">
+            {/* File Info */}
+            <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <Eye className="w-5 h-5" />
-                  File Preview ({files.length} file
-                  {files.length !== 1 ? "s" : ""})
+                  <FileText className="w-5 h-5" />
+                  Uploaded File
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                {files.map((file) => {
-                  console.log("🖼️ Rendering file:", file);
-                  return (
-                    <div key={file.id} className="border rounded-lg p-4">
-                      <div className="flex items-center justify-between mb-4">
-                        <div className="flex items-center gap-3">
-                          <FileText className="w-8 h-8 text-red-500" />
-                          <div>
-                            <h3 className="font-semibold">{file.name}</h3>
-                            <p className="text-sm text-gray-500">
-                              {formatFileSize(file.size)} •{" "}
-                              {file.pageCount || 0} pages
-                            </p>
-                          </div>
-                        </div>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => removeFile(file.id)}
-                        >
-                          <X className="w-4 h-4" />
-                        </Button>
-                      </div>
-
-                      {/* Thumbnails */}
-                      {file.loadingThumbnails ? (
-                        <div className="flex items-center justify-center py-8">
-                          <Loader2 className="w-6 h-6 animate-spin" />
-                          <span className="ml-2">Generating preview...</span>
-                        </div>
-                      ) : file.thumbnails && file.thumbnails.length > 0 ? (
-                        <div className="flex gap-2 mb-4">
-                          {file.thumbnails.map((thumbnail, index) => (
-                            <img
-                              key={index}
-                              src={thumbnail}
-                              alt={`Page ${index + 1}`}
-                              className="w-16 h-20 object-cover border rounded shadow-sm"
-                            />
-                          ))}
-                          {file.pageCount && file.pageCount > 3 && (
-                            <div className="w-16 h-20 border rounded shadow-sm flex items-center justify-center bg-gray-50">
-                              <span className="text-xs text-gray-500">
-                                +{file.pageCount - 3}
-                              </span>
-                            </div>
-                          )}
-                        </div>
-                      ) : null}
-
-                      {/* Size Estimation */}
-                      {estimatedSize && (
-                        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                          <h4 className="font-semibold text-blue-900 mb-2">
-                            Compression Estimate
-                          </h4>
-                          <div className="grid grid-cols-3 gap-4 text-sm">
-                            <div>
-                              <p className="text-gray-600">Original Size</p>
-                              <p className="font-semibold">
-                                {formatFileSize(file.size)}
-                              </p>
-                            </div>
-                            <div>
-                              <p className="text-gray-600">Estimated Size</p>
-                              <p className="font-semibold text-blue-700">
-                                {formatFileSize(estimatedSize)}
-                              </p>
-                            </div>
-                            <div>
-                              <p className="text-gray-600">Estimated Savings</p>
-                              <p className="font-semibold text-green-700">
-                                {formatFileSize(file.size - estimatedSize)} (
-                                {(
-                                  ((file.size - estimatedSize) / file.size) *
-                                  100
-                                ).toFixed(1)}
-                                %)
-                              </p>
-                            </div>
-                          </div>
-                        </div>
-                      )}
+                <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-red-100 rounded-lg">
+                      <FileText className="w-6 h-6 text-red-600" />
                     </div>
-                  );
-                })}
+                    <div>
+                      <p className="font-medium text-gray-900">
+                        {uploadedFile.name}
+                      </p>
+                      <p className="text-sm text-gray-600">
+                        {formatFileSize(uploadedFile.size)}
+                      </p>
+                    </div>
+                  </div>
+                  <Button variant="outline" onClick={reset} size="sm">
+                    <Trash2 className="w-4 h-4 mr-2" />
+                    Remove
+                  </Button>
+                </div>
               </CardContent>
             </Card>
-          )}
 
-          {/* Compression Level Selection - Shown after upload */}
-          {files.length > 0 && (
-            <Card className="mb-8">
+            {/* Compression Levels */}
+            <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <Settings className="w-5 h-5" />
+                  <Gauge className="w-5 h-5" />
                   Compression Level
                 </CardTitle>
-                <CardDescription>
-                  Choose the compression level that best fits your needs
-                </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 sm:gap-4">
-                  {compressionLevels.map((level) => (
-                    <Card
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {COMPRESSION_LEVELS.map((level) => (
+                    <div
                       key={level.id}
-                      className={cn(
-                        "cursor-pointer transition-all duration-200 hover:shadow-md border-2",
-                        selectedLevel === level.id
-                          ? getColorClass(level.color)
-                          : "border-gray-200 hover:border-gray-300",
-                      )}
-                      onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-
-                        // Prevent duplicate selections
-                        if (selectedLevel === level.id) {
-                          return;
-                        }
-
-                        console.log(
-                          `🎛️ Compression level selected: ${level.id}, Files: ${files.length}`,
-                        );
-                        setSelectedLevel(level.id);
-                      }}
+                      className={`p-4 border-2 rounded-lg cursor-pointer transition-all ${
+                        selectedLevel.id === level.id
+                          ? `border-blue-500 bg-gradient-to-r ${level.gradient} bg-opacity-10`
+                          : "border-gray-200 hover:border-gray-300"
+                      }`}
+                      onClick={() => setSelectedLevel(level)}
                     >
-                      <CardContent className="p-3 sm:p-4 text-center">
-                        <level.icon
-                          className={cn(
-                            "w-6 h-6 sm:w-8 sm:h-8 mx-auto mb-2",
-                            selectedLevel === level.id
-                              ? "text-current"
-                              : "text-gray-500",
-                          )}
-                        />
-                        <h3 className="font-semibold text-xs sm:text-sm mb-1">
-                          {level.name}
-                        </h3>
-                        <p className="text-xs text-gray-600 mb-2 hidden sm:block">
-                          {level.expectedReduction}
-                        </p>
-                        <Badge
-                          variant={
-                            selectedLevel === level.id ? "default" : "secondary"
-                          }
-                          className="text-xs"
+                      <div className="flex items-center gap-3 mb-3">
+                        <div
+                          className={`p-2 rounded-lg bg-gradient-to-r ${level.gradient} text-white`}
                         >
-                          {level.quality}
-                        </Badge>
-                      </CardContent>
-                    </Card>
+                          {level.icon}
+                        </div>
+                        <div>
+                          <h3 className="font-semibold text-gray-900">
+                            {level.name}
+                          </h3>
+                          <p className="text-sm text-gray-600">
+                            {level.quality}
+                          </p>
+                        </div>
+                      </div>
+                      <p className="text-sm text-gray-600 mb-2">
+                        {level.description}
+                      </p>
+                      <Badge variant="outline" className="text-xs">
+                        {level.expectedReduction} reduction
+                      </Badge>
+                    </div>
                   ))}
                 </div>
-
-                {selectedLevel && (
-                  <div className="mt-4 p-4 bg-gray-50 rounded-lg">
-                    <p className="text-sm text-gray-700">
-                      <strong>
-                        {
-                          compressionLevels.find((l) => l.id === selectedLevel)
-                            ?.name
-                        }
-                        :
-                      </strong>{" "}
-                      {
-                        compressionLevels.find((l) => l.id === selectedLevel)
-                          ?.description
-                      }
-                    </p>
-                  </div>
-                )}
               </CardContent>
             </Card>
-          )}
 
-          {/* Compression Results */}
-          {compressionResult && (
-            <Card className="mb-8">
+            {/* Compress Button */}
+            <div className="flex justify-center">
+              {!isProcessing ? (
+                <Button
+                  onClick={compressPDF}
+                  size="lg"
+                  className="bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600"
+                  disabled={!user}
+                >
+                  <Zap className="w-5 h-5 mr-2" />
+                  Compress PDF
+                </Button>
+              ) : (
+                <div className="flex flex-col items-center gap-4">
+                  <Button
+                    onClick={cancelCompression}
+                    variant="outline"
+                    size="lg"
+                  >
+                    <RefreshCw className="w-5 h-5 mr-2" />
+                    Cancel
+                  </Button>
+                </div>
+              )}
+            </div>
+
+            {/* Processing Progress */}
+            {isProcessing && (
+              <Card>
+                <CardContent className="p-6">
+                  <div className="text-center space-y-4">
+                    <div className="flex items-center justify-center gap-2">
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                      <span className="font-medium">{processingStage}</span>
+                    </div>
+                    <Progress value={progress} className="h-3" />
+                    <p className="text-sm text-gray-600">
+                      {progress}% complete - Using enterprise-grade Ghostscript
+                      compression
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+        )}
+
+        {/* Results */}
+        {result && (
+          <div className="space-y-6">
+            <Card className="border-green-200 bg-green-50">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <CheckCircle className="w-5 h-5 text-green-600" />
-                  Compression Complete
+                <CardTitle className="flex items-center gap-2 text-green-800">
+                  <CheckCircle className="w-5 h-5" />
+                  Compression Complete!
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="bg-green-50 border border-green-200 rounded-lg p-6">
-                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-                    <div className="text-center">
-                      <p className="text-sm text-gray-600">Original Size</p>
-                      <p className="text-lg font-bold">
-                        {formatFileSize(compressionResult.originalSize)}
-                      </p>
-                    </div>
-                    <div className="text-center">
-                      <p className="text-sm text-gray-600">Compressed Size</p>
-                      <p className="text-lg font-bold text-blue-600">
-                        {formatFileSize(compressionResult.compressedSize)}
-                      </p>
-                    </div>
-                    <div className="text-center">
-                      <p className="text-sm text-gray-600">Size Saved</p>
-                      <p className="text-lg font-bold text-green-600">
-                        {formatFileSize(compressionResult.sizeSaved)}
-                      </p>
-                    </div>
-                    <div className="text-center">
-                      <p className="text-sm text-gray-600">Reduction</p>
-                      <p className="text-lg font-bold text-green-600">
-                        {compressionResult.compressionRatio.toFixed(1)}%
-                      </p>
-                    </div>
-                  </div>
-
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
                   <div className="text-center">
-                    <Button
-                      onClick={downloadResult}
-                      className="bg-green-600 hover:bg-green-700"
-                    >
-                      <Download className="w-4 h-4 mr-2" />
-                      Download Compressed PDF
-                    </Button>
+                    <p className="text-2xl font-bold text-green-600">
+                      {result.compressionRatio}%
+                    </p>
+                    <p className="text-sm text-gray-600">Size Reduction</p>
                   </div>
+                  <div className="text-center">
+                    <p className="text-2xl font-bold text-blue-600">
+                      {formatFileSize(result.sizeSaved)}
+                    </p>
+                    <p className="text-sm text-gray-600">Space Saved</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-2xl font-bold text-purple-600">
+                      {formatFileSize(result.compressedSize)}
+                    </p>
+                    <p className="text-sm text-gray-600">Final Size</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-2xl font-bold text-orange-600">
+                      {(result.processingTime / 1000).toFixed(1)}s
+                    </p>
+                    <p className="text-sm text-gray-600">Processing Time</p>
+                  </div>
+                </div>
+
+                <Separator className="my-4" />
+
+                <div className="flex flex-col sm:flex-row gap-4">
+                  <Button onClick={downloadFile} className="flex-1" size="lg">
+                    <Download className="w-5 h-5 mr-2" />
+                    Download Compressed PDF
+                  </Button>
+                  <Button onClick={reset} variant="outline" size="lg">
+                    <RefreshCw className="w-5 h-5 mr-2" />
+                    Compress Another
+                  </Button>
                 </div>
               </CardContent>
             </Card>
-          )}
+          </div>
+        )}
 
-          {/* Action Buttons */}
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex gap-4 justify-center">
-                <Button
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    if (
-                      !isProcessing &&
-                      !compressionInProgress.current &&
-                      files.length > 0 &&
-                      user
-                    ) {
-                      compressFiles();
-                    }
-                  }}
-                  disabled={
-                    files.length === 0 ||
-                    isProcessing ||
-                    compressionInProgress.current ||
-                    !user
-                  }
-                  className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                  size="lg"
-                >
-                  {isProcessing || compressionInProgress.current ? (
-                    <>
-                      <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                      Compressing... ({Math.round(progress)}%)
-                    </>
-                  ) : (
-                    <>
-                      <Minimize className="w-5 h-5 mr-2" />
-                      Compress PDF
-                    </>
-                  )}
-                </Button>
+        {/* Error Display */}
+        {error && (
+          <Alert variant="destructive" className="mb-6">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
 
-                {files.length > 0 && (
-                  <Button
-                    variant="outline"
-                    onClick={() => {
-                      setFiles([]);
-                      setCompressionResult(null);
-                      setEstimatedSize(null);
-                    }}
-                  >
-                    Clear All
-                  </Button>
-                )}
-              </div>
-
-              {/* Progress Bar */}
-              {isProcessing && (
-                <div className="mt-6">
-                  <div className="flex justify-between text-sm mb-2">
-                    <span>Compressing PDF...</span>
-                    <span>{Math.round(progress)}%</span>
-                  </div>
-                  <Progress value={progress} className="h-2" />
-                </div>
-              )}
-            </CardContent>
-          </Card>
+        {/* Features */}
+        <div className="mt-12">
+          <h2 className="text-2xl font-bold text-center mb-8">
+            Enterprise Features
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <Card>
+              <CardContent className="p-6 text-center">
+                <Shield className="w-12 h-12 mx-auto mb-4 text-blue-600" />
+                <h3 className="font-semibold mb-2">Secure Processing</h3>
+                <p className="text-sm text-gray-600">
+                  Files are processed securely and automatically deleted after
+                  compression
+                </p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-6 text-center">
+                <Zap className="w-12 h-12 mx-auto mb-4 text-orange-600" />
+                <h3 className="font-semibold mb-2">Ghostscript-Only Engine</h3>
+                <p className="text-sm text-gray-600">
+                  Exclusive Ghostscript compression - the same technology used
+                  by Adobe Acrobat for maximum 85% reduction
+                </p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-6 text-center">
+                <Gauge className="w-12 h-12 mx-auto mb-4 text-green-600" />
+                <h3 className="font-semibold mb-2">Large File Support</h3>
+                <p className="text-sm text-gray-600">
+                  Handle files up to 100MB with optimized memory management
+                </p>
+              </CardContent>
+            </Card>
+          </div>
         </div>
-
-        {/* Info Section */}
-        <div className="max-w-4xl mx-auto mt-12">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Info className="w-5 h-5" />
-                Compression Levels Explained
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <h3 className="font-semibold mb-2">
-                    When to use each level:
-                  </h3>
-                  <ul className="space-y-2 text-sm">
-                    <li>
-                      <strong>Extreme:</strong> Email attachments, web upload
-                    </li>
-                    <li>
-                      <strong>High:</strong> Online sharing, archiving
-                    </li>
-                    <li>
-                      <strong>Medium:</strong> General use, balanced quality
-                    </li>
-                    <li>
-                      <strong>Low:</strong> Document review, good quality
-                    </li>
-                    <li>
-                      <strong>Best Quality:</strong> Professional printing
-                    </li>
-                  </ul>
-                </div>
-                <div>
-                  <h3 className="font-semibold mb-2">Compression Features:</h3>
-                  <ul className="space-y-2 text-sm">
-                    <li>• Image optimization and downsampling</li>
-                    <li>• Metadata removal for privacy</li>
-                    <li>• Font subsetting and optimization</li>
-                    <li>• Object stream compression</li>
-                    <li>• Lossless structural optimization</li>
-                  </ul>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        <PromoBanner />
       </div>
-
-      {showAuthModal && (
-        <AuthModal
-          isOpen={showAuthModal}
-          onClose={() => setShowAuthModal(false)}
-          defaultMode="login"
-        />
-      )}
     </div>
   );
-};
-
-export default Compress;
+}

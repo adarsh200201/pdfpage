@@ -183,8 +183,10 @@ app.use("/api/usage", require("./routes/usage"));
 app.use("/api/pdf", require("./routes/pdf"));
 app.use("/api/upload", require("./routes/upload"));
 app.use("/api/image", require("./routes/image"));
+app.use("/api/ocr", require("./routes/ocr"));
 app.use("/api/analytics", require("./routes/analytics"));
 app.use("/api/stats", require("./routes/stats"));
+app.use("/api/diagnostics", require("./routes/ghostscript-diagnostic"));
 // app.use("/api/schema-test", require("./routes/schema-test"));
 
 // Test routes (for schema verification)

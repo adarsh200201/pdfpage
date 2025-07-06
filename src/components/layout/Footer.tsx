@@ -283,7 +283,8 @@ const Footer = () => {
               <div className="text-center lg:text-left">
                 {/* Copyright */}
                 <div className="text-gray-400 text-sm">
-                  © {currentYear} PdfPage. All rights reserved.
+                  © {currentYear} G Initiations eServices Pvt. Ltd. All Rights
+                  Reserved.
                 </div>
               </div>
             </div>
