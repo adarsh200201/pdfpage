@@ -175,17 +175,54 @@ const WordToPdf = () => {
           // Track conversion start
           tracking.trackConversionStart("Word", "PDF", [fileStatus.file]);
 
-          const result = await PDFService.wordToPdf(fileStatus.file, {
-            conversionMethod: conversionSettings.conversionMethod,
-            preserveFormatting: conversionSettings.preserveFormatting,
-            includeMetadata: conversionSettings.includeMetadata,
-            sessionId: `word_to_pdf_${Date.now()}`,
-            onProgress: (progress) => {
-              setFiles((prev) =>
-                prev.map((f, idx) => (idx === i ? { ...f, progress } : f)),
+          let result;
+          let usedMethod = conversionSettings.conversionMethod;
+
+          try {
+            result = await PDFService.wordToPdf(fileStatus.file, {
+              conversionMethod: conversionSettings.conversionMethod,
+              preserveFormatting: conversionSettings.preserveFormatting,
+              includeMetadata: conversionSettings.includeMetadata,
+              sessionId: `word_to_pdf_${Date.now()}`,
+              onProgress: (progress) => {
+                setFiles((prev) =>
+                  prev.map((f, idx) => (idx === i ? { ...f, progress } : f)),
+                );
+              },
+            });
+          } catch (primaryError: any) {
+            // If LibreOffice fails, automatically try the advanced converter
+            if (
+              conversionSettings.conversionMethod === "libreoffice" &&
+              (primaryError.message?.includes("LibreOffice") ||
+                primaryError.message?.includes("not available"))
+            ) {
+              console.log(
+                "LibreOffice failed, falling back to advanced converter...",
               );
-            },
-          });
+
+              // Update progress to show fallback attempt
+              setFiles((prev) =>
+                prev.map((f, idx) => (idx === i ? { ...f, progress: 20 } : f)),
+              );
+
+              // Try with advanced converter
+              result = await PDFService.wordToPdf(fileStatus.file, {
+                conversionMethod: "advanced",
+                preserveFormatting: conversionSettings.preserveFormatting,
+                includeMetadata: conversionSettings.includeMetadata,
+                sessionId: `word_to_pdf_${Date.now()}`,
+                onProgress: (progress) => {
+                  setFiles((prev) =>
+                    prev.map((f, idx) => (idx === i ? { ...f, progress } : f)),
+                  );
+                },
+              });
+              usedMethod = "advanced";
+            } else {
+              throw primaryError;
+            }
+          }
 
           const processingTime = Date.now() - startTime;
 
@@ -214,7 +251,7 @@ const WordToPdf = () => {
                       downloadUrl,
                       fileSize: result.data.byteLength,
                       processingTime: serverProcessingTime,
-                      conversionMethod: conversionSettings.conversionMethod,
+                      conversionMethod: usedMethod,
                     },
                   }
                 : f,
@@ -241,7 +278,7 @@ const WordToPdf = () => {
 
           toast({
             title: "Conversion Complete!",
-            description: `${fileStatus.file.name} converted successfully using ${conversionSettings.conversionMethod}.`,
+            description: `${fileStatus.file.name} converted successfully using ${usedMethod === "advanced" ? "Advanced PDF Generator" : "LibreOffice"}.`,
           });
         } catch (error) {
           console.error(`Error converting ${fileStatus.file.name}:`, error);
@@ -431,13 +468,18 @@ const WordToPdf = () => {
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="libreoffice">
-                          LibreOffice (Recommended)
+                          LibreOffice (Auto-fallback)
                         </SelectItem>
                         <SelectItem value="advanced">
                           Advanced Engine
                         </SelectItem>
                       </SelectContent>
                     </Select>
+                    <p className="text-xs text-gray-500 mt-1">
+                      {conversionSettings.conversionMethod === "libreoffice"
+                        ? "Will automatically use Advanced Engine if LibreOffice is unavailable"
+                        : "Direct conversion using advanced PDF engine"}
+                    </p>
                   </div>
                   <div className="flex items-center justify-between">
                     <div>
@@ -556,8 +598,19 @@ const WordToPdf = () => {
                             <div className="grid grid-cols-2 gap-4 text-sm">
                               <div>
                                 <span className="text-gray-600">Method:</span>
-                                <span className="ml-2 font-medium capitalize">
-                                  {fileStatus.result.conversionMethod}
+                                <span className="ml-2 font-medium">
+                                  {fileStatus.result.conversionMethod ===
+                                  "advanced"
+                                    ? "Advanced Engine"
+                                    : "LibreOffice"}
+                                  {fileStatus.result.conversionMethod ===
+                                    "advanced" &&
+                                    conversionSettings.conversionMethod ===
+                                      "libreoffice" && (
+                                      <span className="text-xs text-orange-600 ml-1">
+                                        (fallback)
+                                      </span>
+                                    )}
                                 </span>
                               </div>
                               <div>

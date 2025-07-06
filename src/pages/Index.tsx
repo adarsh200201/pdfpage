@@ -316,15 +316,7 @@ const Index = () => {
       available: true,
       isWorking: true,
     },
-    {
-      title: "Organize PDF",
-      description: "Reorder, rotate, and delete pages in your PDF documents.",
-      icon: FileText,
-      href: "/organize-pdf",
-      color: "from-slate-500 to-slate-600",
-      available: true,
-      isWorking: true,
-    },
+
     {
       title: "HTML to PDF",
       description: "Convert HTML files and web pages into PDF documents.",
@@ -334,26 +326,7 @@ const Index = () => {
       available: true,
       isWorking: true,
     },
-    {
-      title: "PDF to PDF/A",
-      description: "Convert PDF files to PDF/A format for long-term archiving.",
-      icon: FileText,
-      href: "/pdf-to-pdfa",
-      color: "from-gray-500 to-gray-600",
-      available: true,
-      isWorking: true,
-      isNew: true,
-    },
-    {
-      title: "Repair PDF",
-      description: "Fix corrupted PDF files and restore damaged documents.",
-      icon: FileText,
-      href: "/repair-pdf",
-      color: "from-orange-600 to-orange-700",
-      available: true,
-      isWorking: true,
-      isNew: true,
-    },
+
     {
       title: "Page Numbers",
       description: "Add customizable page numbers to your PDF documents.",
@@ -384,28 +357,7 @@ const Index = () => {
       isWorking: true,
       isNew: true,
     },
-    {
-      title: "Compare PDF",
-      description:
-        "Compare two PDF files and highlight differences between versions.",
-      icon: FileText,
-      href: "/compare-pdf",
-      color: "from-indigo-600 to-indigo-700",
-      available: true,
-      isWorking: true,
-      isNew: true,
-    },
-    {
-      title: "Redact PDF",
-      description:
-        "Permanently remove sensitive information from PDF documents.",
-      icon: FileText,
-      href: "/redact-pdf",
-      color: "from-red-700 to-red-800",
-      available: true,
-      isWorking: true,
-      isNew: true,
-    },
+
     {
       title: "Crop PDF",
       description: "Crop margins and select specific areas of your PDF pages.",
