@@ -1,5 +1,6 @@
 import React, { useRef, useEffect, useState, useCallback } from "react";
 import { useToast } from "@/hooks/use-toast";
+import { loadPDFDocument } from "@/lib/pdf-worker-config";
 import {
   AnyElement,
   Point,
@@ -110,26 +111,9 @@ export default function PDFEditorCanvas({
       setError(null);
 
       try {
-        // Import and configure PDF.js
-        const pdfjsLib = await import("pdfjs-dist");
-
-        // Set worker with a more reliable CDN and version
-        if (!pdfjsLib.GlobalWorkerOptions.workerSrc) {
-          pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js`;
-        }
-
-        // Load the PDF with better error handling
+        // Load PDF using centralized configuration to prevent version mismatches
         const arrayBuffer = await file.arrayBuffer();
-        const loadingTask = pdfjsLib.getDocument({
-          data: arrayBuffer,
-          cMapUrl: "https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/cmaps/",
-          cMapPacked: true,
-          standardFontDataUrl:
-            "https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/standard_fonts/",
-          verbosity: 0, // Reduce console noise
-        });
-
-        const pdf = await loadingTask.promise;
+        const pdf = await loadPDFDocument(arrayBuffer);
         setPdfDocument(pdf);
         console.log(`✅ PDF loaded: ${pdf.numPages} pages`);
 

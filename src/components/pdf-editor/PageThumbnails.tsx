@@ -2,6 +2,7 @@ import React, { useRef, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
+import { loadPDFDocument } from "@/lib/pdf-worker-config";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { AnyElement } from "@/types/pdf-editor";
 
@@ -59,20 +60,9 @@ export default function PageThumbnails({
     const loadPDF = async () => {
       setIsLoading(true);
       try {
-        const pdfjsLib = await import("pdfjs-dist");
-
-        // Set worker if not already set
-        if (!pdfjsLib.GlobalWorkerOptions.workerSrc) {
-          pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js`;
-        }
-
+        // Load PDF using centralized configuration to prevent version mismatches
         const arrayBuffer = await file.arrayBuffer();
-        const loadingTask = pdfjsLib.getDocument({
-          data: arrayBuffer,
-          verbosity: 0, // Reduce console noise
-        });
-
-        const pdf = await loadingTask.promise;
+        const pdf = await loadPDFDocument(arrayBuffer);
         setPdfDocument(pdf);
         setTotalPages(pdf.numPages);
       } catch (err) {

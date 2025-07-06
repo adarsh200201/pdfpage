@@ -9,10 +9,12 @@ import EditorToolbar from "@/components/pdf-editor/EditorToolbar";
 import PDFEditorCanvas from "@/components/pdf-editor/PDFEditorCanvas";
 import PageThumbnails from "@/components/pdf-editor/PageThumbnails";
 import PropertiesPanel from "@/components/pdf-editor/PropertiesPanel";
+import PDFErrorBoundary from "@/components/pdf-editor/PDFErrorBoundary";
 import { usePDFEditor } from "@/hooks/usePDFEditor";
 import { useAuth } from "@/contexts/AuthContext";
 import { PDFService } from "@/services/pdfService";
 import { useToast } from "@/hooks/use-toast";
+import { loadPDFDocument } from "@/lib/pdf-worker-config";
 import {
   ArrowLeft,
   Download,
@@ -84,21 +86,9 @@ const SignPdf = () => {
         setShowSignatureOptions(true); // Show signature options after PDF upload
 
         try {
-          // Load PDF to get page count
-          const pdfjsLib = await import("pdfjs-dist");
-
-          // Set worker if not already set - use correct version to match package.json
-          if (!pdfjsLib.GlobalWorkerOptions.workerSrc) {
-            pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js`;
-          }
-
+          // Load PDF using centralized configuration to prevent version mismatches
           const arrayBuffer = await selectedFile.arrayBuffer();
-          const loadingTask = pdfjsLib.getDocument({
-            data: arrayBuffer,
-            verbosity: 0, // Reduce console noise
-          });
-
-          const pdf = await loadingTask.promise;
+          const pdf = await loadPDFDocument(arrayBuffer);
           setPdfPages(pdf.numPages);
 
           toast({
@@ -839,105 +829,107 @@ const SignPdf = () => {
             }}
           />
         ) : (
-          <div
-            className={cn(
-              "bg-white rounded-xl shadow-sm border border-gray-100",
-              isFullscreen && "fixed inset-4 z-50",
-            )}
-          >
-            {/* Editor Toolbar */}
-            <EditorToolbar
-              currentTool={state.currentTool}
-              onToolChange={actions.setTool}
-              onUndo={actions.undo}
-              onRedo={actions.redo}
-              onCopy={actions.copyElements}
-              onPaste={actions.pasteElements}
-              onDelete={actions.deleteSelectedElements}
-              onZoomIn={handleZoomIn}
-              onZoomOut={handleZoomOut}
-              onSave={handleSave}
-              onDownload={handleSave}
-              zoom={state.zoom}
-              canUndo={computed.canUndo}
-              canRedo={computed.canRedo}
-              hasSelection={computed.hasSelection}
-              canPaste={computed.canPaste}
-              selectedColor={selectedColor}
-              onColorChange={setSelectedColor}
-              selectedStrokeWidth={selectedStrokeWidth}
-              onStrokeWidthChange={setSelectedStrokeWidth}
-              selectedFontSize={selectedFontSize}
-              onFontSizeChange={setSelectedFontSize}
-            />
-
-            {/* Editor Layout */}
-            <div className="flex h-[calc(100vh-200px)]">
-              {/* Page Thumbnails */}
-              {showThumbnails && (
-                <PageThumbnails
-                  file={file}
-                  currentPage={state.pageIndex}
-                  totalPages={pdfPages}
-                  onPageChange={handlePageChange}
-                />
+          <PDFErrorBoundary>
+            <div
+              className={cn(
+                "bg-white rounded-xl shadow-sm border border-gray-100",
+                isFullscreen && "fixed inset-4 z-50",
               )}
+            >
+              {/* Editor Toolbar */}
+              <EditorToolbar
+                currentTool={state.currentTool}
+                onToolChange={actions.setTool}
+                onUndo={actions.undo}
+                onRedo={actions.redo}
+                onCopy={actions.copyElements}
+                onPaste={actions.pasteElements}
+                onDelete={actions.deleteSelectedElements}
+                onZoomIn={handleZoomIn}
+                onZoomOut={handleZoomOut}
+                onSave={handleSave}
+                onDownload={handleSave}
+                zoom={state.zoom}
+                canUndo={computed.canUndo}
+                canRedo={computed.canRedo}
+                hasSelection={computed.hasSelection}
+                canPaste={computed.canPaste}
+                selectedColor={selectedColor}
+                onColorChange={setSelectedColor}
+                selectedStrokeWidth={selectedStrokeWidth}
+                onStrokeWidthChange={setSelectedStrokeWidth}
+                selectedFontSize={selectedFontSize}
+                onFontSizeChange={setSelectedFontSize}
+              />
 
-              {/* Main Canvas Area */}
-              <div className="flex-1 relative">
-                <PDFEditorCanvas
-                  file={file}
-                  pageIndex={state.pageIndex}
-                  zoom={state.zoom}
-                  elements={state.elements}
-                  selectedElements={state.selectedElements}
-                  currentTool={state.currentTool}
-                  isDrawing={state.isDrawing}
-                  currentDrawPath={state.currentDrawPath}
-                  selectedColor={selectedColor}
-                  selectedStrokeWidth={selectedStrokeWidth}
-                  selectedFontSize={selectedFontSize}
-                  onElementAdd={actions.addElement}
-                  onElementUpdate={actions.updateElement}
-                  onElementSelect={actions.selectElements}
-                  onElementToggleSelect={actions.toggleElementSelection}
-                  onStartDrawing={actions.startDrawing}
-                  onAddDrawPoint={actions.addDrawPoint}
-                  onEndDrawing={actions.endDrawing}
-                  onCanvasSizeChange={actions.setCanvasSize}
-                  onSignaturePlace={
-                    signatureData ? handleSignaturePlace : undefined
-                  }
-                  className="h-full"
-                />
+              {/* Editor Layout */}
+              <div className="flex h-[calc(100vh-200px)]">
+                {/* Page Thumbnails */}
+                {showThumbnails && (
+                  <PageThumbnails
+                    file={file}
+                    currentPage={state.pageIndex}
+                    totalPages={pdfPages}
+                    onPageChange={handlePageChange}
+                  />
+                )}
 
-                {/* Processing Overlay */}
-                {isProcessing && (
-                  <div className="absolute inset-0 bg-white bg-opacity-90 flex items-center justify-center z-10">
-                    <div className="text-center">
-                      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
-                      <span className="text-lg font-medium">
-                        Processing PDF...
-                      </span>
-                      <p className="text-sm text-gray-500 mt-2">
-                        Applying your edits
-                      </p>
+                {/* Main Canvas Area */}
+                <div className="flex-1 relative">
+                  <PDFEditorCanvas
+                    file={file}
+                    pageIndex={state.pageIndex}
+                    zoom={state.zoom}
+                    elements={state.elements}
+                    selectedElements={state.selectedElements}
+                    currentTool={state.currentTool}
+                    isDrawing={state.isDrawing}
+                    currentDrawPath={state.currentDrawPath}
+                    selectedColor={selectedColor}
+                    selectedStrokeWidth={selectedStrokeWidth}
+                    selectedFontSize={selectedFontSize}
+                    onElementAdd={actions.addElement}
+                    onElementUpdate={actions.updateElement}
+                    onElementSelect={actions.selectElements}
+                    onElementToggleSelect={actions.toggleElementSelection}
+                    onStartDrawing={actions.startDrawing}
+                    onAddDrawPoint={actions.addDrawPoint}
+                    onEndDrawing={actions.endDrawing}
+                    onCanvasSizeChange={actions.setCanvasSize}
+                    onSignaturePlace={
+                      signatureData ? handleSignaturePlace : undefined
+                    }
+                    className="h-full"
+                  />
+
+                  {/* Processing Overlay */}
+                  {isProcessing && (
+                    <div className="absolute inset-0 bg-white bg-opacity-90 flex items-center justify-center z-10">
+                      <div className="text-center">
+                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
+                        <span className="text-lg font-medium">
+                          Processing PDF...
+                        </span>
+                        <p className="text-sm text-gray-500 mt-2">
+                          Applying your edits
+                        </p>
+                      </div>
                     </div>
-                  </div>
+                  )}
+                </div>
+
+                {/* Properties Panel */}
+                {showProperties && (
+                  <PropertiesPanel
+                    selectedElements={selectors.getSelectedElements()}
+                    onElementUpdate={actions.updateElement}
+                    onElementDelete={actions.deleteElements}
+                    onElementCopy={actions.copyElements}
+                  />
                 )}
               </div>
-
-              {/* Properties Panel */}
-              {showProperties && (
-                <PropertiesPanel
-                  selectedElements={selectors.getSelectedElements()}
-                  onElementUpdate={actions.updateElement}
-                  onElementDelete={actions.deleteElements}
-                  onElementCopy={actions.copyElements}
-                />
-              )}
             </div>
-          </div>
+          </PDFErrorBoundary>
         )}
 
         {/* Premium Features */}

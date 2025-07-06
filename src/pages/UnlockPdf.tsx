@@ -156,12 +156,27 @@ const UnlockPdf = () => {
           });
         } catch (error: any) {
           console.error(`Error unlocking ${file.name}:`, error);
+
+          // Enhanced error handling for better user experience
+          let errorTitle = `❌ Error unlocking ${file.name}`;
+          let errorDescription = error.message || "Unable to unlock this PDF.";
+
+          if (
+            error.message?.includes("advanced encryption") ||
+            error.message?.includes("specialized tools")
+          ) {
+            errorTitle = `🔐 Advanced Encryption Detected`;
+            errorDescription =
+              "This PDF uses advanced encryption that requires desktop software. Try Adobe Acrobat or similar tools for best results.";
+          } else if (error.message?.includes("password")) {
+            errorDescription = "Please check your password and try again.";
+          }
+
           toast({
-            title: `❌ Error unlocking ${file.name}`,
-            description:
-              error.message ||
-              "Incorrect password or unable to unlock this PDF.",
+            title: errorTitle,
+            description: errorDescription,
             variant: "destructive",
+            duration: 6000, // Longer duration for mobile users
           });
         }
       }

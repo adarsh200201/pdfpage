@@ -2246,7 +2246,7 @@ router.post(
         `✅ Enhanced Word document created: ${formatBytes(docxBuffer.length)} in ${processingTime}ms`,
       );
       console.log(
-        `📋 Document analysis: ${documentStructure.estimatedSections} sections, ${documentStructure.hasHeaders ? "headers detected" : "no headers"}, ${documentStructure.hasBulletPoints || documentStructure.hasNumberedLists ? "lists detected" : "no lists"}`,
+        `�� Document analysis: ${documentStructure.estimatedSections} sections, ${documentStructure.hasHeaders ? "headers detected" : "no headers"}, ${documentStructure.hasBulletPoints || documentStructure.hasNumberedLists ? "lists detected" : "no lists"}`,
       );
       console.log(
         `���� Content preserved: ${text.length} characters from ${numPages} pages`,
@@ -3854,7 +3854,7 @@ router.post(
         // Clean up markers and apply proper formatting
         .replace(/【NUMBERED_LIST】(.*?)【\/NUMBERED_LIST】/gs, "$1")
         .replace(/��BULLET_LIST】(.*?)【\/BULLET_LIST】/gs, "$1")
-        .replace(/【HEADING1】(.*?)【\/HEADING1】/g, "\n\n���▓▓ $1 ▓▓▓\n\n")
+        .replace(/【HEADING1】(.*?)【\/HEADING1】/g, "\n\n���▓▓ $1 ��▓▓\n\n")
         .replace(/【HEADING2】(.*?)���\/HEADING2】/g, "\n\n▓▓ $1 ▓���\n\n")
         .replace(/【HEADING3】(.*?)【\/HEADING3】/g, "\n\n▓ $1 ▓\n\n")
         .replace(/【BOLD】(.*?)【\/BOLD��/g, "���B:$1】")
@@ -3873,7 +3873,7 @@ router.post(
       }
 
       console.log(
-        `📝 Processed ${formattedText.length} characters with advanced formatting`,
+        `�� Processed ${formattedText.length} characters with advanced formatting`,
       );
 
       // Create professional PDF document
@@ -8205,72 +8205,23 @@ router.post("/unlock", upload.single("file"), async (req, res) => {
         console.error("❌ PDF-lib error:", loadError.message);
         console.error("❌ Full error:", loadError);
 
-        // If pdf-lib says it's encrypted, try with ignoreEncryption as fallback
+        // If pdf-lib says it's encrypted, provide helpful error message
         if (loadError.message.includes("encrypted")) {
-          try {
-            console.log(
-              "⚠️ PDF-lib doesn't support this encryption type, trying ignoreEncryption fallback...",
-            );
-            const encryptedPdf = await PDFDocument.load(req.file.buffer, {
-              ignoreEncryption: true,
-            });
-            console.log(
-              "✅ PDF loaded with ignoreEncryption, now creating unencrypted copy...",
-            );
-
-            // Create a new PDF document (this will be unencrypted)
-            pdfDoc = await PDFDocument.create();
-
-            // Copy all pages from encrypted PDF to new unencrypted PDF
-            const pageCount = encryptedPdf.getPageCount();
-            console.log(
-              `📑 Copying ${pageCount} pages to remove encryption...`,
-            );
-
-            const pageIndices = Array.from({ length: pageCount }, (_, i) => i);
-            const copiedPages = await pdfDoc.copyPages(
-              encryptedPdf,
-              pageIndices,
-            );
-
-            // Add each copied page to the new document
-            copiedPages.forEach((page) => {
-              pdfDoc.addPage(page);
-            });
-
-            // Copy metadata if available
-            try {
-              if (encryptedPdf.getTitle())
-                pdfDoc.setTitle(encryptedPdf.getTitle());
-              if (encryptedPdf.getAuthor())
-                pdfDoc.setAuthor(encryptedPdf.getAuthor());
-              if (encryptedPdf.getSubject())
-                pdfDoc.setSubject(encryptedPdf.getSubject());
-              if (encryptedPdf.getKeywords())
-                pdfDoc.setKeywords(encryptedPdf.getKeywords());
-              if (encryptedPdf.getCreator())
-                pdfDoc.setCreator(encryptedPdf.getCreator());
-              if (encryptedPdf.getProducer())
-                pdfDoc.setProducer(encryptedPdf.getProducer());
-            } catch (metadataError) {
-              console.warn(
-                "⚠️ Could not copy all metadata:",
-                metadataError.message,
-              );
-            }
-
-            console.log("✅ Successfully created unencrypted copy of PDF");
-          } catch (fallbackError) {
-            console.error(
-              "❌ Fallback method also failed:",
-              fallbackError.message,
-            );
-            return res.status(400).json({
-              success: false,
-              message:
-                "Unsupported PDF encryption type. This PDF uses an encryption method that cannot be processed.",
-            });
-          }
+          console.log(
+            "❌ PDF uses unsupported encryption that pdf-lib cannot handle properly",
+          );
+          return res.status(400).json({
+            success: false,
+            message:
+              "This PDF uses an advanced encryption method that requires specialized tools. For proper password removal that preserves content, please use a desktop PDF tool like Adobe Acrobat, or try uploading a different PDF.",
+            details:
+              "pdf-lib cannot properly decrypt and preserve content from this encryption type",
+            suggestions: [
+              "Try using Adobe Acrobat or similar desktop PDF software",
+              "Check if the PDF has different encryption settings",
+              "Ensure you have the correct password",
+            ],
+          });
         } else if (
           loadError.message.includes("password") ||
           loadError.message.includes("decrypt") ||
