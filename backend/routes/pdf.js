@@ -6952,21 +6952,9 @@ router.post(
       try {
         console.log(`🚀 Launching headless Chrome...`);
 
-        // Launch Puppeteer with optimized settings
-        browser = await puppeteer.launch({
-          headless: "new",
-          args: [
-            "--no-sandbox",
-            "--disable-setuid-sandbox",
-            "--disable-dev-shm-usage",
-            "--disable-accelerated-2d-canvas",
-            "--no-first-run",
-            "--no-zygote",
-            "--disable-gpu",
-            "--single-process",
-          ],
-          timeout: 30000,
-        });
+        // Launch Puppeteer with robust error handling using the same strategy as DocumentConversionService
+        browser =
+          await documentConversionService.launchPuppeteerWithFallbacks();
 
         const page = await browser.newPage();
 

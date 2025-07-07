@@ -7,9 +7,23 @@ const JSZip = require("jszip");
 
 class DocumentConversionService {
   constructor() {
+    // Detect if we're in a containerized environment
+    const isContainer =
+      process.env.NODE_ENV === "production" ||
+      process.env.RENDER ||
+      process.env.DOCKER_CONTAINER ||
+      process.env.KUBERNETES_SERVICE_HOST;
+
+    // Get Chrome executable path from environment or use system default
+    const chromeExecutable =
+      process.env.PUPPETEER_EXECUTABLE_PATH ||
+      process.env.CHROME_BIN ||
+      "/usr/bin/google-chrome-stable";
+
     this.puppeteerConfig = {
-      headless: true,
+      headless: "new", // Use new headless mode
       timeout: 60000, // 60 seconds timeout
+      executablePath: isContainer ? chromeExecutable : undefined,
       args: [
         "--no-sandbox",
         "--disable-setuid-sandbox",
@@ -17,6 +31,7 @@ class DocumentConversionService {
         "--disable-accelerated-2d-canvas",
         "--no-first-run",
         "--no-zygote",
+        "--single-process", // Important for containerized environments
         "--disable-gpu",
         "--disable-web-security",
         "--disable-features=VizDisplayCompositor",
@@ -27,10 +42,83 @@ class DocumentConversionService {
         "--no-crash-upload",
         "--memory-pressure-off",
         "--max_old_space_size=4096",
+        "--disable-extensions",
+        "--disable-default-apps",
+        "--disable-sync",
+        "--disable-translate",
+        "--hide-scrollbars",
+        "--mute-audio",
+        "--no-default-browser-check",
+        "--no-pings",
+        "--password-store=basic",
+        "--use-mock-keychain",
+        "--disable-background-networking",
+        "--disable-background-media",
       ],
       ignoreHTTPSErrors: true,
-      ignoreDefaultArgs: ["--disable-extensions"],
+      defaultViewport: {
+        width: 1280,
+        height: 720,
+      },
     };
+
+    // Simplified config for fallback
+    this.fallbackConfig = {
+      headless: true,
+      executablePath: isContainer ? chromeExecutable : undefined,
+      args: [
+        "--no-sandbox",
+        "--disable-setuid-sandbox",
+        "--disable-dev-shm-usage",
+        "--single-process",
+      ],
+      timeout: 30000,
+      ignoreHTTPSErrors: true,
+    };
+
+    console.log(
+      `🔧 Puppeteer config initialized for ${isContainer ? "containerized" : "local"} environment`,
+    );
+    if (isContainer) {
+      console.log(`🔧 Chrome executable: ${chromeExecutable}`);
+    }
+  }
+
+  async launchPuppeteerWithFallbacks() {
+    const configs = [
+      { name: "primary", config: this.puppeteerConfig },
+      { name: "fallback", config: this.fallbackConfig },
+      {
+        name: "minimal",
+        config: {
+          headless: true,
+          args: ["--no-sandbox", "--disable-setuid-sandbox"],
+          timeout: 30000,
+        },
+      },
+    ];
+
+    for (const { name, config } of configs) {
+      try {
+        console.log(`🚀 Attempting to launch Puppeteer with ${name} config...`);
+        const browser = await puppeteer.launch(config);
+        console.log(`✅ Puppeteer launched successfully with ${name} config`);
+        return browser;
+      } catch (error) {
+        console.warn(`❌ Failed to launch with ${name} config:`, error.message);
+
+        if (name === "minimal") {
+          // Last resort - try to install Chrome if not found
+          if (error.message.includes("Could not find Chrome")) {
+            throw new Error(
+              `Chrome browser not found. Please ensure Chrome is installed in the deployment environment. ` +
+                `Error: ${error.message}`,
+            );
+          }
+          throw error;
+        }
+      }
+    }
   }
 
   async convertWordToPdf(inputPath, outputPath, options = {}) {
@@ -74,21 +162,8 @@ class DocumentConversionService {
       // Create styled HTML for better PDF output
       const styledHtml = this.createStyledHtml(html, "word");
 
-      // Launch Puppeteer with Render-compatible settings
-      // Try with production config first, fallback to simpler config for development
-      try {
-        browser = await puppeteer.launch(this.puppeteerConfig);
-      } catch (launchError) {
-        console.warn(
-          "Failed to launch with full config, trying simplified config:",
-          launchError.message,
-        );
-        browser = await puppeteer.launch({
-          headless: true,
-          args: ["--no-sandbox", "--disable-setuid-sandbox"],
-          timeout: 30000,
-        });
-      }
+      // Launch Puppeteer with robust error handling and multiple fallback strategies
+      browser = await this.launchPuppeteerWithFallbacks();
       const page = await browser.newPage();
 
       // Set page timeout and viewport
@@ -191,20 +266,8 @@ class DocumentConversionService {
       // Create styled HTML for Excel
       const styledHtml = this.createStyledHtml(html, "excel");
 
-      // Launch Puppeteer
-      try {
-        browser = await puppeteer.launch(this.puppeteerConfig);
-      } catch (launchError) {
-        console.warn(
-          "Failed to launch with full config, trying simplified config:",
-          launchError.message,
-        );
-        browser = await puppeteer.launch({
-          headless: true,
-          args: ["--no-sandbox", "--disable-setuid-sandbox"],
-          timeout: 30000,
-        });
-      }
+      // Launch Puppeteer with robust error handling
+      browser = await this.launchPuppeteerWithFallbacks();
       const page = await browser.newPage();
 
       // Set page timeout and viewport
@@ -265,19 +328,7 @@ class DocumentConversionService {
       // Create styled HTML for PowerPoint
       const styledHtml = this.createStyledHtml(pptContent.html, "powerpoint");
 
-      try {
-        browser = await puppeteer.launch(this.puppeteerConfig);
-      } catch (launchError) {
-        console.warn(
-          "Failed to launch with full config, trying simplified config:",
-          launchError.message,
-        );
-        browser = await puppeteer.launch({
-          headless: true,
-          args: ["--no-sandbox", "--disable-setuid-sandbox"],
-          timeout: 30000,
-        });
-      }
+      browser = await this.launchPuppeteerWithFallbacks();
       const page = await browser.newPage();
 
       // Set page timeout and viewport
