@@ -14,16 +14,13 @@ class DocumentConversionService {
       process.env.DOCKER_CONTAINER ||
       process.env.KUBERNETES_SERVICE_HOST;
 
-    // Get Chrome executable path from environment or use system default
-    const chromeExecutable =
-      process.env.PUPPETEER_EXECUTABLE_PATH ||
-      process.env.CHROME_BIN ||
-      "/usr/bin/google-chrome-stable";
+    // Find Chrome executable dynamically
+    const chromeExecutable = this.findChromeExecutable();
 
     this.puppeteerConfig = {
       headless: "new", // Use new headless mode
       timeout: 60000, // 60 seconds timeout
-      executablePath: isContainer ? chromeExecutable : undefined,
+      executablePath: chromeExecutable,
       args: [
         "--no-sandbox",
         "--disable-setuid-sandbox",
@@ -65,7 +62,7 @@ class DocumentConversionService {
     // Simplified config for fallback
     this.fallbackConfig = {
       headless: true,
-      executablePath: isContainer ? chromeExecutable : undefined,
+      executablePath: chromeExecutable,
       args: [
         "--no-sandbox",
         "--disable-setuid-sandbox",
@@ -84,15 +81,72 @@ class DocumentConversionService {
     }
   }
 
+  findChromeExecutable() {
+    const fs = require("fs");
+
+    // Check environment variables first
+    const envPaths = [
+      process.env.PUPPETEER_EXECUTABLE_PATH,
+      process.env.CHROME_BIN,
+      process.env.GOOGLE_CHROME_BIN,
+    ].filter(Boolean);
+
+    // Common Chrome installation paths
+    const commonPaths = [
+      "/usr/bin/google-chrome-stable",
+      "/usr/bin/google-chrome",
+      "/usr/bin/chromium-browser",
+      "/usr/bin/chromium",
+      "/opt/google/chrome/google-chrome",
+      "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+      "C:/Program Files/Google/Chrome/Application/chrome.exe",
+      "C:/Program Files (x86)/Google/Chrome/Application/chrome.exe",
+    ];
+
+    // Try environment paths first
+    for (const path of envPaths) {
+      if (fs.existsSync(path)) {
+        console.log(`✅ Found Chrome via environment: ${path}`);
+        return path;
+      }
+    }
+
+    // Try common paths
+    for (const path of commonPaths) {
+      if (fs.existsSync(path)) {
+        console.log(`✅ Found Chrome at: ${path}`);
+        return path;
+      }
+    }
+
+    console.log(
+      `⚠️ Chrome executable not found, will use Puppeteer's bundled Chromium`,
+    );
+    return null; // Let Puppeteer use its bundled Chromium
+  }
+
   async launchPuppeteerWithFallbacks() {
     const configs = [
       { name: "primary", config: this.puppeteerConfig },
       { name: "fallback", config: this.fallbackConfig },
       {
-        name: "minimal",
+        name: "minimal-with-chrome",
         config: {
           headless: true,
+          executablePath: this.findChromeExecutable(),
           args: ["--no-sandbox", "--disable-setuid-sandbox"],
+          timeout: 30000,
+        },
+      },
+      {
+        name: "puppeteer-bundled",
+        config: {
+          headless: true,
+          args: [
+            "--no-sandbox",
+            "--disable-setuid-sandbox",
+            "--disable-dev-shm-usage",
+          ],
           timeout: 30000,
         },
       },
@@ -101,21 +155,30 @@ class DocumentConversionService {
     for (const { name, config } of configs) {
       try {
         console.log(`🚀 Attempting to launch Puppeteer with ${name} config...`);
+
+        // Skip configs with invalid executablePath
+        if (
+          config.executablePath &&
+          !require("fs").existsSync(config.executablePath)
+        ) {
+          console.log(
+            `⏭️ Skipping ${name} - executable not found: ${config.executablePath}`,
+          );
+          continue;
+        }
+
         const browser = await puppeteer.launch(config);
         console.log(`✅ Puppeteer launched successfully with ${name} config`);
         return browser;
       } catch (error) {
         console.warn(`❌ Failed to launch with ${name} config:`, error.message);
 
-        if (name === "minimal") {
-          // Last resort - try to install Chrome if not found
-          if (error.message.includes("Could not find Chrome")) {
-            throw new Error(
-              `Chrome browser not found. Please ensure Chrome is installed in the deployment environment. ` +
-                `Error: ${error.message}`,
-            );
-          }
-          throw error;
+        if (name === "puppeteer-bundled") {
+          // This is the last resort - if this fails, we can't help
+          throw new Error(
+            `Unable to launch any browser configuration. Please check your deployment environment. ` +
+              `Last error: ${error.message}`,
+          );
         }
       }
     }

@@ -4625,12 +4625,70 @@ router.post(
       // Save uploaded file to temp location
       fs.writeFileSync(tempInputPath, file.buffer);
 
-      // Convert using the new service
-      const result = await documentConversionService.convertWordToPdf(
-        tempInputPath,
-        tempOutputPath,
-        { pageSize },
-      );
+      // Try Puppeteer conversion first, fallback to LibreOffice if it fails
+      let result;
+      let conversionEngine = "Puppeteer";
+
+      try {
+        result = await documentConversionService.convertWordToPdf(
+          tempInputPath,
+          tempOutputPath,
+          { pageSize },
+        );
+      } catch (puppeteerError) {
+        console.warn(
+          "🔄 Puppeteer failed, falling back to LibreOffice:",
+          puppeteerError.message,
+        );
+
+        // Fallback to LibreOffice conversion
+        try {
+          const { spawn } = require("child_process");
+          const path = require("path");
+
+          // LibreOffice conversion command
+          const libreOfficeResult = await new Promise((resolve, reject) => {
+            const process = spawn("libreoffice", [
+              "--headless",
+              "--convert-to",
+              "pdf",
+              "--outdir",
+              path.dirname(tempOutputPath),
+              tempInputPath,
+            ]);
+
+            let stderr = "";
+            process.stderr.on("data", (data) => {
+              stderr += data.toString();
+            });
+
+            process.on("close", (code) => {
+              if (code === 0) {
+                resolve({ success: true, pageCount: 1 });
+              } else {
+                reject(new Error(`LibreOffice conversion failed: ${stderr}`));
+              }
+            });
+
+            // Timeout after 30 seconds
+            setTimeout(() => {
+              process.kill();
+              reject(new Error("LibreOffice conversion timed out"));
+            }, 30000);
+          });
+
+          result = libreOfficeResult;
+          conversionEngine = "LibreOffice";
+        } catch (libreOfficeError) {
+          console.error(
+            "❌ Both Puppeteer and LibreOffice failed:",
+            libreOfficeError.message,
+          );
+          throw new Error(
+            `PDF conversion failed. Puppeteer error: ${puppeteerError.message}. LibreOffice error: ${libreOfficeError.message}`,
+          );
+        }
+      }
 
       // Read the generated PDF
       const pdfBuffer = fs.readFileSync(tempOutputPath);
@@ -4638,7 +4696,7 @@ router.post(
 
       const processingTime = Date.now() - startTime;
 
-      console.log(`✅ Puppeteer Word conversion successful:`);
+      console.log(`✅ ${conversionEngine} Word conversion successful:`);
       console.log(`   📄 Pages: ${pageCount}`);
       console.log(`   📦 Size: ${pdfBuffer.length} bytes`);
       console.log(`   ⏱️ Time: ${processingTime}ms`);
@@ -4680,7 +4738,7 @@ router.post(
       res.setHeader("X-Pages", pageCount);
       res.setHeader("X-File-Size", pdfBuffer.length);
       res.setHeader("X-Processing-Time", processingTime);
-      res.setHeader("X-Conversion-Engine", "Puppeteer");
+      res.setHeader("X-Conversion-Engine", conversionEngine);
       res.setHeader("X-Conversion-Quality", quality);
       res.setHeader("X-Page-Format", pageSize);
       res.setHeader("X-Original-Size", file.size);
