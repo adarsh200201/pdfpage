@@ -229,6 +229,7 @@ app.use("/api/users", require("./routes/users"));
 app.use("/api/payments", require("./routes/payments"));
 app.use("/api/usage", require("./routes/usage"));
 app.use("/api/pdf", require("./routes/pdf"));
+app.use("/api/ai-pdf", require("./routes/ai-pdf-tools"));
 app.use("/api/upload", require("./routes/upload"));
 app.use("/api/image", require("./routes/image"));
 app.use("/api/ocr", require("./routes/ocr"));

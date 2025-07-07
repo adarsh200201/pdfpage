@@ -16,10 +16,7 @@ class StatsService {
   private cache: StatsData | null = null;
   private lastFetch: number = 0;
   private readonly CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
-  private readonly API_BASE =
-    process.env.NODE_ENV === "production"
-      ? "https://pdfpage.onrender.com"
-      : "http://localhost:5000";
+  private readonly API_BASE = "https://pdfpage.onrender.com";
 
   async getStats(): Promise<StatsData> {
     // Return cached data if it's still fresh

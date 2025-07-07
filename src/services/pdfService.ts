@@ -5742,6 +5742,237 @@ ${text.replace(/\n/g, "\\par ").replace(/[{}\\]/g, "")}
       return [];
     }
   }
+
+  // AI-Powered PDF to PowerPoint conversion
+  static async convertPdfToPowerPoint(
+    file: File,
+    options: {
+      extractImages?: boolean;
+      detectLayouts?: boolean;
+      aiEnhancement?: boolean;
+      slideFormat?: string;
+      quality?: string;
+    } = {},
+  ): Promise<ArrayBuffer> {
+    try {
+      console.log(`🚀 AI PDF to PowerPoint conversion: ${file.name}`);
+
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("options", JSON.stringify(options));
+
+      const response = await fetch(
+        `${this.API_URL.replace("/pdf", "/ai-pdf")}/pdf-to-ppt`,
+        {
+          method: "POST",
+          body: formData,
+        },
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || `HTTP ${response.status}`);
+      }
+
+      return await response.arrayBuffer();
+    } catch (error: any) {
+      console.error("AI PDF to PowerPoint conversion failed:", error);
+      throw new Error(
+        `AI PDF to PowerPoint conversion failed: ${error.message || "Unknown error"}`,
+      );
+    }
+  }
+
+  // AI-Powered watermark addition
+  static async addWatermark(
+    file: File,
+    options: {
+      type: "text" | "image";
+      text?: string;
+      image?: File;
+      position?: string;
+      opacity?: number;
+      rotation?: number;
+      scale?: number;
+      color?: string;
+      fontFamily?: string;
+      fontSize?: number;
+      blendMode?: string;
+      repeatPattern?: boolean;
+      aiPlacement?: boolean;
+      protectionLevel?: string;
+    },
+  ): Promise<ArrayBuffer> {
+    try {
+      console.log(`🚀 AI Watermark addition: ${file.name}`);
+
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("options", JSON.stringify(options));
+
+      if (options.image) {
+        formData.append("watermarkImage", options.image);
+      }
+
+      const response = await fetch(
+        `${this.API_URL.replace("/pdf", "/ai-pdf")}/enhanced-watermark`,
+        {
+          method: "POST",
+          body: formData,
+        },
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || `HTTP ${response.status}`);
+      }
+
+      return await response.arrayBuffer();
+    } catch (error: any) {
+      console.error("AI Watermark addition failed:", error);
+      throw new Error(
+        `AI Watermark addition failed: ${error.message || "Unknown error"}`,
+      );
+    }
+  }
+
+  // AI-Enhanced PDF editing
+  static async enhancedPdfEdit(
+    file: File,
+    options: {
+      runOCR?: boolean;
+      aiEnhancement?: boolean;
+      edits?: Array<{
+        type: string;
+        pageIndex?: number;
+        x?: number;
+        y?: number;
+        text?: string;
+        fontSize?: number;
+        width?: number;
+        height?: number;
+      }>;
+    } = {},
+  ): Promise<{
+    editedPdf: ArrayBuffer;
+    ocrResults?: any;
+    aiFeatures: string[];
+  }> {
+    try {
+      console.log(`🚀 AI Enhanced PDF editing: ${file.name}`);
+
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("options", JSON.stringify(options));
+
+      const response = await fetch(
+        `${this.API_URL.replace("/pdf", "/ai-pdf")}/enhanced-edit`,
+        {
+          method: "POST",
+          body: formData,
+        },
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || `HTTP ${response.status}`);
+      }
+
+      // For now, return just the PDF buffer
+      // In production, you might want to return structured data
+      const editedPdf = await response.arrayBuffer();
+      const aiFeatures =
+        response.headers.get("X-AI-Features")?.split(",") || [];
+
+      return {
+        editedPdf,
+        aiFeatures,
+      };
+    } catch (error: any) {
+      console.error("AI Enhanced PDF editing failed:", error);
+      throw new Error(
+        `AI Enhanced PDF editing failed: ${error.message || "Unknown error"}`,
+      );
+    }
+  }
+
+  // AI-Powered PDF unlock
+  static async smartUnlockPdf(
+    file: File,
+    password?: string,
+    useAI: boolean = false,
+  ): Promise<ArrayBuffer> {
+    try {
+      console.log(`🚀 AI Smart PDF unlock: ${file.name}`);
+
+      const formData = new FormData();
+      formData.append("file", file);
+      if (password) formData.append("password", password);
+      formData.append("useAI", useAI.toString());
+
+      const response = await fetch(
+        `${this.API_URL.replace("/pdf", "/ai-pdf")}/smart-unlock`,
+        {
+          method: "POST",
+          body: formData,
+        },
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        if (errorData.needsPassword) {
+          throw new Error("Password required for this PDF");
+        }
+        throw new Error(errorData.message || `HTTP ${response.status}`);
+      }
+
+      return await response.arrayBuffer();
+    } catch (error: any) {
+      console.error("AI Smart PDF unlock failed:", error);
+      throw new Error(
+        `AI Smart PDF unlock failed: ${error.message || "Unknown error"}`,
+      );
+    }
+  }
+
+  // AI-Enhanced Excel to PDF
+  static async aiExcelToPdf(
+    file: File,
+    options: {
+      optimizeLayout?: boolean;
+      enhanceReadability?: boolean;
+      pageSize?: string;
+      orientation?: string;
+    } = {},
+  ): Promise<ArrayBuffer> {
+    try {
+      console.log(`🚀 AI Excel to PDF conversion: ${file.name}`);
+
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("options", JSON.stringify(options));
+
+      const response = await fetch(
+        `${this.API_URL.replace("/pdf", "/ai-pdf")}/excel-to-pdf-ai`,
+        {
+          method: "POST",
+          body: formData,
+        },
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || `HTTP ${response.status}`);
+      }
+
+      return await response.arrayBuffer();
+    } catch (error: any) {
+      console.error("AI Excel to PDF conversion failed:", error);
+      throw new Error(
+        `AI Excel to PDF conversion failed: ${error.message || "Unknown error"}`,
+      );
+    }
+  }
 }
 
 export default PDFService;

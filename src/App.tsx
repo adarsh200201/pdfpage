@@ -17,6 +17,9 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import EnhancedEditPdf from "./pages/EnhancedEditPdf";
 import RealtimeEditor from "./pages/RealtimeEditor";
 import PaymentTestPage from "./pages/PaymentTestPage";
+import EnhancedPdfToPpt from "./pages/EnhancedPdfToPpt";
+import EnhancedPdfEditor from "./pages/EnhancedPdfEditor";
+import EnhancedWatermark from "./pages/EnhancedWatermark";
 import { LanguageProvider } from "@/contexts/LanguageContext";
 import { FloatingPopupProvider } from "@/contexts/FloatingPopupContext";
 import { MixpanelProvider } from "@/contexts/MixpanelContext";
@@ -275,6 +278,20 @@ const App = () => {
                       />
                       <Route path="/excel-to-pdf" element={<ExcelToPdf />} />
                       <Route path="/html-to-pdf" element={<HtmlToPdf />} />
+
+                      {/* AI-Powered Tools - ENHANCED FEATURES */}
+                      <Route
+                        path="/ai-pdf-to-ppt"
+                        element={<EnhancedPdfToPpt />}
+                      />
+                      <Route
+                        path="/ai-pdf-editor"
+                        element={<EnhancedPdfEditor />}
+                      />
+                      <Route
+                        path="/ai-watermark"
+                        element={<EnhancedWatermark />}
+                      />
 
                       {/* LibreOffice Tools */}
                       <Route

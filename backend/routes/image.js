@@ -6,6 +6,12 @@ const { auth, optionalAuth } = require("../middleware/auth");
 const { uploadImage, handleMulterError } = require("../config/multer");
 const router = express.Router();
 
+// Import AI background removal routes
+const aiBackgroundRoutes = require("./ai-background-removal");
+
+// Mount AI background removal routes
+router.use(aiBackgroundRoutes);
+
 // Use the shared multer configuration for image uploads
 const upload = uploadImage;
 

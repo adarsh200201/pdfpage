@@ -903,7 +903,72 @@ export class ImageService {
   } | null> {
     const startTime = Date.now();
 
-    // Try multiple API services in order of preference
+    // First try our AI-powered backend with U²-Net model
+    try {
+      console.log("🧠 Using AI U²-Net model for background removal...");
+      onProgress?.(15);
+
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append(
+        "options",
+        JSON.stringify({
+          ...options,
+          model: options.model || "general",
+          precision: options.precision || "precise",
+          edgeSmoothing: options.edgeSmoothing || 3,
+          outputFormat: options.outputFormat || "png",
+        }),
+      );
+
+      const response = await fetch(`${this.getBaseURL()}/image/remove-bg-ai`, {
+        method: "POST",
+        body: formData,
+      });
+
+      if (response.ok) {
+        onProgress?.(80);
+        const blob = await response.blob();
+        const processingTime = Date.now() - startTime;
+
+        // Extract metadata from response headers
+        const confidence = parseFloat(
+          response.headers.get("X-AI-Confidence") || "0.95",
+        );
+        const edgeQuality = parseFloat(
+          response.headers.get("X-Edge-Quality") || "0.9",
+        );
+        const modelUsed =
+          response.headers.get("X-Model-Used") || options.model || "u2net";
+
+        onProgress?.(100);
+
+        const resultFile = new File(
+          [blob],
+          file.name.replace(/\.[^/.]+$/, `.${options.outputFormat || "png"}`),
+          { type: `image/${options.outputFormat || "png"}` },
+        );
+
+        return {
+          file: resultFile,
+          blob,
+          metadata: {
+            model: modelUsed,
+            processingTime,
+            confidence,
+            edgeQuality,
+            originalSize: file.size,
+            resultSize: blob.size,
+            engine: "U²-Net AI",
+            precision: options.precision || "precise",
+          },
+        };
+      }
+    } catch (error) {
+      console.warn("AI backend failed, trying external APIs:", error);
+    }
+
+    // Fallback to external API services
     const services = [
       { name: "removebg", apiKey: import.meta.env.VITE_REMOVEBG_API_KEY },
       { name: "photroom", apiKey: import.meta.env.VITE_PHOTROOM_API_KEY },
