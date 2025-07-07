@@ -1486,7 +1486,7 @@ ${text.replace(/\n/g, "\\par ").replace(/[{}\\]/g, "")}
       const endpoint =
         conversionMethod === "advanced"
           ? "/pdf/word-to-pdf-advanced"
-          : "/pdf/word-to-pdf-libreoffice";
+          : "/pdf/word-to-pdf";
 
       console.log(`🌐 Making API request to: ${this.API_URL}${endpoint}`);
 
@@ -4831,7 +4831,7 @@ ${text.replace(/\n/g, "\\par ").replace(/[{}\\]/g, "")}
 
       let response;
       try {
-        response = await fetch(`${this.API_URL}/pdf/excel-to-pdf-libreoffice`, {
+        response = await fetch(`${this.API_URL}/pdf/excel-to-pdf`, {
           method: "POST",
           body: formData,
           signal: controller.signal,
@@ -4924,14 +4924,11 @@ ${text.replace(/\n/g, "\\par ").replace(/[{}\\]/g, "")}
 
       let response;
       try {
-        response = await fetch(
-          `${this.API_URL}/pdf/powerpoint-to-pdf-libreoffice`,
-          {
-            method: "POST",
-            body: formData,
-            signal: controller.signal,
-          },
-        );
+        response = await fetch(`${this.API_URL}/pdf/powerpoint-to-pdf`, {
+          method: "POST",
+          body: formData,
+          signal: controller.signal,
+        });
         clearTimeout(timeoutId);
       } catch (error) {
         clearTimeout(timeoutId);

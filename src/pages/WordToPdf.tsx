@@ -56,7 +56,7 @@ const WordToPdf = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [conversionSettings, setConversionSettings] = useState({
-    conversionMethod: "libreoffice" as "advanced" | "libreoffice",
+    conversionMethod: "puppeteer" as "advanced" | "puppeteer",
     preserveFormatting: true,
     includeMetadata: true,
   });
@@ -242,7 +242,7 @@ const WordToPdf = () => {
 
           toast({
             title: "Conversion Complete!",
-            description: `${fileStatus.file.name} converted successfully using ${conversionSettings.conversionMethod === "advanced" ? "Advanced PDF Generator" : "LibreOffice"}.`,
+            description: `${fileStatus.file.name} converted successfully using ${conversionSettings.conversionMethod === "advanced" ? "Advanced PDF Generator" : "Puppeteer + Mammoth"}.`,
           });
         } catch (error) {
           console.error(`Error converting ${fileStatus.file.name}:`, error);
@@ -252,12 +252,12 @@ const WordToPdf = () => {
             error instanceof Error ? error.message : "Conversion failed";
 
           if (
-            conversionSettings.conversionMethod === "libreoffice" &&
-            (errorMessage.includes("LibreOffice") ||
+            conversionSettings.conversionMethod === "puppeteer" &&
+            (errorMessage.includes("Puppeteer") ||
               errorMessage.includes("not available"))
           ) {
             errorMessage =
-              "LibreOffice service is currently unavailable on the server. Please try again later or contact support if the issue persists.";
+              "Puppeteer conversion service is currently unavailable. Please try again later or contact support if the issue persists.";
           }
 
           setFiles((prev) =>
@@ -329,8 +329,8 @@ const WordToPdf = () => {
           </div>
           <p className="text-xl text-gray-600 max-w-2xl mx-auto">
             Convert Word documents to high-quality PDF files. Preserve
-            formatting, layout, images, and fonts with LibreOffice-powered
-            conversion.
+            formatting, layout, images, and fonts with Puppeteer + Mammoth
+            powered conversion.
           </p>
         </div>
 
@@ -345,7 +345,7 @@ const WordToPdf = () => {
                   </div>
                   <div>
                     <p className="font-semibold text-red-900">
-                      LibreOffice Powered
+                      Puppeteer + Mammoth Powered
                     </p>
                     <p className="text-sm text-red-700">
                       Professional conversion engine
@@ -429,7 +429,7 @@ const WordToPdf = () => {
                     <Label htmlFor="conversionMethod">Conversion Method</Label>
                     <Select
                       value={conversionSettings.conversionMethod}
-                      onValueChange={(value: "advanced" | "libreoffice") =>
+                      onValueChange={(value: "advanced" | "puppeteer") =>
                         setConversionSettings({
                           ...conversionSettings,
                           conversionMethod: value,
@@ -440,8 +440,8 @@ const WordToPdf = () => {
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="libreoffice">
-                          LibreOffice (Recommended)
+                        <SelectItem value="puppeteer">
+                          Puppeteer + Mammoth (Recommended)
                         </SelectItem>
                         <SelectItem value="advanced">
                           Advanced Engine
@@ -449,8 +449,8 @@ const WordToPdf = () => {
                       </SelectContent>
                     </Select>
                     <p className="text-xs text-gray-500 mt-1">
-                      {conversionSettings.conversionMethod === "libreoffice"
-                        ? "Professional-grade conversion using LibreOffice engine"
+                      {conversionSettings.conversionMethod === "puppeteer"
+                        ? "High-quality conversion using Puppeteer + Mammoth engine"
                         : "Direct conversion using advanced PDF engine"}
                     </p>
                   </div>
@@ -575,7 +575,7 @@ const WordToPdf = () => {
                                   {fileStatus.result.conversionMethod ===
                                   "advanced"
                                     ? "Advanced Engine"
-                                    : "LibreOffice"}
+                                    : "Puppeteer + Mammoth"}
                                 </span>
                               </div>
                               <div>
@@ -661,7 +661,9 @@ const WordToPdf = () => {
               <CardContent>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
-                    <h3 className="font-semibold mb-2">LibreOffice Engine:</h3>
+                    <h3 className="font-semibold mb-2">
+                      Puppeteer + Mammoth Engine:
+                    </h3>
                     <ul className="space-y-2 text-sm">
                       <li>• Professional-grade conversion accuracy</li>
                       <li>• Preserves complex formatting and layout</li>

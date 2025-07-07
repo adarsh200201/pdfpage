@@ -360,10 +360,37 @@ process.on("SIGTERM", async () => {
 });
 
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
-  logger.info(`Server running on port ${PORT}`, {
-    port: PORT,
-    environment: process.env.NODE_ENV,
-    frontendUrl: process.env.FRONTEND_URL,
+
+// Handle port conflicts gracefully
+function startServer(port) {
+  const server = app.listen(port, () => {
+    logger.info(`Server running on port ${port}`, {
+      port: port,
+      environment: process.env.NODE_ENV,
+      frontendUrl: process.env.FRONTEND_URL,
+    });
   });
-});
+
+  server.on("error", (err) => {
+    if (err.code === "EADDRINUSE") {
+      console.log(`❌ Port ${port} is already in use`);
+      console.log(`🔄 Attempting to kill existing process...`);
+
+      // Try to restart nodemon to kill the previous instance
+      if (process.env.NODE_ENV === "development") {
+        console.log(`🔄 Nodemon will restart automatically...`);
+        process.exit(1); // Let nodemon handle the restart
+      } else {
+        console.log(`❌ Cannot start server - port ${port} is occupied`);
+        process.exit(1);
+      }
+    } else {
+      console.error("❌ Server startup error:", err);
+      process.exit(1);
+    }
+  });
+
+  return server;
+}
+
+startServer(PORT);

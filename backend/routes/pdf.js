@@ -10,6 +10,9 @@ const { body, validationResult } = require("express-validator");
 const advancedCompressionService = require("../services/advancedCompressionService");
 const professionalCompressionService = require("../services/professionalCompressionService");
 
+// Import document conversion service
+const documentConversionService = require("../services/documentConversionService");
+
 // Import models and middleware
 const Usage = require("../models/Usage");
 const { auth, optionalAuth, checkUsageLimit } = require("../middleware/auth");
@@ -3788,7 +3791,7 @@ router.post(
               return `\n${listCounter++}. ${cleanContent}`;
             },
           );
-          return `\n【NUMBERED_LIST】${numberedItems}\n【/NUMBERED_LIST����\n`;
+          return `\n【NUMBERED_LIST��${numberedItems}\n【/NUMBERED_LIST����\n`;
         },
       );
 
@@ -4531,6 +4534,206 @@ router.post(
   },
 );
 
+// @route   POST /api/pdf/word-to-pdf
+// @desc    Convert Word to PDF using Puppeteer and Mammoth (Render-compatible)
+// @access  Public (with optional auth and usage limits)
+router.post(
+  "/word-to-pdf",
+  optionalAuth,
+  checkUsageLimit,
+  uploadWord.single("file"),
+  async (req, res) => {
+    const startTime = Date.now();
+    let tempInputPath = null;
+    let tempOutputPath = null;
+
+    try {
+      const file = req.file;
+      let options = {};
+
+      // Parse conversion options
+      try {
+        if (req.body.options) {
+          options = JSON.parse(req.body.options);
+        }
+      } catch (e) {
+        console.warn("Failed to parse options, using defaults");
+      }
+
+      const { pageSize = "A4", quality = "high" } = options;
+
+      if (!file) {
+        return res.status(400).json({
+          success: false,
+          message: "Word document is required",
+        });
+      }
+
+      // Validate file type
+      const allowedTypes = [
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        "application/msword",
+      ];
+
+      const isValidType =
+        allowedTypes.includes(file.mimetype) ||
+        file.originalname.toLowerCase().endsWith(".docx") ||
+        file.originalname.toLowerCase().endsWith(".doc") ||
+        file.originalname.toLowerCase().endsWith(".dotx") ||
+        file.originalname.toLowerCase().endsWith(".dot");
+
+      if (!isValidType) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Only Word documents (.doc, .docx, .dot, .dotx) are supported",
+        });
+      }
+
+      // Check file size (25MB limit for Puppeteer processing)
+      if (file.size > 25 * 1024 * 1024) {
+        return res.status(400).json({
+          success: false,
+          message: "File size exceeds 25MB limit",
+        });
+      }
+
+      console.log(`🚀 Puppeteer Word to PDF conversion: ${file.originalname}`);
+      console.log(`📊 Options:`, {
+        pageSize,
+        quality,
+      });
+
+      const fs = require("fs");
+      const path = require("path");
+
+      // Create temporary directories
+      const tempDir = path.join(__dirname, "..", "temp");
+      if (!fs.existsSync(tempDir)) {
+        fs.mkdirSync(tempDir, { recursive: true });
+      }
+
+      // Generate unique filenames
+      const timestamp = Date.now();
+      const randomSuffix = Math.random().toString(36).substring(2, 9);
+      const inputFileName = `word_${timestamp}_${randomSuffix}.docx`;
+      const outputFileName = `word_${timestamp}_${randomSuffix}.pdf`;
+
+      tempInputPath = path.join(tempDir, inputFileName);
+      tempOutputPath = path.join(tempDir, outputFileName);
+
+      // Save uploaded file to temp location
+      fs.writeFileSync(tempInputPath, file.buffer);
+
+      // Convert using the new service
+      const result = await documentConversionService.convertWordToPdf(
+        tempInputPath,
+        tempOutputPath,
+        { pageSize },
+      );
+
+      // Read the generated PDF
+      const pdfBuffer = fs.readFileSync(tempOutputPath);
+      const pageCount = result.pageCount;
+
+      const processingTime = Date.now() - startTime;
+
+      console.log(`✅ Puppeteer Word conversion successful:`);
+      console.log(`   📄 Pages: ${pageCount}`);
+      console.log(`   📦 Size: ${pdfBuffer.length} bytes`);
+      console.log(`   ⏱️ Time: ${processingTime}ms`);
+
+      // Track usage
+      try {
+        await Usage.trackOperation({
+          userId: req.user ? req.user._id : null,
+          sessionId: req.body.sessionId || null,
+          toolUsed: "word-to-pdf",
+          fileCount: 1,
+          totalFileSize: file.size,
+          processingTime,
+          userAgent: req.headers["user-agent"],
+          ipAddress: getRealIPAddress(req),
+          success: true,
+        });
+
+        if (req.user && !req.user.isPremiumActive) {
+          req.user.incrementUpload(file.size);
+          await req.user.save();
+        }
+      } catch (error) {
+        console.error("Error tracking usage:", error);
+      }
+
+      // Generate professional filename
+      const originalName = file.originalname.replace(/\.(docx?|dotx?)/i, "");
+      const timestamp_formatted = new Date().toISOString().slice(0, 10);
+      const filename = `${originalName}_converted_${timestamp_formatted}.pdf`;
+
+      // Send the PDF with enhanced headers
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader(
+        "Content-Disposition",
+        `attachment; filename="${filename}"`,
+      );
+      res.setHeader("Content-Length", pdfBuffer.length);
+      res.setHeader("X-Pages", pageCount);
+      res.setHeader("X-File-Size", pdfBuffer.length);
+      res.setHeader("X-Processing-Time", processingTime);
+      res.setHeader("X-Conversion-Engine", "Puppeteer");
+      res.setHeader("X-Conversion-Quality", quality);
+      res.setHeader("X-Page-Format", pageSize);
+      res.setHeader("X-Original-Size", file.size);
+      res.setHeader(
+        "X-Compression-Ratio",
+        Math.max(0, ((file.size - pdfBuffer.length) / file.size) * 100).toFixed(
+          1,
+        ),
+      );
+
+      res.send(pdfBuffer);
+    } catch (error) {
+      console.error("❌ Puppeteer Word to PDF conversion error:", error);
+
+      // Track error
+      try {
+        await Usage.trackOperation({
+          userId: req.user ? req.user._id : null,
+          sessionId: req.body.sessionId || null,
+          toolUsed: "word-to-pdf",
+          fileCount: 1,
+          totalFileSize: req.file ? req.file.size : 0,
+          processingTime: Date.now() - startTime,
+          userAgent: req.headers["user-agent"],
+          ipAddress: getRealIPAddress(req),
+          success: false,
+          errorMessage: error.message,
+        });
+      } catch (trackError) {
+        console.error("Error tracking failed operation:", trackError);
+      }
+
+      res.status(500).json({
+        success: false,
+        message: error.message || "Word to PDF conversion failed",
+        error: process.env.NODE_ENV === "development" ? error.stack : undefined,
+      });
+    } finally {
+      // Cleanup temporary files
+      try {
+        if (tempInputPath && fs.existsSync(tempInputPath)) {
+          fs.unlinkSync(tempInputPath);
+        }
+        if (tempOutputPath && fs.existsSync(tempOutputPath)) {
+          fs.unlinkSync(tempOutputPath);
+        }
+      } catch (cleanupError) {
+        console.error("Error cleaning up temporary files:", cleanupError);
+      }
+    }
+  },
+);
+
 // @route   POST /api/pdf/excel-to-pdf-libreoffice
 // @desc    Convert Excel to PDF using LibreOffice headless mode
 // @access  Public (with optional auth and usage limits)
@@ -4736,6 +4939,205 @@ router.post(
               fs.unlinkSync(filePath);
             }
           });
+        }
+      } catch (cleanupError) {
+        console.error("Error cleaning up temporary files:", cleanupError);
+      }
+    }
+  },
+);
+
+// @route   POST /api/pdf/excel-to-pdf
+// @desc    Convert Excel to PDF using Puppeteer and ExcelJS (Render-compatible)
+// @access  Public (with optional auth and usage limits)
+router.post(
+  "/excel-to-pdf",
+  optionalAuth,
+  ...ipUsageLimitChain,
+  trackToolUsage("excel-to-pdf"),
+  checkUsageLimit,
+  uploadOffice.single("file"),
+  async (req, res) => {
+    const startTime = Date.now();
+    let tempInputPath = null;
+    let tempOutputPath = null;
+
+    try {
+      if (!req.file) {
+        return res.status(400).json({
+          success: false,
+          message: "No Excel file uploaded",
+        });
+      }
+
+      const file = req.file;
+      let options = {};
+
+      // Parse conversion options
+      try {
+        if (req.body.options) {
+          options = JSON.parse(req.body.options);
+        }
+      } catch (e) {
+        console.warn("Failed to parse options, using defaults");
+      }
+
+      const {
+        pageSize = "A4",
+        orientation = "portrait",
+        quality = "high",
+      } = options;
+
+      // Validate file type
+      const allowedTypes = [
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        "application/vnd.ms-excel",
+        "application/vnd.ms-excel.sheet.macroEnabled.12",
+      ];
+
+      const isValidType =
+        allowedTypes.includes(file.mimetype) ||
+        file.originalname.toLowerCase().endsWith(".xlsx") ||
+        file.originalname.toLowerCase().endsWith(".xls");
+
+      if (!isValidType) {
+        return res.status(400).json({
+          success: false,
+          message: "Only Excel files (.xlsx, .xls) are supported",
+        });
+      }
+
+      // Check file size (25MB limit for Puppeteer processing)
+      if (file.size > 25 * 1024 * 1024) {
+        return res.status(400).json({
+          success: false,
+          message: "File size exceeds 25MB limit",
+        });
+      }
+
+      console.log(`🚀 Puppeteer Excel to PDF conversion: ${file.originalname}`);
+      console.log(`📊 Options:`, {
+        pageSize,
+        orientation,
+        quality,
+      });
+
+      const fs = require("fs");
+      const path = require("path");
+
+      // Create temporary directories
+      const tempDir = path.join(__dirname, "..", "temp");
+      if (!fs.existsSync(tempDir)) {
+        fs.mkdirSync(tempDir, { recursive: true });
+      }
+
+      // Generate unique filenames
+      const timestamp = Date.now();
+      const randomSuffix = Math.random().toString(36).substring(2, 9);
+      const inputFileName = `excel_${timestamp}_${randomSuffix}.xlsx`;
+      const outputFileName = `excel_${timestamp}_${randomSuffix}.pdf`;
+
+      tempInputPath = path.join(tempDir, inputFileName);
+      tempOutputPath = path.join(tempDir, outputFileName);
+
+      // Save uploaded file to temp location
+      fs.writeFileSync(tempInputPath, file.buffer);
+
+      // Convert using the new service
+      const result = await documentConversionService.convertExcelToPdf(
+        tempInputPath,
+        tempOutputPath,
+        { pageSize, orientation },
+      );
+
+      // Read the generated PDF
+      const pdfBuffer = fs.readFileSync(tempOutputPath);
+      const pageCount = result.pageCount;
+
+      const processingTime = Date.now() - startTime;
+
+      console.log(`✅ Puppeteer Excel conversion successful:`);
+      console.log(`   📄 Pages: ${pageCount}`);
+      console.log(`   📦 Size: ${pdfBuffer.length} bytes`);
+      console.log(`   ⏱️ Time: ${processingTime}ms`);
+
+      // Track usage
+      try {
+        await Usage.trackOperation({
+          userId: req.user ? req.user._id : null,
+          sessionId: req.body.sessionId || null,
+          toolUsed: "excel-to-pdf",
+          fileCount: 1,
+          totalFileSize: file.size,
+          processingTime,
+          userAgent: req.headers["user-agent"],
+          ipAddress: getRealIPAddress(req),
+          success: true,
+        });
+
+        if (req.user && !req.user.isPremiumActive) {
+          req.user.incrementUpload(file.size);
+          await req.user.save();
+        }
+      } catch (error) {
+        console.error("Error tracking usage:", error);
+      }
+
+      // Generate professional filename
+      const originalName = file.originalname.replace(/\.(xlsx?|xls)/i, "");
+      const timestamp_formatted = new Date().toISOString().slice(0, 10);
+      const filename = `${originalName}_converted_${timestamp_formatted}.pdf`;
+
+      // Send the PDF with enhanced headers
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader(
+        "Content-Disposition",
+        `attachment; filename="${filename}"`,
+      );
+      res.setHeader("Content-Length", pdfBuffer.length);
+      res.setHeader("X-Pages", pageCount);
+      res.setHeader("X-File-Size", pdfBuffer.length);
+      res.setHeader("X-Processing-Time", processingTime.toString());
+      res.setHeader("X-Conversion-Engine", "Puppeteer");
+      res.setHeader("X-Conversion-Quality", quality);
+      res.setHeader("X-Page-Format", pageSize);
+      res.setHeader("X-Original-Size", file.size);
+
+      res.send(pdfBuffer);
+    } catch (error) {
+      console.error("❌ Puppeteer Excel to PDF conversion error:", error);
+
+      // Track error
+      try {
+        await Usage.trackOperation({
+          userId: req.user ? req.user._id : null,
+          sessionId: req.body.sessionId || null,
+          toolUsed: "excel-to-pdf",
+          fileCount: 1,
+          totalFileSize: req.file ? req.file.size : 0,
+          processingTime: Date.now() - startTime,
+          userAgent: req.headers["user-agent"],
+          ipAddress: getRealIPAddress(req),
+          success: false,
+          errorMessage: error.message,
+        });
+      } catch (trackError) {
+        console.error("Error tracking failed operation:", trackError);
+      }
+
+      res.status(500).json({
+        success: false,
+        message: error.message || "Excel to PDF conversion failed",
+        error: process.env.NODE_ENV === "development" ? error.stack : undefined,
+      });
+    } finally {
+      // Cleanup temporary files
+      try {
+        if (tempInputPath && fs.existsSync(tempInputPath)) {
+          fs.unlinkSync(tempInputPath);
+        }
+        if (tempOutputPath && fs.existsSync(tempOutputPath)) {
+          fs.unlinkSync(tempOutputPath);
         }
       } catch (cleanupError) {
         console.error("Error cleaning up temporary files:", cleanupError);
@@ -4952,6 +5354,206 @@ router.post(
               fs.unlinkSync(filePath);
             }
           });
+        }
+      } catch (cleanupError) {
+        console.error("Error cleaning up temporary files:", cleanupError);
+      }
+    }
+  },
+);
+
+// @route   POST /api/pdf/powerpoint-to-pdf
+// @desc    Convert PowerPoint to PDF using Puppeteer (Render-compatible)
+// @access  Public (with optional auth and usage limits)
+router.post(
+  "/powerpoint-to-pdf",
+  optionalAuth,
+  ...ipUsageLimitChain,
+  trackToolUsage("powerpoint-to-pdf"),
+  checkUsageLimit,
+  uploadOffice.single("file"),
+  async (req, res) => {
+    const startTime = Date.now();
+    let tempInputPath = null;
+    let tempOutputPath = null;
+
+    try {
+      if (!req.file) {
+        return res.status(400).json({
+          success: false,
+          message: "No PowerPoint file uploaded",
+        });
+      }
+
+      const file = req.file;
+      let options = {};
+
+      // Parse conversion options
+      try {
+        if (req.body.options) {
+          options = JSON.parse(req.body.options);
+        }
+      } catch (e) {
+        console.warn("Failed to parse options, using defaults");
+      }
+
+      const {
+        pageSize = "A4",
+        orientation = "landscape",
+        quality = "high",
+      } = options;
+
+      // Validate file type
+      const allowedTypes = [
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+        "application/vnd.ms-powerpoint",
+      ];
+
+      const isValidType =
+        allowedTypes.includes(file.mimetype) ||
+        file.originalname.toLowerCase().endsWith(".pptx") ||
+        file.originalname.toLowerCase().endsWith(".ppt");
+
+      if (!isValidType) {
+        return res.status(400).json({
+          success: false,
+          message: "Only PowerPoint files (.pptx, .ppt) are supported",
+        });
+      }
+
+      // Check file size (25MB limit for Puppeteer processing)
+      if (file.size > 25 * 1024 * 1024) {
+        return res.status(400).json({
+          success: false,
+          message: "File size exceeds 25MB limit",
+        });
+      }
+
+      console.log(
+        `🚀 Puppeteer PowerPoint to PDF conversion: ${file.originalname}`,
+      );
+      console.log(`📊 Options:`, {
+        pageSize,
+        orientation,
+        quality,
+      });
+
+      const fs = require("fs");
+      const path = require("path");
+
+      // Create temporary directories
+      const tempDir = path.join(__dirname, "..", "temp");
+      if (!fs.existsSync(tempDir)) {
+        fs.mkdirSync(tempDir, { recursive: true });
+      }
+
+      // Generate unique filenames
+      const timestamp = Date.now();
+      const randomSuffix = Math.random().toString(36).substring(2, 9);
+      const inputFileName = `ppt_${timestamp}_${randomSuffix}.pptx`;
+      const outputFileName = `ppt_${timestamp}_${randomSuffix}.pdf`;
+
+      tempInputPath = path.join(tempDir, inputFileName);
+      tempOutputPath = path.join(tempDir, outputFileName);
+
+      // Save uploaded file to temp location
+      fs.writeFileSync(tempInputPath, file.buffer);
+
+      // Convert using the new service
+      const result = await documentConversionService.convertPowerpointToPdf(
+        tempInputPath,
+        tempOutputPath,
+        { pageSize, orientation },
+      );
+
+      // Read the generated PDF
+      const pdfBuffer = fs.readFileSync(tempOutputPath);
+      const pageCount = result.pageCount;
+
+      const processingTime = Date.now() - startTime;
+
+      console.log(`✅ Puppeteer PowerPoint conversion successful:`);
+      console.log(`   📄 Pages: ${pageCount}`);
+      console.log(`   📦 Size: ${pdfBuffer.length} bytes`);
+      console.log(`   ⏱️ Time: ${processingTime}ms`);
+
+      // Track usage
+      try {
+        await Usage.trackOperation({
+          userId: req.user ? req.user._id : null,
+          sessionId: req.body.sessionId || null,
+          toolUsed: "powerpoint-to-pdf",
+          fileCount: 1,
+          totalFileSize: file.size,
+          processingTime,
+          userAgent: req.headers["user-agent"],
+          ipAddress: getRealIPAddress(req),
+          success: true,
+        });
+
+        if (req.user && !req.user.isPremiumActive) {
+          req.user.incrementUpload(file.size);
+          await req.user.save();
+        }
+      } catch (error) {
+        console.error("Error tracking usage:", error);
+      }
+
+      // Generate professional filename
+      const originalName = file.originalname.replace(/\.(pptx?|ppt)/i, "");
+      const timestamp_formatted = new Date().toISOString().slice(0, 10);
+      const filename = `${originalName}_converted_${timestamp_formatted}.pdf`;
+
+      // Send the PDF with enhanced headers
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader(
+        "Content-Disposition",
+        `attachment; filename="${filename}"`,
+      );
+      res.setHeader("Content-Length", pdfBuffer.length);
+      res.setHeader("X-Pages", pageCount);
+      res.setHeader("X-File-Size", pdfBuffer.length);
+      res.setHeader("X-Processing-Time", processingTime.toString());
+      res.setHeader("X-Conversion-Engine", "Puppeteer");
+      res.setHeader("X-Conversion-Quality", quality);
+      res.setHeader("X-Page-Format", pageSize);
+      res.setHeader("X-Original-Size", file.size);
+
+      res.send(pdfBuffer);
+    } catch (error) {
+      console.error("❌ Puppeteer PowerPoint to PDF conversion error:", error);
+
+      // Track error
+      try {
+        await Usage.trackOperation({
+          userId: req.user ? req.user._id : null,
+          sessionId: req.body.sessionId || null,
+          toolUsed: "powerpoint-to-pdf",
+          fileCount: 1,
+          totalFileSize: req.file ? req.file.size : 0,
+          processingTime: Date.now() - startTime,
+          userAgent: req.headers["user-agent"],
+          ipAddress: getRealIPAddress(req),
+          success: false,
+          errorMessage: error.message,
+        });
+      } catch (trackError) {
+        console.error("Error tracking failed operation:", trackError);
+      }
+
+      res.status(500).json({
+        success: false,
+        message: error.message || "PowerPoint to PDF conversion failed",
+        error: process.env.NODE_ENV === "development" ? error.stack : undefined,
+      });
+    } finally {
+      // Cleanup temporary files
+      try {
+        if (tempInputPath && fs.existsSync(tempInputPath)) {
+          fs.unlinkSync(tempInputPath);
+        }
+        if (tempOutputPath && fs.existsSync(tempOutputPath)) {
+          fs.unlinkSync(tempOutputPath);
         }
       } catch (cleanupError) {
         console.error("Error cleaning up temporary files:", cleanupError);
