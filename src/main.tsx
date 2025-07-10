@@ -1,34 +1,13 @@
 // IMMEDIATE protection against Google Translate and cross-origin interference
 if (
-  typeof window !== 'undefined" && typeof import !== "undefined' &&
+  typeof window !== "undefined' && typeof import !== 'undefined" &&
   import.meta?.env?.DEV
 ) {
   // Store the original fetch to prevent recursive calls
   const originalFetch = window.fetch.bind(window);
 
-  // Enhanced fetch protection that properly handles Google Translate
-  window.fetch = function (...args) {
-    try {
-      // Check if this is a Google Translate request
-      const url = args[0];
-      if (
-        typeof url === "string" &&
-        (url.includes("translate.googleapis.com") ||
-          url.includes("translate.google.com") ||
-          url.includes("translate_http"))
-      ) {
-        // Let Google Translate use the original fetch without any interference
-        return originalFetch(...args);
-      }
-
-      // For all other requests, use protected fetch
-      return originalFetch(...args);
-    } catch (error) {
-      console.warn("Fetch protection error:", error);
-      // Always fallback to original fetch to prevent breaking functionality
-      return originalFetch(...args);
-    }
-  };
+  // Removed fetch wrapper to prevent API interference
+  console.log("🔧 Fetch wrapper disabled for API compatibility");
   // Intercept ALL property access on window to prevent SecurityError
   const originalWindow = window;
   const safeFrameHandler = {
@@ -112,12 +91,6 @@ if (
     (window as any).parent = window;
   }
 }
-
-import { createRoot } from "react-dom/client";
-import App from "./App.tsx";
-import "./index.css";
-import "./lib/pdf-config"; // Configure PDF.js before any components load
-// PDF version test removed - version mismatch resolved
 
 // Performance optimization to reduce violations
 const optimizePerformance = () => {
@@ -322,6 +295,16 @@ if (import.meta.env.DEV) {
 // Fix FullStory namespace conflict
 if (typeof window !== "undefined") {
   window["_fs_namespace"] = "FS";
+}
+
+import { createRoot } from "react-dom/client";
+import App from "./App.tsx";
+import "./index.css";
+import "./lib/pdf-config"; // Configure PDF.js before any components load
+
+// Import debug utilities in development
+if (import.meta.env.DEV) {
+  import("./utils/debug-stats");
 }
 
 createRoot(document.getElementById("root")!).render(<App />);

@@ -1,0 +1,51 @@
+# ✅ Base image with Node.js and Debian
+FROM node:18-bullseye
+
+# ✅ Install all required tools
+RUN apt-get update && apt-get install -y \
+    # PDF tools
+    ghostscript poppler-utils qpdf pdftk mupdf-tools \
+    libreoffice libreoffice-writer libreoffice-calc libreoffice-impress \
+    unoconv pandoc wkhtmltopdf \
+    # OCR
+    tesseract-ocr tesseract-ocr-all gocr \
+    # Fonts and rendering
+    libgl1-mesa-glx libxi6 libxrender1 libxext6 libsm6 \
+    fonts-dejavu fonts-liberation fonts-noto fonts-roboto \
+    # Node build tools
+    build-essential curl wget gnupg ca-certificates \
+    # Optional Chrome for Puppeteer (skip if not needed)
+    && wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | apt-key add - \
+    && echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" > /etc/apt/sources.list.d/google.list \
+    && apt-get update && apt-get install -y google-chrome-stable \
+    # Clean up
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
+
+# ✅ Working directory
+WORKDIR /app
+
+# ✅ Copy app and install
+COPY package*.json ./
+RUN npm ci --only=production
+
+COPY . .
+
+# ✅ Create directories
+RUN mkdir -p uploads temp/input temp/output logs \
+  && chmod -R 755 uploads temp logs
+
+# ✅ Environment
+ENV HOME=/tmp
+ENV LIBREOFFICE_AVAILABLE=true
+ENV CHROME_BIN=/usr/bin/google-chrome-stable
+ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/google-chrome-stable
+
+# ✅ Expose port
+EXPOSE 5000
+
+# ✅ Healthcheck (optional)
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+  CMD curl -f http://localhost:5000/api/health || exit 1
+
+# ✅ Start your backend
+CMD ["npm", "start"]

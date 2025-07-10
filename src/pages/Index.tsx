@@ -245,18 +245,7 @@ const Index = () => {
       available: true,
       isWorking: true,
     },
-    {
-      title: "Real-time Editor",
-      description:
-        "Live collaborative PDF editing with instant preview and sync",
-      icon: Layers,
-      href: "/realtime-editor",
-      color: "from-green-500 to-green-600",
-      isNew: true,
-      isFeatured: true,
-      available: true,
-      isWorking: true,
-    },
+
     {
       title: "PDF to JPG",
       description:
@@ -287,16 +276,7 @@ const Index = () => {
       available: true,
       isWorking: true,
     },
-    {
-      title: "Watermark PDF",
-      description:
-        "Add watermarks to PDF files with customizable text and positioning.",
-      icon: FileText,
-      href: "/watermark",
-      color: "from-cyan-500 to-cyan-600",
-      available: true,
-      isWorking: true,
-    },
+
     {
       title: "Unlock PDF",
       description: "Remove password protection from your PDF files securely.",

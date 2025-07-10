@@ -288,6 +288,96 @@ class PDFProtectionService {
       throw new Error(`Metadata protection failed: ${error.message}`);
     }
   }
+
+  static async unlockWithQPDF(inputBuffer, password) {
+    try {
+      // Create temporary files
+      const tempDir = os.tmpdir();
+      const inputPath = path.join(
+        tempDir,
+        `qpdf_unlock_input_${Date.now()}.pdf`,
+      );
+      const outputPath = path.join(
+        tempDir,
+        `qpdf_unlock_output_${Date.now()}.pdf`,
+      );
+
+      // Write input file
+      await fs.promises.writeFile(inputPath, inputBuffer);
+
+      console.log("🔓 Using QPDF command-line to unlock PDF...");
+      console.log("🔑 QPDF password length:", password ? password.length : 0);
+
+      // Try node-qpdf library first
+      try {
+        const qpdf = require("node-qpdf");
+
+        // Try the simplest format based on node-qpdf documentation
+        const options = {
+          input: inputPath,
+          output: outputPath,
+          userPassword: password, // Most common format for user passwords
+        };
+
+        await qpdf.decrypt(options);
+        console.log("✅ node-qpdf library success");
+      } catch (libError) {
+        console.log("❌ node-qpdf library failed:", libError.message);
+        console.log("🔄 Falling back to command-line qpdf...");
+
+        // Fallback to direct command-line execution
+        const { exec } = require("child_process");
+        const { promisify } = require("util");
+        const execAsync = promisify(exec);
+
+        // Escape password for command line
+        const escapedPassword = password.replace(/"/g, '\\"');
+
+        // Build qpdf command
+        const qpdfCmd = `qpdf --password="${escapedPassword}" --decrypt "${inputPath}" "${outputPath}"`;
+
+        console.log("🔧 Executing QPDF command...");
+
+        try {
+          const { stdout, stderr } = await execAsync(qpdfCmd, {
+            timeout: 30000, // 30 second timeout
+          });
+
+          if (stderr && !stderr.includes("operation succeeded")) {
+            console.warn("⚠️ QPDF stderr:", stderr);
+          }
+
+          console.log("✅ Command-line qpdf success");
+        } catch (cmdError) {
+          console.error("❌ Command-line qpdf failed:", cmdError.message);
+          throw new Error(
+            `Both node-qpdf library and command-line failed. Library: ${libError.message}, Command: ${cmdError.message}`,
+          );
+        }
+      }
+
+      // Read result
+      const unlockedBuffer = await fs.promises.readFile(outputPath);
+
+      // Cleanup
+      try {
+        await fs.promises.unlink(inputPath);
+        await fs.promises.unlink(outputPath);
+      } catch (cleanupError) {
+        console.warn("Cleanup warning:", cleanupError.message);
+      }
+
+      console.log("✅ QPDF unlock successful");
+
+      return {
+        success: true,
+        buffer: unlockedBuffer,
+      };
+    } catch (error) {
+      console.error("❌ QPDF unlock failed:", error.message);
+      throw new Error(`QPDF unlock failed: ${error.message}`);
+    }
+  }
 }
 
 module.exports = PDFProtectionService;

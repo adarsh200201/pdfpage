@@ -15,7 +15,9 @@ export const authService = {
    * Initiate Google OAuth login
    */
   loginWithGoogle: () => {
-    const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+    const apiUrl = import.meta.env.DEV
+      ? "/api" // Use proxy in development
+      : import.meta.env.VITE_API_URL || "https://pdfpage.onrender.com/api";
     const googleOAuthUrl = `${apiUrl}/auth/google`;
 
     // Redirect to Google OAuth
@@ -33,7 +35,9 @@ export const authService = {
   handleAuthCallback: async (
     token: string,
   ): Promise<GoogleAuthResponse["user"]> => {
-    const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+    const apiUrl = import.meta.env.DEV
+      ? "/api" // Use proxy in development
+      : import.meta.env.VITE_API_URL || "https://pdfpage.onrender.com/api";
 
     const response = await fetch(`${apiUrl}/auth/me`, {
       headers: {

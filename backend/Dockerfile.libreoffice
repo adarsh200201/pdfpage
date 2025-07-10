@@ -1,16 +1,114 @@
 # LibreOffice-enabled Dockerfile for PdfPage Backend
 FROM node:18-bullseye
 
-# Install LibreOffice and system dependencies
+# Install LibreOffice and comprehensive heavy libraries
 RUN apt-get update && apt-get install -y \
+    # 📄 PDF Processing & Document Conversion
+    ghostscript \
+    poppler-utils \
+    qpdf \
+    pdftk \
+    mupdf-tools \
     libreoffice \
     libreoffice-writer \
     libreoffice-calc \
     libreoffice-impress \
+    libreoffice-draw \
+    unoconv \
+    pandoc \
+    wkhtmltopdf \
+    \
+    # 🖼️ Image Processing & Graphics
+    imagemagick \
+    graphicsmagick \
+    libvips \
+    libvips-tools \
+    optipng \
+    jpegoptim \
+    pngquant \
+    webp \
+    libwebp-dev \
+    \
+    # 🎥 Video Processing
+    ffmpeg \
+    x264 \
+    \
+    # 🔤 OCR & Text Processing
+    tesseract-ocr \
+    tesseract-ocr-all \
+    gocr \
+    \
+    # 🖥️ Rendering & Graphics Libraries
+    libgl1-mesa-glx \
+    libxi6 \
+    libxrender1 \
+    libxext6 \
+    libsm6 \
+    \
+    # 📦 Build Tools & Compilers
+    build-essential \
+    cmake \
+    autoconf \
+    pkg-config \
+    nasm \
+    gcc \
+    g++ \
+    make \
+    \
+    # 🐍 Python & Development
+    python3 \
+    python3-dev \
+    python3-pip \
+    \
+    # 🎨 Canvas & Cairo Dependencies
+    libcairo2-dev \
+    libpango1.0-dev \
+    libpangocairo-1.0-0 \
+    libgdk-pixbuf2.0-dev \
+    libjpeg-dev \
+    libgif-dev \
+    libpng-dev \
+    librsvg2-dev \
+    \
+    # 📚 Archive & Compression
+    p7zip-full \
+    zip \
+    unzip \
+    rar \
+    unrar \
+    xz-utils \
+    \
+    # 🔧 System Libraries
+    libfontconfig1-dev \
+    libfreetype6-dev \
+    libxml2-dev \
+    libssl-dev \
+    \
+    # 🔤 Fonts (Comprehensive)
     fonts-liberation \
     fonts-dejavu \
     fonts-noto \
-    default-jre \
+    fonts-noto-cjk \
+    fonts-noto-color-emoji \
+    fonts-roboto \
+    fonts-open-sans \
+    \
+    # ☕ Java Runtime
+    default-jre-headless \
+    openjdk-11-jre-headless \
+    \
+    # 🎯 Specialized Tools
+    calibre \
+    antiword \
+    catdoc \
+    exiftool \
+    \
+    # Utilities
+    curl \
+    gnupg \
+    ca-certificates \
+    wget \
+    unzip \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 

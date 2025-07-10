@@ -1,385 +1,535 @@
-import { useReducer, useCallback, useRef } from "react";
-import {
-  EditorState,
-  EditorAction,
-  AnyElement,
-  ToolType,
-  Point,
-} from "@/types/pdf-editor";
+import { useState, useCallback, useRef, useEffect } from "react";
+import * as pdfjsLib from "pdfjs-dist";
+import { PDFDocumentProxy, PDFPageProxy } from "pdfjs-dist";
+import { v4 as uuidv4 } from "uuid";
+import { pdfEditorService } from "@/services/pdfEditorService";
 
-const initialState: EditorState = {
-  currentTool: "select",
-  selectedElements: [],
-  elements: [],
-  clipboard: [],
-  history: {
-    past: [],
-    present: [],
-    future: [],
-  },
-  zoom: 1,
-  pageIndex: 0,
-  canvasSize: { width: 0, height: 0 },
-  isDrawing: false,
-  currentDrawPath: [],
-};
-
-function editorReducer(state: EditorState, action: EditorAction): EditorState {
-  switch (action.type) {
-    case "SET_TOOL":
-      return {
-        ...state,
-        currentTool: action.payload as ToolType,
-        selectedElements: [],
-      };
-
-    case "ADD_ELEMENT":
-      const newElement = action.payload as AnyElement;
-      const newElements = [...state.elements, newElement];
-      return {
-        ...state,
-        elements: newElements,
-        history: {
-          past: [...state.history.past, state.history.present],
-          present: newElements,
-          future: [],
-        },
-      };
-
-    case "UPDATE_ELEMENT":
-      const { id, updates } = action.payload;
-      const updatedElements = state.elements.map((el) =>
-        el.id === id ? { ...el, ...updates, updatedAt: Date.now() } : el,
-      );
-      return {
-        ...state,
-        elements: updatedElements,
-        history: {
-          past: [...state.history.past, state.history.present],
-          present: updatedElements,
-          future: [],
-        },
-      };
-
-    case "DELETE_ELEMENTS":
-      const idsToDelete = action.payload as string[];
-      const filteredElements = state.elements.filter(
-        (el) => !idsToDelete.includes(el.id),
-      );
-      return {
-        ...state,
-        elements: filteredElements,
-        selectedElements: [],
-        history: {
-          past: [...state.history.past, state.history.present],
-          present: filteredElements,
-          future: [],
-        },
-      };
-
-    case "SELECT_ELEMENTS":
-      return {
-        ...state,
-        selectedElements: action.payload as string[],
-      };
-
-    case "TOGGLE_ELEMENT_SELECTION":
-      const elementId = action.payload as string;
-      const isSelected = state.selectedElements.includes(elementId);
-      return {
-        ...state,
-        selectedElements: isSelected
-          ? state.selectedElements.filter((id) => id !== elementId)
-          : [...state.selectedElements, elementId],
-      };
-
-    case "CLEAR_SELECTION":
-      return {
-        ...state,
-        selectedElements: [],
-      };
-
-    case "COPY_ELEMENTS":
-      const elementsToCopy = state.elements.filter((el) =>
-        state.selectedElements.includes(el.id),
-      );
-      return {
-        ...state,
-        clipboard: elementsToCopy,
-      };
-
-    case "PASTE_ELEMENTS":
-      if (state.clipboard.length === 0) return state;
-
-      const pastedElements = state.clipboard.map((el) => ({
-        ...el,
-        id: `${el.type}-${Date.now()}-${Math.random()}`,
-        bounds: {
-          ...el.bounds,
-          x: el.bounds.x + 20,
-          y: el.bounds.y + 20,
-        },
-        createdAt: Date.now(),
-        updatedAt: Date.now(),
-      }));
-
-      const newElementsWithPasted = [...state.elements, ...pastedElements];
-      return {
-        ...state,
-        elements: newElementsWithPasted,
-        selectedElements: pastedElements.map((el) => el.id),
-        history: {
-          past: [...state.history.past, state.history.present],
-          present: newElementsWithPasted,
-          future: [],
-        },
-      };
-
-    case "UNDO":
-      if (state.history.past.length === 0) return state;
-
-      const previous = state.history.past[state.history.past.length - 1];
-      const newPast = state.history.past.slice(
-        0,
-        state.history.past.length - 1,
-      );
-
-      return {
-        ...state,
-        elements: previous,
-        history: {
-          past: newPast,
-          present: previous,
-          future: [state.history.present, ...state.history.future],
-        },
-        selectedElements: [],
-      };
-
-    case "REDO":
-      if (state.history.future.length === 0) return state;
-
-      const next = state.history.future[0];
-      const newFuture = state.history.future.slice(1);
-
-      return {
-        ...state,
-        elements: next,
-        history: {
-          past: [...state.history.past, state.history.present],
-          present: next,
-          future: newFuture,
-        },
-        selectedElements: [],
-      };
-
-    case "SET_ZOOM":
-      return {
-        ...state,
-        zoom: action.payload as number,
-      };
-
-    case "SET_PAGE":
-      return {
-        ...state,
-        pageIndex: action.payload as number,
-        selectedElements: [],
-      };
-
-    case "SET_CANVAS_SIZE":
-      return {
-        ...state,
-        canvasSize: action.payload,
-      };
-
-    case "START_DRAWING":
-      return {
-        ...state,
-        isDrawing: true,
-        currentDrawPath: [action.payload as Point],
-      };
-
-    case "ADD_DRAW_POINT":
-      return {
-        ...state,
-        currentDrawPath: [...state.currentDrawPath, action.payload as Point],
-      };
-
-    case "END_DRAWING":
-      return {
-        ...state,
-        isDrawing: false,
-        currentDrawPath: [],
-      };
-
-    case "CLEAR_ALL":
-      return {
-        ...state,
-        elements: [],
-        selectedElements: [],
-        history: {
-          past: [...state.history.past, state.history.present],
-          present: [],
-          future: [],
-        },
-      };
-
-    default:
-      return state;
-  }
+export interface Point {
+  x: number;
+  y: number;
 }
 
+export interface Bounds {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+export type ToolType =
+  | "select"
+  | "text"
+  | "draw"
+  | "rectangle"
+  | "circle"
+  | "image"
+  | "signature";
+
+export interface BaseElement {
+  id: string;
+  type: ToolType;
+  pageIndex: number;
+  bounds: Bounds;
+  createdAt: number;
+  updatedAt: number;
+  visible: boolean;
+  locked: boolean;
+  opacity: number;
+  rotation: number;
+}
+
+export interface TextElement extends BaseElement {
+  type: "text";
+  content: string;
+  fontSize: number;
+  fontFamily: string;
+  color: string;
+  textAlign: "left" | "center" | "right";
+  bold: boolean;
+  italic: boolean;
+  underline: boolean;
+}
+
+export interface DrawElement extends BaseElement {
+  type: "draw";
+  path: Point[];
+  strokeWidth: number;
+  strokeColor: string;
+  smooth: boolean;
+}
+
+export interface ShapeElement extends BaseElement {
+  type: "rectangle" | "circle";
+  fillColor: string;
+  strokeColor: string;
+  strokeWidth: number;
+  filled: boolean;
+}
+
+export interface ImageElement extends BaseElement {
+  type: "image";
+  src: string;
+  originalWidth: number;
+  originalHeight: number;
+  aspectRatio: number;
+}
+
+export interface SignatureElement extends BaseElement {
+  type: "signature";
+  signatureData: string; // Base64 encoded signature
+  signedBy: string;
+  signedAt: number;
+}
+
+export type PDFElement =
+  | TextElement
+  | DrawElement
+  | ShapeElement
+  | ImageElement
+  | SignatureElement;
+
+export interface EditorSettings {
+  snapToGrid: boolean;
+  gridSize: number;
+  showGrid: boolean;
+  showRulers: boolean;
+  autoSave: boolean;
+  defaultFontSize: number;
+  defaultFontFamily: string;
+  defaultStrokeWidth: number;
+  defaultStrokeColor: string;
+  defaultFillColor: string;
+  defaultTextColor: string;
+}
+
+export interface HistoryEntry {
+  id: string;
+  action: string;
+  elements: PDFElement[];
+  timestamp: number;
+}
+
+export interface PDFEditorState {
+  pdfDocument: PDFDocumentProxy | null;
+  pages: PDFPageProxy[];
+  currentPage: number;
+  totalPages: number;
+  zoom: number;
+  elements: PDFElement[];
+  selectedElements: string[];
+  currentTool: ToolType;
+  isDrawing: boolean;
+  currentDrawPath: Point[];
+  history: HistoryEntry[];
+  historyIndex: number;
+  canUndo: boolean;
+  canRedo: boolean;
+  settings: EditorSettings;
+  pageSize: { width: number; height: number };
+}
+
+const defaultSettings: EditorSettings = {
+  snapToGrid: false,
+  gridSize: 20,
+  showGrid: false,
+  showRulers: false,
+  autoSave: true,
+  defaultFontSize: 14,
+  defaultFontFamily: "Arial",
+  defaultStrokeWidth: 2,
+  defaultStrokeColor: "#000000",
+  defaultFillColor: "#ffffff",
+  defaultTextColor: "#000000",
+};
+
 export function usePDFEditor() {
-  const [state, dispatch] = useReducer(editorReducer, initialState);
-  const elementIdCounter = useRef(0);
+  const [state, setState] = useState<PDFEditorState>({
+    pdfDocument: null,
+    pages: [],
+    currentPage: 1,
+    totalPages: 0,
+    zoom: 1,
+    elements: [],
+    selectedElements: [],
+    currentTool: "select",
+    isDrawing: false,
+    currentDrawPath: [],
+    history: [],
+    historyIndex: -1,
+    canUndo: false,
+    canRedo: false,
+    settings: defaultSettings,
+    pageSize: { width: 0, height: 0 },
+  });
 
-  const generateElementId = useCallback((type: ToolType) => {
-    elementIdCounter.current += 1;
-    return `${type}-${Date.now()}-${elementIdCounter.current}`;
+  const addToHistory = useCallback((action: string, elements: PDFElement[]) => {
+    setState((prev) => {
+      const newEntry: HistoryEntry = {
+        id: uuidv4(),
+        action,
+        elements: JSON.parse(JSON.stringify(elements)),
+        timestamp: Date.now(),
+      };
+
+      const newHistory = prev.history.slice(0, prev.historyIndex + 1);
+      newHistory.push(newEntry);
+
+      // Limit history to 50 entries
+      if (newHistory.length > 50) {
+        newHistory.shift();
+      }
+
+      return {
+        ...prev,
+        history: newHistory,
+        historyIndex: newHistory.length - 1,
+        canUndo: true,
+        canRedo: false,
+      };
+    });
   }, []);
 
+  // Load PDF document
+  const loadPDF = useCallback(async (file: File) => {
+    try {
+      console.log("Loading PDF file:", file.name, "Size:", file.size);
+      const { pdfDocument } = await pdfEditorService.loadPDF(file);
+      console.log("PDF loaded successfully, pages:", pdfDocument.numPages);
+
+      const pages: PDFPageProxy[] = [];
+      for (let i = 1; i <= pdfDocument.numPages; i++) {
+        const page = await pdfDocument.getPage(i);
+        pages.push(page);
+      }
+
+      const firstPage = pages[0];
+      const viewport = firstPage.getViewport({ scale: 1 });
+      console.log("Page viewport:", viewport.width, "x", viewport.height);
+
+      setState((prev) => ({
+        ...prev,
+        pdfDocument,
+        pages,
+        totalPages: pdfDocument.numPages,
+        currentPage: 1,
+        pageSize: {
+          width: viewport.width,
+          height: viewport.height,
+        },
+        elements: [],
+        selectedElements: [],
+        history: [],
+        historyIndex: -1,
+        canUndo: false,
+        canRedo: false,
+      }));
+
+      console.log("PDF state updated successfully");
+    } catch (error) {
+      console.error("Error loading PDF:", error);
+      throw error;
+    }
+  }, []);
+
+  // Tool management
   const setTool = useCallback((tool: ToolType) => {
-    dispatch({ type: "SET_TOOL", payload: tool });
+    setState((prev) => ({
+      ...prev,
+      currentTool: tool,
+      selectedElements: tool === "select" ? prev.selectedElements : [],
+    }));
   }, []);
 
+  // Zoom management
+  const setZoom = useCallback((zoom: number) => {
+    setState((prev) => ({
+      ...prev,
+      zoom: Math.max(0.1, Math.min(5, zoom)),
+    }));
+  }, []);
+
+  // Page navigation
+  const setPage = useCallback((page: number) => {
+    setState((prev) => ({
+      ...prev,
+      currentPage: Math.max(1, Math.min(prev.totalPages, page)),
+      selectedElements: [], // Clear selection when changing pages
+    }));
+  }, []);
+
+  // Element management
   const addElement = useCallback(
-    (element: Omit<AnyElement, "id" | "createdAt" | "updatedAt">) => {
-      const newElement: AnyElement = {
+    (element: Omit<PDFElement, "id" | "createdAt" | "updatedAt">) => {
+      const newElement: PDFElement = {
         ...element,
-        id: generateElementId(element.type),
+        id: uuidv4(),
         createdAt: Date.now(),
         updatedAt: Date.now(),
-      } as AnyElement;
+      } as PDFElement;
 
-      dispatch({ type: "ADD_ELEMENT", payload: newElement });
+      setState((prev) => {
+        const newElements = [...prev.elements, newElement];
+        addToHistory("add", newElements);
+        return {
+          ...prev,
+          elements: newElements,
+          selectedElements: [newElement.id],
+        };
+      });
+
       return newElement.id;
     },
-    [generateElementId],
+    [addToHistory],
   );
 
   const updateElement = useCallback(
-    (id: string, updates: Partial<AnyElement>) => {
-      dispatch({ type: "UPDATE_ELEMENT", payload: { id, updates } });
+    (id: string, updates: Partial<PDFElement>) => {
+      setState((prev) => {
+        const newElements = prev.elements.map((el) =>
+          el.id === id ? { ...el, ...updates, updatedAt: Date.now() } : el,
+        );
+        addToHistory("update", newElements);
+        return {
+          ...prev,
+          elements: newElements,
+        };
+      });
     },
-    [],
+    [addToHistory],
   );
 
-  const deleteElements = useCallback((ids: string[]) => {
-    dispatch({ type: "DELETE_ELEMENTS", payload: ids });
-  }, []);
+  const deleteElements = useCallback(
+    (ids: string[]) => {
+      setState((prev) => {
+        const newElements = prev.elements.filter((el) => !ids.includes(el.id));
+        addToHistory("delete", newElements);
+        return {
+          ...prev,
+          elements: newElements,
+          selectedElements: prev.selectedElements.filter(
+            (id) => !ids.includes(id),
+          ),
+        };
+      });
+    },
+    [addToHistory],
+  );
 
-  const deleteSelectedElements = useCallback(() => {
-    dispatch({ type: "DELETE_ELEMENTS", payload: state.selectedElements });
-  }, [state.selectedElements]);
+  const duplicateElements = useCallback(
+    (ids: string[]) => {
+      setState((prev) => {
+        const elementsToDuplicate = prev.elements.filter((el) =>
+          ids.includes(el.id),
+        );
+        const duplicatedElements = elementsToDuplicate.map((el) => ({
+          ...el,
+          id: uuidv4(),
+          bounds: {
+            ...el.bounds,
+            x: el.bounds.x + 20,
+            y: el.bounds.y + 20,
+          },
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+        }));
 
+        const newElements = [...prev.elements, ...duplicatedElements];
+        addToHistory("duplicate", newElements);
+        return {
+          ...prev,
+          elements: newElements,
+          selectedElements: duplicatedElements.map((el) => el.id),
+        };
+      });
+    },
+    [addToHistory],
+  );
+
+  // Selection management
   const selectElements = useCallback((ids: string[]) => {
-    dispatch({ type: "SELECT_ELEMENTS", payload: ids });
+    setState((prev) => ({
+      ...prev,
+      selectedElements: ids,
+    }));
   }, []);
 
-  const toggleElementSelection = useCallback((id: string) => {
-    dispatch({ type: "TOGGLE_ELEMENT_SELECTION", payload: id });
+  const toggleSelectElement = useCallback((id: string) => {
+    setState((prev) => ({
+      ...prev,
+      selectedElements: prev.selectedElements.includes(id)
+        ? prev.selectedElements.filter((selectedId) => selectedId !== id)
+        : [...prev.selectedElements, id],
+    }));
   }, []);
 
-  const clearSelection = useCallback(() => {
-    dispatch({ type: "CLEAR_SELECTION" });
-  }, []);
-
-  const copyElements = useCallback(() => {
-    dispatch({ type: "COPY_ELEMENTS" });
-  }, []);
-
-  const pasteElements = useCallback(() => {
-    dispatch({ type: "PASTE_ELEMENTS" });
-  }, []);
-
-  const undo = useCallback(() => {
-    dispatch({ type: "UNDO" });
-  }, []);
-
-  const redo = useCallback(() => {
-    dispatch({ type: "REDO" });
-  }, []);
-
-  const setZoom = useCallback((zoom: number) => {
-    dispatch({ type: "SET_ZOOM", payload: zoom });
-  }, []);
-
-  const setPage = useCallback((pageIndex: number) => {
-    dispatch({ type: "SET_PAGE", payload: pageIndex });
-  }, []);
-
-  const setCanvasSize = useCallback(
-    (size: { width: number; height: number }) => {
-      dispatch({ type: "SET_CANVAS_SIZE", payload: size });
-    },
-    [],
-  );
-
+  // Drawing management
   const startDrawing = useCallback((point: Point) => {
-    dispatch({ type: "START_DRAWING", payload: point });
+    setState((prev) => ({
+      ...prev,
+      isDrawing: true,
+      currentDrawPath: [point],
+    }));
   }, []);
 
   const addDrawPoint = useCallback((point: Point) => {
-    dispatch({ type: "ADD_DRAW_POINT", payload: point });
+    setState((prev) => ({
+      ...prev,
+      currentDrawPath: [...prev.currentDrawPath, point],
+    }));
   }, []);
 
   const endDrawing = useCallback(() => {
-    dispatch({ type: "END_DRAWING" });
+    setState((prev) => {
+      if (prev.currentDrawPath.length < 2) {
+        return {
+          ...prev,
+          isDrawing: false,
+          currentDrawPath: [],
+        };
+      }
+
+      // Create a draw element from the current path
+      const bounds = prev.currentDrawPath.reduce(
+        (acc, point) => ({
+          x: Math.min(acc.x, point.x),
+          y: Math.min(acc.y, point.y),
+          width: Math.max(acc.width, point.x - acc.x),
+          height: Math.max(acc.height, point.y - acc.y),
+        }),
+        { x: Infinity, y: Infinity, width: 0, height: 0 },
+      );
+
+      const drawElement: Omit<DrawElement, "id" | "createdAt" | "updatedAt"> = {
+        type: "draw",
+        pageIndex: prev.currentPage - 1,
+        bounds,
+        visible: true,
+        locked: false,
+        opacity: 1,
+        rotation: 0,
+        path: prev.currentDrawPath,
+        strokeWidth: prev.settings.defaultStrokeWidth,
+        strokeColor: prev.settings.defaultStrokeColor,
+        smooth: true,
+      };
+
+      const newElement: DrawElement = {
+        ...drawElement,
+        id: uuidv4(),
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      };
+
+      const newElements = [...prev.elements, newElement];
+      addToHistory("draw", newElements);
+
+      return {
+        ...prev,
+        elements: newElements,
+        isDrawing: false,
+        currentDrawPath: [],
+        selectedElements: [newElement.id],
+      };
+    });
+  }, [addToHistory]);
+
+  // History management
+  const undo = useCallback(() => {
+    setState((prev) => {
+      if (prev.historyIndex <= 0) return prev;
+
+      const previousEntry = prev.history[prev.historyIndex - 1];
+      return {
+        ...prev,
+        elements: JSON.parse(JSON.stringify(previousEntry.elements)),
+        historyIndex: prev.historyIndex - 1,
+        canUndo: prev.historyIndex > 1,
+        canRedo: true,
+        selectedElements: [],
+      };
+    });
   }, []);
 
-  const clearAll = useCallback(() => {
-    dispatch({ type: "CLEAR_ALL" });
+  const redo = useCallback(() => {
+    setState((prev) => {
+      if (prev.historyIndex >= prev.history.length - 1) return prev;
+
+      const nextEntry = prev.history[prev.historyIndex + 1];
+      return {
+        ...prev,
+        elements: JSON.parse(JSON.stringify(nextEntry.elements)),
+        historyIndex: prev.historyIndex + 1,
+        canUndo: true,
+        canRedo: prev.historyIndex + 1 < prev.history.length - 1,
+        selectedElements: [],
+      };
+    });
   }, []);
 
-  const getElementsOnPage = useCallback(
-    (pageIndex: number) => {
-      return state.elements.filter((el) => el.pageIndex === pageIndex);
-    },
-    [state.elements],
-  );
+  // Settings management
+  const updateSettings = useCallback((updates: Partial<EditorSettings>) => {
+    setState((prev) => ({
+      ...prev,
+      settings: { ...prev.settings, ...updates },
+    }));
+  }, []);
 
-  const getSelectedElements = useCallback(() => {
-    return state.elements.filter((el) =>
-      state.selectedElements.includes(el.id),
-    );
-  }, [state.elements, state.selectedElements]);
+  // Page size management
+  const setPageSize = useCallback((size: { width: number; height: number }) => {
+    setState((prev) => ({
+      ...prev,
+      pageSize: size,
+    }));
+  }, []);
 
-  const canUndo = state.history.past.length > 0;
-  const canRedo = state.history.future.length > 0;
-  const hasSelection = state.selectedElements.length > 0;
-  const canPaste = state.clipboard.length > 0;
+  // Export PDF
+  const exportPDF = useCallback(async (): Promise<Uint8Array> => {
+    if (!state.pdfDocument) {
+      throw new Error("No PDF document loaded");
+    }
+
+    return await pdfEditorService.exportPDF(state.elements);
+  }, [state.pdfDocument, state.elements]);
 
   return {
-    state,
+    // State
+    pdfDocument: state.pdfDocument,
+    pages: state.pages,
+    currentPage: state.currentPage,
+    totalPages: state.totalPages,
+    zoom: state.zoom,
+    elements: state.elements,
+    selectedElements: state.selectedElements,
+    currentTool: state.currentTool,
+    isDrawing: state.isDrawing,
+    currentDrawPath: state.currentDrawPath,
+    history: state.history,
+    historyIndex: state.historyIndex,
+    canUndo: state.canUndo,
+    canRedo: state.canRedo,
+    settings: state.settings,
+    pageSize: state.pageSize,
+
+    // Actions
     actions: {
+      loadPDF,
       setTool,
+      setZoom,
+      setPage,
       addElement,
       updateElement,
       deleteElements,
-      deleteSelectedElements,
+      duplicateElements,
       selectElements,
-      toggleElementSelection,
-      clearSelection,
-      copyElements,
-      pasteElements,
-      undo,
-      redo,
-      setZoom,
-      setPage,
-      setCanvasSize,
+      toggleSelectElement,
       startDrawing,
       addDrawPoint,
       endDrawing,
-      clearAll,
-    },
-    selectors: {
-      getElementsOnPage,
-      getSelectedElements,
-    },
-    computed: {
-      canUndo,
-      canRedo,
-      hasSelection,
-      canPaste,
+      undo,
+      redo,
+      updateSettings,
+      setPageSize,
+      exportPDF,
     },
   };
 }

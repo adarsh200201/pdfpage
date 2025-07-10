@@ -47,6 +47,15 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+// Mock user for bypassing authentication - REMOVE AUTHENTICATION FOR ALL TOOLS
+const MOCK_USER: User = {
+  id: "mock-user-anonymous",
+  name: "Anonymous User",
+  email: "anonymous@pdfpage.com",
+  isPremium: true, // Always premium to bypass all limits
+  totalUploads: 0,
+};
+
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (!context) {
@@ -73,8 +82,9 @@ export const useAuth = () => {
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
-  const [user, setUser] = useState<User | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  // AUTHENTICATION DISABLED - Always return mock user as authenticated
+  const [user, setUser] = useState<User | null>(MOCK_USER);
+  const [isLoading, setIsLoading] = useState(false); // Never loading
 
   useEffect(() => {
     const token = Cookies.get("token");
@@ -268,8 +278,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const value = {
     user,
-    isAuthenticated: !!user,
-    isLoading,
+    isAuthenticated: true, // ALWAYS AUTHENTICATED - NO AUTH REQUIRED
+    isLoading: false, // Never loading
     login,
     register,
     loginWithGoogle,

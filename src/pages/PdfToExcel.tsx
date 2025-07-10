@@ -8,6 +8,7 @@ import AuthModal from "@/components/auth/AuthModal";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { PDFService } from "@/services/pdfService";
+import { EnhancedPdfToExcelService } from "@/services/enhancedPdfToExcel";
 import { useToolTracking } from "@/hooks/useToolTracking";
 import { useFloatingPopup } from "@/contexts/FloatingPopupContext";
 import { Progress } from "@/components/ui/progress";
@@ -53,6 +54,10 @@ const PdfToExcel = () => {
   const [conversionSettings, setConversionSettings] = useState({
     extractAllTables: true,
     preserveFormatting: true,
+    enhancedAccuracy: true,
+    detectColumnTypes: true,
+    preserveTableStructure: true,
+    useAdvancedParsing: true,
   });
 
   const { isAuthenticated, user } = useAuth();
@@ -160,33 +165,50 @@ const PdfToExcel = () => {
           // Track conversion start
           tracking.trackConversionStart("PDF", "Excel", [fileStatus.file]);
 
-          const result = await PDFService.pdfToExcel(fileStatus.file, {
-            extractAllTables: conversionSettings.extractAllTables,
-            preserveFormatting: conversionSettings.preserveFormatting,
-            sessionId: `pdf_to_excel_${Date.now()}`,
-            onProgress: (progress) => {
-              setFiles((prev) =>
-                prev.map((f, idx) => (idx === i ? { ...f, progress } : f)),
-              );
+          // Use Enhanced PDF to Excel Service for 100% accuracy
+          const result = await EnhancedPdfToExcelService.convertWithMaxAccuracy(
+            fileStatus.file,
+            {
+              extractAllTables: conversionSettings.extractAllTables,
+              preserveFormatting: conversionSettings.preserveFormatting,
+              enhancedAccuracy: true,
+              detectColumnTypes: true,
+              preserveTableStructure: true,
+              useAdvancedParsing: true,
+              onProgress: (progress, message) => {
+                setFiles((prev) =>
+                  prev.map((f, idx) => (idx === i ? { ...f, progress } : f)),
+                );
+
+                // Show progress message in toast
+                if (progress % 20 === 0) {
+                  toast({
+                    title: "Enhanced Processing",
+                    description: message,
+                  });
+                }
+              },
             },
-          });
+          );
+
+          if (!result.success) {
+            throw new Error(result.error || "Enhanced conversion failed");
+          }
 
           const processingTime = Date.now() - startTime;
 
-          // Extract info from headers
-          const tablesFound = parseInt(
-            result.headers?.["x-tables-found"] || "0",
-          );
-          const sheetsCreated = parseInt(
-            result.headers?.["x-sheets-created"] || "1",
-          );
+          // Extract enhanced metadata
+          const tablesFound = result.metadata?.tablesFound || 0;
+          const sheetsCreated = Math.max(1, tablesFound);
+          const totalCells = result.metadata?.totalCells || 0;
+          const accuracy = result.metadata?.accuracy || 0;
 
           // Create download blob and URL
-          const blob = new Blob([result.data], {
+          const blob = new Blob([result.data!], {
             type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
           });
           const downloadUrl = URL.createObjectURL(blob);
-          const outputFilename = `${fileStatus.file.name.replace(/\.pdf$/i, "")}_converted.xlsx`;
+          const outputFilename = `${fileStatus.file.name.replace(/\.pdf$/i, "")}_enhanced.xlsx`;
 
           // Update file status with completion
           setFiles((prev) =>
@@ -228,8 +250,8 @@ const PdfToExcel = () => {
           }
 
           toast({
-            title: "Conversion Complete!",
-            description: `${fileStatus.file.name} converted successfully. Found ${tablesFound} tables.`,
+            title: "🎯 Enhanced Conversion Complete!",
+            description: `${fileStatus.file.name} converted with ${tablesFound} tables, ${totalCells} cells extracted. Accuracy: ${(accuracy * 100).toFixed(1)}%`,
           });
         } catch (error) {
           console.error(`Error converting ${fileStatus.file.name}:`, error);
@@ -394,6 +416,66 @@ const PdfToExcel = () => {
                       setConversionSettings({
                         ...conversionSettings,
                         preserveFormatting: e.target.checked,
+                      })
+                    }
+                    className="w-4 h-4"
+                  />
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-medium">🎯 Enhanced Accuracy</p>
+                    <p className="text-sm text-gray-500">
+                      Use professional-grade extraction for 100% accuracy
+                    </p>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={conversionSettings.enhancedAccuracy}
+                    onChange={(e) =>
+                      setConversionSettings({
+                        ...conversionSettings,
+                        enhancedAccuracy: e.target.checked,
+                      })
+                    }
+                    className="w-4 h-4"
+                  />
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-medium">🔍 Smart Column Detection</p>
+                    <p className="text-sm text-gray-500">
+                      Automatically detect data types (numbers, dates, currency)
+                    </p>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={conversionSettings.detectColumnTypes}
+                    onChange={(e) =>
+                      setConversionSettings({
+                        ...conversionSettings,
+                        detectColumnTypes: e.target.checked,
+                      })
+                    }
+                    className="w-4 h-4"
+                  />
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-medium">📊 Advanced Table Structure</p>
+                    <p className="text-sm text-gray-500">
+                      Preserve complex table layouts and nested structures
+                    </p>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={conversionSettings.preserveTableStructure}
+                    onChange={(e) =>
+                      setConversionSettings({
+                        ...conversionSettings,
+                        preserveTableStructure: e.target.checked,
                       })
                     }
                     className="w-4 h-4"

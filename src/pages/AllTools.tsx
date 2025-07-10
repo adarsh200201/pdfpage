@@ -663,75 +663,6 @@ export const RotatePdf = () => {
   );
 };
 
-export const HtmlToPdf = () => {
-  const [url, setUrl] = useState("");
-
-  const handleProcess = async () => {
-    // Convert HTML/URL to PDF
-    const result = await PDFService.convertWordToPdf(
-      new File([], "webpage.html"),
-    ); // Placeholder
-    PDFService.downloadFile(result, "webpage.pdf");
-    await PDFService.trackUsage("html-to-pdf", 1, 0);
-  };
-
-  return (
-    <div className="min-h-screen bg-bg-light">
-      <Header />
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <PromoBanner className="mb-8" />
-
-        <div className="flex items-center space-x-2 mb-8">
-          <Link
-            to="/"
-            className="text-body-medium text-text-light hover:text-brand-red"
-          >
-            <ArrowLeft className="w-4 h-4 mr-1 inline" />
-            Back to Home
-          </Link>
-        </div>
-
-        <div className="text-center mb-8">
-          <div className="w-16 h-16 bg-gradient-to-br from-amber-500 to-amber-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
-            <Globe className="w-8 h-8 text-white" />
-          </div>
-          <h1 className="text-heading-medium text-text-dark mb-4">
-            HTML to PDF
-          </h1>
-          <p className="text-body-large text-text-light max-w-2xl mx-auto">
-            Convert web pages and HTML content to PDF files.
-          </p>
-        </div>
-
-        <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Website URL or HTML Content
-              </label>
-              <input
-                type="url"
-                value={url}
-                onChange={(e) => setUrl(e.target.value)}
-                placeholder="https://example.com"
-                className="w-full p-3 border border-gray-300 rounded-md"
-              />
-            </div>
-            <Button
-              onClick={handleProcess}
-              disabled={!url}
-              className="w-full bg-amber-500 hover:bg-amber-600"
-            >
-              <Globe className="w-5 h-5 mr-2" />
-              Convert to PDF
-            </Button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};
-
 export const PdfToPdfA = () => {
   const [level, setLevel] = useState("1b");
   const [settings, setSettings] = useState({
@@ -1426,17 +1357,22 @@ export const ExcelToPdf = () => {
   const handleProcess = async (files: ProcessedFile[]) => {
     const file = files[0];
     try {
-      // Use LibreOffice conversion for Excel
-      const conversionResult = await PDFService.convertExcelToPdfLibreOffice(
-        file.file,
-        {
+      // Use enhanced client-side conversion for reliability
+      const EnhancedExcelToPdfService = await import(
+        "@/services/enhancedExcelToPdf"
+      ).then((m) => m.default);
+
+      const conversionResult =
+        await EnhancedExcelToPdfService.convertExcelToPdf(file.file, {
+          pageFormat: "A4",
+          orientation: "auto",
           quality: "high",
           preserveFormatting: true,
-          preserveImages: true,
-          pageSize: "A4",
-          orientation: "auto",
-        },
-      );
+          includeGridlines: true,
+          includeCharts: true,
+          fitToPage: true,
+          scaleToFit: 0.85,
+        });
 
       const downloadUrl = URL.createObjectURL(conversionResult.blob);
       const link = document.createElement("a");

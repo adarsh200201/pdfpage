@@ -4,51 +4,31 @@ import Header from "@/components/layout/Header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PromoBanner } from "@/components/ui/promo-banner";
-import AuthModal from "@/components/auth/AuthModal";
-import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
-import { PDFService } from "@/services/pdfService";
-import { useToolTracking } from "@/hooks/useToolTracking";
-import { useFloatingPopup } from "@/contexts/FloatingPopupContext";
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Label } from "@/components/ui/label";
-import {
   ArrowLeft,
   Download,
-  FileText,
   FileSpreadsheet,
-  Crown,
-  Star,
-  Table,
-  Layout,
   CheckCircle,
   AlertCircle,
   Loader2,
   Upload,
   X,
-  Settings,
   FileCheck,
+  Zap,
 } from "lucide-react";
 
 interface FileStatus {
   file: File;
   status: "ready" | "converting" | "completed" | "error";
   progress: number;
+  currentStep?: string;
   result?: {
     filename: string;
     downloadUrl: string;
     fileSize: number;
-    sheetsConverted: number;
-    processingTime: number;
-    conversionMethod: string;
   };
   error?: string;
 }
@@ -56,29 +36,7 @@ interface FileStatus {
 const ExcelToPdf = () => {
   const [files, setFiles] = useState<FileStatus[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [showAuthModal, setShowAuthModal] = useState(false);
-  const [conversionSettings, setConversionSettings] = useState({
-    conversionMethod: "libreoffice" as "basic" | "libreoffice",
-    quality: "high" as "standard" | "high" | "premium",
-    pageSize: "A4" as "A4" | "Letter" | "Legal" | "auto",
-    orientation: "auto" as "auto" | "portrait" | "landscape",
-    preserveFormatting: true,
-    preserveImages: true,
-  });
-
-  const { isAuthenticated, user } = useAuth();
   const { toast } = useToast();
-
-  // Floating popup tracking
-  const { trackToolUsage } = useFloatingPopup();
-
-  // Mixpanel tracking
-  const tracking = useToolTracking({
-    toolName: "excel-to-pdf",
-    category: "PDF Tool",
-    trackPageView: true,
-    trackFunnel: true,
-  });
 
   const handleFileUpload = (uploadedFiles: File[]) => {
     const validFiles = uploadedFiles.filter((file) => {
@@ -100,7 +58,6 @@ const ExcelToPdf = () => {
         return false;
       }
       if (file.size > 15 * 1024 * 1024) {
-        // 15MB limit
         toast({
           title: "File too large",
           description: `${file.name} exceeds 15MB limit.`,
@@ -117,11 +74,6 @@ const ExcelToPdf = () => {
       progress: 0,
     }));
     setFiles((prev) => [...prev, ...newFiles]);
-
-    // Track file upload
-    if (validFiles.length > 0) {
-      tracking.trackFileUpload(validFiles);
-    }
   };
 
   const removeFile = (index: number) => {
@@ -153,12 +105,7 @@ const ExcelToPdf = () => {
       return;
     }
 
-    if (!user) {
-      tracking.trackAuthRequired();
-      setShowAuthModal(true);
-      return;
-    }
-
+    console.log("Starting conversion...");
     setIsProcessing(true);
 
     try {
@@ -167,113 +114,135 @@ const ExcelToPdf = () => {
 
         if (fileStatus.status !== "ready") continue;
 
+        console.log(`Converting file ${i + 1}: ${fileStatus.file.name}`);
+
         // Update status to converting
         setFiles((prev) =>
           prev.map((f, idx) =>
-            idx === i ? { ...f, status: "converting", progress: 10 } : f,
+            idx === i
+              ? {
+                  ...f,
+                  status: "converting",
+                  progress: 10,
+                  currentStep: "Uploading to server...",
+                }
+              : f,
           ),
         );
 
         try {
-          const startTime = Date.now();
+          let conversionResult = null;
 
-          // Track conversion start
-          tracking.trackConversionStart("Excel", "PDF", [fileStatus.file]);
+          try {
+            // Try server-side conversion first
+            const formData = new FormData();
+            formData.append("file", fileStatus.file);
 
-          let result;
-          let usedMethod = conversionSettings.conversionMethod;
+            // Update progress
+            setFiles((prev) =>
+              prev.map((f, idx) =>
+                idx === i
+                  ? {
+                      ...f,
+                      progress: 30,
+                      currentStep: "Trying server conversion...",
+                    }
+                  : f,
+              ),
+            );
 
-          if (conversionSettings.conversionMethod === "libreoffice") {
-            try {
-              // Use LibreOffice conversion
-              const conversionResult =
-                await PDFService.convertExcelToPdfLibreOffice(fileStatus.file, {
-                  quality: conversionSettings.quality,
-                  preserveFormatting: conversionSettings.preserveFormatting,
-                  preserveImages: conversionSettings.preserveImages,
-                  pageSize: conversionSettings.pageSize,
-                  orientation: conversionSettings.orientation,
-                });
+            const apiUrl =
+              import.meta.env.VITE_API_URL ||
+              "https://pdfpage.onrender.com/api";
+            const response = await fetch(`${apiUrl}/pdf/excel-to-pdf`, {
+              method: "POST",
+              body: formData,
+            });
 
-              // Create URL for download
-              const downloadUrl = URL.createObjectURL(conversionResult.blob);
-              result = {
-                downloadUrl,
-                blob: conversionResult.blob,
-                stats: conversionResult.stats,
-                headers: {
-                  "x-conversion-engine":
-                    conversionResult.stats.conversionEngine,
-                  "x-page-count": conversionResult.stats.pages.toString(),
-                  "x-processing-time":
-                    conversionResult.stats.processingTime.toString(),
-                },
-              };
-            } catch (libreOfficeError: any) {
-              // If LibreOffice fails, automatically try the basic converter
-              if (
-                libreOfficeError.message?.includes("LibreOffice") ||
-                libreOfficeError.message?.includes("not available") ||
-                libreOfficeError.message?.includes("soffice") ||
-                libreOfficeError.message?.includes("Command failed")
-              ) {
-                console.log(
-                  "LibreOffice failed, falling back to basic converter...",
-                );
+            if (response.ok) {
+              // Update progress
+              setFiles((prev) =>
+                prev.map((f, idx) =>
+                  idx === i
+                    ? {
+                        ...f,
+                        progress: 80,
+                        currentStep: "Server processing complete...",
+                      }
+                    : f,
+                ),
+              );
 
-                // Update progress to show fallback attempt
+              const arrayBuffer = await response.arrayBuffer();
+              const blob = new Blob([arrayBuffer], { type: "application/pdf" });
+              conversionResult = { blob, method: "Server-side" };
+            } else {
+              throw new Error("Server conversion failed");
+            }
+          } catch (serverError) {
+            console.warn(
+              "Server conversion failed, trying client-side:",
+              serverError,
+            );
+
+            // Fallback to client-side conversion
+            setFiles((prev) =>
+              prev.map((f, idx) =>
+                idx === i
+                  ? {
+                      ...f,
+                      progress: 40,
+                      currentStep: "Trying client-side conversion...",
+                    }
+                  : f,
+              ),
+            );
+
+            // Import and use client-side service
+            const { default: EnhancedExcelToPdfService } = await import(
+              "@/services/enhancedExcelToPdf"
+            );
+
+            const result = await EnhancedExcelToPdfService.convertExcelToPdf(
+              fileStatus.file,
+              { pageFormat: "A4", orientation: "auto", quality: "high" },
+              (progress, status) => {
                 setFiles((prev) =>
                   prev.map((f, idx) =>
-                    idx === i ? { ...f, progress: 20 } : f,
+                    idx === i
+                      ? {
+                          ...f,
+                          progress: 40 + Math.round(progress * 0.5),
+                          currentStep: status,
+                        }
+                      : f,
                   ),
                 );
-
-                // Try with basic converter
-                result = await PDFService.excelToPdf(fileStatus.file, {
-                  pageFormat: conversionSettings.pageSize,
-                  orientation: conversionSettings.orientation,
-                  preserveLayout: conversionSettings.preserveFormatting,
-                  sessionId: `excel_to_pdf_${Date.now()}`,
-                  onProgress: (progress) => {
-                    setFiles((prev) =>
-                      prev.map((f, idx) =>
-                        idx === i ? { ...f, progress } : f,
-                      ),
-                    );
-                  },
-                });
-                usedMethod = "basic";
-              } else {
-                throw libreOfficeError;
-              }
-            }
-          } else {
-            // Fallback to basic conversion
-            result = await PDFService.excelToPdf(fileStatus.file, {
-              pageFormat: conversionSettings.pageSize,
-              orientation: conversionSettings.orientation,
-              preserveLayout: conversionSettings.preserveFormatting,
-              sessionId: `excel_to_pdf_${Date.now()}`,
-              onProgress: (progress) => {
-                setFiles((prev) =>
-                  prev.map((f, idx) => (idx === i ? { ...f, progress } : f)),
-                );
               },
-            });
+            );
+
+            conversionResult = { blob: result.blob, method: "Client-side" };
           }
 
-          const processingTime = Date.now() - startTime;
+          if (!conversionResult) {
+            throw new Error("Both server and client conversion failed");
+          }
 
-          // Extract info from headers
-          const sheetsConverted = parseInt(
-            result.headers?.["x-sheets-converted"] || "1",
+          // Update progress to completion
+          setFiles((prev) =>
+            prev.map((f, idx) =>
+              idx === i
+                ? {
+                    ...f,
+                    progress: 95,
+                    currentStep: "Finalizing...",
+                  }
+                : f,
+            ),
           );
 
-          // Create download blob and URL
-          const blob = new Blob([result.data], {
-            type: "application/pdf",
-          });
-          const downloadUrl = URL.createObjectURL(blob);
+          // Create download URL
+          const downloadUrl = URL.createObjectURL(conversionResult.blob);
           const outputFilename = `${fileStatus.file.name.replace(/\.(xlsx?|xls)$/i, "")}_converted.pdf`;
 
           // Update file status with completion
@@ -284,43 +253,32 @@ const ExcelToPdf = () => {
                     ...f,
                     status: "completed",
                     progress: 100,
+                    currentStep: "Complete",
                     result: {
                       filename: outputFilename,
                       downloadUrl,
-                      fileSize: result.data.byteLength,
-                      sheetsConverted,
-                      processingTime,
-                      conversionMethod: usedMethod,
+                      fileSize: conversionResult.blob.size,
                     },
                   }
                 : f,
             ),
           );
 
-          // Track successful conversion
-          tracking.trackConversionComplete(
-            "Excel",
-            "PDF",
-            {
-              fileName: fileStatus.file.name,
-              fileSize: fileStatus.file.size,
-              fileType: fileStatus.file.type,
-            },
-            result.data.byteLength,
-            processingTime,
-          );
-
-          // Track for floating popup (only for anonymous users)
-          if (!isAuthenticated) {
-            trackToolUsage();
-          }
-
           toast({
-            title: "Conversion Complete!",
-            description: `${fileStatus.file.name} converted successfully using ${usedMethod === "basic" ? "Basic PDF Engine" : "LibreOffice"}. Processed ${sheetsConverted} sheets.`,
+            title: "Conversion Complete! ✨",
+            description: `${fileStatus.file.name} converted successfully using ${conversionResult.method} processing!`,
           });
+
+          console.log(
+            `File ${i + 1} completed successfully using ${conversionResult.method}`,
+          );
         } catch (error) {
           console.error(`Error converting ${fileStatus.file.name}:`, error);
+
+          let errorMessage = "Conversion failed";
+          if (error instanceof Error) {
+            errorMessage = error.message;
+          }
 
           setFiles((prev) =>
             prev.map((f, idx) =>
@@ -329,10 +287,8 @@ const ExcelToPdf = () => {
                     ...f,
                     status: "error",
                     progress: 0,
-                    error:
-                      error instanceof Error
-                        ? error.message
-                        : "Conversion failed",
+                    currentStep: "Error",
+                    error: errorMessage,
                   }
                 : f,
             ),
@@ -340,13 +296,22 @@ const ExcelToPdf = () => {
 
           toast({
             title: `❌ Error converting ${fileStatus.file.name}`,
-            description:
-              error instanceof Error ? error.message : "Conversion failed",
+            description: errorMessage,
             variant: "destructive",
           });
         }
       }
+
+      console.log("All files processed");
+    } catch (error) {
+      console.error("Conversion process failed:", error);
+      toast({
+        title: "Conversion Failed",
+        description: "An unexpected error occurred during conversion.",
+        variant: "destructive",
+      });
     } finally {
+      console.log("Setting processing to false");
       setIsProcessing(false);
     }
   };
@@ -388,15 +353,31 @@ const ExcelToPdf = () => {
         {/* Title Section */}
         <div className="text-center mb-12">
           <div className="flex items-center justify-center gap-3 mb-4">
-            <div className="p-3 bg-blue-600 rounded-2xl">
+            <div className="p-3 bg-gradient-to-br from-blue-600 to-purple-600 rounded-2xl">
               <FileCheck className="w-8 h-8 text-white" />
             </div>
-            <h1 className="text-4xl font-bold text-gray-900">Excel to PDF</h1>
+            <h1 className="text-4xl font-bold text-gray-900">
+              Excel to PDF Converter
+            </h1>
+            {import.meta.env.DEV && (
+              <Link
+                to="/debug/excel-to-pdf"
+                className="ml-4 text-xs bg-gray-100 px-2 py-1 rounded"
+              >
+                Debug
+              </Link>
+            )}
           </div>
-          <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-            Convert Excel spreadsheets to PDF documents. Preserve formatting,
-            charts, and layout with professional-quality output.
+          <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+            Convert Excel spreadsheets to PDF format quickly and easily.
+            Supports .xlsx and .xls files with professional quality output.
           </p>
+          <div className="flex items-center justify-center gap-2 mt-4">
+            <Zap className="w-5 h-5 text-blue-600" />
+            <span className="text-sm font-medium text-blue-600">
+              Enhanced Server-side Processing
+            </span>
+          </div>
         </div>
 
         <div className="max-w-4xl mx-auto">
@@ -411,7 +392,7 @@ const ExcelToPdf = () => {
             <CardContent>
               <div
                 className={cn(
-                  "border-2 border-dashed rounded-lg p-8 text-center transition-colors",
+                  "border-2 border-dashed rounded-lg p-8 text-center transition-colors cursor-pointer",
                   "border-gray-300 hover:border-gray-400",
                 )}
                 onClick={() => document.getElementById("file-upload")?.click()}
@@ -437,177 +418,6 @@ const ExcelToPdf = () => {
               </div>
             </CardContent>
           </Card>
-
-          {/* Conversion Settings */}
-          {files.length > 0 && (
-            <Card className="mb-8">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Settings className="w-5 h-5" />
-                  PDF Settings
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                  <div>
-                    <Label htmlFor="conversionMethod">Conversion Engine</Label>
-                    <Select
-                      value={conversionSettings.conversionMethod}
-                      onValueChange={(value: "basic" | "libreoffice") =>
-                        setConversionSettings({
-                          ...conversionSettings,
-                          conversionMethod: value,
-                        })
-                      }
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="libreoffice">
-                          LibreOffice (Auto-fallback)
-                        </SelectItem>
-                        <SelectItem value="basic">Basic Converter</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <p className="text-xs text-gray-500 mt-1">
-                      {conversionSettings.conversionMethod === "libreoffice"
-                        ? "Will automatically use Basic Converter if LibreOffice is unavailable"
-                        : "Direct conversion using basic PDF engine"}
-                    </p>
-                  </div>
-                  <div>
-                    <Label htmlFor="quality">Quality</Label>
-                    <Select
-                      value={conversionSettings.quality}
-                      onValueChange={(value: "standard" | "high" | "premium") =>
-                        setConversionSettings({
-                          ...conversionSettings,
-                          quality: value,
-                        })
-                      }
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="standard">Standard</SelectItem>
-                        <SelectItem value="high">High</SelectItem>
-                        <SelectItem value="premium">Premium</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="pageSize">Page Size</Label>
-                    <Select
-                      value={conversionSettings.pageSize}
-                      onValueChange={(
-                        value: "A4" | "Letter" | "Legal" | "auto",
-                      ) =>
-                        setConversionSettings({
-                          ...conversionSettings,
-                          pageSize: value,
-                        })
-                      }
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="auto">Auto</SelectItem>
-                        <SelectItem value="A4">A4</SelectItem>
-                        <SelectItem value="Letter">Letter</SelectItem>
-                        <SelectItem value="Legal">Legal</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <Label htmlFor="orientation">Orientation</Label>
-                    <Select
-                      value={conversionSettings.orientation}
-                      onValueChange={(
-                        value: "auto" | "portrait" | "landscape",
-                      ) =>
-                        setConversionSettings({
-                          ...conversionSettings,
-                          orientation: value,
-                        })
-                      }
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="auto">Auto</SelectItem>
-                        <SelectItem value="portrait">Portrait</SelectItem>
-                        <SelectItem value="landscape">Landscape</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="font-medium">Preserve Formatting</p>
-                      <p className="text-sm text-gray-500">
-                        Maintain original Excel formatting
-                      </p>
-                    </div>
-                    <input
-                      type="checkbox"
-                      checked={conversionSettings.preserveFormatting}
-                      onChange={(e) =>
-                        setConversionSettings({
-                          ...conversionSettings,
-                          preserveFormatting: e.target.checked,
-                        })
-                      }
-                      className="w-4 h-4"
-                    />
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="font-medium">Preserve Images</p>
-                      <p className="text-sm text-gray-500">
-                        Include charts and images
-                      </p>
-                    </div>
-                    <input
-                      type="checkbox"
-                      checked={conversionSettings.preserveImages}
-                      onChange={(e) =>
-                        setConversionSettings({
-                          ...conversionSettings,
-                          preserveImages: e.target.checked,
-                        })
-                      }
-                      className="w-4 h-4"
-                    />
-                  </div>
-                </div>
-
-                {conversionSettings.conversionMethod === "libreoffice" && (
-                  <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-lg">
-                    <div className="flex items-center gap-2">
-                      <Crown className="h-4 w-4 text-green-600" />
-                      <p className="text-sm font-medium text-green-800">
-                        LibreOffice Engine Active
-                      </p>
-                    </div>
-                    <p className="text-xs text-green-700 mt-1">
-                      Using professional LibreOffice engine for highest quality
-                      Excel to PDF conversion with advanced formatting
-                      preservation.
-                    </p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          )}
 
           {/* File List */}
           {files.length > 0 && (
@@ -651,6 +461,7 @@ const ExcelToPdf = () => {
                             variant="ghost"
                             size="sm"
                             onClick={() => removeFile(index)}
+                            disabled={isProcessing}
                           >
                             <X className="w-4 h-4" />
                           </Button>
@@ -661,7 +472,9 @@ const ExcelToPdf = () => {
                       {fileStatus.status === "converting" && (
                         <div className="space-y-2">
                           <div className="flex justify-between text-sm">
-                            <span>Converting to PDF...</span>
+                            <span className="text-blue-600 font-medium">
+                              {fileStatus.currentStep || "Converting..."}
+                            </span>
                             <span>{Math.round(fileStatus.progress)}%</span>
                           </div>
                           <Progress
@@ -673,47 +486,16 @@ const ExcelToPdf = () => {
 
                       {fileStatus.status === "completed" &&
                         fileStatus.result && (
-                          <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+                          <div className="bg-green-50 border border-green-200 rounded-lg p-4">
                             <div className="flex items-center gap-2 text-green-800 mb-2">
-                              <CheckCircle className="w-4 h-4" />
-                              <span className="font-medium">
+                              <CheckCircle className="w-5 h-5" />
+                              <span className="font-semibold">
                                 Conversion Complete
                               </span>
                             </div>
-                            <div className="grid grid-cols-3 gap-4 text-sm">
-                              <div>
-                                <span className="text-gray-600">Method:</span>
-                                <span className="ml-2 font-medium">
-                                  {fileStatus.result.conversionMethod ===
-                                  "basic"
-                                    ? "Basic Engine"
-                                    : "LibreOffice"}
-                                  {fileStatus.result.conversionMethod ===
-                                    "basic" &&
-                                    conversionSettings.conversionMethod ===
-                                      "libreoffice" && (
-                                      <span className="text-xs text-orange-600 ml-1">
-                                        (fallback)
-                                      </span>
-                                    )}
-                                </span>
-                              </div>
-                              <div>
-                                <span className="text-gray-600">
-                                  Sheets Converted:
-                                </span>
-                                <span className="ml-2 font-medium">
-                                  {fileStatus.result.sheetsConverted}
-                                </span>
-                              </div>
-                              <div>
-                                <span className="text-gray-600">
-                                  File Size:
-                                </span>
-                                <span className="ml-2 font-medium">
-                                  {formatFileSize(fileStatus.result.fileSize)}
-                                </span>
-                              </div>
+                            <div className="text-sm text-green-700">
+                              File size:{" "}
+                              {formatFileSize(fileStatus.result.fileSize)}
                             </div>
                           </div>
                         )}
@@ -744,7 +526,7 @@ const ExcelToPdf = () => {
               <div className="flex gap-4 justify-center">
                 <Button
                   onClick={handleConvert}
-                  disabled={files.length === 0 || isProcessing || !user}
+                  disabled={files.length === 0 || isProcessing}
                   className="bg-blue-600 hover:bg-blue-700"
                   size="lg"
                 >
@@ -755,7 +537,7 @@ const ExcelToPdf = () => {
                     </>
                   ) : (
                     <>
-                      <FileText className="w-5 h-5 mr-2" />
+                      <Zap className="w-5 h-5 mr-2" />
                       Convert to PDF
                     </>
                   )}
@@ -769,7 +551,11 @@ const ExcelToPdf = () => {
                 )}
 
                 {files.length > 0 && (
-                  <Button variant="outline" onClick={() => setFiles([])}>
+                  <Button
+                    variant="outline"
+                    onClick={() => setFiles([])}
+                    disabled={isProcessing}
+                  >
                     Clear All
                   </Button>
                 )}
@@ -780,14 +566,6 @@ const ExcelToPdf = () => {
 
         <PromoBanner />
       </div>
-
-      {showAuthModal && (
-        <AuthModal
-          isOpen={showAuthModal}
-          onClose={() => setShowAuthModal(false)}
-          defaultMode="login"
-        />
-      )}
     </div>
   );
 };

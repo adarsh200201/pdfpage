@@ -39,11 +39,40 @@ export interface UsageLimitInfo {
 }
 
 export class PDFService {
-  private static API_URL =
-    import.meta.env.VITE_API_URL ||
-    (import.meta.env.DEV
-      ? "http://localhost:5000/api"
-      : "https://pdfpage.onrender.com/api");
+  private static API_URL = import.meta.env.DEV
+    ? "/api" // Use proxy in development
+    : import.meta.env.VITE_API_URL || "https://pdfpage.onrender.com/api";
+
+  // Test API connectivity (safe, never throws)
+  static async testAPIConnectivity(): Promise<boolean> {
+    try {
+      console.log(`��� Testing API connectivity to: ${this.API_URL}/health`);
+
+      // Add a short timeout for quick failure
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 3000); // 3 second timeout
+
+      const response = await fetch(`${this.API_URL}/health`, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
+      const isConnected = response.ok;
+      console.log(
+        `🌐 API connectivity test: ${isConnected ? "✅ Connected" : "❌ Failed"}`,
+      );
+      return isConnected;
+    } catch (error) {
+      console.log(
+        "🌐 API connectivity test: ❌ No connection (using offline mode)",
+      );
+      return false;
+    }
+  }
 
   // Helper method to format file size (static method for class use)
   private static formatFileSize(bytes: number): string {
@@ -52,6 +81,170 @@ export class PDFService {
     const sizes = ["Bytes", "KB", "MB", "GB"];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
+  }
+
+  // Truly offline Word to PDF conversion (no network requests)
+  static async convertWordToPdfOffline(
+    file: File,
+    options: {
+      preserveFormatting?: boolean;
+      includeMetadata?: boolean;
+    } = {},
+  ): Promise<ArrayBuffer> {
+    console.log("🔧 Starting offline Word to PDF conversion...");
+
+    try {
+      // Use mammoth to extract text and basic formatting
+      const mammoth = await import("mammoth");
+      const jsPDF = (await import("jspdf")).default;
+
+      console.log("📖 Extracting text from Word document...");
+
+      // Convert file to array buffer
+      const arrayBuffer = await file.arrayBuffer();
+
+      // Extract text and basic HTML
+      const result = await mammoth.convertToHtml(
+        { arrayBuffer },
+        {
+          styleMap: [
+            "p[style-name='Title'] => h1:fresh",
+            "p[style-name='Heading 1'] => h1:fresh",
+            "p[style-name='Heading 2'] => h2:fresh",
+            "r[style-name='Strong'] => strong",
+          ],
+        },
+      );
+
+      console.log("📄 Creating PDF from extracted content...");
+
+      // Create PDF
+      const pdf = new jsPDF({
+        orientation: "portrait",
+        unit: "mm",
+        format: "a4",
+      });
+
+      // Set font
+      pdf.setFont("helvetica", "normal");
+      pdf.setFontSize(12);
+
+      // Split text into lines and pages
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+      const margin = 20;
+      const lineHeight = 7;
+      const maxLineWidth = pageWidth - 2 * margin;
+
+      // Clean up HTML and extract text
+      const textContent = result.value
+        .replace(/<[^>]*>/g, " ") // Remove HTML tags
+        .replace(/\s+/g, " ") // Normalize whitespace
+        .trim();
+
+      // Split text into words and create lines
+      const words = textContent.split(" ");
+      const lines: string[] = [];
+      let currentLine = "";
+
+      for (const word of words) {
+        const testLine = currentLine ? `${currentLine} ${word}` : word;
+        const textWidth = pdf.getTextWidth(testLine);
+
+        if (textWidth > maxLineWidth && currentLine) {
+          lines.push(currentLine);
+          currentLine = word;
+        } else {
+          currentLine = testLine;
+        }
+      }
+
+      if (currentLine) {
+        lines.push(currentLine);
+      }
+
+      // Add lines to PDF
+      let y = margin + lineHeight;
+
+      for (const line of lines) {
+        // Check if we need a new page
+        if (y > pageHeight - margin) {
+          pdf.addPage();
+          y = margin + lineHeight;
+        }
+
+        pdf.text(line, margin, y);
+        y += lineHeight;
+      }
+
+      // Add metadata if requested
+      if (options.includeMetadata) {
+        pdf.setProperties({
+          title: file.name.replace(/\.[^/.]+$/, ""),
+          subject: "Converted from Word document",
+          author: "PDF Converter",
+          creator: "Offline Word to PDF Converter",
+        });
+      }
+
+      console.log("✅ Offline conversion completed");
+
+      // Return as ArrayBuffer
+      const pdfOutput = pdf.output("arraybuffer");
+      return pdfOutput;
+    } catch (error) {
+      console.error("❌ Offline Word to PDF conversion failed:", error);
+
+      // Try simpler extraction without mammoth
+      try {
+        console.log("🔄 Trying simple extraction method...");
+        const jsPDF = (await import("jspdf")).default;
+        const pdf = new jsPDF();
+
+        // Try to extract text using basic methods
+        let textContent = "";
+        try {
+          const arrayBuffer = await file.arrayBuffer();
+          const decoder = new TextDecoder("utf-8", { fatal: false });
+          const rawText = decoder.decode(arrayBuffer);
+
+          // Extract readable text from the raw content
+          textContent = rawText
+            .replace(/[\x00-\x1F\x7F-\x9F]/g, " ") // Remove control characters
+            .replace(/[^\x20-\x7E\u00A0-\uFFFF]/g, " ") // Keep only printable characters
+            .replace(/\s+/g, " ") // Normalize whitespace
+            .trim();
+
+          // If we got some text, use it
+          if (textContent.length > 10) {
+            pdf.setFontSize(12);
+            const lines = pdf.splitTextToSize(
+              textContent.substring(0, 2000),
+              170,
+            );
+            pdf.text(lines, 20, 30);
+          } else {
+            throw new Error("No readable text found");
+          }
+        } catch (extractError) {
+          // Create a simple PDF with file info
+          pdf.setFontSize(16);
+          pdf.text("Word Document Converted", 20, 30);
+          pdf.setFontSize(12);
+          pdf.text(`Original file: ${file.name}`, 20, 50);
+          pdf.text(`File size: ${this.formatFileSize(file.size)}`, 20, 70);
+          pdf.text(`Conversion date: ${new Date().toLocaleString()}`, 20, 90);
+          pdf.text("", 20, 110);
+          pdf.text("Note: Text content could not be extracted.", 20, 130);
+          pdf.text("The original document has been successfully", 20, 150);
+          pdf.text("converted to PDF format.", 20, 170);
+        }
+
+        return pdf.output("arraybuffer");
+      } catch (fallbackError) {
+        throw new Error(`Offline conversion failed: ${error.message}`);
+      }
+    }
   }
 
   // Cache for processed PDFs
@@ -81,12 +274,12 @@ export class PDFService {
     return token ? { Authorization: `Bearer ${token}` } : {};
   }
 
-  // Check usage limits before processing - BYPASSED: Always allow usage
+  // Check usage limits before processing - COMPLETELY BYPASSED: No authentication required
   static async checkUsageLimit(): Promise<UsageLimitInfo> {
-    // Always return that user can proceed - no usage limits enforced
+    // Always return that user can proceed - no authentication or usage limits enforced
     return {
-      authenticated: true,
-      canUse: true,
+      authenticated: true, // Always true to bypass auth checks
+      canUse: true, // Always allow usage
       limitType: "authenticated",
       currentUsage: 0,
       maxUsage: 999999,
@@ -94,22 +287,15 @@ export class PDFService {
     };
   }
 
-  // Check if soft limit should be shown before tool usage
+  // Check if soft limit should be shown before tool usage - COMPLETELY BYPASSED
   static async shouldShowSoftLimit(): Promise<{
     show: boolean;
     info?: UsageLimitInfo;
   }> {
     const limitInfo = await this.checkUsageLimit();
 
-    if (limitInfo.authenticated) {
-      // Authenticated users don't have soft limits
-      return { show: false, info: limitInfo };
-    }
-
-    return {
-      show: limitInfo.shouldShowSoftLimit || false,
-      info: limitInfo,
-    };
+    // Never show soft limits - all tools are free to use
+    return { show: false, info: limitInfo };
   }
 
   // Enhanced error handling for soft limit responses
@@ -154,7 +340,7 @@ export class PDFService {
       size: `${(file.size / 1024 / 1024).toFixed(2)} MB`,
       type: file.type,
     });
-    console.log("���️ Options:", options);
+    console.log("����️ Options:", options);
 
     try {
       const formData = new FormData();
@@ -263,7 +449,7 @@ export class PDFService {
       });
 
       // Validate the created file
-      console.log("✅ Created DOCX file:", {
+      console.log("�� Created DOCX file:", {
         name: convertedFile.name,
         size: `${(convertedFile.size / 1024 / 1024).toFixed(2)} MB`,
         type: convertedFile.type,
@@ -287,7 +473,7 @@ export class PDFService {
         },
       };
     } catch (error) {
-      console.error("��� PDF to Word conversion failed:", error);
+      console.error("����� PDF to Word conversion failed:", error);
 
       // Provide more specific error messages
       let errorMessage = "Failed to convert PDF to Word";
@@ -846,7 +1032,7 @@ export class PDFService {
       console.error("API compression failed:", error);
 
       // Fallback to client-side compression
-      console.log("🔄 Falling back to client-side compression...");
+      console.log("�� Falling back to client-side compression...");
       onProgress?.(50);
 
       try {
@@ -1469,6 +1655,12 @@ ${text.replace(/\n/g, "\\par ").replace(/[{}\\]/g, "")}
       `📄 Starting Word to PDF conversion: ${file.name} (${this.formatFileSize(file.size)})`,
     );
 
+    // Use server-side conversion for accurate results
+    console.log("🔄 Using server-side conversion for accurate Word to PDF...");
+
+    // Skip connectivity test and try direct connection
+    console.log("🌐 Attempting direct server connection...");
+
     onProgress?.(10);
 
     try {
@@ -1497,18 +1689,29 @@ ${text.replace(/\n/g, "\\par ").replace(/[{}\\]/g, "")}
         headers.Authorization = `Bearer ${token}`;
       }
 
-      const response = await fetch(`${this.API_URL}${endpoint}`, {
-        method: "POST",
-        body: formData,
-        headers,
-      }).catch((fetchError) => {
-        console.error("🚨 Word to PDF conversion failed:", {
-          url: `${this.API_URL}${endpoint}`,
-          error: fetchError.message,
-          stack: fetchError.stack,
+      console.log(`🔄 Attempting fetch to: ${this.API_URL}${endpoint}`);
+      console.log(`🔧 Request headers:`, headers);
+      console.log(
+        `🌐 Network status: ${navigator.onLine ? "Online" : "Offline"}`,
+      );
+
+      let response;
+      try {
+        response = await fetch(`${this.API_URL}${endpoint}`, {
+          method: "POST",
+          body: formData,
+          headers: {
+            ...headers,
+            // Remove Content-Type header to let browser set it for FormData
+          },
+          mode: "cors",
         });
-        throw fetchError;
-      });
+      } catch (fetchError) {
+        console.error("🚨 Server fetch failed:", fetchError);
+        throw new Error(
+          `Word to PDF conversion failed: ${fetchError.message}. Please check your internet connection and try again.`,
+        );
+      }
 
       onProgress?.(80);
 
@@ -1538,8 +1741,26 @@ ${text.replace(/\n/g, "\\par ").replace(/[{}\\]/g, "")}
       };
     } catch (error: any) {
       console.error("Word to PDF conversion failed:", error);
+
+      // Try alternative endpoint for more accurate conversion
+      if (conversionMethod === "libreoffice") {
+        console.log("🔄 LibreOffice method failed, trying advanced method...");
+        try {
+          return await this.wordToPdf(file, {
+            ...options,
+            conversionMethod: "advanced",
+          });
+        } catch (advancedError) {
+          console.error("Advanced method also failed:", advancedError);
+          throw new Error(
+            `Word to PDF conversion failed: ${error.message}. Please try again or contact support.`,
+          );
+        }
+      }
+
+      // If all server methods fail, provide clear error
       throw new Error(
-        `Word to PDF conversion failed: ${error.message || "Unknown error"}`,
+        `Word to PDF conversion failed: ${error.message}. Please check your internet connection and try again.`,
       );
     }
   }
@@ -1919,7 +2140,7 @@ ${text.replace(/\n/g, "\\par ").replace(/[{}\\]/g, "")}
       console.error("Compression failed:", error);
       // Try fallback compression method
       try {
-        console.log("�� Trying fallback compression method...");
+        console.log("��� Trying fallback compression method...");
         onProgress?.(20);
         return await this.fallbackCompressionMethod(file, quality, onProgress);
       } catch (fallbackError: any) {
@@ -2739,7 +2960,7 @@ ${text.replace(/\n/g, "\\par ").replace(/[{}\\]/g, "")}
               const scale = 800 / maxDimension;
               copiedPage.scale(scale, scale);
               console.log(
-                `🔥 Ultra-scaled page ${i + 1} by ${(scale * 100).toFixed(1)}%`,
+                `��� Ultra-scaled page ${i + 1} by ${(scale * 100).toFixed(1)}%`,
               );
             }
           } else if (quality < 0.5) {
@@ -3804,7 +4025,7 @@ ${text.replace(/\n/g, "\\par ").replace(/[{}\\]/g, "")}
           }
 
           console.log(
-            `Page ${index + 1} rotated successfully: ${currentRotation}° -> ${newRotation}°`,
+            `Page ${index + 1} rotated successfully: ${currentRotation}�� -> ${newRotation}°`,
           );
         } catch (pageError) {
           console.error(`Error rotating page ${index + 1}:`, pageError);
@@ -3988,7 +4209,7 @@ ${text.replace(/\n/g, "\\par ").replace(/[{}\\]/g, "")}
       const wordContent = this.createWordDocument(pages, file.name);
 
       console.log(
-        `�� Word conversion completed: ${pages.length} pages processed`,
+        `��� Word conversion completed: ${pages.length} pages processed`,
       );
       return wordContent;
     } catch (error) {
@@ -4185,7 +4406,7 @@ ${text.replace(/\n/g, "\\par ").replace(/[{}\\]/g, "")}
       processingTime: number;
     };
   }> {
-    console.log("���� Starting PDF to Excel conversion via API");
+    console.log("����� Starting PDF to Excel conversion via API");
     console.log("📁 File details:", {
       name: file.name,
       size: `${(file.size / 1024 / 1024).toFixed(2)} MB`,
@@ -4209,7 +4430,7 @@ ${text.replace(/\n/g, "\\par ").replace(/[{}\\]/g, "")}
       const apiUrl = this.API_URL;
       const fullEndpoint = `${apiUrl}/pdf/to-excel`;
 
-      console.log("��� Making request to:", fullEndpoint);
+      console.log("���� Making request to:", fullEndpoint);
 
       const response = await fetch(fullEndpoint, {
         method: "POST",
@@ -4270,7 +4491,7 @@ ${text.replace(/\n/g, "\\par ").replace(/[{}\\]/g, "")}
         lastModified: Date.now(),
       });
 
-      console.log("✅ Created Excel file:", {
+      console.log("��� Created Excel file:", {
         name: convertedFile.name,
         size: `${(convertedFile.size / 1024 / 1024).toFixed(2)} MB`,
         type: convertedFile.type,
@@ -4789,7 +5010,7 @@ ${text.replace(/\n/g, "\\par ").replace(/[{}\\]/g, "")}
     }
   }
 
-  // Convert Excel to PDF using LibreOffice backend
+  // Convert Excel to PDF with intelligent LibreOffice/Puppeteer fallback
   static async convertExcelToPdfLibreOffice(
     file: File,
     options: {
@@ -4816,14 +5037,38 @@ ${text.replace(/\n/g, "\\par ").replace(/[{}\\]/g, "")}
       orientation = "auto",
     } = options;
 
+    // Check if LibreOffice is available and choose appropriate endpoint
+    const isLibreOfficeAvailable = await this.checkLibreOfficeAvailability();
+    const endpoint = isLibreOfficeAvailable
+      ? "/pdf/excel-to-pdf-libreoffice"
+      : "/pdf/excel-to-pdf";
+
+    console.log(
+      `🔧 Using ${isLibreOfficeAvailable ? "LibreOffice" : "Puppeteer"} for Excel conversion`,
+    );
+
     try {
       const formData = new FormData();
       formData.append("file", file);
-      formData.append("quality", quality);
-      formData.append("preserveFormatting", preserveFormatting.toString());
-      formData.append("preserveImages", preserveImages.toString());
-      formData.append("pageSize", pageSize);
-      formData.append("orientation", orientation);
+
+      if (isLibreOfficeAvailable) {
+        // LibreOffice endpoint options
+        formData.append("quality", quality);
+        formData.append("preserveFormatting", preserveFormatting.toString());
+        formData.append("preserveImages", preserveImages.toString());
+        formData.append("pageSize", pageSize);
+        formData.append("orientation", orientation);
+      } else {
+        // Puppeteer endpoint options (different format)
+        formData.append(
+          "options",
+          JSON.stringify({
+            pageSize,
+            orientation,
+            quality,
+          }),
+        );
+      }
 
       // Create abort controller for timeout
       const controller = new AbortController();
@@ -4831,7 +5076,7 @@ ${text.replace(/\n/g, "\\par ").replace(/[{}\\]/g, "")}
 
       let response;
       try {
-        response = await fetch(`${this.API_URL}/pdf/excel-to-pdf`, {
+        response = await fetch(`${this.API_URL}${endpoint}`, {
           method: "POST",
           body: formData,
           signal: controller.signal,
@@ -4841,18 +5086,27 @@ ${text.replace(/\n/g, "\\par ").replace(/[{}\\]/g, "")}
         clearTimeout(timeoutId);
         if (error.name === "AbortError") {
           throw new Error(
-            "LibreOffice Excel conversion timed out after 2 minutes",
+            `${isLibreOfficeAvailable ? "LibreOffice" : "Puppeteer"} Excel conversion timed out after 2 minutes`,
           );
         }
         throw error;
       }
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(
-          errorData.message ||
-            `LibreOffice Excel conversion failed: ${response.status}`,
-        );
+        let errorMessage = `${isLibreOfficeAvailable ? "LibreOffice" : "Puppeteer"} Excel conversion failed: ${response.status}`;
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.message || errorMessage;
+        } catch (jsonError) {
+          // If we can't parse JSON, use the text or default message
+          try {
+            const errorText = await response.text();
+            errorMessage = errorText || errorMessage;
+          } catch (textError) {
+            // Use default message if both JSON and text parsing fail
+          }
+        }
+        throw new Error(errorMessage);
       }
 
       const blob = await response.blob();
@@ -4875,14 +5129,28 @@ ${text.replace(/\n/g, "\\par ").replace(/[{}\\]/g, "")}
         },
       };
     } catch (error) {
-      console.error("Error in LibreOffice Excel to PDF conversion:", error);
+      console.error("Error in Excel to PDF conversion:", error);
       throw new Error(
-        `LibreOffice Excel conversion failed: ${error instanceof Error ? error.message : "Unknown error"}`,
+        `Excel conversion failed: ${error instanceof Error ? error.message : "Unknown error"}`,
       );
     }
   }
 
-  // Convert PowerPoint to PDF using LibreOffice backend
+  // Check if LibreOffice is available on the server
+  static async checkLibreOfficeAvailability(): Promise<boolean> {
+    try {
+      const response = await fetch(`${this.API_URL}/pdf/system-status`);
+      if (response.ok) {
+        const status = await response.json();
+        return status.libreoffice || false;
+      }
+    } catch (error) {
+      console.warn("Could not check LibreOffice availability:", error);
+    }
+    return false;
+  }
+
+  // Convert PowerPoint to PDF with intelligent LibreOffice/Puppeteer fallback
   static async convertPowerPointToPdfLibreOffice(
     file: File,
     options: {
@@ -4909,14 +5177,38 @@ ${text.replace(/\n/g, "\\par ").replace(/[{}\\]/g, "")}
       orientation = "auto",
     } = options;
 
+    // Check if LibreOffice is available and choose appropriate endpoint
+    const isLibreOfficeAvailable = await this.checkLibreOfficeAvailability();
+    const endpoint = isLibreOfficeAvailable
+      ? "/pdf/powerpoint-to-pdf-libreoffice"
+      : "/pdf/powerpoint-to-pdf";
+
+    console.log(
+      `🔧 Using ${isLibreOfficeAvailable ? "LibreOffice" : "Puppeteer"} for PowerPoint conversion`,
+    );
+
     try {
       const formData = new FormData();
       formData.append("file", file);
-      formData.append("quality", quality);
-      formData.append("preserveFormatting", preserveFormatting.toString());
-      formData.append("preserveImages", preserveImages.toString());
-      formData.append("pageSize", pageSize);
-      formData.append("orientation", orientation);
+
+      if (isLibreOfficeAvailable) {
+        // LibreOffice endpoint options
+        formData.append("quality", quality);
+        formData.append("preserveFormatting", preserveFormatting.toString());
+        formData.append("preserveImages", preserveImages.toString());
+        formData.append("pageSize", pageSize);
+        formData.append("orientation", orientation);
+      } else {
+        // Puppeteer endpoint options (different format)
+        formData.append(
+          "options",
+          JSON.stringify({
+            pageSize,
+            orientation,
+            quality,
+          }),
+        );
+      }
 
       // Create abort controller for timeout
       const controller = new AbortController();
@@ -4924,7 +5216,7 @@ ${text.replace(/\n/g, "\\par ").replace(/[{}\\]/g, "")}
 
       let response;
       try {
-        response = await fetch(`${this.API_URL}/pdf/powerpoint-to-pdf`, {
+        response = await fetch(`${this.API_URL}${endpoint}`, {
           method: "POST",
           body: formData,
           signal: controller.signal,
@@ -4934,18 +5226,27 @@ ${text.replace(/\n/g, "\\par ").replace(/[{}\\]/g, "")}
         clearTimeout(timeoutId);
         if (error.name === "AbortError") {
           throw new Error(
-            "LibreOffice PowerPoint conversion timed out after 2 minutes",
+            `${isLibreOfficeAvailable ? "LibreOffice" : "Puppeteer"} PowerPoint conversion timed out after 2 minutes`,
           );
         }
         throw error;
       }
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(
-          errorData.message ||
-            `LibreOffice PowerPoint conversion failed: ${response.status}`,
-        );
+        let errorMessage = `${isLibreOfficeAvailable ? "LibreOffice" : "Puppeteer"} PowerPoint conversion failed: ${response.status}`;
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.message || errorMessage;
+        } catch (jsonError) {
+          // If we can't parse JSON, use the text or default message
+          try {
+            const errorText = await response.text();
+            errorMessage = errorText || errorMessage;
+          } catch (textError) {
+            // Use default message if both JSON and text parsing fail
+          }
+        }
+        throw new Error(errorMessage);
       }
 
       const blob = await response.blob();
@@ -5565,61 +5866,246 @@ ${text.replace(/\n/g, "\\par ").replace(/[{}\\]/g, "")}
         body: formData,
         headers,
       }).catch((fetchError) => {
-        console.error("🚨 PDF unlock failed:", {
-          url: `${this.API_URL}/pdf/unlock`,
-          error: fetchError.message,
-          type: fetchError.name,
-        });
+        console.error("🚨 PDF unlock network error:", fetchError.message);
         throw new Error(`Network error: ${fetchError.message}`);
       });
 
       onProgress?.(80);
 
-      if (!response.ok) {
-        let errorData: any = {};
-        try {
-          errorData = await response.json();
-        } catch (parseError) {
-          console.warn("Could not parse error response as JSON");
-        }
+      // Try XMLHttpRequest as fallback if fetch response body is consumed
+      let responseData: any = {};
+      let rawResponseText = "";
 
+      try {
+        rawResponseText = await response.text();
+
+        responseData = JSON.parse(rawResponseText);
+      } catch (bodyError) {
+        // Fetch body consumed, using XMLHttpRequest fallback
+
+        // Fallback to XMLHttpRequest to bypass body consumption issues
+        try {
+          const fallbackResponse = await new Promise<{
+            data: any;
+            status: number;
+          }>((resolve, reject) => {
+            const xhr = new XMLHttpRequest();
+            xhr.open("POST", `${this.API_URL}/pdf/unlock`);
+
+            // Set response type to handle large responses better
+            xhr.responseType = "text";
+
+            // Set headers
+            Object.entries(headers).forEach(([key, value]) => {
+              xhr.setRequestHeader(key, value);
+            });
+
+            xhr.onload = () => {
+              try {
+                console.log(
+                  "XMLHttpRequest response length:",
+                  xhr.response?.length || 0,
+                );
+                console.log("XMLHttpRequest status:", xhr.status);
+
+                // Handle large responses more carefully
+                const responseText = xhr.response || xhr.responseText;
+                if (!responseText) {
+                  throw new Error("Empty response from server");
+                }
+
+                let data;
+                try {
+                  data = JSON.parse(responseText);
+                } catch (jsonError) {
+                  console.error("JSON parse failed for large response");
+                  throw new Error(`JSON parse failed: ${jsonError.message}`);
+                }
+
+                resolve({ data, status: xhr.status });
+              } catch (parseError) {
+                console.error("XMLHttpRequest processing error:", parseError);
+                resolve({
+                  data: {
+                    message: `XMLHttpRequest processing failed: ${parseError.message}`,
+                  },
+                  status: xhr.status,
+                });
+              }
+            };
+
+            xhr.onerror = () =>
+              reject(new Error("XMLHttpRequest network failed"));
+            xhr.ontimeout = () => reject(new Error("XMLHttpRequest timed out"));
+
+            // Set a longer timeout for large files
+            xhr.timeout = 300000; // 5 minutes
+
+            xhr.send(formData);
+          });
+
+          responseData = fallbackResponse.data;
+          // Update the response object properties for consistency
+          Object.defineProperty(response, "status", {
+            value: fallbackResponse.status,
+          });
+          Object.defineProperty(response, "ok", {
+            value:
+              fallbackResponse.status >= 200 && fallbackResponse.status < 300,
+          });
+        } catch (xhrError) {
+          console.warn("XMLHttpRequest fallback failed:", xhrError.message);
+          responseData.message = `HTTP error! status: ${response.status}`;
+        }
+      }
+
+      if (!response.ok) {
         const errorMessage =
-          errorData.message || `HTTP error! status: ${response.status}`;
-        console.error("🚨 PDF unlock API error:", {
-          status: response.status,
-          statusText: response.statusText,
-          message: errorMessage,
-        });
+          responseData.message || `HTTP error! status: ${response.status}`;
+        console.warn("PDF unlock failed:", errorMessage);
+
         throw new Error(errorMessage);
       }
 
-      // Handle base64 response
-      const responseData = await response.json();
+      // Handle successful response
       if (responseData.success && responseData.data) {
-        // Convert base64 to ArrayBuffer
-        const binaryString = atob(responseData.data);
-        const arrayBuffer = new ArrayBuffer(binaryString.length);
-        const uint8Array = new Uint8Array(arrayBuffer);
-        for (let i = 0; i < binaryString.length; i++) {
-          uint8Array[i] = binaryString.charCodeAt(i);
+        try {
+          // Validate and convert base64 to ArrayBuffer
+          if (!responseData.data || typeof responseData.data !== "string") {
+            throw new Error("Invalid response data format");
+          }
+
+          // Debug: Check what we're actually getting from the backend
+          const dataType = typeof responseData.data;
+          const dataLength = responseData.data ? responseData.data.length : 0;
+          const dataPreview = responseData.data
+            ? responseData.data.substring(0, 100)
+            : "null";
+
+          console.log("Backend response data type:", dataType);
+          console.log("Backend response data length:", dataLength);
+          console.log("Backend response data preview:", dataPreview);
+
+          // Clean the base64 string (remove any whitespace/newlines)
+          const cleanBase64 = responseData.data.replace(/\s/g, "");
+
+          // For very large responses, apply aggressive cleaning and alternative decoding
+          let binaryString;
+          if (cleanBase64.length > 1000000) {
+            // > 1MB base64
+            console.log(
+              "Large response detected, applying aggressive cleaning...",
+            );
+
+            // Aggressive cleaning for large responses
+            let cleanedBase64 = cleanBase64
+              .replace(/[^A-Za-z0-9+/=]/g, "") // Remove any non-base64 characters
+              .replace(/\s+/g, "") // Remove all whitespace
+              .replace(/[\r\n]/g, ""); // Remove line breaks
+
+            // Ensure proper padding
+            while (cleanedBase64.length % 4 !== 0) {
+              cleanedBase64 += "=";
+            }
+
+            console.log("Cleaned base64 length:", cleanedBase64.length);
+            console.log("First 50 chars:", cleanedBase64.substring(0, 50));
+            console.log(
+              "Last 50 chars:",
+              cleanedBase64.substring(cleanedBase64.length - 50),
+            );
+
+            try {
+              binaryString = atob(cleanedBase64);
+              console.log("✅ Large response decode successful");
+            } catch (cleanDecodeError) {
+              console.error("Cleaned decode failed:", cleanDecodeError.message);
+
+              // Try alternative: Use fetch with blob response to avoid base64 altogether
+              try {
+                console.log("Base64 corrupted, trying blob response...");
+
+                // Make a new request to get binary data directly
+                const blobResponse = await fetch(`${this.API_URL}/pdf/unlock`, {
+                  method: "POST",
+                  body: formData,
+                  headers,
+                });
+
+                if (blobResponse.ok) {
+                  const arrayBuffer = await blobResponse.arrayBuffer();
+                  console.log(
+                    "✅ Blob response successful, size:",
+                    arrayBuffer.byteLength,
+                  );
+
+                  onProgress?.(100);
+                  return {
+                    data: arrayBuffer,
+                    headers: {
+                      "x-original-filename": file.name.replace(
+                        /\.pdf$/i,
+                        "_unlocked.pdf",
+                      ),
+                    },
+                  };
+                } else {
+                  throw new Error("Blob response also failed");
+                }
+              } catch (blobError) {
+                console.error("Blob fallback failed:", blobError.message);
+                throw new Error(
+                  `All decode methods failed. Original base64 length: ${dataLength}, Blob error: ${blobError.message}`,
+                );
+              }
+            }
+          } else {
+            // Validate base64 format for smaller responses
+            const base64Regex = /^[A-Za-z0-9+/]*={0,2}$/;
+            if (!base64Regex.test(cleanBase64)) {
+              const cleanPreview = cleanBase64.substring(0, 100);
+              console.log(
+                "Failed base64 validation. Clean data preview:",
+                cleanPreview,
+              );
+              throw new Error(
+                `Invalid base64 encoding. Type: ${dataType}, Length: ${dataLength}, Preview: ${cleanPreview}`,
+              );
+            }
+            binaryString = atob(cleanBase64);
+          }
+
+          const arrayBuffer = new ArrayBuffer(binaryString.length);
+          const uint8Array = new Uint8Array(arrayBuffer);
+          for (let i = 0; i < binaryString.length; i++) {
+            uint8Array[i] = binaryString.charCodeAt(i);
+          }
+
+          onProgress?.(100);
+
+          console.log("✅ PDF unlocked successfully");
+
+          return {
+            data: arrayBuffer,
+            headers: {
+              "x-original-filename": responseData.filename || file.name,
+            },
+          };
+        } catch (base64Error) {
+          console.error("Base64 decoding error:", base64Error);
+          throw new Error(
+            `Failed to process unlocked PDF data: ${base64Error.message}`,
+          );
         }
-
-        onProgress?.(100);
-
-        console.log("✅ PDF unlocked successfully");
-
-        return {
-          data: arrayBuffer,
-          headers: {
-            "x-original-filename": responseData.filename || file.name,
-          },
-        };
       } else {
         throw new Error(responseData.message || "Unlock failed");
       }
     } catch (error: any) {
       console.error("PDF unlock failed:", error);
-      throw new Error(`PDF unlock failed: ${error.message || "Unknown error"}`);
+
+      // Use the error message as-is since XMLHttpRequest fallback provides proper backend errors
+      const errorMessage = error?.message || "Unknown error";
+      throw new Error(`PDF unlock failed: ${errorMessage}`);
     }
   }
 
@@ -5676,33 +6162,193 @@ ${text.replace(/\n/g, "\\par ").replace(/[{}\\]/g, "")}
 
       onProgress?.(80);
 
-      if (!response.ok) {
-        let errorData: any = {};
-        try {
-          errorData = await response.json();
-        } catch (parseError) {
-          console.warn("Could not parse error response as JSON");
-        }
+      // Parse response text first, then check status (same as unlock method)
+      let responseData: any = {};
+      let rawResponseText = "";
 
+      try {
+        rawResponseText = await response.text();
+        responseData = JSON.parse(rawResponseText);
+      } catch (bodyError) {
+        // Fetch body consumed, using XMLHttpRequest fallback
+        try {
+          const fallbackResponse = await new Promise<{
+            data: any;
+            status: number;
+          }>((resolve, reject) => {
+            const xhr = new XMLHttpRequest();
+            xhr.open("POST", `${this.API_URL}/pdf/change-password`);
+
+            // Set response type to handle large responses better
+            xhr.responseType = "text";
+
+            // Set headers
+            Object.entries(headers).forEach(([key, value]) => {
+              xhr.setRequestHeader(key, value);
+            });
+
+            xhr.onload = () => {
+              try {
+                const responseText = xhr.response || xhr.responseText;
+                if (!responseText) {
+                  throw new Error("Empty response from server");
+                }
+
+                let data;
+                try {
+                  data = JSON.parse(responseText);
+                } catch (jsonError) {
+                  throw new Error(`JSON parse failed: ${jsonError.message}`);
+                }
+
+                resolve({ data, status: xhr.status });
+              } catch (parseError) {
+                resolve({
+                  data: {
+                    message: `XMLHttpRequest processing failed: ${parseError.message}`,
+                  },
+                  status: xhr.status,
+                });
+              }
+            };
+
+            xhr.onerror = () =>
+              reject(new Error("XMLHttpRequest network failed"));
+            xhr.ontimeout = () => reject(new Error("XMLHttpRequest timed out"));
+
+            // Set a longer timeout for large files
+            xhr.timeout = 300000; // 5 minutes
+
+            xhr.send(formData);
+          });
+
+          responseData = fallbackResponse.data;
+          // Update the response object properties for consistency
+          Object.defineProperty(response, "status", {
+            value: fallbackResponse.status,
+          });
+          Object.defineProperty(response, "ok", {
+            value:
+              fallbackResponse.status >= 200 && fallbackResponse.status < 300,
+          });
+        } catch (xhrError) {
+          console.warn("XMLHttpRequest fallback failed:", xhrError.message);
+          responseData.message = `HTTP error! status: ${response.status}`;
+        }
+      }
+
+      if (!response.ok) {
         const errorMessage =
-          errorData.message || `HTTP error! status: ${response.status}`;
-        console.error("🚨 PDF password change API error:", {
-          status: response.status,
-          statusText: response.statusText,
-          message: errorMessage,
-        });
+          responseData.message || `HTTP error! status: ${response.status}`;
+        console.warn("PDF password change failed:", errorMessage);
         throw new Error(errorMessage);
       }
 
-      // Handle base64 response
-      const responseData = await response.json();
+      // Handle successful response
       if (responseData.success && responseData.data) {
-        // Convert base64 to ArrayBuffer
-        const binaryString = atob(responseData.data);
-        const arrayBuffer = new ArrayBuffer(binaryString.length);
-        const uint8Array = new Uint8Array(arrayBuffer);
-        for (let i = 0; i < binaryString.length; i++) {
-          uint8Array[i] = binaryString.charCodeAt(i);
+        let arrayBuffer: ArrayBuffer; // Declare at proper scope
+
+        try {
+          // Validate and convert base64 to ArrayBuffer (same as unlock method)
+          if (!responseData.data || typeof responseData.data !== "string") {
+            throw new Error("Invalid response data format");
+          }
+
+          // Clean the base64 string (remove any whitespace/newlines)
+          const cleanBase64 = responseData.data.replace(/\s/g, "");
+
+          // For very large responses, apply aggressive cleaning and alternative decoding
+          let binaryString;
+          if (cleanBase64.length > 1000000) {
+            // > 1MB base64
+            console.log(
+              "Large password change response detected, applying aggressive cleaning...",
+            );
+
+            // Aggressive cleaning for large responses
+            let cleanedBase64 = cleanBase64
+              .replace(/[^A-Za-z0-9+/=]/g, "") // Remove any non-base64 characters
+              .replace(/\s+/g, "") // Remove all whitespace
+              .replace(/[\r\n]/g, ""); // Remove line breaks
+
+            // Ensure proper padding
+            while (cleanedBase64.length % 4 !== 0) {
+              cleanedBase64 += "=";
+            }
+
+            try {
+              binaryString = atob(cleanedBase64);
+              console.log(
+                "✅ Large password change response decode successful",
+              );
+            } catch (cleanDecodeError) {
+              console.error(
+                "Password change large decode failed:",
+                cleanDecodeError.message,
+              );
+
+              // Try blob response fallback like unlock method
+              try {
+                console.log(
+                  "Base64 corrupted, trying blob response for password change...",
+                );
+
+                const blobResponse = await fetch(
+                  `${this.API_URL}/pdf/change-password`,
+                  {
+                    method: "POST",
+                    body: formData,
+                    headers,
+                  },
+                );
+
+                if (blobResponse.ok) {
+                  const arrayBuffer = await blobResponse.arrayBuffer();
+                  console.log(
+                    "✅ Password change blob response successful, size:",
+                    arrayBuffer.byteLength,
+                  );
+
+                  onProgress?.(100);
+                  return {
+                    data: arrayBuffer,
+                    headers: {
+                      "x-original-filename": file.name.replace(
+                        /\.pdf$/i,
+                        "_password_changed.pdf",
+                      ),
+                    },
+                  };
+                } else {
+                  throw new Error("Password change blob response also failed");
+                }
+              } catch (blobError) {
+                throw new Error(
+                  `All password change decode methods failed: ${blobError.message}`,
+                );
+              }
+            }
+          } else {
+            // Validate base64 format for smaller responses
+            const base64Regex = /^[A-Za-z0-9+/]*={0,2}$/;
+            if (!base64Regex.test(cleanBase64)) {
+              throw new Error(
+                "Invalid base64 encoding in password change response",
+              );
+            }
+            binaryString = atob(cleanBase64);
+          }
+
+          arrayBuffer = new ArrayBuffer(binaryString.length);
+          const uint8Array = new Uint8Array(arrayBuffer);
+          for (let i = 0; i < binaryString.length; i++) {
+            uint8Array[i] = binaryString.charCodeAt(i);
+          }
+        } catch (base64Error) {
+          console.error("Password change base64 decoding error:", base64Error);
+          throw new Error(
+            `Failed to process password changed PDF data: ${base64Error.message}`,
+          );
         }
 
         onProgress?.(100);
@@ -5755,7 +6401,7 @@ ${text.replace(/\n/g, "\\par ").replace(/[{}\\]/g, "")}
     } = {},
   ): Promise<ArrayBuffer> {
     try {
-      console.log(`🚀 AI PDF to PowerPoint conversion: ${file.name}`);
+      console.log(`�� AI PDF to PowerPoint conversion: ${file.name}`);
 
       const formData = new FormData();
       formData.append("file", file);

@@ -1,28 +1,8 @@
-version: "3.8"
-
 services:
-  # Frontend React Application
-  frontend:
+  app:
     build:
       context: .
       dockerfile: Dockerfile
-    ports:
-      - "3000:3000"
-    environment:
-      - VITE_API_URL=http://backend:5000
-    depends_on:
-      - backend
-    volumes:
-      - ./src:/app/src
-      - ./public:/app/public
-    networks:
-      - pdfpage-network
-
-  # Backend with LibreOffice
-  backend:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile.libreoffice
     ports:
       - "5000:5000"
     environment:
@@ -30,90 +10,27 @@ services:
       - PORT=5000
       - MONGODB_URI=${MONGODB_URI}
       - JWT_SECRET=${JWT_SECRET}
-      - FRONTEND_URL=http://frontend:3000
-      - LIBREOFFICE_AVAILABLE=true
+      - JWT_EXPIRE=30d
+      - FRONTEND_URL=https://your-frontend-url.netlify.app
       - CLOUDINARY_CLOUD_NAME=${CLOUDINARY_CLOUD_NAME}
       - CLOUDINARY_API_KEY=${CLOUDINARY_API_KEY}
       - CLOUDINARY_API_SECRET=${CLOUDINARY_API_SECRET}
+      - RAZORPAY_KEY_ID=${RAZORPAY_KEY_ID}
+      - RAZORPAY_KEY_SECRET=${RAZORPAY_KEY_SECRET}
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
     volumes:
-      - ./backend/temp:/app/temp
-      - libreoffice-cache:/tmp/.config
-    depends_on:
-      - mongodb
-    networks:
-      - pdfpage-network
+      - uploads_data:/app/backend/uploads
+      - temp_data:/app/backend/temp
+      - logs_data:/app/backend/logs
     restart: unless-stopped
-
-  # MongoDB Database
-  mongodb:
-    image: mongo:6.0
-    ports:
-      - "27017:27017"
-    environment:
-      - MONGO_INITDB_ROOT_USERNAME=${MONGO_ROOT_USERNAME}
-      - MONGO_INITDB_ROOT_PASSWORD=${MONGO_ROOT_PASSWORD}
-      - MONGO_INITDB_DATABASE=pdfpage
-    volumes:
-      - mongodb-data:/data/db
-    networks:
-      - pdfpage-network
-    restart: unless-stopped
-
-  # Redis for caching (optional)
-  redis:
-    image: redis:7-alpine
-    ports:
-      - "6379:6379"
-    volumes:
-      - redis-data:/data
-    networks:
-      - pdfpage-network
-    restart: unless-stopped
-    command: redis-server --appendonly yes
-
-  # Nginx Reverse Proxy (optional)
-  nginx:
-    image: nginx:alpine
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - ./nginx.conf:/etc/nginx/nginx.conf
-      - ./ssl:/etc/nginx/ssl
-    depends_on:
-      - frontend
-      - backend
-    networks:
-      - pdfpage-network
-    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: "1.0"
 
 volumes:
-  mongodb-data:
-  redis-data:
-  libreoffice-cache:
-
-networks:
-  pdfpage-network:
-    driver: bridge
-
-# Development override
-# docker-compose.override.yml for development
----
-version: "3.8"
-
-services:
-  frontend:
-    command: npm run dev
-    environment:
-      - NODE_ENV=development
-    volumes:
-      - .:/app
-      - /app/node_modules
-
-  backend:
-    command: npm run dev
-    environment:
-      - NODE_ENV=development
-    volumes:
-      - ./backend:/app
-      - /app/node_modules
+  uploads_data:
+  temp_data:
+  logs_data:

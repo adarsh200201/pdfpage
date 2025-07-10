@@ -72,18 +72,41 @@ export const useRealTimeStats = (
       setError(null); // Clear any previous errors on successful fetch
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "Unknown error";
+
+      // Don't log or show errors for cancelled requests
+      if (
+        errorMessage.includes("cancelled") ||
+        errorMessage.includes("aborted")
+      ) {
+        console.debug("Stats request was cancelled (normal during navigation)");
+        return; // Don't update state if request was cancelled
+      }
+
       console.error("Failed to fetch real-time stats:", err);
 
-      // Set appropriate error message
+      // Set appropriate error message with development hints
       if (
         errorMessage.includes("Failed to fetch") ||
         errorMessage.includes("Unable to connect")
       ) {
         setError("Backend server unavailable - showing offline data");
+        if (import.meta.env?.DEV) {
+          console.debug(
+            "Development hint: Ensure backend is running with 'npm run dev:full'",
+          );
+        }
       } else if (errorMessage.includes("timeout")) {
         setError("Request timed out - showing cached data");
       } else {
         setError("Failed to load real-time statistics");
+      }
+
+      // In development, try to auto-recover by clearing any bad cache
+      if (import.meta.env?.DEV) {
+        setTimeout(() => {
+          statsService.clearCache();
+          console.debug("Cache cleared, will retry on next auto-refresh");
+        }, 1000);
       }
 
       // Fallback to minimal real stats (not dummy data)
@@ -133,7 +156,11 @@ export const useRealTimeStats = (
     // Set up auto-refresh every 5 minutes
     const interval = setInterval(fetchStats, 5 * 60 * 1000);
 
-    return () => clearInterval(interval);
+    return () => {
+      clearInterval(interval);
+      // Cancel any ongoing requests when component unmounts
+      statsService.cleanup();
+    };
   }, [autoRefresh]);
 
   return {

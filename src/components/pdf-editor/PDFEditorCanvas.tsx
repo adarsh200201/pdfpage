@@ -1,57 +1,50 @@
 import React, { useRef, useEffect, useState, useCallback } from "react";
+import * as fabric from "fabric";
+import * as pdfjsLib from "pdfjs-dist";
+import { PDFDocumentProxy } from "pdfjs-dist";
 import { useToast } from "@/hooks/use-toast";
-import { loadPDFDocument } from "@/lib/pdf-worker-config";
 import {
-  AnyElement,
+  PDFElement,
   Point,
   Bounds,
   ToolType,
-  TextElement,
-  DrawElement,
-  ShapeElement,
-  SignatureElement,
-  ImageElement,
-} from "@/types/pdf-editor";
+  EditorSettings,
+} from "@/hooks/usePDFEditor";
 import { cn } from "@/lib/utils";
 
 interface PDFEditorCanvasProps {
-  file: File;
-  pageIndex: number;
+  pdfDocument: PDFDocumentProxy;
+  currentPage: number;
   zoom: number;
-  elements: AnyElement[];
+  elements: PDFElement[];
   selectedElements: string[];
   currentTool: ToolType;
   isDrawing: boolean;
   currentDrawPath: Point[];
-  selectedColor: string;
-  selectedStrokeWidth: number;
-  selectedFontSize: number;
+  settings: EditorSettings;
   onElementAdd: (
-    element: Omit<AnyElement, "id" | "createdAt" | "updatedAt">,
+    element: Omit<PDFElement, "id" | "createdAt" | "updatedAt">,
   ) => string;
-  onElementUpdate: (id: string, updates: Partial<AnyElement>) => void;
+  onElementUpdate: (id: string, updates: Partial<PDFElement>) => void;
   onElementSelect: (ids: string[]) => void;
   onElementToggleSelect: (id: string) => void;
   onStartDrawing: (point: Point) => void;
   onAddDrawPoint: (point: Point) => void;
   onEndDrawing: () => void;
-  onCanvasSizeChange: (size: { width: number; height: number }) => void;
-  onSignaturePlace?: (x: number, y: number) => void;
+  onPageSizeChange: (size: { width: number; height: number }) => void;
   className?: string;
 }
 
-export default function PDFEditorCanvas({
-  file,
-  pageIndex,
+export function PDFEditorCanvas({
+  pdfDocument,
+  currentPage,
   zoom,
   elements,
   selectedElements,
   currentTool,
   isDrawing,
   currentDrawPath,
-  selectedColor,
-  selectedStrokeWidth,
-  selectedFontSize,
+  settings,
   onElementAdd,
   onElementUpdate,
   onElementSelect,
@@ -59,933 +52,515 @@ export default function PDFEditorCanvas({
   onStartDrawing,
   onAddDrawPoint,
   onEndDrawing,
-  onCanvasSizeChange,
-  onSignaturePlace,
+  onPageSizeChange,
   className,
 }: PDFEditorCanvasProps) {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
-  const overlayRef = useRef<HTMLDivElement>(null);
-  const [pdfDocument, setPdfDocument] = useState<any>(null);
-  const [pageData, setPageData] = useState<any>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const canvasContainerRef = useRef<HTMLDivElement>(null);
+  const pdfCanvasRef = useRef<HTMLCanvasElement>(null);
+  const fabricCanvasRef = useRef<fabric.Canvas | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [isDragging, setIsDragging] = useState(false);
-  const [dragStart, setDragStart] = useState<Point>({ x: 0, y: 0 });
-  const [isCreatingElement, setIsCreatingElement] = useState(false);
-  const [tempElement, setTempElement] = useState<Bounds | null>(null);
-  const [textInput, setTextInput] = useState<{
-    bounds: Bounds;
-    value: string;
-    isEditing: boolean;
-  } | null>(null);
-
+  const [canvasReady, setCanvasReady] = useState(false);
+  const isDrawingRef = useRef(false);
+  const drawingPathRef = useRef<fabric.Path | null>(null);
   const { toast } = useToast();
 
-  // Helper function to find element at a given point
-  const getElementAtPoint = useCallback(
-    (point: Point, elements: AnyElement[]): AnyElement | null => {
-      for (let i = elements.length - 1; i >= 0; i--) {
-        const element = elements[i];
-        if (element.pageIndex !== pageIndex) continue;
-
-        const bounds = element.bounds;
-        if (
-          point.x >= bounds.x &&
-          point.x <= bounds.x + bounds.width &&
-          point.y >= bounds.y &&
-          point.y <= bounds.y + bounds.height
-        ) {
-          return element;
-        }
-      }
-      return null;
-    },
-    [pageIndex],
-  );
-
-  // Initialize PDF.js
+  // Initialize Fabric.js canvas
   useEffect(() => {
-    const loadPDF = async () => {
-      setIsLoading(true);
-      setError(null);
+    if (!canvasContainerRef.current || fabricCanvasRef.current) return;
 
-      try {
-        // Load PDF using centralized configuration to prevent version mismatches
-        const arrayBuffer = await file.arrayBuffer();
-        const pdf = await loadPDFDocument(arrayBuffer);
-        setPdfDocument(pdf);
-        console.log(`✅ PDF loaded: ${pdf.numPages} pages`);
+    const fabricCanvas = new (fabric as any).Canvas("fabric-canvas", {
+      width: 800,
+      height: 600,
+      backgroundColor: "transparent",
+      selection: currentTool === "select",
+      preserveObjectStacking: true,
+    });
 
-        toast({
-          title: "PDF loaded successfully",
-          description: `Document has ${pdf.numPages} pages`,
-        });
-      } catch (err) {
-        console.error("❌ PDF loading error:", err);
+    fabricCanvasRef.current = fabricCanvas;
+    setCanvasReady(true);
 
-        // More specific error handling
-        let errorMessage = "Unable to load the PDF file";
-        if (err instanceof Error) {
-          if (err.message.includes("Invalid PDF")) {
-            errorMessage = "Invalid PDF file format";
-          } else if (err.message.includes("password")) {
-            errorMessage =
-              "Password-protected PDFs are not supported in the editor";
-          } else if (err.message.includes("corrupt")) {
-            errorMessage = "The PDF file appears to be corrupted";
-          } else {
-            errorMessage = err.message;
-          }
-        }
+    // Configure canvas based on current tool
+    const updateCanvasMode = () => {
+      if (!fabricCanvas) return;
 
-        setError(errorMessage);
-        toast({
-          title: "PDF loading failed",
-          description: errorMessage,
-          variant: "destructive",
-        });
-      } finally {
-        setIsLoading(false);
+      fabricCanvas.selection = currentTool === "select";
+      fabricCanvas.defaultCursor =
+        currentTool === "select" ? "default" : "crosshair";
+
+      if (currentTool === "draw") {
+        fabricCanvas.isDrawingMode = true;
+        fabricCanvas.freeDrawingBrush.width = settings.defaultStrokeWidth;
+        fabricCanvas.freeDrawingBrush.color = settings.defaultStrokeColor;
+      } else {
+        fabricCanvas.isDrawingMode = false;
       }
     };
 
-    if (file) {
-      loadPDF();
-    }
-  }, [file, toast]);
+    updateCanvasMode();
 
-  // Render PDF page
-  useEffect(() => {
-    if (!pdfDocument || !canvasRef.current) return;
+    // Mouse event handlers
+    let isMouseDown = false;
+    let startPoint: Point = { x: 0, y: 0 };
+    let activeObject: fabric.Object | null = null;
 
-    const renderPage = async () => {
-      try {
-        const page = await pdfDocument.getPage(pageIndex + 1);
-        const canvas = canvasRef.current!;
-        const context = canvas.getContext("2d")!;
+    fabricCanvas.on("mouse:down", (e) => {
+      if (!e.pointer) return;
 
-        // Calculate viewport
-        const viewport = page.getViewport({ scale: zoom });
+      isMouseDown = true;
+      startPoint = { x: e.pointer.x, y: e.pointer.y };
 
-        // Set canvas dimensions
-        canvas.width = viewport.width;
-        canvas.height = viewport.height;
-        canvas.style.width = `${viewport.width}px`;
-        canvas.style.height = `${viewport.height}px`;
+      if (currentTool === "draw") {
+        onStartDrawing(startPoint);
+        isDrawingRef.current = true;
+      } else if (currentTool !== "select") {
+        // Start creating new element
+        switch (currentTool) {
+          case "text":
+            createTextElement(startPoint);
+            break;
+          case "rectangle":
+          case "circle":
+            activeObject = createShapeElement(currentTool, startPoint);
+            break;
+          case "image":
+            // Handle image upload
+            const input = document.createElement("input");
+            input.type = "file";
+            input.accept = "image/*";
+            input.onchange = (event) => {
+              const file = (event.target as HTMLInputElement).files?.[0];
+              if (file) {
+                createImageElement(startPoint, file);
+              }
+            };
+            input.click();
+            break;
+        }
+      }
+    });
 
-        // Clear canvas
-        context.clearRect(0, 0, canvas.width, canvas.height);
+    fabricCanvas.on("mouse:move", (e) => {
+      if (!isMouseDown || !e.pointer) return;
 
-        // Render PDF page
-        const renderContext = {
-          canvasContext: context,
-          viewport: viewport,
+      const currentPoint = { x: e.pointer.x, y: e.pointer.y };
+
+      if (currentTool === "draw" && isDrawingRef.current) {
+        onAddDrawPoint(currentPoint);
+      } else if (activeObject && currentTool !== "select") {
+        // Update shape dimensions while dragging
+        const width = Math.abs(currentPoint.x - startPoint.x);
+        const height = Math.abs(currentPoint.y - startPoint.y);
+        const left = Math.min(startPoint.x, currentPoint.x);
+        const top = Math.min(startPoint.y, currentPoint.y);
+
+        activeObject.set({
+          left,
+          top,
+          width,
+          height,
+        });
+
+        if (currentTool === "circle") {
+          const radius = Math.min(width, height) / 2;
+          activeObject.set({
+            radius,
+            width: radius * 2,
+            height: radius * 2,
+          });
+        }
+
+        fabricCanvas.renderAll();
+      }
+    });
+
+    fabricCanvas.on("mouse:up", (e) => {
+      isMouseDown = false;
+
+      if (currentTool === "draw" && isDrawingRef.current) {
+        onEndDrawing();
+        isDrawingRef.current = false;
+      } else if (activeObject) {
+        // Finalize shape creation
+        const bounds = {
+          x: activeObject.left || 0,
+          y: activeObject.top || 0,
+          width: activeObject.width || 0,
+          height: activeObject.height || 0,
         };
 
-        await page.render(renderContext).promise;
-        setPageData({ page, viewport });
+        if (bounds.width > 5 && bounds.height > 5) {
+          // Add element to state
+          const elementId = onElementAdd({
+            type: currentTool as any,
+            pageIndex: currentPage - 1,
+            bounds,
+            visible: true,
+            locked: false,
+            opacity: 1,
+            rotation: 0,
+            fillColor: settings.defaultFillColor,
+            strokeColor: settings.defaultStrokeColor,
+            strokeWidth: settings.defaultStrokeWidth,
+            filled: true,
+          } as any);
 
-        // Update canvas size for parent component
-        onCanvasSizeChange({
+          // Associate fabric object with element ID
+          activeObject.set("elementId", elementId);
+        } else {
+          fabricCanvas.remove(activeObject);
+        }
+
+        activeObject = null;
+      }
+    });
+
+    // Object selection events
+    fabricCanvas.on("selection:created", (e) => {
+      const selectedObjects = e.selected || [];
+      const elementIds = selectedObjects
+        .map((obj) => obj.get("elementId"))
+        .filter(Boolean);
+      onElementSelect(elementIds);
+    });
+
+    fabricCanvas.on("selection:updated", (e) => {
+      const selectedObjects = e.selected || [];
+      const elementIds = selectedObjects
+        .map((obj) => obj.get("elementId"))
+        .filter(Boolean);
+      onElementSelect(elementIds);
+    });
+
+    fabricCanvas.on("selection:cleared", () => {
+      onElementSelect([]);
+    });
+
+    // Object modification events
+    fabricCanvas.on("object:modified", (e) => {
+      const obj = e.target;
+      if (!obj) return;
+
+      const elementId = obj.get("elementId");
+      if (!elementId) return;
+
+      const bounds = {
+        x: obj.left || 0,
+        y: obj.top || 0,
+        width: obj.width || 0,
+        height: obj.height || 0,
+      };
+
+      onElementUpdate(elementId, {
+        bounds,
+        rotation: obj.angle || 0,
+        opacity: obj.opacity || 1,
+      });
+    });
+
+    return () => {
+      fabricCanvas.dispose();
+      fabricCanvasRef.current = null;
+      setCanvasReady(false);
+    };
+  }, []);
+
+  // Helper functions for creating elements
+  const createTextElement = useCallback(
+    (point: Point) => {
+      const text = prompt("Enter text:");
+      if (!text) return;
+
+      const fabricText = new (fabric as any).IText(text, {
+        left: point.x,
+        top: point.y,
+        fontSize: settings.defaultFontSize,
+        fontFamily: settings.defaultFontFamily,
+        fill: settings.defaultTextColor,
+        editable: true,
+      });
+
+      fabricCanvasRef.current?.add(fabricText);
+
+      const bounds = {
+        x: point.x,
+        y: point.y,
+        width: fabricText.width || 100,
+        height: fabricText.height || settings.defaultFontSize,
+      };
+
+      const elementId = onElementAdd({
+        type: "text",
+        pageIndex: currentPage - 1,
+        bounds,
+        visible: true,
+        locked: false,
+        opacity: 1,
+        rotation: 0,
+        content: text,
+        fontSize: settings.defaultFontSize,
+        fontFamily: settings.defaultFontFamily,
+        color: settings.defaultTextColor,
+        textAlign: "left",
+        bold: false,
+        italic: false,
+        underline: false,
+      } as any);
+
+      fabricText.set("elementId", elementId);
+    },
+    [currentPage, onElementAdd, settings],
+  );
+
+  const createShapeElement = useCallback(
+    (shapeType: "rectangle" | "circle", point: Point) => {
+      let fabricObject: fabric.Object;
+
+      if (shapeType === "rectangle") {
+        fabricObject = new (fabric as any).Rect({
+          left: point.x,
+          top: point.y,
+          width: 1,
+          height: 1,
+          fill: settings.defaultFillColor,
+          stroke: settings.defaultStrokeColor,
+          strokeWidth: settings.defaultStrokeWidth,
+        });
+      } else {
+        fabricObject = new (fabric as any).Circle({
+          left: point.x,
+          top: point.y,
+          radius: 1,
+          fill: settings.defaultFillColor,
+          stroke: settings.defaultStrokeColor,
+          strokeWidth: settings.defaultStrokeWidth,
+        });
+      }
+
+      fabricCanvasRef.current?.add(fabricObject);
+      return fabricObject;
+    },
+    [settings],
+  );
+
+  const createImageElement = useCallback(
+    async (point: Point, file: File) => {
+      try {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const imageSrc = e.target?.result as string;
+
+          (fabric as any).Image.fromURL(imageSrc, (fabricImage: any) => {
+            fabricImage.set({
+              left: point.x,
+              top: point.y,
+              scaleX: 0.5,
+              scaleY: 0.5,
+            });
+
+            fabricCanvasRef.current?.add(fabricImage);
+
+            const bounds = {
+              x: point.x,
+              y: point.y,
+              width: (fabricImage.width || 0) * 0.5,
+              height: (fabricImage.height || 0) * 0.5,
+            };
+
+            const elementId = onElementAdd({
+              type: "image",
+              pageIndex: currentPage - 1,
+              bounds,
+              visible: true,
+              locked: false,
+              opacity: 1,
+              rotation: 0,
+              src: imageSrc,
+              originalWidth: fabricImage.width || 0,
+              originalHeight: fabricImage.height || 0,
+              aspectRatio: (fabricImage.width || 1) / (fabricImage.height || 1),
+            } as any);
+
+            fabricImage.set("elementId", elementId);
+          });
+        };
+        reader.readAsDataURL(file);
+      } catch (error) {
+        console.error("Error creating image element:", error);
+        toast({
+          title: "Error adding image",
+          description: "Please try again with a different image.",
+          variant: "destructive",
+        });
+      }
+    },
+    [currentPage, onElementAdd, toast],
+  );
+
+  // Render PDF page
+  const renderPDFPage = useCallback(async () => {
+    if (!pdfDocument || !pdfCanvasRef.current || !canvasReady) return;
+
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const page = await pdfDocument.getPage(currentPage);
+      const viewport = page.getViewport({ scale: zoom });
+
+      const canvas = pdfCanvasRef.current;
+      const context = canvas.getContext("2d");
+      if (!context) throw new Error("Could not get canvas context");
+
+      canvas.width = viewport.width;
+      canvas.height = viewport.height;
+
+      // Update Fabric canvas size
+      if (fabricCanvasRef.current) {
+        fabricCanvasRef.current.setDimensions({
           width: viewport.width,
           height: viewport.height,
         });
-
-        console.log(
-          `✅ Page ${pageIndex + 1} rendered at ${Math.round(zoom * 100)}% zoom`,
-        );
-      } catch (err) {
-        console.error("Error rendering page:", err);
-        setError(
-          `Failed to render page: ${err instanceof Error ? err.message : String(err)}`,
-        );
-      }
-    };
-
-    renderPage();
-  }, [pdfDocument, pageIndex, zoom, onCanvasSizeChange]);
-
-  // Get mouse position relative to canvas
-  const getMousePosition = useCallback(
-    (e: React.MouseEvent): Point => {
-      const canvas = canvasRef.current;
-      if (!canvas) return { x: 0, y: 0 };
-
-      const rect = canvas.getBoundingClientRect();
-      return {
-        x: (e.clientX - rect.left) / zoom,
-        y: (e.clientY - rect.top) / zoom,
-      };
-    },
-    [zoom],
-  );
-
-  // Handle element mouse down for dragging
-  const handleElementMouseDown = useCallback(
-    (e: React.MouseEvent, element: AnyElement) => {
-      e.stopPropagation();
-
-      if (currentTool !== "select") return;
-
-      const point = getMousePosition(e);
-
-      if (e.ctrlKey || e.metaKey) {
-        onElementToggleSelect(element.id);
-      } else if (!selectedElements.includes(element.id)) {
-        onElementSelect([element.id]);
       }
 
-      setIsDragging(true);
-      setDragStart(point);
-    },
-    [
-      currentTool,
-      getMousePosition,
-      onElementToggleSelect,
-      selectedElements,
-      onElementSelect,
-    ],
-  );
+      // Notify parent of page size change
+      onPageSizeChange({
+        width: viewport.width,
+        height: viewport.height,
+      });
 
-  // Handle element touch start for mobile
-  const handleElementTouchStart = useCallback(
-    (e: React.TouchEvent, element: AnyElement) => {
-      e.stopPropagation();
-      e.preventDefault();
-
-      if (currentTool !== "select") return;
-
-      const touch = e.touches[0];
-      const rect = canvasRef.current?.getBoundingClientRect();
-      if (!rect) return;
-
-      const point = {
-        x: (touch.clientX - rect.left) / zoom,
-        y: (touch.clientY - rect.top) / zoom,
-      };
-
-      if (!selectedElements.includes(element.id)) {
-        onElementSelect([element.id]);
-      }
-
-      setIsDragging(true);
-      setDragStart(point);
-    },
-    [currentTool, canvasRef, zoom, selectedElements, onElementSelect],
-  );
-
-  // Handle mouse down
-  const handleMouseDown = useCallback(
-    (e: React.MouseEvent) => {
-      if (!pageData) return;
-
-      const point = getMousePosition(e);
-
-      if (currentTool === "select") {
-        // Only clear selection if clicking on empty space
-        onElementSelect([]);
-      } else if (currentTool === "signature" && onSignaturePlace) {
-        // Handle signature placement
-        onSignaturePlace(point.x, point.y);
-      } else if (currentTool === "draw") {
-        onStartDrawing(point);
-      } else if (currentTool === "text") {
-        // Create text input
-        setTextInput({
-          bounds: { x: point.x, y: point.y, width: 200, height: 30 },
-          value: "",
-          isEditing: true,
-        });
-      } else if (
-        ["rectangle", "circle", "line", "arrow"].includes(currentTool)
-      ) {
-        setIsCreatingElement(true);
-        setTempElement({ x: point.x, y: point.y, width: 0, height: 0 });
-        setDragStart(point);
-      }
-    },
-    [
-      pageData,
-      getMousePosition,
-      currentTool,
-      onElementSelect,
-      onSignaturePlace,
-      onStartDrawing,
-    ],
-  );
-  // Handle mouse move
-  const handleMouseMove = useCallback(
-    (e: React.MouseEvent) => {
-      if (!pageData) return;
-
-      const point = getMousePosition(e);
-
-      if (currentTool === "draw" && isDrawing) {
-        onAddDrawPoint(point);
-      } else if (isDragging && selectedElements.length > 0) {
-        // Move selected elements
-        const deltaX = point.x - dragStart.x;
-        const deltaY = point.y - dragStart.y;
-
-        selectedElements.forEach((id) => {
-          const element = elements.find((el) => el.id === id);
-          if (element) {
-            onElementUpdate(id, {
-              bounds: {
-                ...element.bounds,
-                x: element.bounds.x + deltaX,
-                y: element.bounds.y + deltaY,
-              },
-            });
-          }
-        });
-
-        setDragStart(point);
-      } else if (isCreatingElement && tempElement) {
-        // Update temporary element size
-        const width = Math.abs(point.x - dragStart.x);
-        const height = Math.abs(point.y - dragStart.y);
-        const x = Math.min(point.x, dragStart.x);
-        const y = Math.min(point.y, dragStart.y);
-
-        setTempElement({ x, y, width, height });
-      }
-    },
-    [
-      pageData,
-      getMousePosition,
-      currentTool,
-      isDrawing,
-      isDragging,
-      selectedElements,
-      dragStart,
-      elements,
-      onAddDrawPoint,
-      onElementUpdate,
-      isCreatingElement,
-      tempElement,
-    ],
-  );
-
-  // Handle mouse up
-  const handleMouseUp = useCallback(
-    (e: React.MouseEvent) => {
-      if (currentTool === "draw" && isDrawing) {
-        // Create draw element
-        if (currentDrawPath.length > 1) {
-          onElementAdd({
-            type: "draw",
-            pageIndex,
-            bounds: {
-              x:
-                Math.min(...currentDrawPath.map((p) => p.x)) -
-                selectedStrokeWidth,
-              y:
-                Math.min(...currentDrawPath.map((p) => p.y)) -
-                selectedStrokeWidth,
-              width:
-                Math.max(...currentDrawPath.map((p) => p.x)) -
-                Math.min(...currentDrawPath.map((p) => p.x)) +
-                selectedStrokeWidth * 2,
-              height:
-                Math.max(...currentDrawPath.map((p) => p.y)) -
-                Math.min(...currentDrawPath.map((p) => p.y)) +
-                selectedStrokeWidth * 2,
-            },
-            properties: {
-              paths: [currentDrawPath],
-              strokeWidth: selectedStrokeWidth,
-              color: selectedColor,
-              opacity: 1,
-            },
-          } as Omit<DrawElement, "id" | "createdAt" | "updatedAt">);
-        }
-        onEndDrawing();
-      } else if (isCreatingElement && tempElement) {
-        // Create shape element
-        if (tempElement.width > 5 && tempElement.height > 5) {
-          onElementAdd({
-            type: currentTool as "rectangle" | "circle" | "line" | "arrow",
-            pageIndex,
-            bounds: tempElement,
-            properties: {
-              strokeWidth: selectedStrokeWidth,
-              strokeColor: selectedColor,
-              fillColor: "transparent",
-              opacity: 1,
-            },
-          } as Omit<ShapeElement, "id" | "createdAt" | "updatedAt">);
-        }
-        setIsCreatingElement(false);
-        setTempElement(null);
-      }
-
-      setIsDragging(false);
-    },
-    [
-      currentTool,
-      isDrawing,
-      currentDrawPath,
-      selectedStrokeWidth,
-      onElementAdd,
-      pageIndex,
-      selectedColor,
-      onEndDrawing,
-      isCreatingElement,
-      tempElement,
-    ],
-  );
-
-  // Touch event handlers for mobile support
-  const handleTouchStart = useCallback(
-    (e: React.TouchEvent) => {
-      e.preventDefault();
-      const touch = e.touches[0];
-      const rect = canvasRef.current?.getBoundingClientRect();
-      if (!rect || !pageData) return;
-
-      const point = {
-        x: (touch.clientX - rect.left) / zoom,
-        y: (touch.clientY - rect.top) / zoom,
-      };
-
-      // Handle signature placement
-      if (onSignaturePlace && currentTool === "select") {
-        onSignaturePlace(point.x, point.y);
-        return;
-      }
-
-      // Check for element selection
-      const clickedElement = getElementAtPoint(point, elements);
-
-      if (currentTool === "select") {
-        if (clickedElement) {
-          setIsDragging(true);
-          setDragStart(point);
-          if (!selectedElements.includes(clickedElement.id)) {
-            onElementToggleSelect(clickedElement.id);
-          }
-        } else {
-          onElementSelect([]);
-        }
-      } else if (currentTool === "draw") {
-        onStartDrawing(point);
-      } else if (currentTool === "rectangle" || currentTool === "circle") {
-        setIsCreatingElement(true);
-        setDragStart(point);
-        setTempElement({ x: point.x, y: point.y, width: 0, height: 0 });
-      } else if (currentTool === "text") {
-        setTextInput({
-          bounds: { x: point.x, y: point.y, width: 200, height: 30 },
-          value: "",
-          isEditing: true,
-        });
-      }
-    },
-    [
-      canvasRef,
-      pageData,
-      zoom,
-      onSignaturePlace,
-      currentTool,
-      elements,
-      selectedElements,
-      onElementToggleSelect,
-      onElementSelect,
-      onStartDrawing,
-    ],
-  );
-
-  const handleTouchMove = useCallback(
-    (e: React.TouchEvent) => {
-      e.preventDefault();
-      const touch = e.touches[0];
-      const rect = canvasRef.current?.getBoundingClientRect();
-      if (!rect || !pageData) return;
-
-      const point = {
-        x: (touch.clientX - rect.left) / zoom,
-        y: (touch.clientY - rect.top) / zoom,
-      };
-
-      if (currentTool === "draw" && isDrawing) {
-        onAddDrawPoint(point);
-      } else if (isDragging && selectedElements.length > 0) {
-        const deltaX = point.x - dragStart.x;
-        const deltaY = point.y - dragStart.y;
-
-        selectedElements.forEach((id) => {
-          const element = elements.find((el) => el.id === id);
-          if (element) {
-            onElementUpdate(id, {
-              bounds: {
-                ...element.bounds,
-                x: element.bounds.x + deltaX,
-                y: element.bounds.y + deltaY,
-              },
-            });
-          }
-        });
-
-        setDragStart(point);
-      } else if (isCreatingElement && tempElement) {
-        const width = Math.abs(point.x - dragStart.x);
-        const height = Math.abs(point.y - dragStart.y);
-        const x = Math.min(point.x, dragStart.x);
-        const y = Math.min(point.y, dragStart.y);
-
-        setTempElement({ x, y, width, height });
-      }
-    },
-    [
-      canvasRef,
-      pageData,
-      zoom,
-      currentTool,
-      isDrawing,
-      isDragging,
-      selectedElements,
-      dragStart,
-      elements,
-      onAddDrawPoint,
-      onElementUpdate,
-      isCreatingElement,
-      tempElement,
-    ],
-  );
-
-  const handleTouchEnd = useCallback(
-    (e: React.TouchEvent) => {
-      e.preventDefault();
-
-      if (currentTool === "draw" && isDrawing) {
-        if (currentDrawPath.length > 1) {
-          onElementAdd({
-            type: "draw",
-            pageIndex,
-            bounds: {
-              x:
-                Math.min(...currentDrawPath.map((p) => p.x)) -
-                selectedStrokeWidth,
-              y:
-                Math.min(...currentDrawPath.map((p) => p.y)) -
-                selectedStrokeWidth,
-              width:
-                Math.max(...currentDrawPath.map((p) => p.x)) -
-                Math.min(...currentDrawPath.map((p) => p.x)) +
-                selectedStrokeWidth * 2,
-              height:
-                Math.max(...currentDrawPath.map((p) => p.y)) -
-                Math.min(...currentDrawPath.map((p) => p.y)) +
-                selectedStrokeWidth * 2,
-            },
-            properties: {
-              paths: [currentDrawPath],
-              strokeWidth: selectedStrokeWidth,
-              color: selectedColor,
-              opacity: 1,
-            },
-          } as Omit<DrawElement, "id" | "createdAt" | "updatedAt">);
-        }
-        onEndDrawing();
-      } else if (isCreatingElement && tempElement) {
-        if (tempElement.width > 5 && tempElement.height > 5) {
-          onElementAdd({
-            type: currentTool as "rectangle" | "circle",
-            pageIndex,
-            bounds: tempElement,
-            properties: {
-              strokeWidth: selectedStrokeWidth,
-              strokeColor: selectedColor,
-              fillColor: "transparent",
-              opacity: 1,
-            },
-          } as Omit<ShapeElement, "id" | "createdAt" | "updatedAt">);
-        }
-        setIsCreatingElement(false);
-        setTempElement(null);
-      }
-
-      setIsDragging(false);
-    },
-    [
-      currentTool,
-      isDrawing,
-      currentDrawPath,
-      selectedStrokeWidth,
-      onElementAdd,
-      pageIndex,
-      selectedColor,
-      onEndDrawing,
-      isCreatingElement,
-      tempElement,
-    ],
-  );
-
-  // Handle text input completion
-  const handleTextComplete = useCallback(() => {
-    if (textInput && textInput.value.trim()) {
-      onElementAdd({
-        type: "text",
-        pageIndex,
-        bounds: textInput.bounds,
-        properties: {
-          text: textInput.value,
-          fontSize: selectedFontSize,
-          fontFamily: "Arial",
-          fontWeight: "normal",
-          color: selectedColor,
-          alignment: "left",
-          rotation: 0,
-        },
-      } as Omit<TextElement, "id" | "createdAt" | "updatedAt">);
+      await page.render({
+        canvasContext: context,
+        viewport,
+      }).promise;
+    } catch (error) {
+      console.error("Error rendering PDF page:", error);
+      setError("Failed to render PDF page");
+      toast({
+        title: "Render error",
+        description: "Failed to render PDF page. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
     }
-    setTextInput(null);
-  }, [textInput, onElementAdd, pageIndex, selectedFontSize, selectedColor]);
+  }, [pdfDocument, currentPage, zoom, canvasReady, onPageSizeChange, toast]);
 
-  // Render elements on overlay
-  const renderElement = (element: AnyElement) => {
-    const isSelected = selectedElements.includes(element.id);
-    const baseStyle = {
-      position: "absolute" as const,
-      left: element.bounds.x * zoom,
-      top: element.bounds.y * zoom,
-      width: element.bounds.width * zoom,
-      height: element.bounds.height * zoom,
-      border: isSelected ? "2px solid #3b82f6" : "1px solid transparent",
-      cursor: currentTool === "select" ? "move" : "default",
-      pointerEvents: "auto" as const,
-      userSelect: "none" as const,
-    };
+  // Update canvas when tool changes
+  useEffect(() => {
+    if (!fabricCanvasRef.current) return;
 
-    switch (element.type) {
-      case "text":
-        const textEl = element as TextElement;
-        return (
-          <div
-            key={element.id}
-            style={{
-              ...baseStyle,
-              fontSize: textEl.properties.fontSize * zoom,
-              fontFamily: textEl.properties.fontFamily,
-              fontWeight: textEl.properties.fontWeight,
-              color: textEl.properties.color,
-              textAlign: textEl.properties.alignment,
-              display: "flex",
-              alignItems: "center",
-              padding: "2px",
-              background: isSelected
-                ? "rgba(59, 130, 246, 0.1)"
-                : "transparent",
-            }}
-            onMouseDown={(e) => handleElementMouseDown(e, element)}
-            onTouchStart={(e) => handleElementTouchStart(e, element)}
-          >
-            {textEl.properties.text}
-          </div>
-        );
+    const canvas = fabricCanvasRef.current;
+    canvas.selection = currentTool === "select";
+    canvas.defaultCursor = currentTool === "select" ? "default" : "crosshair";
 
-      case "rectangle":
-        const rectEl = element as ShapeElement;
-        return (
-          <div
-            key={element.id}
-            style={{
-              ...baseStyle,
-              borderWidth: rectEl.properties.strokeWidth,
-              borderColor: rectEl.properties.strokeColor,
-              borderStyle: "solid",
-              backgroundColor:
-                rectEl.properties.fillColor === "transparent"
-                  ? "transparent"
-                  : rectEl.properties.fillColor,
-              opacity: rectEl.properties.opacity,
-            }}
-            onMouseDown={(e) => handleElementMouseDown(e, element)}
-            onTouchStart={(e) => handleElementTouchStart(e, element)}
-          />
-        );
-
-      case "circle":
-        const circleEl = element as ShapeElement;
-        return (
-          <div
-            key={element.id}
-            style={{
-              ...baseStyle,
-              borderWidth: circleEl.properties.strokeWidth,
-              borderColor: circleEl.properties.strokeColor,
-              borderStyle: "solid",
-              borderRadius: "50%",
-              backgroundColor:
-                circleEl.properties.fillColor === "transparent"
-                  ? "transparent"
-                  : circleEl.properties.fillColor,
-              opacity: circleEl.properties.opacity,
-            }}
-            onMouseDown={(e) => handleElementMouseDown(e, element)}
-            onTouchStart={(e) => handleElementTouchStart(e, element)}
-          />
-        );
-
-      case "signature":
-        const sigEl = element as SignatureElement;
-        if (
-          sigEl.properties.signatureType === "draw" &&
-          sigEl.properties.signatureData
-        ) {
-          return (
-            <img
-              key={element.id}
-              src={sigEl.properties.signatureData}
-              alt="Signature"
-              style={{
-                ...baseStyle,
-                objectFit: "contain",
-                background: isSelected
-                  ? "rgba(59, 130, 246, 0.1)"
-                  : "transparent",
-              }}
-              onMouseDown={(e) => handleElementMouseDown(e, element)}
-              onTouchStart={(e) => handleElementTouchStart(e, element)}
-              draggable={false}
-            />
-          );
-        } else if (
-          sigEl.properties.signatureType === "upload" &&
-          sigEl.properties.signatureData
-        ) {
-          return (
-            <img
-              key={element.id}
-              src={sigEl.properties.signatureData}
-              alt="Signature"
-              style={{
-                ...baseStyle,
-                objectFit: "contain",
-                background: isSelected
-                  ? "rgba(59, 130, 246, 0.1)"
-                  : "transparent",
-              }}
-              onMouseDown={(e) => handleElementMouseDown(e, element)}
-              onTouchStart={(e) => handleElementTouchStart(e, element)}
-              draggable={false}
-            />
-          );
-        } else if (
-          sigEl.properties.signatureType === "type" &&
-          sigEl.properties.signatureText
-        ) {
-          return (
-            <div
-              key={element.id}
-              style={{
-                ...baseStyle,
-                fontSize: 24 * zoom,
-                fontFamily: "serif",
-                color: sigEl.properties.color,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                background: isSelected
-                  ? "rgba(59, 130, 246, 0.1)"
-                  : "transparent",
-              }}
-              onMouseDown={(e) => handleElementMouseDown(e, element)}
-              onTouchStart={(e) => handleElementTouchStart(e, element)}
-            >
-              {sigEl.properties.signatureText}
-            </div>
-          );
-        } else {
-          // Fallback for signatures without proper data
-          return (
-            <div
-              key={element.id}
-              style={{
-                ...baseStyle,
-                background: isSelected
-                  ? "rgba(59, 130, 246, 0.1)"
-                  : "rgba(255, 0, 0, 0.1)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontSize: 12 * zoom,
-                color: "#666",
-                border: "2px dashed #ff0000",
-              }}
-              onMouseDown={(e) => handleElementMouseDown(e, element)}
-            >
-              ✍️ Signature
-            </div>
-          );
-        }
-
-      default:
-        return (
-          <div
-            key={element.id}
-            style={{
-              ...baseStyle,
-              background: isSelected
-                ? "rgba(59, 130, 246, 0.1)"
-                : "rgba(0, 0, 0, 0.1)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontSize: 12 * zoom,
-              color: "#666",
-            }}
-          >
-            {element.type}
-          </div>
-        );
+    if (currentTool === "draw") {
+      canvas.isDrawingMode = true;
+      canvas.freeDrawingBrush.width = settings.defaultStrokeWidth;
+      canvas.freeDrawingBrush.color = settings.defaultStrokeColor;
+    } else {
+      canvas.isDrawingMode = false;
     }
-  };
+  }, [currentTool, settings]);
 
-  if (isLoading) {
-    return (
-      <div
-        className={cn(
-          "flex items-center justify-center h-96 bg-gray-50",
-          className,
-        )}
-      >
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
-          <span className="text-lg font-medium">Loading PDF...</span>
-          <p className="text-sm text-gray-500 mt-2">Processing: {file.name}</p>
-        </div>
-      </div>
-    );
-  }
+  // Render PDF page when dependencies change
+  useEffect(() => {
+    renderPDFPage();
+  }, [renderPDFPage]);
 
-  if (error) {
-    return (
-      <div
-        className={cn(
-          "flex items-center justify-center h-96 bg-red-50",
-          className,
-        )}
-      >
-        <div className="text-center text-red-600">
-          <p className="text-lg font-medium mb-2">Failed to load PDF</p>
-          <p className="text-sm">{error}</p>
-        </div>
-      </div>
-    );
-  }
+  // Sync elements with Fabric canvas
+  useEffect(() => {
+    if (!fabricCanvasRef.current) return;
+
+    const canvas = fabricCanvasRef.current;
+    const currentObjects = canvas.getObjects();
+
+    // Remove objects that no longer exist in elements
+    const elementIds = new Set(elements.map((el) => el.id));
+    currentObjects.forEach((obj) => {
+      const elementId = obj.get("elementId");
+      if (elementId && !elementIds.has(elementId)) {
+        canvas.remove(obj);
+      }
+    });
+
+    // Update selection based on selectedElements
+    const selectedObjects = currentObjects.filter((obj) => {
+      const elementId = obj.get("elementId");
+      return elementId && selectedElements.includes(elementId);
+    });
+
+    canvas.discardActiveObject();
+    if (selectedObjects.length > 0) {
+      if (selectedObjects.length === 1) {
+        canvas.setActiveObject(selectedObjects[0]);
+      } else {
+        const selection = new (fabric as any).ActiveSelection(selectedObjects, {
+          canvas,
+        });
+        canvas.setActiveObject(selection);
+      }
+    }
+    canvas.renderAll();
+  }, [elements, selectedElements]);
 
   return (
-    <div
-      ref={containerRef}
-      className={cn("relative bg-gray-100 overflow-auto", className)}
-      style={{ minHeight: "600px" }}
-    >
-      <div className="relative inline-block">
-        {/* PDF Canvas */}
+    <div className={cn("relative w-full h-full overflow-auto", className)}>
+      <div
+        ref={canvasContainerRef}
+        className="relative bg-white shadow-lg mx-auto"
+        style={{
+          width: "fit-content",
+          minWidth: "100%",
+          minHeight: "100%",
+        }}
+      >
+        {/* PDF Layer */}
         <canvas
-          ref={canvasRef}
-          className="block border border-gray-300 shadow-lg bg-white"
-          onMouseDown={handleMouseDown}
-          onMouseMove={handleMouseMove}
-          onMouseUp={handleMouseUp}
-          onTouchStart={handleTouchStart}
-          onTouchMove={handleTouchMove}
-          onTouchEnd={handleTouchEnd}
-          style={{
-            cursor: currentTool === "select" ? "default" : "crosshair",
-            touchAction: "none", // Prevent scrolling on touch
-          }}
+          ref={pdfCanvasRef}
+          className="absolute top-0 left-0 z-0"
+          style={{ pointerEvents: "none" }}
         />
 
-        {/* Elements Overlay */}
-        <div
-          ref={overlayRef}
-          className="absolute inset-0"
-          style={{
-            width: canvasRef.current?.width || 0,
-            height: canvasRef.current?.height || 0,
-            pointerEvents: "none",
-          }}
-        >
-          {elements
-            .filter((el) => el.pageIndex === pageIndex)
-            .map(renderElement)
-            .filter(Boolean)}
+        {/* Fabric.js Interactive Layer */}
+        <canvas id="fabric-canvas" className="absolute top-0 left-0 z-10" />
 
-          {/* Temporary Element */}
-          {tempElement && (
-            <div
-              style={{
-                position: "absolute",
-                left: tempElement.x * zoom,
-                top: tempElement.y * zoom,
-                width: tempElement.width * zoom,
-                height: tempElement.height * zoom,
-                border: "2px dashed #3b82f6",
-                background: "rgba(59, 130, 246, 0.1)",
-                pointerEvents: "none",
-              }}
-            />
-          )}
-
-          {/* Current Draw Path */}
-          {isDrawing && currentDrawPath.length > 1 && (
-            <svg
-              style={{
-                position: "absolute",
-                inset: 0,
-                width: "100%",
-                height: "100%",
-                pointerEvents: "none",
-              }}
-            >
-              <path
-                d={`M ${currentDrawPath.map((p) => `${p.x * zoom},${p.y * zoom}`).join(" L ")}`}
-                stroke={selectedColor}
-                strokeWidth={selectedStrokeWidth * zoom}
-                fill="none"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-          )}
-        </div>
-
-        {/* Text Input */}
-        {textInput && (
-          <input
-            type="text"
-            value={textInput.value}
-            onChange={(e) =>
-              setTextInput({ ...textInput, value: e.target.value })
-            }
-            onBlur={handleTextComplete}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                handleTextComplete();
-              } else if (e.key === "Escape") {
-                setTextInput(null);
-              }
-            }}
-            autoFocus
+        {/* Grid overlay */}
+        {settings.showGrid && (
+          <div
+            className="absolute top-0 left-0 w-full h-full pointer-events-none z-5"
             style={{
-              position: "absolute",
-              left: textInput.bounds.x * zoom,
-              top: textInput.bounds.y * zoom,
-              width: textInput.bounds.width * zoom,
-              height: textInput.bounds.height * zoom,
-              fontSize: selectedFontSize * zoom,
-              border: "2px solid #3b82f6",
-              outline: "none",
-              padding: "2px",
-              background: "white",
+              backgroundImage: `
+                linear-gradient(rgba(0,0,0,0.1) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0,0,0,0.1) 1px, transparent 1px)
+              `,
+              backgroundSize: `${settings.gridSize}px ${settings.gridSize}px`,
             }}
           />
+        )}
+
+        {/* Loading overlay */}
+        {isLoading && (
+          <div className="absolute inset-0 bg-white bg-opacity-75 flex items-center justify-center z-20">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-red-600 mx-auto mb-2"></div>
+              <p className="text-sm text-gray-600">Rendering page...</p>
+            </div>
+          </div>
+        )}
+
+        {/* Error overlay */}
+        {error && (
+          <div className="absolute inset-0 bg-red-50 flex items-center justify-center z-20">
+            <div className="text-center text-red-600">
+              <p className="font-medium">Error</p>
+              <p className="text-sm">{error}</p>
+            </div>
+          </div>
         )}
       </div>
     </div>
   );
 }
+
+export default PDFEditorCanvas;

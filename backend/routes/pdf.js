@@ -3,6 +3,8 @@ const { PDFDocument } = require("pdf-lib");
 const fs = require("fs");
 const fsPromises = require("fs").promises;
 const path = require("path");
+const crypto = require("crypto");
+const puppeteer = require("puppeteer");
 // GHOSTSCRIPT-ONLY: No compress-pdf dependency - using direct Ghostscript CLI
 const { body, validationResult } = require("express-validator");
 
@@ -1155,7 +1157,7 @@ router.post(
           pdfBytes = await fsPromises.readFile(outputPath);
           compressionSuccess = true;
           console.log(
-            `✅ Ghostscript compression successful: ${compressionResult.stats.reduction}% reduction`,
+            `��� Ghostscript compression successful: ${compressionResult.stats.reduction}% reduction`,
           );
         } else {
           throw new Error(
@@ -2569,7 +2571,7 @@ function processTextToParagraphs(
       isInList = true;
       listItems.push({
         type: analysis.listType,
-        text: trimmedText.replace(/^[•\-\d\.]\s*/, "").trim(),
+        text: trimmedText.replace(/^[��\-\d\.]\s*/, "").trim(),
         level: analysis.listLevel || 0,
         indentLevel: indentLevel,
       });
@@ -3812,7 +3814,7 @@ router.post(
               return `\n• ${cleanContent}`;
             },
           );
-          return `\n【BULLET_LIST】${bulletItems}\n���/BULLET_LIST】\n`;
+          return `\n【BULLET_LIST】${bulletItems}\n���/BULLET_LIST��\n`;
         },
       );
 
@@ -3821,7 +3823,7 @@ router.post(
         // Headers and titles
         .replace(
           /<h1[^>]*>(.*?)<\/h1>/gi,
-          "\n\n【HEADING1����$1��/HEADING1】\n\n",
+          "\n\n【HEADING1������$1��/HEADING1】\n\n",
         )
         .replace(
           /<h2[^>]*>(.*?)<\/h2>/gi,
@@ -3834,13 +3836,13 @@ router.post(
 
         // Text formatting
         .replace(/<strong[^>]*>(.*?)<\/strong>/gi, "【BOLD】$1【/BOLD���")
-        .replace(/<b[^>]*>(.*?)<\/b>/gi, "【BOLD】$1【/BOLD】")
+        .replace(/<b[^>]*>(.*?)<\/b>/gi, "���BOLD】$1【/BOLD】")
         .replace(/<em[^>]*>(.*?)<\/em>/gi, "【ITALIC】$1【/ITALIC】")
         .replace(/<i[^>]*>(.*?)<\/i>/gi, "【ITALIC】$1【/ITALIC】")
         .replace(/<u[^>]*>(.*?)<\/u>/gi, "【UNDERLINE】$1【/UNDERLINE】")
 
         // Paragraphs - preserve line breaks
-        .replace(/<p[^>]*>(.*?)<\/p>/gi, "\n【PARAGRAPH】$1【/PARAGRAPH��\n")
+        .replace(/<p[^>]*>(.*?)<\/p>/gi, "\n【PARAGRAPH】$1��/PARAGRAPH��\n")
         .replace(/<div[^>]*>(.*?)<\/div>/gi, "\n$1\n")
         .replace(/<br\s*\/?>/gi, "\n")
 
@@ -3961,7 +3963,10 @@ router.post(
         let displayText = sanitizeTextForPDF(section.trim());
 
         // Enhanced heading formatting with better patterns
-        if (displayText.startsWith("��▓▓ ") && displayText.endsWith(" ���▓▓")) {
+        if (
+          displayText.startsWith("���▓▓ ") &&
+          displayText.endsWith(" ���▓▓")
+        ) {
           displayText = displayText.slice(4, -4).trim();
           font = fonts.bold;
           fontSize = baseFontSize + 8;
@@ -5579,7 +5584,7 @@ router.post(
 
       res.send(pdfBuffer);
     } catch (error) {
-      console.error("❌ Puppeteer PowerPoint to PDF conversion error:", error);
+      console.error("��� Puppeteer PowerPoint to PDF conversion error:", error);
 
       // Track error
       try {
@@ -5731,7 +5736,7 @@ router.post("/create-batch-download", async (req, res) => {
     const archive = archiver("zip", { zlib: { level: 9 } });
 
     output.on("close", () => {
-      console.log(`������ ZIP created: ${archive.pointer()} total bytes`);
+      console.log(`�������� ZIP created: ${archive.pointer()} total bytes`);
 
       // Send download URL (in production, use proper file serving)
       const downloadUrl = `/api/pdf/download-temp/${zipFilename}`;
@@ -5820,7 +5825,7 @@ router.get("/health", async (req, res) => {
       message: "PDF services are healthy",
       dependencies: {
         "pdf-lib": "�� Loaded",
-        mammoth: "✅ Loaded",
+        mammoth: "��� Loaded",
         libreoffice: "��� Available (check /system-status for details)",
       },
       wordToPdfVersion: "v4.0 - LibreOffice Enhanced Conversion",
@@ -6208,7 +6213,7 @@ router.post(
       const processingTime = Date.now() - startTime;
 
       console.log(
-        `��� Excel conversion complete: ${formatBytes(excelBuffer.length)} generated in ${processingTime}ms`,
+        `����� Excel conversion complete: ${formatBytes(excelBuffer.length)} generated in ${processingTime}ms`,
       );
 
       // Track usage
@@ -6903,11 +6908,56 @@ router.post(
   },
 );
 
+// Simple test route to verify routing is working
+router.get("/test-html-to-pdf", (req, res) => {
+  console.log("🧪 Test route hit successfully!");
+  res.json({
+    success: true,
+    message: "HTML to PDF test route is working",
+    timestamp: new Date().toISOString(),
+  });
+});
+
+// Minimal POST route to test without middleware
+router.post("/test-html-to-pdf-simple", (req, res) => {
+  console.log("🧪 Simple POST test route hit!");
+  console.log("Body keys:", Object.keys(req.body || {}));
+  res.json({
+    success: true,
+    message: "Simple POST test successful",
+    receivedData: Object.keys(req.body || {}),
+  });
+});
+
+// Error logging middleware for debugging
+const logErrors = (err, req, res, next) => {
+  console.error("❌ Middleware Error in HTML to PDF route:", err);
+  console.error("❌ Error stack:", err.stack);
+  res.status(500).json({
+    success: false,
+    message: err.message,
+    stack: process.env.NODE_ENV === "development" ? err.stack : undefined,
+  });
+};
+
 // @route   POST /api/pdf/html-to-pdf
 // @desc    Convert HTML to PDF using Puppeteer headless Chrome
 // @access  Public (with optional auth and usage limits)
+// Simple request logging middleware
+const logRequest = (req, res, next) => {
+  console.log("🔥 HTML to PDF route - Request received:", {
+    method: req.method,
+    path: req.path,
+    contentType: req.headers["content-type"],
+    hasBody: !!req.body,
+    bodyKeys: req.body ? Object.keys(req.body) : [],
+  });
+  next();
+};
+
 router.post(
   "/html-to-pdf",
+  logRequest,
   optionalAuth,
   checkUsageLimit,
   upload.single("file"),
@@ -6920,6 +6970,15 @@ router.post(
   ],
   async (req, res) => {
     const startTime = Date.now();
+
+    console.log("🎯 HTML to PDF route hit!", {
+      method: req.method,
+      bodyKeys: Object.keys(req.body || {}),
+      hasFile: !!req.file,
+      fileName: req.file?.originalname,
+      origin: req.headers.origin,
+      contentType: req.headers["content-type"],
+    });
 
     try {
       const errors = validationResult(req);
@@ -6937,10 +6996,27 @@ router.post(
         pageFormat = "A4",
         orientation = "portrait",
         sessionId,
-        margins = { top: "1cm", bottom: "1cm", left: "1cm", right: "1cm" },
-        printBackground = true,
-        waitForNetworkIdle = true,
+        printBackground,
+        waitForNetworkIdle,
       } = req.body;
+
+      // Convert string boolean values to actual booleans
+      const printBg = printBackground === "true" || printBackground === true;
+      const waitForIdle =
+        waitForNetworkIdle === "true" || waitForNetworkIdle === true;
+
+      // Parse margins from JSON string if it exists
+      let margins = { top: "1cm", bottom: "1cm", left: "1cm", right: "1cm" };
+      if (req.body.margins) {
+        try {
+          margins = JSON.parse(req.body.margins);
+        } catch (e) {
+          console.warn(
+            "Failed to parse margins JSON, using defaults:",
+            e.message,
+          );
+        }
+      }
 
       const file = req.file;
 
@@ -6978,26 +7054,11 @@ router.post(
       console.log(`📄 Input type: ${file ? "file" : url ? "url" : "content"}`);
       console.log(`📋 Format: ${pageFormat} ${orientation}`);
 
-      // Dynamic import of Puppeteer (install if not available)
-      let puppeteer;
-      try {
-        puppeteer = require("puppeteer");
-      } catch (error) {
-        console.error("Puppeteer not found, attempting to install...");
-        return res.status(500).json({
-          success: false,
-          message:
-            "Puppeteer not installed. Please install it with: npm install puppeteer",
-        });
-      }
-
       const fs = require("fs").promises;
-      const path = require("path");
-      const crypto = require("crypto");
 
       // Create temporary directories
       const tempDir = path.join(__dirname, "../../temp");
-      await fsPromises.mkdir(tempDir, { recursive: true });
+      await fs.mkdir(tempDir, { recursive: true });
 
       // Generate unique filename for output
       const timestamp = Date.now();
@@ -7010,9 +7071,29 @@ router.post(
       try {
         console.log(`🚀 Launching headless Chrome...`);
 
-        // Launch Puppeteer with robust error handling using the same strategy as DocumentConversionService
-        browser =
-          await documentConversionService.launchPuppeteerWithFallbacks();
+        // Launch Puppeteer with robust error handling
+        try {
+          browser = await puppeteer.launch({
+            headless: "new",
+            args: [
+              "--no-sandbox",
+              "--disable-setuid-sandbox",
+              "--disable-dev-shm-usage",
+              "--disable-accelerated-2d-canvas",
+              "--no-first-run",
+              "--no-zygote",
+              "--single-process",
+              "--disable-gpu",
+            ],
+          });
+        } catch (puppeteerError) {
+          console.error("Failed to launch Puppeteer:", puppeteerError);
+          return res.status(500).json({
+            success: false,
+            message: "Failed to initialize browser engine",
+            error: puppeteerError.message,
+          });
+        }
 
         const page = await browser.newPage();
 
@@ -7028,13 +7109,13 @@ router.post(
         if (url) {
           // Navigate to URL
           await page.goto(url, {
-            waitUntil: waitForNetworkIdle ? "networkidle0" : "domcontentloaded",
+            waitUntil: waitForIdle ? "networkidle0" : "domcontentloaded",
             timeout: 15000,
           });
         } else {
           // Set HTML content
           await page.setContent(finalHtmlContent, {
-            waitUntil: waitForNetworkIdle ? "networkidle0" : "domcontentloaded",
+            waitUntil: waitForIdle ? "networkidle0" : "domcontentloaded",
             timeout: 15000,
           });
         }
@@ -7045,7 +7126,7 @@ router.post(
         const pdfOptions = {
           format: pageFormat,
           landscape: orientation === "landscape",
-          printBackground: printBackground,
+          printBackground: printBg,
           margin: {
             top: margins.top || "1cm",
             bottom: margins.bottom || "1cm",
@@ -7059,7 +7140,7 @@ router.post(
         const pdfBuffer = await page.pdf(pdfOptions);
 
         // Write PDF to temporary file
-        await fsPromises.writeFile(outputPath, pdfBuffer);
+        await fs.writeFile(outputPath, pdfBuffer);
 
         const processingTime = Date.now() - startTime;
 
@@ -7140,7 +7221,7 @@ router.post(
 
         // Clean up temporary files
         try {
-          await fsPromises.unlink(outputPath).catch(() => {});
+          await fs.unlink(outputPath).catch(() => {});
         } catch (cleanupError) {
           console.warn("Failed to cleanup temporary files:", cleanupError);
         }
@@ -7174,6 +7255,7 @@ router.post(
       });
     }
   },
+  logErrors,
 );
 
 // @route   POST /api/pdf/pdf-to-word
@@ -8212,7 +8294,7 @@ router.post(
       session.edits.push(editAction);
 
       console.log(
-        `��� Edit action applied: ${action.type} on page ${pageIndex + 1}`,
+        `����� Edit action applied: ${action.type} on page ${pageIndex + 1}`,
       );
 
       res.json({
@@ -8822,7 +8904,8 @@ router.post("/unlock", upload.single("file"), async (req, res) => {
     console.log(`📄 PDF file size: ${req.file.buffer.length} bytes`);
 
     try {
-      // Use pdf-lib as fallback since qpdf is not installed
+      // Use QPDF for robust PDF unlocking, with pdf-lib fallback
+      const PDFProtectionService = require("../services/pdfProtectionService");
       const { PDFDocument } = require("pdf-lib");
 
       // First, try to load without password to see if it's actually encrypted
@@ -8854,58 +8937,73 @@ router.post("/unlock", upload.single("file"), async (req, res) => {
         console.log("🔐 PDF appears to be encrypted, trying with password...");
       }
 
-      // Try to load the PDF with password
-      let pdfDoc;
+      // Try QPDF first for robust encryption handling
+      let unlockedBuffer;
       try {
-        console.log("🔑 Attempting to unlock with provided password...");
-        pdfDoc = await PDFDocument.load(req.file.buffer, { password });
-        console.log("✅ Password accepted, PDF unlocked successfully");
-      } catch (loadError) {
-        console.error("❌ PDF-lib error:", loadError.message);
-        console.error("❌ Full error:", loadError);
+        console.log("🔑 Attempting to unlock with QPDF...");
+        const qpdfResult = await PDFProtectionService.unlockWithQPDF(
+          req.file.buffer,
+          password,
+        );
+        unlockedBuffer = qpdfResult.buffer;
+        console.log("✅ QPDF unlock successful");
+      } catch (qpdfError) {
+        console.log("⚠️ QPDF failed, trying pdf-lib fallback...");
+        console.log("QPDF error:", qpdfError.message);
 
-        // If pdf-lib says it's encrypted, provide helpful error message
-        if (loadError.message.includes("encrypted")) {
-          console.log(
-            "❌ PDF uses unsupported encryption that pdf-lib cannot handle properly",
-          );
-          return res.status(400).json({
-            success: false,
-            message:
-              "This PDF uses an advanced encryption method that requires specialized tools. For proper password removal that preserves content, please use a desktop PDF tool like Adobe Acrobat, or try uploading a different PDF.",
-            details:
-              "pdf-lib cannot properly decrypt and preserve content from this encryption type",
-            suggestions: [
-              "Try using Adobe Acrobat or similar desktop PDF software",
-              "Check if the PDF has different encryption settings",
-              "Ensure you have the correct password",
-            ],
+        // Fallback to pdf-lib
+        try {
+          console.log("🔑 Attempting to unlock with pdf-lib...");
+          const pdfDoc = await PDFDocument.load(req.file.buffer, { password });
+          console.log("✅ pdf-lib unlock successful");
+
+          // Process with pdf-lib
+          pdfDoc.setTitle(pdfDoc.getTitle() || "Unlocked Document");
+          pdfDoc.setCreator("PdfPage - PDF Unlock Tool");
+          pdfDoc.setProducer("PdfPage Unlock Service");
+          pdfDoc.setCreationDate(new Date());
+
+          unlockedBuffer = await pdfDoc.save({
+            useObjectStreams: false,
+            addDefaultPage: false,
           });
-        } else if (
-          loadError.message.includes("password") ||
-          loadError.message.includes("decrypt") ||
-          loadError.message.includes("Invalid")
-        ) {
-          return res.status(400).json({
-            success: false,
-            message: "Incorrect password provided",
-          });
-        } else {
-          throw loadError;
+        } catch (pdflibError) {
+          console.error("❌ Both QPDF and pdf-lib failed");
+          console.error("QPDF error:", qpdfError.message);
+          console.error("pdf-lib error:", pdflibError.message);
+
+          // Provide helpful error message based on the errors
+          if (pdflibError.message.includes("encrypted")) {
+            return res.status(400).json({
+              success: false,
+              message:
+                "This PDF uses advanced encryption. QPDF failed: " +
+                qpdfError.message +
+                ". pdf-lib also cannot handle this encryption type. Please use desktop software like Adobe Acrobat.",
+              details:
+                "Both QPDF and pdf-lib cannot properly decrypt this encryption type",
+              suggestions: [
+                "Try using Adobe Acrobat or similar desktop PDF software",
+                "Check if the PDF has different encryption settings",
+                "Ensure you have the correct password",
+              ],
+            });
+          } else if (
+            pdflibError.message.includes("password") ||
+            pdflibError.message.includes("decrypt") ||
+            qpdfError.message.includes("password")
+          ) {
+            return res.status(400).json({
+              success: false,
+              message: "Incorrect password provided",
+            });
+          } else {
+            throw pdflibError;
+          }
         }
       }
 
-      // If successful, save without password protection
-      pdfDoc.setTitle(pdfDoc.getTitle() || "Unlocked Document");
-      pdfDoc.setCreator("PdfPage - PDF Unlock Tool");
-      pdfDoc.setProducer("PdfPage Unlock Service");
-      pdfDoc.setCreationDate(new Date());
-
-      // Save the unlocked PDF
-      const unlockedBuffer = await pdfDoc.save({
-        useObjectStreams: false,
-        addDefaultPage: false,
-      });
+      // We already have unlockedBuffer from QPDF or pdf-lib processing above
 
       // Track usage
       if (req.user) {
@@ -8975,48 +9073,89 @@ router.post("/change-password", upload.single("file"), async (req, res) => {
     console.log("🔐 Starting PDF password change process...");
 
     try {
-      // Use pdf-lib as fallback since qpdf is not installed
+      // Use QPDF for robust password change, with pdf-lib fallback (same as unlock)
+      const PDFProtectionService = require("../services/pdfProtectionService");
       const { PDFDocument } = require("pdf-lib");
 
-      // Step 1: Load PDF with current password
-      let pdfDoc;
+      // Step 1: Try to unlock with QPDF first to verify current password
+      let unlockedBuffer;
       try {
-        pdfDoc = await PDFDocument.load(req.file.buffer, {
-          password: currentPassword,
-        });
-      } catch (loadError) {
-        if (
-          loadError.message.includes("password") ||
-          loadError.message.includes("encrypted")
-        ) {
-          return res.status(400).json({
-            success: false,
-            message: "Incorrect current password provided",
+        console.log("🔑 Attempting to verify current password with QPDF...");
+        const qpdfResult = await PDFProtectionService.unlockWithQPDF(
+          req.file.buffer,
+          currentPassword,
+        );
+        unlockedBuffer = qpdfResult.buffer;
+        console.log("✅ QPDF password verification successful");
+      } catch (qpdfError) {
+        console.log(
+          "⚠️ QPDF password verification failed, trying pdf-lib fallback...",
+        );
+        console.log("QPDF error:", qpdfError.message);
+
+        // Fallback to pdf-lib for password verification
+        try {
+          console.log(
+            "🔑 Attempting to verify current password with pdf-lib...",
+          );
+          const pdfDoc = await PDFDocument.load(req.file.buffer, {
+            password: currentPassword,
           });
+          console.log("✅ pdf-lib password verification successful");
+
+          // If pdf-lib works, use it for the entire process
+          unlockedBuffer = await pdfDoc.save({
+            useObjectStreams: false,
+            addDefaultPage: false,
+          });
+        } catch (pdflibError) {
+          console.error(
+            "❌ Both QPDF and pdf-lib password verification failed",
+          );
+          console.error("QPDF error:", qpdfError.message);
+          console.error("pdf-lib error:", pdflibError.message);
+
+          // Return appropriate error message
+          if (
+            pdflibError.message.includes("password") ||
+            qpdfError.message.includes("password")
+          ) {
+            return res.status(400).json({
+              success: false,
+              message: "Incorrect current password provided",
+            });
+          } else {
+            return res.status(400).json({
+              success: false,
+              message:
+                "Unable to process this PDF. It may use unsupported encryption.",
+            });
+          }
         }
-        throw loadError;
       }
 
-      // Step 2: Save with new password protection
-      // Note: pdf-lib doesn't support password protection directly,
-      // so we'll return the unlocked PDF with a note
-      pdfDoc.setTitle(
-        (pdfDoc.getTitle() || "Document") + " (Password Changed)",
+      // Step 2: Now protect the unlocked PDF with new password using PDFProtectionService
+      console.log("🔐 Applying new password protection...");
+      const protectionResult = await PDFProtectionService.protectPDF(
+        unlockedBuffer,
+        newPassword,
+        {
+          permissions: {
+            printing: true,
+            editing: true,
+            copying: true,
+            filling: true,
+          },
+        },
       );
-      pdfDoc.setCreator("PdfPage - PDF Password Change Tool");
-      pdfDoc.setProducer("PdfPage Password Change Service");
-      pdfDoc.setCreationDate(new Date());
 
-      // Add a note that the password has been changed (metadata only)
-      pdfDoc.setSubject(
-        `Password changed - New password: ${newPassword.length} characters`,
-      );
+      if (!protectionResult.success) {
+        throw new Error("Failed to apply new password protection");
+      }
 
-      // Save the PDF (unfortunately pdf-lib doesn't support adding password protection)
-      const newBuffer = await pdfDoc.save({
-        useObjectStreams: false,
-        addDefaultPage: false,
-      });
+      const newBuffer = protectionResult.buffer;
+
+      console.log("✅ PDF password change successful");
 
       // Track usage
       if (req.user) {

@@ -85,7 +85,6 @@ import {
   ProtectPdf,
   OrganizePdf,
   RotatePdf,
-  HtmlToPdf,
   PdfToPdfA,
   RepairPdf,
   PageNumbers,
@@ -94,8 +93,13 @@ import {
   ComparePdf,
   RedactPdf,
   PowerPointToPdf,
-  ExcelToPdf,
 } from "./pages/AllTools";
+
+// Import dedicated ExcelToPdf page
+import ExcelToPdf from "./pages/ExcelToPdf";
+
+// Import dedicated HTML to PDF component
+import HtmlToPdf from "./pages/HtmlToPdf";
 
 // Import professional OCR PDF component
 import OcrPdfProfessional from "./pages/OcrPdfProfessional";
@@ -126,6 +130,7 @@ import AuthCallback from "./pages/AuthCallback";
 import AccountTest from "./pages/AccountTest";
 import AdminRoute from "./components/admin/AdminRoute";
 import LibreOfficeTools from "./pages/LibreOfficeTools";
+import ExcelToPdfDebug from "./components/debug/ExcelToPdfDebug";
 
 const queryClient = new QueryClient();
 
@@ -384,6 +389,14 @@ const App = () => {
                         element={<AvailableTools />}
                       />
                       <Route path="/account-test" element={<AccountTest />} />
+
+                      {/* Debug Tools (Dev Only) */}
+                      {import.meta.env.DEV && (
+                        <Route
+                          path="/debug/excel-to-pdf"
+                          element={<ExcelToPdfDebug />}
+                        />
+                      )}
 
                       {/* Tool Redirect Pages (legacy compatibility - these show working tools now) */}
                       <Route

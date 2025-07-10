@@ -1,0 +1,72 @@
+version: "3.8"
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.comprehensive
+    ports:
+      - "5000:5000"
+    environment:
+      - NODE_ENV=development
+      - LIBREOFFICE_AVAILABLE=true
+      - PUPPETEER_EXECUTABLE_PATH=/usr/bin/google-chrome-stable
+      - MONGODB_URI=mongodb://mongo:27017/pdfpage
+      - JWT_SECRET=your-development-jwt-secret
+      - SESSION_SECRET=your-development-session-secret
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+      - uploads_data:/app/uploads
+      - temp_data:/app/temp
+      - logs_data:/app/logs
+    depends_on:
+      - mongo
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+        reservations:
+          memory: 2G
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - VITE_API_URL=http://localhost:5000/api
+    volumes:
+      - .:/app
+      - /app/node_modules
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+        reservations:
+          memory: 512M
+
+  mongo:
+    image: mongo:7
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+    environment:
+      - MONGO_INITDB_DATABASE=pdfpage
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+        reservations:
+          memory: 512M
+
+volumes:
+  mongo_data:
+  uploads_data:
+  temp_data:
+  logs_data:
