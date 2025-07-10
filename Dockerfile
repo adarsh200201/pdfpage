@@ -50,7 +50,7 @@ RUN cd backend && npm ci --only=production && npm cache clean --force
 
 # Copy frontend package files
 COPY package*.json ./
-RUN npm ci --only=production && npm cache clean --force
+RUN npm ci --legacy-peer-deps && npm cache clean --force
 
 # Install Puppeteer Chrome
 RUN npx puppeteer browsers install chrome || echo "Chrome installation completed"

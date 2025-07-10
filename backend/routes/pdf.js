@@ -3793,7 +3793,7 @@ router.post(
               return `\n${listCounter++}. ${cleanContent}`;
             },
           );
-          return `\n【NUMBERED_LIST��${numberedItems}\n【/NUMBERED_LIST����\n`;
+          return `\n【NUMBERED_LIST����${numberedItems}\n【/NUMBERED_LIST����\n`;
         },
       );
 
@@ -3861,7 +3861,7 @@ router.post(
         .replace(/【NUMBERED_LIST】(.*?)【\/NUMBERED_LIST】/gs, "$1")
         .replace(/��BULLET_LIST】(.*?)【\/BULLET_LIST】/gs, "$1")
         .replace(/【HEADING1】(.*?)【\/HEADING1】/g, "\n\n���▓▓ $1 ��▓▓\n\n")
-        .replace(/【HEADING2】(.*?)���\/HEADING2】/g, "\n\n▓▓ $1 ▓���\n\n")
+        .replace(/【HEADING2】(.*?)���\/HEADING2】/g, "\n\n▓▓ $1 ▓�����\n\n")
         .replace(/【HEADING3】(.*?)【\/HEADING3】/g, "\n\n▓ $1 ▓\n\n")
         .replace(/【BOLD】(.*?)【\/BOLD��/g, "���B:$1】")
         .replace(/【ITALIC】(.*?)�����\/ITALIC】/g, "��I:$1】")
@@ -3923,7 +3923,7 @@ router.post(
       // Function to sanitize text for WinAnsi encoding compatibility
       const sanitizeTextForPDF = (text) => {
         return text
-          .replace(/【/g, "[") // U+3010 → ASCII bracket
+          .replace(/【/g, "[") // U+3010 �� ASCII bracket
           .replace(/】/g, "]") // U+3011 → ASCII bracket
           .replace(/[""]/g, '"') // Smart quotes → ASCII quotes
           .replace(/['']/g, "'") // Smart apostrophes → ASCII apostrophe
@@ -4540,7 +4540,7 @@ router.post(
 );
 
 // @route   POST /api/pdf/word-to-pdf
-// @desc    Convert Word to PDF using Puppeteer and Mammoth (Render-compatible)
+// @desc    Convert Word to PDF using ONLY LibreOffice (NO FALLBACKS)
 // @access  Public (with optional auth and usage limits)
 router.post(
   "/word-to-pdf",
@@ -4595,15 +4595,17 @@ router.post(
         });
       }
 
-      // Check file size (25MB limit for Puppeteer processing)
-      if (file.size > 25 * 1024 * 1024) {
+      // Check file size (50MB limit for LibreOffice processing)
+      if (file.size > 50 * 1024 * 1024) {
         return res.status(400).json({
           success: false,
-          message: "File size exceeds 25MB limit",
+          message: "File size exceeds 50MB limit",
         });
       }
 
-      console.log(`🚀 Puppeteer Word to PDF conversion: ${file.originalname}`);
+      console.log(
+        `🚀 LibreOffice ONLY Word to PDF conversion: ${file.originalname}`,
+      );
       console.log(`📊 Options:`, {
         pageSize,
         quality,
@@ -4630,70 +4632,60 @@ router.post(
       // Save uploaded file to temp location
       fs.writeFileSync(tempInputPath, file.buffer);
 
-      // Try Puppeteer conversion first, fallback to LibreOffice if it fails
-      let result;
-      let conversionEngine = "Puppeteer";
+      // ONLY LibreOffice conversion - NO FALLBACKS
+      const { spawn } = require("child_process");
 
-      try {
-        result = await documentConversionService.convertWordToPdf(
+      const result = await new Promise((resolve, reject) => {
+        console.log(
+          `🔧 Executing LibreOffice conversion: ${file.originalname}`,
+        );
+
+        const process = spawn("libreoffice", [
+          "--headless",
+          "--convert-to",
+          quality === "premium" ? "pdf:writer_pdf_Export" : "pdf",
+          "--outdir",
+          path.dirname(tempOutputPath),
           tempInputPath,
-          tempOutputPath,
-          { pageSize },
-        );
-      } catch (puppeteerError) {
-        console.warn(
-          "🔄 Puppeteer failed, falling back to LibreOffice:",
-          puppeteerError.message,
-        );
+        ]);
 
-        // Fallback to LibreOffice conversion
-        try {
-          const { spawn } = require("child_process");
-          const path = require("path");
+        let stdout = "";
+        let stderr = "";
 
-          // LibreOffice conversion command
-          const libreOfficeResult = await new Promise((resolve, reject) => {
-            const process = spawn("libreoffice", [
-              "--headless",
-              "--convert-to",
-              "pdf",
-              "--outdir",
-              path.dirname(tempOutputPath),
-              tempInputPath,
-            ]);
+        process.stdout.on("data", (data) => {
+          stdout += data.toString();
+        });
 
-            let stderr = "";
-            process.stderr.on("data", (data) => {
-              stderr += data.toString();
-            });
+        process.stderr.on("data", (data) => {
+          stderr += data.toString();
+        });
 
-            process.on("close", (code) => {
-              if (code === 0) {
-                resolve({ success: true, pageCount: 1 });
-              } else {
-                reject(new Error(`LibreOffice conversion failed: ${stderr}`));
-              }
-            });
+        process.on("close", (code) => {
+          if (code === 0) {
+            console.log(`✅ LibreOffice conversion successful`);
+            resolve({ success: true, pageCount: 1 });
+          } else {
+            console.error(`❌ LibreOffice conversion failed with code ${code}`);
+            console.error(`stderr: ${stderr}`);
+            reject(
+              new Error(
+                `LibreOffice conversion failed: ${stderr || `Exit code ${code}`}`,
+              ),
+            );
+          }
+        });
 
-            // Timeout after 30 seconds
-            setTimeout(() => {
-              process.kill();
-              reject(new Error("LibreOffice conversion timed out"));
-            }, 30000);
-          });
+        process.on("error", (error) => {
+          console.error(`❌ LibreOffice process error:`, error);
+          reject(error);
+        });
 
-          result = libreOfficeResult;
-          conversionEngine = "LibreOffice";
-        } catch (libreOfficeError) {
-          console.error(
-            "❌ Both Puppeteer and LibreOffice failed:",
-            libreOfficeError.message,
-          );
-          throw new Error(
-            `PDF conversion failed. Puppeteer error: ${puppeteerError.message}. LibreOffice error: ${libreOfficeError.message}`,
-          );
-        }
-      }
+        // Timeout after 2 minutes
+        setTimeout(() => {
+          process.kill("SIGTERM");
+          reject(new Error("LibreOffice conversion timed out after 2 minutes"));
+        }, 120000);
+      });
 
       // Read the generated PDF
       const pdfBuffer = fs.readFileSync(tempOutputPath);
@@ -4701,7 +4693,7 @@ router.post(
 
       const processingTime = Date.now() - startTime;
 
-      console.log(`✅ ${conversionEngine} Word conversion successful:`);
+      console.log(`✅ LibreOffice Word conversion successful:`);
       console.log(`   📄 Pages: ${pageCount}`);
       console.log(`   📦 Size: ${pdfBuffer.length} bytes`);
       console.log(`   ⏱️ Time: ${processingTime}ms`);
@@ -4743,7 +4735,7 @@ router.post(
       res.setHeader("X-Pages", pageCount);
       res.setHeader("X-File-Size", pdfBuffer.length);
       res.setHeader("X-Processing-Time", processingTime);
-      res.setHeader("X-Conversion-Engine", conversionEngine);
+      res.setHeader("X-Conversion-Engine", "LibreOffice");
       res.setHeader("X-Conversion-Quality", quality);
       res.setHeader("X-Page-Format", pageSize);
       res.setHeader("X-Original-Size", file.size);
@@ -4756,7 +4748,7 @@ router.post(
 
       res.send(pdfBuffer);
     } catch (error) {
-      console.error("❌ Puppeteer Word to PDF conversion error:", error);
+      console.error("❌ LibreOffice Word to PDF conversion error:", error);
 
       // Track error
       try {
@@ -5070,15 +5062,17 @@ router.post(
         });
       }
 
-      // Check file size (25MB limit for Puppeteer processing)
-      if (file.size > 25 * 1024 * 1024) {
+      // Check file size (50MB limit for LibreOffice processing)
+      if (file.size > 50 * 1024 * 1024) {
         return res.status(400).json({
           success: false,
-          message: "File size exceeds 25MB limit",
+          message: "File size exceeds 50MB limit",
         });
       }
 
-      console.log(`🚀 Puppeteer Excel to PDF conversion: ${file.originalname}`);
+      console.log(
+        `🚀 LibreOffice ONLY Excel to PDF conversion: ${file.originalname}`,
+      );
       console.log(`📊 Options:`, {
         pageSize,
         orientation,
@@ -5106,12 +5100,64 @@ router.post(
       // Save uploaded file to temp location
       fs.writeFileSync(tempInputPath, file.buffer);
 
-      // Convert using the new service
-      const result = await documentConversionService.convertExcelToPdf(
-        tempInputPath,
-        tempOutputPath,
-        { pageSize, orientation },
-      );
+      // ONLY LibreOffice conversion - NO FALLBACKS
+      const { spawn } = require("child_process");
+
+      const result = await new Promise((resolve, reject) => {
+        console.log(
+          `🔧 Executing LibreOffice Excel conversion: ${file.originalname}`,
+        );
+
+        const process = spawn("libreoffice", [
+          "--headless",
+          "--convert-to",
+          quality === "premium" ? "pdf:calc_pdf_Export" : "pdf",
+          "--outdir",
+          path.dirname(tempOutputPath),
+          tempInputPath,
+        ]);
+
+        let stdout = "";
+        let stderr = "";
+
+        process.stdout.on("data", (data) => {
+          stdout += data.toString();
+        });
+
+        process.stderr.on("data", (data) => {
+          stderr += data.toString();
+        });
+
+        process.on("close", (code) => {
+          if (code === 0) {
+            console.log(`✅ LibreOffice Excel conversion successful`);
+            resolve({ success: true, pageCount: 1 });
+          } else {
+            console.error(
+              `❌ LibreOffice Excel conversion failed with code ${code}`,
+            );
+            console.error(`stderr: ${stderr}`);
+            reject(
+              new Error(
+                `LibreOffice Excel conversion failed: ${stderr || `Exit code ${code}`}`,
+              ),
+            );
+          }
+        });
+
+        process.on("error", (error) => {
+          console.error(`❌ LibreOffice Excel process error:`, error);
+          reject(error);
+        });
+
+        // Timeout after 2 minutes
+        setTimeout(() => {
+          process.kill("SIGTERM");
+          reject(
+            new Error("LibreOffice Excel conversion timed out after 2 minutes"),
+          );
+        }, 120000);
+      });
 
       // Read the generated PDF
       const pdfBuffer = fs.readFileSync(tempOutputPath);
@@ -5119,7 +5165,7 @@ router.post(
 
       const processingTime = Date.now() - startTime;
 
-      console.log(`✅ Puppeteer Excel conversion successful:`);
+      console.log(`✅ LibreOffice Excel conversion successful:`);
       console.log(`   📄 Pages: ${pageCount}`);
       console.log(`   📦 Size: ${pdfBuffer.length} bytes`);
       console.log(`   ⏱️ Time: ${processingTime}ms`);
@@ -5161,7 +5207,7 @@ router.post(
       res.setHeader("X-Pages", pageCount);
       res.setHeader("X-File-Size", pdfBuffer.length);
       res.setHeader("X-Processing-Time", processingTime.toString());
-      res.setHeader("X-Conversion-Engine", "Puppeteer");
+      res.setHeader("X-Conversion-Engine", "LibreOffice");
       res.setHeader("X-Conversion-Quality", quality);
       res.setHeader("X-Page-Format", pageSize);
       res.setHeader("X-Original-Size", file.size);
@@ -5484,16 +5530,16 @@ router.post(
         });
       }
 
-      // Check file size (25MB limit for Puppeteer processing)
-      if (file.size > 25 * 1024 * 1024) {
+      // Check file size (50MB limit for LibreOffice processing)
+      if (file.size > 50 * 1024 * 1024) {
         return res.status(400).json({
           success: false,
-          message: "File size exceeds 25MB limit",
+          message: "File size exceeds 50MB limit",
         });
       }
 
       console.log(
-        `🚀 Puppeteer PowerPoint to PDF conversion: ${file.originalname}`,
+        `🚀 LibreOffice ONLY PowerPoint to PDF conversion: ${file.originalname}`,
       );
       console.log(`📊 Options:`, {
         pageSize,
@@ -5522,12 +5568,66 @@ router.post(
       // Save uploaded file to temp location
       fs.writeFileSync(tempInputPath, file.buffer);
 
-      // Convert using the new service
-      const result = await documentConversionService.convertPowerpointToPdf(
-        tempInputPath,
-        tempOutputPath,
-        { pageSize, orientation },
-      );
+      // ONLY LibreOffice conversion - NO FALLBACKS
+      const { spawn } = require("child_process");
+
+      const result = await new Promise((resolve, reject) => {
+        console.log(
+          `🔧 Executing LibreOffice PowerPoint conversion: ${file.originalname}`,
+        );
+
+        const process = spawn("libreoffice", [
+          "--headless",
+          "--convert-to",
+          quality === "premium" ? "pdf:impress_pdf_Export" : "pdf",
+          "--outdir",
+          path.dirname(tempOutputPath),
+          tempInputPath,
+        ]);
+
+        let stdout = "";
+        let stderr = "";
+
+        process.stdout.on("data", (data) => {
+          stdout += data.toString();
+        });
+
+        process.stderr.on("data", (data) => {
+          stderr += data.toString();
+        });
+
+        process.on("close", (code) => {
+          if (code === 0) {
+            console.log(`✅ LibreOffice PowerPoint conversion successful`);
+            resolve({ success: true, pageCount: 1 });
+          } else {
+            console.error(
+              `❌ LibreOffice PowerPoint conversion failed with code ${code}`,
+            );
+            console.error(`stderr: ${stderr}`);
+            reject(
+              new Error(
+                `LibreOffice PowerPoint conversion failed: ${stderr || `Exit code ${code}`}`,
+              ),
+            );
+          }
+        });
+
+        process.on("error", (error) => {
+          console.error(`❌ LibreOffice PowerPoint process error:`, error);
+          reject(error);
+        });
+
+        // Timeout after 2 minutes
+        setTimeout(() => {
+          process.kill("SIGTERM");
+          reject(
+            new Error(
+              "LibreOffice PowerPoint conversion timed out after 2 minutes",
+            ),
+          );
+        }, 120000);
+      });
 
       // Read the generated PDF
       const pdfBuffer = fs.readFileSync(tempOutputPath);
@@ -5535,7 +5635,7 @@ router.post(
 
       const processingTime = Date.now() - startTime;
 
-      console.log(`✅ Puppeteer PowerPoint conversion successful:`);
+      console.log(`✅ LibreOffice PowerPoint conversion successful:`);
       console.log(`   📄 Pages: ${pageCount}`);
       console.log(`   📦 Size: ${pdfBuffer.length} bytes`);
       console.log(`   ⏱️ Time: ${processingTime}ms`);
@@ -5577,7 +5677,7 @@ router.post(
       res.setHeader("X-Pages", pageCount);
       res.setHeader("X-File-Size", pdfBuffer.length);
       res.setHeader("X-Processing-Time", processingTime.toString());
-      res.setHeader("X-Conversion-Engine", "Puppeteer");
+      res.setHeader("X-Conversion-Engine", "LibreOffice");
       res.setHeader("X-Conversion-Quality", quality);
       res.setHeader("X-Page-Format", pageSize);
       res.setHeader("X-Original-Size", file.size);
@@ -7709,7 +7809,7 @@ except Exception as e:
 
               const isDateRange =
                 /\d{4}\s*[-–��]\s*(\d{4}|present|current)/i.test(line) ||
-                /\w+\s+\d{4}\s*[-–—]\s*(\w+\s+\d{4}|present|current)/i.test(
+                /\w+\s+\d{4}\s*[-–��]\s*(\w+\s+\d{4}|present|current)/i.test(
                   line,
                 );
 

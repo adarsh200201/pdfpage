@@ -12,39 +12,59 @@ router.get("/dashboard", async (req, res) => {
     // Set cache headers for 5 minutes
     res.set("Cache-Control", "public, max-age=300");
 
-    // Get usage statistics (PDFs processed)
-    const totalUsageCount = await Usage.countDocuments({});
+    // Get usage statistics (PDFs processed) with fallback
+    let totalUsageCount = 0;
+    try {
+      totalUsageCount = await Usage.countDocuments({});
+    } catch (err) {
+      console.log("Usage collection not ready:", err.message);
+    }
 
-    // Get actual registered users count
-    const totalRegisteredUsers = await User.countDocuments({});
+    // Get actual registered users count with fallback
+    let totalRegisteredUsers = 0;
+    try {
+      totalRegisteredUsers = await User.countDocuments({});
+    } catch (err) {
+      console.log("User collection not ready:", err.message);
+    }
 
-    // Get countries served (from IP geolocation data)
-    const uniqueCountries = await IpUsageLog.distinct("country");
-    const countriesCount = uniqueCountries.filter(
-      (country) => country && country !== "Unknown",
-    ).length;
+    // Get countries served (from IP geolocation data) with fallback
+    let countriesCount = 1;
+    try {
+      const uniqueCountries = await IpUsageLog.distinct("country");
+      countriesCount =
+        uniqueCountries.filter((country) => country && country !== "Unknown")
+          .length || 1;
+    } catch (err) {
+      console.log("IpUsageLog collection not ready:", err.message);
+    }
 
-    // Calculate system uptime (based on error rates and availability)
-    const last30Days = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-    const totalRequests = await Usage.countDocuments({
-      createdAt: { $gte: last30Days },
-    });
+    // Calculate system uptime (based on error rates and availability) with fallback
+    let uptime = 99.9;
+    try {
+      const last30Days = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+      const totalRequests = await Usage.countDocuments({
+        createdAt: { $gte: last30Days },
+      });
 
-    const failedRequests = await Usage.countDocuments({
-      createdAt: { $gte: last30Days },
-      processingStatus: "failed",
-    });
+      const failedRequests = await Usage.countDocuments({
+        createdAt: { $gte: last30Days },
+        processingStatus: "failed",
+      });
 
-    const uptime =
-      totalRequests > 0
-        ? Math.max(
-            95,
-            Math.min(
-              99.99,
-              ((totalRequests - failedRequests) / totalRequests) * 100,
-            ),
-          )
-        : 99.9;
+      uptime =
+        totalRequests > 0
+          ? Math.max(
+              95,
+              Math.min(
+                99.99,
+                ((totalRequests - failedRequests) / totalRequests) * 100,
+              ),
+            )
+          : 99.9;
+    } catch (err) {
+      console.log("Uptime calculation error:", err.message);
+    }
 
     // Format the response
     const stats = {
