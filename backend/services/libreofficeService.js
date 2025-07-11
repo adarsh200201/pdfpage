@@ -481,6 +481,238 @@ class LibreOfficeService {
   }
 
   /**
+   * Convert TXT to PDF
+   */
+  async convertTxtToPdf(inputPath, outputPath, options = {}) {
+    return this.convertToPdf(inputPath, outputPath, options);
+  }
+
+  /**
+   * Convert ODT to PDF
+   */
+  async convertOdtToPdf(inputPath, outputPath, options = {}) {
+    return this.convertToPdf(inputPath, outputPath, options);
+  }
+
+  /**
+   * Convert RTF to PDF
+   */
+  async convertRtfToPdf(inputPath, outputPath, options = {}) {
+    return this.convertToPdf(inputPath, outputPath, options);
+  }
+
+  /**
+   * Convert PDF to PPTX
+   */
+  async convertPdfToPptx(inputPath, outputPath, options = {}) {
+    if (!this.isAvailable) {
+      throw new Error("LibreOffice is not available");
+    }
+
+    const { preserveLayout = true, timeout = 120000 } = options;
+
+    try {
+      console.log(`🚀 Converting PDF to PPTX: ${path.basename(inputPath)}`);
+
+      const outputDir = path.dirname(outputPath);
+      const executable = this.getExecutablePath();
+
+      // Use Draw to convert PDF to PowerPoint
+      let command = [
+        executable,
+        "--headless",
+        "--draw",
+        "--convert-to",
+        "pptx",
+      ];
+      command.push("--outdir", outputDir);
+      command.push(inputPath);
+
+      const result = await this.executeCommand(command, timeout);
+
+      // Verify output file exists
+      const outputExists = await this.fileExists(outputPath);
+      if (!outputExists) {
+        throw new Error("LibreOffice failed to create output file");
+      }
+
+      console.log(`✅ PDF to PPTX conversion successful`);
+      return {
+        success: true,
+        outputPath,
+        fileSize: (await fs.stat(outputPath)).size,
+        conversionMethod: "LibreOffice",
+      };
+    } catch (error) {
+      console.error(`❌ PDF to PPTX conversion error:`, error);
+      throw new Error(`PDF to PPTX conversion failed: ${error.message}`);
+    }
+  }
+
+  /**
+   * Generic convert to PDF method for various formats
+   */
+  async convertToPdf(inputPath, outputPath, options = {}) {
+    if (!this.isAvailable) {
+      throw new Error("LibreOffice is not available");
+    }
+
+    const { quality = "standard", timeout = 120000 } = options;
+
+    try {
+      const inputExtension = path.extname(inputPath).toLowerCase();
+      console.log(
+        `🚀 Converting ${inputExtension} to PDF: ${path.basename(inputPath)}`,
+      );
+
+      const outputDir = path.dirname(outputPath);
+      const executable = this.getExecutablePath();
+
+      let command = [executable, "--headless", "--convert-to", "pdf"];
+      command.push("--outdir", outputDir);
+      command.push(inputPath);
+
+      const result = await this.executeCommand(command, timeout);
+
+      // Verify output file exists
+      const outputExists = await this.fileExists(outputPath);
+      if (!outputExists) {
+        throw new Error("LibreOffice failed to create output file");
+      }
+
+      console.log(`✅ ${inputExtension} to PDF conversion successful`);
+      return {
+        success: true,
+        outputPath,
+        fileSize: (await fs.stat(outputPath)).size,
+        conversionMethod: "LibreOffice",
+      };
+    } catch (error) {
+      console.error(
+        `❌ ${path.extname(inputPath)} to PDF conversion error:`,
+        error,
+      );
+      throw new Error(
+        `${path.extname(inputPath)} to PDF conversion failed: ${error.message}`,
+      );
+    }
+  }
+
+  /**
+   * Convert CSV to XLSX
+   */
+  async convertCsvToXlsx(inputPath, outputPath, options = {}) {
+    return this.convertToFormat(inputPath, outputPath, "xlsx", options);
+  }
+
+  /**
+   * Convert ODT to DOCX
+   */
+  async convertOdtToDocx(inputPath, outputPath, options = {}) {
+    return this.convertToFormat(inputPath, outputPath, "docx", options);
+  }
+
+  /**
+   * Convert RTF to DOCX
+   */
+  async convertRtfToDocx(inputPath, outputPath, options = {}) {
+    return this.convertToFormat(inputPath, outputPath, "docx", options);
+  }
+
+  /**
+   * Convert DOCX to ODT
+   */
+  async convertDocxToOdt(inputPath, outputPath, options = {}) {
+    return this.convertToFormat(inputPath, outputPath, "odt", options);
+  }
+
+  /**
+   * Convert XLS to CSV
+   */
+  async convertXlsToCsv(inputPath, outputPath, options = {}) {
+    return this.convertToFormat(inputPath, outputPath, "csv", options);
+  }
+
+  /**
+   * Convert XLSX to ODS
+   */
+  async convertXlsxToOds(inputPath, outputPath, options = {}) {
+    return this.convertToFormat(inputPath, outputPath, "ods", options);
+  }
+
+  /**
+   * Convert PPTX to ODP
+   */
+  async convertPptxToOdp(inputPath, outputPath, options = {}) {
+    return this.convertToFormat(inputPath, outputPath, "odp", options);
+  }
+
+  /**
+   * Convert PPTX to PNG
+   */
+  async convertPptxToPng(inputPath, outputPath, options = {}) {
+    return this.convertToFormat(inputPath, outputPath, "png", options);
+  }
+
+  /**
+   * Convert DOC to ODT
+   */
+  async convertDocToOdt(inputPath, outputPath, options = {}) {
+    return this.convertToFormat(inputPath, outputPath, "odt", options);
+  }
+
+  /**
+   * Generic convert to any format method
+   */
+  async convertToFormat(inputPath, outputPath, targetFormat, options = {}) {
+    if (!this.isAvailable) {
+      throw new Error("LibreOffice is not available");
+    }
+
+    const { quality = "standard", timeout = 120000 } = options;
+
+    try {
+      const inputExtension = path.extname(inputPath).toLowerCase();
+      console.log(
+        `🚀 Converting ${inputExtension} to ${targetFormat}: ${path.basename(inputPath)}`,
+      );
+
+      const outputDir = path.dirname(outputPath);
+      const executable = this.getExecutablePath();
+
+      let command = [executable, "--headless", "--convert-to", targetFormat];
+      command.push("--outdir", outputDir);
+      command.push(inputPath);
+
+      const result = await this.executeCommand(command, timeout);
+
+      // Verify output file exists
+      const outputExists = await this.fileExists(outputPath);
+      if (!outputExists) {
+        throw new Error("LibreOffice failed to create output file");
+      }
+
+      console.log(
+        `✅ ${inputExtension} to ${targetFormat} conversion successful`,
+      );
+      return {
+        success: true,
+        outputPath,
+        fileSize: (await fs.stat(outputPath)).size,
+        conversionMethod: "LibreOffice",
+      };
+    } catch (error) {
+      console.error(
+        `❌ ${path.extname(inputPath)} to ${targetFormat} conversion error:`,
+        error,
+      );
+      throw new Error(
+        `${path.extname(inputPath)} to ${targetFormat} conversion failed: ${error.message}`,
+      );
+    }
+  }
+
+  /**
    * Execute LibreOffice command with proper error handling
    */
   async executeCommand(command, timeout = 120000) {

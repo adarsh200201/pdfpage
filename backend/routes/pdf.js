@@ -32,7 +32,7 @@ const upload = multer({
     fileSize: 50 * 1024 * 1024, // 50MB limit
   },
   fileFilter: (req, file, cb) => {
-    const allowedExtensions = [".docx", ".doc"];
+    const allowedExtensions = [".docx", ".doc", ".pptx", ".ppt", ".pdf"];
     const extension = path.extname(file.originalname).toLowerCase();
 
     if (allowedExtensions.includes(extension)) {
@@ -155,6 +155,163 @@ router.post(
       res.status(500).json({
         success: false,
         message: error.message || "Word to PDF conversion failed",
+        error: process.env.NODE_ENV === "development" ? error.stack : undefined,
+      });
+    } finally {
+      // Cleanup files
+      const filesToClean = [inputPath, outputPath].filter(Boolean);
+      if (filesToClean.length > 0) {
+        libreofficeService.cleanup(filesToClean).catch(console.warn);
+      }
+    }
+  },
+);
+
+/**
+ * @route   POST /api/pdf/pdf-to-powerpoint-libreoffice
+ * @desc    Convert PDF to PowerPoint using LibreOffice (alias for pdf-to-pptx)
+ * @access  Public with rate limiting
+ */
+router.post(
+  "/pdf-to-powerpoint-libreoffice",
+  optionalAuth,
+  ...ipUsageLimitChain,
+  upload.single("file"),
+  async (req, res) => {
+    let inputPath = null;
+    let outputPath = null;
+
+    try {
+      if (!req.file) {
+        return res.status(400).json({
+          success: false,
+          message: "No file uploaded",
+        });
+      }
+
+      const startTime = Date.now();
+      inputPath = req.file.path;
+      const outputDir = path.join(__dirname, "../temp/output");
+      await fs.mkdir(outputDir, { recursive: true });
+
+      const outputFilename = `${path.basename(req.file.filename, path.extname(req.file.filename))}.pptx`;
+      outputPath = path.join(outputDir, outputFilename);
+
+      const options = {
+        preserveLayout: req.body.preserveLayout !== "false",
+      };
+
+      console.log(`🚀 LibreOffice PDF to PowerPoint: ${req.file.originalname}`);
+
+      const result = await libreofficeService.convertPdfToPptx(
+        inputPath,
+        outputPath,
+        options,
+      );
+
+      // Check output file size and read for response
+      const stats = await fs.stat(outputPath);
+      const fileBuffer = await fs.readFile(outputPath);
+
+      const processingTime = Date.now() - startTime;
+
+      // Set response headers
+      res.set({
+        "Content-Type":
+          "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+        "Content-Disposition": `attachment; filename="${path.basename(req.file.originalname, ".pdf")}.pptx"`,
+        "Content-Length": stats.size,
+        "X-Processing-Time": processingTime.toString(),
+        "X-Conversion-Engine": "LibreOffice",
+        "X-File-Size": stats.size.toString(),
+      });
+
+      res.send(fileBuffer);
+
+      console.log(`✅ PDF to PowerPoint completed in ${processingTime}ms`);
+    } catch (error) {
+      console.error("PDF to PowerPoint conversion error:", error);
+      res.status(500).json({
+        success: false,
+        message: error.message || "PDF to PowerPoint conversion failed",
+        error: process.env.NODE_ENV === "development" ? error.stack : undefined,
+      });
+    } finally {
+      // Cleanup files
+      const filesToClean = [inputPath, outputPath].filter(Boolean);
+      if (filesToClean.length > 0) {
+        libreofficeService.cleanup(filesToClean).catch(console.warn);
+      }
+    }
+  },
+);
+
+/**
+ * @route   POST /api/pdf/powerpoint-to-pdf-libreoffice
+ * @desc    Convert PowerPoint presentations to PDF using LibreOffice (alias for pptx-to-pdf)
+ * @access  Public with rate limiting
+ */
+router.post(
+  "/powerpoint-to-pdf-libreoffice",
+  optionalAuth,
+  ...ipUsageLimitChain,
+  upload.single("file"),
+  async (req, res) => {
+    let inputPath = null;
+    let outputPath = null;
+
+    try {
+      if (!req.file) {
+        return res.status(400).json({
+          success: false,
+          message: "No file uploaded",
+        });
+      }
+
+      const startTime = Date.now();
+      inputPath = req.file.path;
+      const outputDir = path.join(__dirname, "../temp/output");
+      await fs.mkdir(outputDir, { recursive: true });
+
+      const outputFilename = `${path.basename(req.file.filename, path.extname(req.file.filename))}.pdf`;
+      outputPath = path.join(outputDir, outputFilename);
+
+      const options = {
+        quality: req.body.quality || "standard",
+      };
+
+      console.log(`🚀 LibreOffice PowerPoint to PDF: ${req.file.originalname}`);
+
+      const result = await libreofficeService.convertPptxToPdf(
+        inputPath,
+        outputPath,
+        options,
+      );
+
+      // Check output file size and read for response
+      const stats = await fs.stat(outputPath);
+      const fileBuffer = await fs.readFile(outputPath);
+
+      const processingTime = Date.now() - startTime;
+
+      // Set response headers
+      res.set({
+        "Content-Type": "application/pdf",
+        "Content-Disposition": `attachment; filename="${path.basename(req.file.originalname, path.extname(req.file.originalname))}.pdf"`,
+        "Content-Length": stats.size,
+        "X-Processing-Time": processingTime.toString(),
+        "X-Conversion-Engine": "LibreOffice",
+        "X-File-Size": stats.size.toString(),
+      });
+
+      res.send(fileBuffer);
+
+      console.log(`✅ PowerPoint to PDF completed in ${processingTime}ms`);
+    } catch (error) {
+      console.error("PowerPoint to PDF conversion error:", error);
+      res.status(500).json({
+        success: false,
+        message: error.message || "PowerPoint to PDF conversion failed",
         error: process.env.NODE_ENV === "development" ? error.stack : undefined,
       });
     } finally {

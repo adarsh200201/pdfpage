@@ -23,11 +23,13 @@ const ComingSoon = () => {
   const getToolInfo = (toolName: string) => {
     switch (toolName) {
       case "pdf-to-powerpoint":
+        // Redirect to the actual working tool
+        window.location.href = "/pdf-to-powerpoint";
         return {
           title: "PDF to PowerPoint",
           description: "Convert PDF files to editable PowerPoint presentations",
           icon: Presentation,
-          eta: "Q2 2024",
+          eta: "Available Now!",
           features: [
             "Preserve original formatting",
             "Extract images and text",

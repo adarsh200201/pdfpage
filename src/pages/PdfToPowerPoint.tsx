@@ -70,9 +70,28 @@ const PdfToPowerPoint = () => {
             description: "Extracting content and creating PowerPoint slides",
           });
 
-          // Convert PDF to PowerPoint format
-          const pptxContent = await convertPdfToPowerPoint(file);
-          const blob = new Blob([pptxContent], {
+          // Convert PDF to PowerPoint using LibreOffice backend
+          const formData = new FormData();
+          formData.append("file", file);
+          formData.append("preserveLayout", "true");
+
+          const response = await fetch(
+            "https://pdfpage-app.onrender.com/api/pdf/pdf-to-powerpoint-libreoffice",
+            {
+              method: "POST",
+              body: formData,
+            },
+          );
+
+          if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(
+              errorData.message || `Conversion failed: ${response.status}`,
+            );
+          }
+
+          const arrayBuffer = await response.arrayBuffer();
+          const blob = new Blob([arrayBuffer], {
             type: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
           });
           const url = URL.createObjectURL(blob);
@@ -127,53 +146,8 @@ const PdfToPowerPoint = () => {
     }
   };
 
-  const convertPdfToPowerPoint = async (file: File): Promise<Uint8Array> => {
-    console.log("🔄 Converting PDF to PowerPoint presentation...");
-
-    try {
-      // Import required libraries
-      const { PDFDocument } = await import("pdf-lib");
-
-      // Load the PDF
-      const arrayBuffer = await file.arrayBuffer();
-      const pdfDoc = await PDFDocument.load(arrayBuffer);
-      const pages = pdfDoc.getPages();
-
-      console.log(
-        `📑 Processing ${pages.length} pages for PowerPoint conversion`,
-      );
-
-      // Create a simple PowerPoint-like structure
-      // Note: This creates a basic XML structure that represents PowerPoint content
-      const slides = pages.map((page, index) => {
-        const { width, height } = page.getSize();
-
-        return {
-          slideNumber: index + 1,
-          title: `Slide ${index + 1}`,
-          content: `Content from PDF page ${index + 1}`,
-          originalSize: `${Math.round(width)} × ${Math.round(height)} points`,
-          extracted: true,
-        };
-      });
-
-      // Create a PowerPoint-compatible format (simplified)
-      const pptxContent = createPowerPointContent(slides, file.name);
-
-      console.log(
-        `✅ PowerPoint conversion completed: ${slides.length} slides created`,
-      );
-      return pptxContent;
-    } catch (error) {
-      console.error("PowerPoint conversion failed:", error);
-      throw error;
-    }
-  };
-
-  const createPowerPointContent = (
-    slides: any[],
-    fileName: string,
-  ): Uint8Array => {
+  // Function removed - now using LibreOffice backend
+  const oldCreatePowerPointContent = () => {
     // Create a basic PowerPoint-like content structure
     // This is a simplified implementation - in production, you'd use a proper PPTX library
     const pptContent = `
@@ -332,12 +306,13 @@ ${slides
             PDF to PowerPoint
           </h1>
           <p className="text-body-large text-text-light max-w-2xl mx-auto">
-            Turn your PDF files into easy to edit PowerPoint presentations.
-            Extract content and create editable slides.
+            Convert PDF files to editable PowerPoint presentations using
+            LibreOffice. Get accurate conversion with proper formatting
+            preservation.
           </p>
           <div className="mt-4 inline-flex items-center px-3 py-1 rounded-full text-sm bg-green-100 text-green-800">
-            <span className="mr-2">✨</span>
-            Real PDF content extraction to PowerPoint format!
+            <span className="mr-2">🚀</span>
+            Powered by LibreOffice for accurate results!
           </div>
         </div>
 

@@ -109,11 +109,16 @@ const Header = () => {
           {/* Logo */}
           <div className="flex items-center">
             <Link to="/" className="flex items-center space-x-2">
-              <div className="w-8 h-8 bg-gradient-to-br from-brand-red to-red-600 rounded-lg flex items-center justify-center">
-                <FileText className="text-white font-bold text-sm w-5 h-5" />
+              <div className="w-8 h-8 bg-gradient-to-br from-red-500 via-red-600 to-red-700 rounded-xl flex items-center justify-center shadow-lg ring-2 ring-red-500/20">
+                <span className="text-white font-bold text-sm tracking-tight">
+                  PP
+                </span>
               </div>
-              <span className="font-bold text-xl text-text-dark">
-                Pdf<span className="text-brand-red">Page</span>
+              <span className="font-bold text-xl bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 bg-clip-text text-transparent ml-2">
+                Pdf
+                <span className="bg-gradient-to-r from-red-500 to-red-600 bg-clip-text text-transparent">
+                  Page
+                </span>
               </span>
             </Link>
           </div>

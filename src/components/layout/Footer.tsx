@@ -134,13 +134,21 @@ const Footer = () => {
                     to="/"
                     className="inline-flex items-center space-x-2 mb-4 group"
                   >
-                    <div className="w-10 h-10 bg-gradient-to-br from-brand-red to-red-600 rounded-lg flex items-center justify-center transform group-hover:scale-105 transition-transform duration-200">
-                      <span className="text-white font-bold">PP</span>
-                    </div>
-                    <div>
-                      <span className="font-bold text-xl text-white">
-                        Pdf<span className="text-brand-red">Page</span>
+                    <div className="w-10 h-10 bg-gradient-to-br from-red-500 via-red-600 to-red-700 rounded-xl flex items-center justify-center transform group-hover:scale-105 transition-all duration-200 shadow-lg ring-2 ring-red-500/30">
+                      <span className="text-white font-bold text-sm tracking-tight">
+                        PP
                       </span>
+                    </div>
+                    <div className="ml-3">
+                      <span className="font-bold text-xl text-white">
+                        Pdf
+                        <span className="bg-gradient-to-r from-red-400 to-red-500 bg-clip-text text-transparent">
+                          Page
+                        </span>
+                      </span>
+                      <div className="text-xs text-gray-400 mt-0.5">
+                        PDF Toolkit
+                      </div>
                     </div>
                   </Link>
 
