@@ -33,7 +33,7 @@ interface ConversionResult {
 }
 
 export class HtmlToPdfService {
-  private static API_URL = "https://pdfpage-app.onrender.com/api";
+  private static API_URL = "https://pdfpage-app.onrender.com";
 
   /**
    * Test if the backend route is accessible by making a minimal POST request
@@ -45,7 +45,7 @@ export class HtmlToPdfService {
         `${this.API_URL}/pdf/health`,
       );
 
-      const response = await fetch(`${this.API_URL}/pdf/health`, {
+      const response = await fetch(`${this.API_URL}/api/pdf/health`, {
         method: "GET",
         headers: {
           "Content-Type": "application/json",
@@ -223,7 +223,7 @@ export class HtmlToPdfService {
 
       // Make API request
       console.log("Making API request to:", `${this.API_URL}/pdf/html-to-pdf`);
-      const response = await fetch(`${this.API_URL}/pdf/html-to-pdf`, {
+      const response = await fetch(`${this.API_URL}/api/pdf/html-to-pdf`, {
         method: "POST",
         body: formData,
         credentials: "include",

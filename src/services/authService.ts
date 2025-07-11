@@ -15,8 +15,8 @@ export const authService = {
    * Initiate Google OAuth login
    */
   loginWithGoogle: () => {
-    const apiUrl = "https://pdfpage-app.onrender.com/api";
-    const googleOAuthUrl = `${apiUrl}/auth/google`;
+    const apiUrl = "https://pdfpage-app.onrender.com";
+    const googleOAuthUrl = `${apiUrl}/api/auth/google`;
 
     // Redirect to Google OAuth
 
@@ -33,9 +33,9 @@ export const authService = {
   handleAuthCallback: async (
     token: string,
   ): Promise<GoogleAuthResponse["user"]> => {
-    const apiUrl = "https://pdfpage-app.onrender.com/api";
+    const apiUrl = "https://pdfpage-app.onrender.com";
 
-    const response = await fetch(`${apiUrl}/auth/me`, {
+    const response = await fetch(`${apiUrl}/api/auth/me`, {
       headers: {
         Authorization: `Bearer ${token}`,
       },

@@ -32,8 +32,8 @@ export const createPayment = async (
     ?.split("=")[1];
 
   // Use production API URL
-  const apiUrl = "https://pdfpage-app.onrender.com/api";
-  const fullUrl = `${apiUrl}/payments/create-order`;
+  const apiUrl = "https://pdfpage-app.onrender.com";
+  const fullUrl = `${apiUrl}/api/payments/create-order`;
 
   console.log("Creating payment with:", { options, apiUrl: fullUrl });
 
@@ -131,8 +131,8 @@ export const processPayment = async (
             .find((row) => row.startsWith("token="))
             ?.split("=")[1];
 
-          const apiUrl = "https://pdfpage-app.onrender.com/api";
-          const verifyResponse = await fetch(`${apiUrl}/payments/verify`, {
+          const apiUrl = "https://pdfpage-app.onrender.com";
+          const verifyResponse = await fetch(`${apiUrl}/api/payments/verify`, {
             method: "POST",
             headers: {
               "Content-Type": "application/json",

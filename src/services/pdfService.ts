@@ -39,7 +39,7 @@ export interface UsageLimitInfo {
 }
 
 export class PDFService {
-  private static API_URL = "https://pdfpage-app.onrender.com/api";
+  private static API_URL = "https://pdfpage-app.onrender.com";
 
   // Track ongoing conversions to prevent concurrent LibreOffice calls
   private static ongoingConversions = new Set<string>();
@@ -53,7 +53,7 @@ export class PDFService {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 3000); // 3 second timeout
 
-      const response = await fetch(`${this.API_URL}/health`, {
+      const response = await fetch(`${this.API_URL}/api/health`, {
         method: "GET",
         headers: {
           "Content-Type": "application/json",
@@ -958,7 +958,7 @@ export class PDFService {
 
       onProgress?.(20);
 
-      const response = await fetch(`${this.API_URL}/pdf/merge`, {
+      const response = await fetch(`${this.API_URL}/api/pdf/merge`, {
         method: "POST",
         headers: this.createHeaders(),
         body: formData,
@@ -1139,7 +1139,7 @@ export class PDFService {
         `🌐 Making API request to: ${this.API_URL}/pdf/compress with level: ${backendLevel}`,
       );
 
-      const response = await fetch(`${this.API_URL}/pdf/compress`, {
+      const response = await fetch(`${this.API_URL}/api/pdf/compress`, {
         method: "POST",
         body: formData,
         headers: {
@@ -1259,7 +1259,7 @@ export class PDFService {
 
       console.log(`🌐 Making API request to: ${this.API_URL}/pdf/protect`);
 
-      const response = await fetch(`${this.API_URL}/pdf/protect`, {
+      const response = await fetch(`${this.API_URL}/api/pdf/protect`, {
         method: "POST",
         body: formData,
         headers: {
@@ -1414,7 +1414,7 @@ export class PDFService {
 
       console.log(`🌐 Making API request to: ${this.API_URL}/pdf/pdf-to-word`);
 
-      const response = await fetch(`${this.API_URL}/pdf/pdf-to-word`, {
+      const response = await fetch(`${this.API_URL}/api/pdf/pdf-to-word`, {
         method: "POST",
         body: formData,
         headers: {
@@ -1609,7 +1609,7 @@ export class PDFService {
     element: any,
   ) {
     try {
-      const response = await fetch(`${this.API_URL}/pdf/update-element`, {
+      const response = await fetch(`${this.API_URL}/api/pdf/update-element`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -1634,7 +1634,7 @@ export class PDFService {
 
   static async deleteElement(sessionId: string, elementId: string) {
     try {
-      const response = await fetch(`${this.API_URL}/pdf/delete-element`, {
+      const response = await fetch(`${this.API_URL}/api/pdf/delete-element`, {
         method: "DELETE",
         headers: {
           "Content-Type": "application/json",
@@ -1659,7 +1659,7 @@ export class PDFService {
   static async getSessionElements(sessionId: string) {
     try {
       const response = await fetch(
-        `${this.API_URL}/pdf/session-elements/${sessionId}`,
+        `${this.API_URL}/api/pdf/session-elements/${sessionId}`,
       );
 
       if (!response.ok) {
@@ -1675,7 +1675,7 @@ export class PDFService {
 
   static async saveEditedPDF(sessionId: string) {
     try {
-      const response = await fetch(`${this.API_URL}/pdf/save-edited-pdf`, {
+      const response = await fetch(`${this.API_URL}/api/pdf/save-edited-pdf`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -1748,7 +1748,7 @@ ${text.replace(/\n/g, "\\par ").replace(/[{}\\]/g, "")}
 
       console.log(`🌐 Making API request to: ${this.API_URL}/pdf/to-excel`);
 
-      const response = await fetch(`${this.API_URL}/pdf/to-excel`, {
+      const response = await fetch(`${this.API_URL}/api/pdf/to-excel`, {
         method: "POST",
         body: formData,
         headers: {
@@ -1899,7 +1899,7 @@ ${text.replace(/\n/g, "\\par ").replace(/[{}\\]/g, "")}
         try {
           // Use ONLY LibreOffice endpoint - NO FALLBACKS
           response = await fetch(
-            `${this.API_URL}/pdf/word-to-pdf-libreoffice`,
+            `${this.API_URL}/api/pdf/word-to-pdf-libreoffice`,
             {
               method: "POST",
               headers: this.getAuthHeaders(),

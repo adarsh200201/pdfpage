@@ -13,7 +13,7 @@ export class ImageService {
 
   // Get base API URL for image service calls
   private getBaseURL(): string {
-    return "https://pdfpage-app.onrender.com/api";
+    return "https://pdfpage-app.onrender.com";
   }
 
   // Compress multiple images using backend API
@@ -44,7 +44,7 @@ export class ImageService {
       if (maxWidth) formData.append("maxWidth", maxWidth.toString());
       if (maxHeight) formData.append("maxHeight", maxHeight.toString());
 
-      const response = await fetch("/api/image/compress", {
+      const response = await fetch(`${this.getBaseURL()}/api/image/compress`, {
         method: "POST",
         body: formData,
       });
@@ -124,7 +124,7 @@ export class ImageService {
       if (maxWidth) formData.append("maxWidth", maxWidth.toString());
       if (maxHeight) formData.append("maxHeight", maxHeight.toString());
 
-      const response = await fetch("/api/image/compress", {
+      const response = await fetch(`${this.getBaseURL()}/api/image/compress`, {
         method: "POST",
         body: formData,
       });
@@ -377,7 +377,7 @@ export class ImageService {
       formData.append("format", cropData.format);
     }
 
-    const response = await fetch("/api/image/crop", {
+    const response = await fetch(`${this.getBaseURL()}/api/image/crop`, {
       method: "POST",
       body: formData,
     });

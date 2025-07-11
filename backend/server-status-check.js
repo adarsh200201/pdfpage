@@ -8,8 +8,8 @@ async function checkServerStatus() {
   console.log("🔍 Checking backend server status...\n");
 
   const endpoints = [
-    "https://pdfpage.onrender.com/api/health",
-    "https://pdfpage.onrender.com/api/pdf/tools",
+    "https://pdfpage-app.onrender.com/api/health",
+    "https://pdfpage-app.onrender.com/api/pdf/tools",
   ];
 
   for (const endpoint of endpoints) {
