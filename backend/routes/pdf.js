@@ -197,7 +197,7 @@ function getGhostscriptExecutable() {
           encoding: "utf8",
           timeout: 5000,
         });
-        console.log(`���� Found Ghostscript at: ${sysPath}`);
+        console.log(`����� Found Ghostscript at: ${sysPath}`);
         console.log(`   Version info: ${result.trim().split("\n")[0]}`);
         return sysPath;
       }
@@ -436,7 +436,7 @@ async function performEnterpriseCompression(inputPath, outputPath, options) {
       });
 
       gsProcess.on("error", (error) => {
-        console.error(`❌ Ghostscript process error: ${error.message}`);
+        console.error(`�� Ghostscript process error: ${error.message}`);
         resolve({
           success: false,
           error: `Failed to start Ghostscript: ${error.message}. Please ensure Ghostscript is installed.`,
@@ -1909,11 +1909,11 @@ router.post(
           info = pdfData.info || {};
 
           console.log(
-            `��� Standard extraction: ${text.length} characters from PDF`,
+            `���� Standard extraction: ${text.length} characters from PDF`,
           );
         } catch (standardError) {
           console.log(
-            "⚠����� Standard extraction failed, trying alternative method...",
+            "⚠������ Standard extraction failed, trying alternative method...",
           );
 
           // Method 3: Alternative extraction with different options
@@ -3840,35 +3840,18 @@ router.post(
         try {
           await fsAsync.unlink(tempOutputPath);
         } catch (cleanupError) {
-          console.warn("Error cleaning up output file:", cleanupError);
+                    console.warn("Error cleaning up output file:", cleanupError);
         }
-            }
+      }
     }
+  },
+);
 
-      // Initialize page and position
-      let currentPage = pdfDoc.addPage([
-        selectedPageSize.width,
-        selectedPageSize.height,
-      ]);
-      let currentY = selectedPageSize.height - margin;
-      let pageCount = 1;
+      
 
-      // Process content with advanced formatting
-      const sections = sanitizeTextForPDF(formattedText)
-        .split(/\n\s*\n/)
-        .filter((section) => section.trim());
+      
 
-      for (const section of sections) {
-        if (!section.trim()) continue;
-
-        let font = fonts.regular;
-        let fontSize = baseFontSize;
-        let lineHeight = baseLineHeight;
-        let textColor = rgb(0, 0, 0);
-        let isSpecialFormat = false;
-
-        // Parse and apply formatting
-        let displayText = sanitizeTextForPDF(section.trim());
+        
 
         // Enhanced heading formatting with better patterns
         if (
@@ -7386,7 +7369,7 @@ router.post(
 
             libreoffice.on("close", (code) => {
               if (code === 0) {
-                console.log(`✅ LibreOffice conversion completed successfully`);
+                console.log(`�� LibreOffice conversion completed successfully`);
                 resolve();
               } else {
                 console.error(`❌ LibreOffice failed with code ${code}`);
@@ -9072,7 +9055,7 @@ router.post("/change-password", upload.single("file"), async (req, res) => {
       // Step 1: Try to unlock with QPDF first to verify current password
       let unlockedBuffer;
       try {
-        console.log("🔑 Attempting to verify current password with QPDF...");
+        console.log("�� Attempting to verify current password with QPDF...");
         const qpdfResult = await PDFProtectionService.unlockWithQPDF(
           req.file.buffer,
           currentPassword,
