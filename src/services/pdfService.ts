@@ -5419,7 +5419,7 @@ ${text.replace(/\n/g, "\\par ").replace(/[{}\\]/g, "")}
     installationNote?: string;
   }> {
     try {
-      const response = await fetch(`${this.API_URL}/pdf/system-status`);
+      const response = await fetch(`${this.API_URL}/api/pdf/system-status`);
       if (response.ok) {
         const status = await response.json();
         return {
@@ -6909,7 +6909,7 @@ ${text.replace(/\n/g, "\\par ").replace(/[{}\\]/g, "")}
     };
   }> {
     try {
-      const response = await fetch(`${this.API_URL}/pdf/system-status`);
+      const response = await fetch(`${this.API_URL}/api/pdf/system-status`);
 
       if (!response.ok) {
         // If the endpoint doesn't exist yet, return fallback status
