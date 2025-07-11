@@ -3769,8 +3769,8 @@ router.post(
         file.originalname,
         path.extname(file.originalname),
       );
-      const timestamp = new Date().toISOString().slice(0, 10);
-      const filename = `${originalName}_advanced_${timestamp}.pdf`;
+      const timestampFormatted = new Date().toISOString().slice(0, 10);
+      const filename = `${originalName}_advanced_${timestampFormatted}.pdf`;
 
       // Send the PDF with proper headers
       res.setHeader("Content-Type", "application/pdf");
