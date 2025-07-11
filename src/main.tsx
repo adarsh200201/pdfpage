@@ -1,6 +1,6 @@
 // IMMEDIATE protection against Google Translate and cross-origin interference
 if (
-  typeof window !== 'undefined" && typeof import !== "undefined' &&
+  typeof window !== "undefined' && typeof import !== 'undefined" &&
   import.meta?.env?.DEV
 ) {
   // Store the original fetch to prevent recursive calls

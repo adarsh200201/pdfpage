@@ -3842,10 +3842,8 @@ router.post(
         } catch (cleanupError) {
           console.warn("Error cleaning up output file:", cleanupError);
         }
-      }
+            }
     }
-  },
-);
 
       // Initialize page and position
       let currentPage = pdfDoc.addPage([
@@ -3933,7 +3931,7 @@ router.post(
           textColor = rgb(0.3, 0.3, 0.3);
           isSpecialFormat = true;
         } else if (
-          displayText.startsWith("【QUOTE:") &&
+          displayText.startsWith("��QUOTE:") &&
           displayText.endsWith("】")
         ) {
           displayText = `"${displayText.slice(8, -1).trim()}"`;
