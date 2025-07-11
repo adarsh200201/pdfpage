@@ -1844,13 +1844,13 @@ ${text.replace(/\n/g, "\\par ").replace(/[{}\\]/g, "")}
       try {
         // First check if LibreOffice is available
         onProgress?.(10);
-        const isLibreOfficeAvailable =
-          await this.checkLibreOfficeAvailability();
+        const libreOfficeCheck = await this.checkLibreOfficeAvailability();
 
-        if (!isLibreOfficeAvailable) {
-          throw new Error(
-            "LibreOffice service is not available in backend Docker",
-          );
+        if (!libreOfficeCheck.available) {
+          const errorMessage = libreOfficeCheck.installationNote
+            ? `LibreOffice is not available: ${libreOfficeCheck.installationNote}`
+            : "LibreOffice service is not available for document conversion";
+          throw new Error(errorMessage);
         }
 
         console.log("✅ LibreOffice confirmed available in backend Docker");
@@ -5288,10 +5288,13 @@ ${text.replace(/\n/g, "\\par ").replace(/[{}\\]/g, "")}
     } = options;
 
     // Use ONLY LibreOffice backend - NO FALLBACKS
-    const isLibreOfficeAvailable = await this.checkLibreOfficeAvailability();
+    const libreOfficeCheck = await this.checkLibreOfficeAvailability();
 
-    if (!isLibreOfficeAvailable) {
-      throw new Error("LibreOffice service is not available in backend Docker");
+    if (!libreOfficeCheck.available) {
+      const errorMessage = libreOfficeCheck.installationNote
+        ? `LibreOffice is not available: ${libreOfficeCheck.installationNote}`
+        : "LibreOffice service is not available for document conversion";
+      throw new Error(errorMessage);
     }
 
     console.log("✅ LibreOffice confirmed available in backend Docker");
@@ -5410,17 +5413,34 @@ ${text.replace(/\n/g, "\\par ").replace(/[{}\\]/g, "")}
   }
 
   // Check if LibreOffice is available on the server
-  static async checkLibreOfficeAvailability(): Promise<boolean> {
+  static async checkLibreOfficeAvailability(): Promise<{
+    available: boolean;
+    message?: string;
+    installationNote?: string;
+  }> {
     try {
       const response = await fetch(`${this.API_URL}/pdf/system-status`);
       if (response.ok) {
         const status = await response.json();
-        return status.libreoffice || false;
+        return {
+          available: status.libreoffice || false,
+          message: status.services?.libreoffice?.installationNote || undefined,
+          installationNote:
+            status.services?.libreoffice?.installationNote || undefined,
+        };
       }
     } catch (error) {
       console.warn("Could not check LibreOffice availability:", error);
+      return {
+        available: false,
+        message:
+          "Could not connect to server to check LibreOffice availability",
+      };
     }
-    return false;
+    return {
+      available: false,
+      message: "LibreOffice service is not responding",
+    };
   }
 
   // Convert PowerPoint to PDF using ONLY LibreOffice backend
@@ -5451,10 +5471,13 @@ ${text.replace(/\n/g, "\\par ").replace(/[{}\\]/g, "")}
     } = options;
 
     // Use ONLY LibreOffice backend - NO FALLBACKS
-    const isLibreOfficeAvailable = await this.checkLibreOfficeAvailability();
+    const libreOfficeCheck = await this.checkLibreOfficeAvailability();
 
-    if (!isLibreOfficeAvailable) {
-      throw new Error("LibreOffice service is not available in backend Docker");
+    if (!libreOfficeCheck.available) {
+      const errorMessage = libreOfficeCheck.installationNote
+        ? `LibreOffice is not available: ${libreOfficeCheck.installationNote}`
+        : "LibreOffice service is not available for document conversion";
+      throw new Error(errorMessage);
     }
 
     console.log("✅ LibreOffice confirmed available in backend Docker");
@@ -5612,10 +5635,13 @@ ${text.replace(/\n/g, "\\par ").replace(/[{}\\]/g, "")}
     } = options;
 
     // Use ONLY LibreOffice backend - NO FALLBACKS
-    const isLibreOfficeAvailable = await this.checkLibreOfficeAvailability();
+    const libreOfficeCheck = await this.checkLibreOfficeAvailability();
 
-    if (!isLibreOfficeAvailable) {
-      throw new Error("LibreOffice service is not available in backend Docker");
+    if (!libreOfficeCheck.available) {
+      const errorMessage = libreOfficeCheck.installationNote
+        ? `LibreOffice is not available: ${libreOfficeCheck.installationNote}`
+        : "LibreOffice service is not available for document conversion";
+      throw new Error(errorMessage);
     }
 
     console.log("✅ LibreOffice confirmed available in backend Docker");
@@ -5758,10 +5784,13 @@ ${text.replace(/\n/g, "\\par ").replace(/[{}\\]/g, "")}
       preserveImages = true,
     } = options;
 
-    const isLibreOfficeAvailable = await this.checkLibreOfficeAvailability();
+    const libreOfficeCheck = await this.checkLibreOfficeAvailability();
 
-    if (!isLibreOfficeAvailable) {
-      throw new Error("LibreOffice service is not available in backend Docker");
+    if (!libreOfficeCheck.available) {
+      const errorMessage = libreOfficeCheck.installationNote
+        ? `LibreOffice is not available: ${libreOfficeCheck.installationNote}`
+        : "LibreOffice service is not available for document conversion";
+      throw new Error(errorMessage);
     }
 
     try {
@@ -5844,10 +5873,13 @@ ${text.replace(/\n/g, "\\par ").replace(/[{}\\]/g, "")}
       preserveImages = true,
     } = options;
 
-    const isLibreOfficeAvailable = await this.checkLibreOfficeAvailability();
+    const libreOfficeCheck = await this.checkLibreOfficeAvailability();
 
-    if (!isLibreOfficeAvailable) {
-      throw new Error("LibreOffice service is not available in backend Docker");
+    if (!libreOfficeCheck.available) {
+      const errorMessage = libreOfficeCheck.installationNote
+        ? `LibreOffice is not available: ${libreOfficeCheck.installationNote}`
+        : "LibreOffice service is not available for document conversion";
+      throw new Error(errorMessage);
     }
 
     try {
@@ -5926,10 +5958,13 @@ ${text.replace(/\n/g, "\\par ").replace(/[{}\\]/g, "")}
       preserveImages = true,
     } = options;
 
-    const isLibreOfficeAvailable = await this.checkLibreOfficeAvailability();
+    const libreOfficeCheck = await this.checkLibreOfficeAvailability();
 
-    if (!isLibreOfficeAvailable) {
-      throw new Error("LibreOffice service is not available in backend Docker");
+    if (!libreOfficeCheck.available) {
+      const errorMessage = libreOfficeCheck.installationNote
+        ? `LibreOffice is not available: ${libreOfficeCheck.installationNote}`
+        : "LibreOffice service is not available for document conversion";
+      throw new Error(errorMessage);
     }
 
     try {
@@ -6013,10 +6048,13 @@ ${text.replace(/\n/g, "\\par ").replace(/[{}\\]/g, "")}
       orientation = "auto",
     } = options;
 
-    const isLibreOfficeAvailable = await this.checkLibreOfficeAvailability();
+    const libreOfficeCheck = await this.checkLibreOfficeAvailability();
 
-    if (!isLibreOfficeAvailable) {
-      throw new Error("LibreOffice service is not available in backend Docker");
+    if (!libreOfficeCheck.available) {
+      const errorMessage = libreOfficeCheck.installationNote
+        ? `LibreOffice is not available: ${libreOfficeCheck.installationNote}`
+        : "LibreOffice service is not available for document conversion";
+      throw new Error(errorMessage);
     }
 
     try {
@@ -6104,10 +6142,13 @@ ${text.replace(/\n/g, "\\par ").replace(/[{}\\]/g, "")}
       orientation = "auto",
     } = options;
 
-    const isLibreOfficeAvailable = await this.checkLibreOfficeAvailability();
+    const libreOfficeCheck = await this.checkLibreOfficeAvailability();
 
-    if (!isLibreOfficeAvailable) {
-      throw new Error("LibreOffice service is not available in backend Docker");
+    if (!libreOfficeCheck.available) {
+      const errorMessage = libreOfficeCheck.installationNote
+        ? `LibreOffice is not available: ${libreOfficeCheck.installationNote}`
+        : "LibreOffice service is not available for document conversion";
+      throw new Error(errorMessage);
     }
 
     try {
@@ -6185,10 +6226,13 @@ ${text.replace(/\n/g, "\\par ").replace(/[{}\\]/g, "")}
   }> {
     const { delimiter = ",", encoding = "UTF-8" } = options;
 
-    const isLibreOfficeAvailable = await this.checkLibreOfficeAvailability();
+    const libreOfficeCheck = await this.checkLibreOfficeAvailability();
 
-    if (!isLibreOfficeAvailable) {
-      throw new Error("LibreOffice service is not available in backend Docker");
+    if (!libreOfficeCheck.available) {
+      const errorMessage = libreOfficeCheck.installationNote
+        ? `LibreOffice is not available: ${libreOfficeCheck.installationNote}`
+        : "LibreOffice service is not available for document conversion";
+      throw new Error(errorMessage);
     }
 
     try {
@@ -6262,10 +6306,13 @@ ${text.replace(/\n/g, "\\par ").replace(/[{}\\]/g, "")}
   }> {
     const { delimiter = ",", encoding = "UTF-8", hasHeaders = true } = options;
 
-    const isLibreOfficeAvailable = await this.checkLibreOfficeAvailability();
+    const libreOfficeCheck = await this.checkLibreOfficeAvailability();
 
-    if (!isLibreOfficeAvailable) {
-      throw new Error("LibreOffice service is not available in backend Docker");
+    if (!libreOfficeCheck.available) {
+      const errorMessage = libreOfficeCheck.installationNote
+        ? `LibreOffice is not available: ${libreOfficeCheck.installationNote}`
+        : "LibreOffice service is not available for document conversion";
+      throw new Error(errorMessage);
     }
 
     try {
@@ -6339,10 +6386,13 @@ ${text.replace(/\n/g, "\\par ").replace(/[{}\\]/g, "")}
   }> {
     const { quality = "high", preserveFormatting = true } = options;
 
-    const isLibreOfficeAvailable = await this.checkLibreOfficeAvailability();
+    const libreOfficeCheck = await this.checkLibreOfficeAvailability();
 
-    if (!isLibreOfficeAvailable) {
-      throw new Error("LibreOffice service is not available in backend Docker");
+    if (!libreOfficeCheck.available) {
+      const errorMessage = libreOfficeCheck.installationNote
+        ? `LibreOffice is not available: ${libreOfficeCheck.installationNote}`
+        : "LibreOffice service is not available for document conversion";
+      throw new Error(errorMessage);
     }
 
     try {
@@ -6420,10 +6470,13 @@ ${text.replace(/\n/g, "\\par ").replace(/[{}\\]/g, "")}
       preserveImages = true,
     } = options;
 
-    const isLibreOfficeAvailable = await this.checkLibreOfficeAvailability();
+    const libreOfficeCheck = await this.checkLibreOfficeAvailability();
 
-    if (!isLibreOfficeAvailable) {
-      throw new Error("LibreOffice service is not available in backend Docker");
+    if (!libreOfficeCheck.available) {
+      const errorMessage = libreOfficeCheck.installationNote
+        ? `LibreOffice is not available: ${libreOfficeCheck.installationNote}`
+        : "LibreOffice service is not available for document conversion";
+      throw new Error(errorMessage);
     }
 
     try {
@@ -6505,10 +6558,13 @@ ${text.replace(/\n/g, "\\par ").replace(/[{}\\]/g, "")}
       customSlides = "",
     } = options;
 
-    const isLibreOfficeAvailable = await this.checkLibreOfficeAvailability();
+    const libreOfficeCheck = await this.checkLibreOfficeAvailability();
 
-    if (!isLibreOfficeAvailable) {
-      throw new Error("LibreOffice service is not available in backend Docker");
+    if (!libreOfficeCheck.available) {
+      const errorMessage = libreOfficeCheck.installationNote
+        ? `LibreOffice is not available: ${libreOfficeCheck.installationNote}`
+        : "LibreOffice service is not available for document conversion";
+      throw new Error(errorMessage);
     }
 
     try {
@@ -6595,10 +6651,13 @@ ${text.replace(/\n/g, "\\par ").replace(/[{}\\]/g, "")}
       preserveImages = true,
     } = options;
 
-    const isLibreOfficeAvailable = await this.checkLibreOfficeAvailability();
+    const libreOfficeCheck = await this.checkLibreOfficeAvailability();
 
-    if (!isLibreOfficeAvailable) {
-      throw new Error("LibreOffice service is not available in backend Docker");
+    if (!libreOfficeCheck.available) {
+      const errorMessage = libreOfficeCheck.installationNote
+        ? `LibreOffice is not available: ${libreOfficeCheck.installationNote}`
+        : "LibreOffice service is not available for document conversion";
+      throw new Error(errorMessage);
     }
 
     try {

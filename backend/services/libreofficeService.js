@@ -60,6 +60,11 @@ class LibreOfficeService {
       "/usr/bin/libreoffice",
       "/opt/libreoffice/program/soffice",
       "/Applications/LibreOffice.app/Contents/MacOS/soffice",
+      // Windows paths
+      "C:\\Program Files\\LibreOffice\\program\\soffice.exe",
+      "C:\\Program Files (x86)\\LibreOffice\\program\\soffice.exe",
+      "soffice.exe",
+      "soffice",
     ];
 
     return possiblePaths[0]; // Default to system PATH
@@ -592,6 +597,9 @@ class LibreOfficeService {
       available,
       version: this.version,
       tempDir: this.tempDir,
+      platform: process.platform,
+      environment: process.env.NODE_ENV,
+      installationNote: !available ? this.getInstallationInstructions() : null,
       supportedConversions: [
         "DOCX/DOC → PDF",
         "PDF → DOCX",
@@ -617,6 +625,23 @@ class LibreOfficeService {
         ".pdf",
       ],
     };
+  }
+
+  /**
+   * Get installation instructions based on platform
+   */
+  getInstallationInstructions() {
+    const platform = process.platform;
+
+    if (platform === "win32") {
+      return "LibreOffice not found. Download from: https://www.libreoffice.org/download/download/ or install via winget: 'winget install TheDocumentFoundation.LibreOffice'";
+    } else if (platform === "darwin") {
+      return "LibreOffice not found. Install via Homebrew: 'brew install --cask libreoffice' or download from: https://www.libreoffice.org/download/download/";
+    } else if (platform === "linux") {
+      return "LibreOffice not found. Install via package manager: 'sudo apt-get install libreoffice' (Ubuntu/Debian) or 'sudo yum install libreoffice' (CentOS/RHEL)";
+    } else {
+      return "LibreOffice not found. Please install LibreOffice from: https://www.libreoffice.org/download/download/";
+    }
   }
 
   /**
