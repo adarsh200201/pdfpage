@@ -487,7 +487,7 @@ class LibreOfficeService {
     return new Promise((resolve, reject) => {
       console.log(`🔧 Executing: ${command.join(" ")}`);
 
-      const process = spawn(command[0], command.slice(1), {
+      const childProcess = spawn(command[0], command.slice(1), {
         stdio: ["ignore", "pipe", "pipe"],
         env: {
           ...process.env,
@@ -499,15 +499,15 @@ class LibreOfficeService {
       let stdout = "";
       let stderr = "";
 
-      process.stdout.on("data", (data) => {
+      childProcess.stdout.on("data", (data) => {
         stdout += data.toString();
       });
 
-      process.stderr.on("data", (data) => {
+      childProcess.stderr.on("data", (data) => {
         stderr += data.toString();
       });
 
-      process.on("close", (code) => {
+      childProcess.on("close", (code) => {
         if (code === 0) {
           console.log(`✅ LibreOffice command completed successfully`);
           if (stdout) console.log(`stdout: ${stdout}`);
@@ -523,14 +523,14 @@ class LibreOfficeService {
         }
       });
 
-      process.on("error", (error) => {
+      childProcess.on("error", (error) => {
         console.error(`❌ LibreOffice process error:`, error);
         reject(error);
       });
 
       // Set timeout
       setTimeout(() => {
-        process.kill("SIGTERM");
+        childProcess.kill("SIGTERM");
         reject(new Error("LibreOffice command timed out"));
       }, timeout);
     });
