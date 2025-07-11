@@ -47,14 +47,7 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Mock user for bypassing authentication - REMOVE AUTHENTICATION FOR ALL TOOLS
-const MOCK_USER: User = {
-  id: "mock-user-anonymous",
-  name: "Anonymous User",
-  email: "anonymous@pdfpage.com",
-  isPremium: true, // Always premium to bypass all limits
-  totalUploads: 0,
-};
+// Real authentication - users must login with valid accounts
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
@@ -82,9 +75,9 @@ export const useAuth = () => {
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
-  // AUTHENTICATION DISABLED - Always return mock user as authenticated
-  const [user, setUser] = useState<User | null>(MOCK_USER);
-  const [isLoading, setIsLoading] = useState(false); // Never loading
+  // Real authentication - check for valid token and user data
+  const [user, setUser] = useState<User | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     const token = Cookies.get("token");
@@ -98,8 +91,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const fetchUserData = async (token: string) => {
     try {
-      const apiUrl =
-        import.meta.env.VITE_API_URL || "https://pdfpage.onrender.com/api";
+      const apiUrl = "https://pdfpage-app.onrender.com/api";
       const response = await fetch(`${apiUrl}/auth/me`, {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -124,8 +116,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     try {
       console.log("🔵 [FRONTEND] Attempting to login user:", { email });
 
-      const apiUrl =
-        import.meta.env.VITE_API_URL || "https://pdfpage.onrender.com/api";
+      const apiUrl = "https://pdfpage-app.onrender.com/api";
       const response = await fetch(`${apiUrl}/auth/login`, {
         method: "POST",
         headers: {
@@ -178,8 +169,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         options,
       });
 
-      const apiUrl =
-        import.meta.env.VITE_API_URL || "https://pdfpage.onrender.com/api";
+      const apiUrl = "https://pdfpage-app.onrender.com/api";
       const response = await fetch(`${apiUrl}/auth/register`, {
         method: "POST",
         headers: {
@@ -278,8 +268,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const value = {
     user,
-    isAuthenticated: true, // ALWAYS AUTHENTICATED - NO AUTH REQUIRED
-    isLoading: false, // Never loading
+    isAuthenticated: !!user, // Real authentication check - user must exist
+    isLoading,
     login,
     register,
     loginWithGoogle,

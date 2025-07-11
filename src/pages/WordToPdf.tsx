@@ -12,13 +12,7 @@ import { useToolTracking } from "@/hooks/useToolTracking";
 import { useFloatingPopup } from "@/contexts/FloatingPopupContext";
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+// Select components removed - using LibreOffice only
 import { Label } from "@/components/ui/label";
 import {
   ArrowLeft,
@@ -56,7 +50,7 @@ const WordToPdf = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [conversionSettings, setConversionSettings] = useState({
-    conversionMethod: "puppeteer" as "advanced" | "puppeteer",
+    conversionMethod: "libreoffice" as "libreoffice",
     preserveFormatting: true,
     includeMetadata: true,
   });
@@ -156,11 +150,25 @@ const WordToPdf = () => {
 
     setIsProcessing(true);
 
+    console.log(
+      `🔄 Starting conversion for ${files.length} files:`,
+      files.map((f) => f.file.name),
+    );
+
     try {
       for (let i = 0; i < files.length; i++) {
         const fileStatus = files[i];
 
-        if (fileStatus.status !== "ready") continue;
+        console.log(
+          `📄 Processing file ${i + 1}/${files.length}: ${fileStatus.file.name} (status: ${fileStatus.status})`,
+        );
+
+        if (fileStatus.status !== "ready") {
+          console.log(
+            `⏭️ Skipping file ${fileStatus.file.name} - status is ${fileStatus.status}`,
+          );
+          continue;
+        }
 
         // Update status to converting
         setFiles((prev) =>
@@ -175,51 +183,27 @@ const WordToPdf = () => {
           // Track conversion start
           tracking.trackConversionStart("Word", "PDF", [fileStatus.file]);
 
-          // Use accurate mammoth-based conversion for real results
+          // Use LibreOffice backend service for conversion
           console.log(
-            `Converting ${fileStatus.file.name} using mammoth + jsPDF...`,
+            `Converting ${fileStatus.file.name} using LibreOffice backend...`,
           );
 
-          // Import mammoth for accurate Word processing
-          const mammoth = await import("mammoth");
-          const jsPDF = (await import("jspdf")).default;
-
-          // Read Word document using mammoth
-          const arrayBuffer = await fileStatus.file.arrayBuffer();
-          const mammothResult = await mammoth.convertToHtml({ arrayBuffer });
-
-          // Create PDF with proper text extraction
-          const pdf = new jsPDF();
-
-          // Extract and clean text
-          const textContent = mammothResult.value
-            .replace(/<[^>]*>/g, " ")
-            .replace(/\s+/g, " ")
-            .trim();
-
-          // Add text to PDF with proper formatting
-          pdf.setFontSize(12);
-          const lines = pdf.splitTextToSize(
-            textContent.substring(0, 5000),
-            170,
-          );
-          pdf.text(lines, 20, 30);
-
-          // Generate PDF
-          const pdfBlob = pdf.output("blob");
-          const arrayBufferResult = await pdfBlob.arrayBuffer();
-
-          const result = {
-            data: arrayBufferResult,
-            headers: {
-              "x-conversion-method": "mammoth-client-side",
-              "x-original-size": fileStatus.file.size.toString(),
-            },
+          // Progress update callback
+          const updateProgress = (progress: number) => {
+            setFiles((prev) =>
+              prev.map((f, idx) => (idx === i ? { ...f, progress } : f)),
+            );
           };
 
-          console.log("✅ Real Word to PDF conversion completed with mammoth");
+          // Use the correct PDFService.wordToPdf method
+          const result = await PDFService.wordToPdf(fileStatus.file, {
+            conversionMethod: conversionSettings.conversionMethod,
+            preserveFormatting: conversionSettings.preserveFormatting,
+            includeMetadata: conversionSettings.includeMetadata,
+            onProgress: updateProgress,
+          });
 
-          // No progress callback needed for direct conversion
+          console.log("✅ LibreOffice Word to PDF conversion completed");
 
           const processingTime = Date.now() - startTime;
 
@@ -275,7 +259,7 @@ const WordToPdf = () => {
 
           toast({
             title: "Conversion Complete!",
-            description: `${fileStatus.file.name} converted successfully using ${conversionSettings.conversionMethod === "advanced" ? "Advanced PDF Generator" : "Puppeteer + Mammoth"}.`,
+            description: `${fileStatus.file.name} converted successfully using LibreOffice Engine.`,
           });
         } catch (error) {
           console.error(`Error converting ${fileStatus.file.name}:`, error);
@@ -285,12 +269,12 @@ const WordToPdf = () => {
             error instanceof Error ? error.message : "Conversion failed";
 
           if (
-            conversionSettings.conversionMethod === "puppeteer" &&
-            (errorMessage.includes("Puppeteer") ||
+            conversionSettings.conversionMethod === "libreoffice" &&
+            (errorMessage.includes("LibreOffice") ||
               errorMessage.includes("not available"))
           ) {
             errorMessage =
-              "Puppeteer conversion service is currently unavailable. Please try again later or contact support if the issue persists.";
+              "LibreOffice conversion service is currently unavailable. Please try again later or contact support if the issue persists.";
           }
 
           setFiles((prev) =>
@@ -362,8 +346,8 @@ const WordToPdf = () => {
           </div>
           <p className="text-xl text-gray-600 max-w-2xl mx-auto">
             Convert Word documents to high-quality PDF files. Preserve
-            formatting, layout, images, and fonts with Puppeteer + Mammoth
-            powered conversion.
+            formatting, layout, images, and fonts with LibreOffice powered
+            conversion.
           </p>
         </div>
 
@@ -378,10 +362,10 @@ const WordToPdf = () => {
                   </div>
                   <div>
                     <p className="font-semibold text-red-900">
-                      Puppeteer + Mammoth Powered
+                      LibreOffice Powered
                     </p>
                     <p className="text-sm text-red-700">
-                      Professional conversion engine
+                      Enterprise-grade conversion engine
                     </p>
                   </div>
                 </div>
@@ -460,32 +444,17 @@ const WordToPdf = () => {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
                     <Label htmlFor="conversionMethod">Conversion Method</Label>
-                    <Select
-                      value={conversionSettings.conversionMethod}
-                      onValueChange={(value: "advanced" | "puppeteer") =>
-                        setConversionSettings({
-                          ...conversionSettings,
-                          conversionMethod: value,
-                        })
-                      }
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="puppeteer">
-                          Puppeteer + Mammoth (Recommended)
-                        </SelectItem>
-                        <SelectItem value="advanced">
-                          Advanced Engine
-                        </SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <p className="text-xs text-gray-500 mt-1">
-                      {conversionSettings.conversionMethod === "puppeteer"
-                        ? "High-quality conversion using Puppeteer + Mammoth engine"
-                        : "Direct conversion using advanced PDF engine"}
-                    </p>
+                    <div className="mt-2 p-3 bg-green-50 border border-green-200 rounded-lg">
+                      <div className="flex items-center gap-2">
+                        <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                        <span className="font-medium text-green-800">
+                          LibreOffice Engine
+                        </span>
+                      </div>
+                      <p className="text-sm text-green-700 mt-1">
+                        Enterprise-grade conversion using LibreOffice engine
+                      </p>
+                    </div>
                   </div>
                   <div className="flex items-center justify-between">
                     <div>
@@ -605,10 +574,7 @@ const WordToPdf = () => {
                               <div>
                                 <span className="text-gray-600">Method:</span>
                                 <span className="ml-2 font-medium">
-                                  {fileStatus.result.conversionMethod ===
-                                  "advanced"
-                                    ? "Advanced Engine"
-                                    : "Puppeteer + Mammoth"}
+                                  LibreOffice Engine
                                 </span>
                               </div>
                               <div>
@@ -694,11 +660,9 @@ const WordToPdf = () => {
               <CardContent>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
-                    <h3 className="font-semibold mb-2">
-                      Puppeteer + Mammoth Engine:
-                    </h3>
+                    <h3 className="font-semibold mb-2">LibreOffice Engine:</h3>
                     <ul className="space-y-2 text-sm">
-                      <li>• Professional-grade conversion accuracy</li>
+                      <li>• Enterprise-grade conversion accuracy</li>
                       <li>• Preserves complex formatting and layout</li>
                       <li>• Handles images, tables, and charts</li>
                       <li>• Maintains fonts and typography</li>

@@ -18,9 +18,7 @@ class StatsService {
   private cache: StatsData | null = null;
   private lastFetch: number = 0;
   private readonly CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
-  private readonly API_BASE = import.meta.env.DEV
-    ? "" // Use proxy in development
-    : "https://pdfpage.onrender.com";
+  private readonly API_BASE = "https://pdfpage-app.onrender.com";
   private currentController: AbortController | null = null;
 
   async getStats(): Promise<StatsData> {
@@ -64,9 +62,15 @@ class StatsService {
         .catch((error) => {
           clearTimeout(timeoutId);
           if (!isResolved) {
-            // Track the error for debugging
-            errorTracker.trackError(error, "statsService.getStats");
-            this.logError(error);
+            // Only track/log real errors, not intentional aborts or cancellations
+            if (
+              error.name !== "AbortError" &&
+              error.name !== "RequestCancelledError" &&
+              error.message !== "Request was cancelled"
+            ) {
+              errorTracker.trackError(error, "statsService.getStats");
+              this.logError(error);
+            }
             resolveOnce(this.getFallbackStats());
           }
         });
@@ -84,7 +88,8 @@ class StatsService {
 
     // Abort fetch after 2.5 seconds to ensure we don't exceed the main timeout
     const abortTimeoutId = setTimeout(() => {
-      if (!controller.signal.aborted) {
+      if (!controller.signal.aborted && this.currentController === controller) {
+        console.debug("StatsService: Aborting request due to timeout");
         controller.abort();
       }
     }, 2500);
@@ -121,10 +126,12 @@ class StatsService {
     } catch (error) {
       clearTimeout(abortTimeoutId);
 
-      // Don't throw AbortError if it was intentionally aborted
+      // Handle AbortError gracefully - this is intentional cancellation
       if (error instanceof Error && error.name === "AbortError") {
-        // Silently ignore aborted requests - this is intentional
-        throw new Error("Request was cancelled");
+        // Create a specific error type for cancelled requests
+        const cancelError = new Error("Request was cancelled");
+        cancelError.name = "RequestCancelledError";
+        throw cancelError;
       }
 
       throw error;

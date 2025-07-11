@@ -66,7 +66,7 @@ class LibreOfficeService {
   }
 
   /**
-   * Convert DOCX to PDF using LibreOffice headless mode
+   * Convert DOCX/DOC to PDF using LibreOffice headless mode
    */
   async convertDocxToPdf(inputPath, outputPath, options = {}) {
     if (!this.isAvailable) {
@@ -80,7 +80,7 @@ class LibreOfficeService {
     } = options;
 
     try {
-      console.log(`🚀 Converting DOCX to PDF: ${path.basename(inputPath)}`);
+      console.log(`🚀 Converting DOCX/DOC to PDF: ${path.basename(inputPath)}`);
 
       const outputDir = path.dirname(outputPath);
       const executable = this.getExecutablePath();
@@ -116,7 +116,7 @@ class LibreOfficeService {
         throw new Error("LibreOffice failed to create output file");
       }
 
-      console.log(`✅ DOCX to PDF conversion successful`);
+      console.log(`✅ DOCX/DOC to PDF conversion successful`);
       return {
         success: true,
         outputPath,
@@ -124,8 +124,8 @@ class LibreOfficeService {
         quality,
       };
     } catch (error) {
-      console.error(`❌ DOCX to PDF conversion error:`, error);
-      throw new Error(`DOCX to PDF conversion failed: ${error.message}`);
+      console.error(`❌ DOCX/DOC to PDF conversion error:`, error);
+      throw new Error(`DOCX/DOC to PDF conversion failed: ${error.message}`);
     }
   }
 
@@ -177,7 +177,7 @@ class LibreOfficeService {
   }
 
   /**
-   * Convert PPTX to PDF using LibreOffice headless mode
+   * Convert PPTX/PPT to PDF using LibreOffice headless mode
    */
   async convertPptxToPdf(inputPath, outputPath, options = {}) {
     if (!this.isAvailable) {
@@ -187,7 +187,7 @@ class LibreOfficeService {
     const { quality = "standard", timeout = 120000 } = options;
 
     try {
-      console.log(`🚀 Converting PPTX to PDF: ${path.basename(inputPath)}`);
+      console.log(`🚀 Converting PPTX/PPT to PDF: ${path.basename(inputPath)}`);
 
       const outputDir = path.dirname(outputPath);
       const executable = this.getExecutablePath();
@@ -211,7 +211,7 @@ class LibreOfficeService {
         throw new Error("LibreOffice failed to create output file");
       }
 
-      console.log(`✅ PPTX to PDF conversion successful`);
+      console.log(`✅ PPTX/PPT to PDF conversion successful`);
       return {
         success: true,
         outputPath,
@@ -219,8 +219,164 @@ class LibreOfficeService {
         quality,
       };
     } catch (error) {
-      console.error(`❌ PPTX to PDF conversion error:`, error);
-      throw new Error(`PPTX to PDF conversion failed: ${error.message}`);
+      console.error(`❌ PPTX/PPT to PDF conversion error:`, error);
+      throw new Error(`PPTX/PPT to PDF conversion failed: ${error.message}`);
+    }
+  }
+
+  /**
+   * Convert ODT to PDF using LibreOffice headless mode
+   */
+  async convertOdtToPdf(inputPath, outputPath, options = {}) {
+    if (!this.isAvailable) {
+      throw new Error("LibreOffice is not available");
+    }
+
+    const { quality = "standard", timeout = 120000 } = options;
+
+    try {
+      console.log(`🚀 Converting ODT to PDF: ${path.basename(inputPath)}`);
+
+      const outputDir = path.dirname(outputPath);
+      const executable = this.getExecutablePath();
+
+      let command = [executable, "--headless", "--convert-to"];
+
+      // Add quality-specific export options
+      if (quality === "premium" || quality === "high") {
+        command.push("pdf:writer_pdf_Export");
+      } else {
+        command.push("pdf");
+      }
+
+      command.push("--outdir", outputDir, inputPath);
+
+      const result = await this.executeCommand(command, timeout);
+
+      // Verify output file exists
+      const outputExists = await this.fileExists(outputPath);
+      if (!outputExists) {
+        throw new Error("LibreOffice failed to create output file");
+      }
+
+      console.log(`✅ ODT to PDF conversion successful`);
+      return {
+        success: true,
+        outputPath,
+        engine: "LibreOffice",
+        quality,
+      };
+    } catch (error) {
+      console.error(`❌ ODT to PDF conversion error:`, error);
+      throw new Error(`ODT to PDF conversion failed: ${error.message}`);
+    }
+  }
+
+  /**
+   * Convert RTF to PDF using LibreOffice headless mode
+   */
+  async convertRtfToPdf(inputPath, outputPath, options = {}) {
+    if (!this.isAvailable) {
+      throw new Error("LibreOffice is not available");
+    }
+
+    const { quality = "standard", timeout = 120000 } = options;
+
+    try {
+      console.log(`🚀 Converting RTF to PDF: ${path.basename(inputPath)}`);
+
+      const outputDir = path.dirname(outputPath);
+      const executable = this.getExecutablePath();
+
+      let command = [executable, "--headless", "--convert-to"];
+
+      // Add quality-specific export options
+      if (quality === "premium" || quality === "high") {
+        command.push("pdf:writer_pdf_Export");
+      } else {
+        command.push("pdf");
+      }
+
+      command.push("--outdir", outputDir, inputPath);
+
+      const result = await this.executeCommand(command, timeout);
+
+      // Verify output file exists
+      const outputExists = await this.fileExists(outputPath);
+      if (!outputExists) {
+        throw new Error("LibreOffice failed to create output file");
+      }
+
+      console.log(`✅ RTF to PDF conversion successful`);
+      return {
+        success: true,
+        outputPath,
+        engine: "LibreOffice",
+        quality,
+      };
+    } catch (error) {
+      console.error(`❌ RTF to PDF conversion error:`, error);
+      throw new Error(`RTF to PDF conversion failed: ${error.message}`);
+    }
+  }
+
+  /**
+   * Universal conversion method - converts any LibreOffice-supported format to PDF
+   */
+  async convertToPdf(inputPath, outputPath, options = {}) {
+    if (!this.isAvailable) {
+      throw new Error("LibreOffice is not available");
+    }
+
+    const { quality = "standard", timeout = 120000 } = options;
+    const inputExt = path.extname(inputPath).toLowerCase();
+
+    try {
+      console.log(
+        `🚀 Converting ${inputExt} to PDF: ${path.basename(inputPath)}`,
+      );
+
+      const outputDir = path.dirname(outputPath);
+      const executable = this.getExecutablePath();
+
+      let command = [executable, "--headless", "--convert-to"];
+
+      // Determine the appropriate export filter based on input type and quality
+      if (quality === "premium" || quality === "high") {
+        if ([".docx", ".doc", ".odt", ".rtf"].includes(inputExt)) {
+          command.push("pdf:writer_pdf_Export");
+        } else if ([".xlsx", ".xls", ".ods"].includes(inputExt)) {
+          command.push("pdf:calc_pdf_Export");
+        } else if ([".pptx", ".ppt", ".odp"].includes(inputExt)) {
+          command.push("pdf:impress_pdf_Export");
+        } else {
+          command.push("pdf");
+        }
+      } else {
+        command.push("pdf");
+      }
+
+      command.push("--outdir", outputDir, inputPath);
+
+      const result = await this.executeCommand(command, timeout);
+
+      // Verify output file exists
+      const outputExists = await this.fileExists(outputPath);
+      if (!outputExists) {
+        throw new Error("LibreOffice failed to create output file");
+      }
+
+      console.log(`✅ ${inputExt} to PDF conversion successful`);
+      return {
+        success: true,
+        outputPath,
+        engine: "LibreOffice",
+        quality,
+        inputFormat: inputExt,
+      };
+    } catch (error) {
+      console.error(`❌ ${inputExt} to PDF conversion error:`, error);
+      throw new Error(`${inputExt} to PDF conversion failed: ${error.message}`);
     }
   }
 
@@ -272,7 +428,7 @@ class LibreOfficeService {
   }
 
   /**
-   * Convert XLSX to PDF using LibreOffice headless mode
+   * Convert XLSX/XLS to PDF using LibreOffice headless mode
    */
   async convertXlsxToPdf(inputPath, outputPath, options = {}) {
     if (!this.isAvailable) {
@@ -282,7 +438,7 @@ class LibreOfficeService {
     const { quality = "standard", timeout = 120000 } = options;
 
     try {
-      console.log(`🚀 Converting XLSX to PDF: ${path.basename(inputPath)}`);
+      console.log(`🚀 Converting XLSX/XLS to PDF: ${path.basename(inputPath)}`);
 
       const outputDir = path.dirname(outputPath);
       const executable = this.getExecutablePath();
@@ -306,7 +462,7 @@ class LibreOfficeService {
         throw new Error("LibreOffice failed to create output file");
       }
 
-      console.log(`✅ XLSX to PDF conversion successful`);
+      console.log(`✅ XLSX/XLS to PDF conversion successful`);
       return {
         success: true,
         outputPath,
@@ -314,8 +470,8 @@ class LibreOfficeService {
         quality,
       };
     } catch (error) {
-      console.error(`❌ XLSX to PDF conversion error:`, error);
-      throw new Error(`XLSX to PDF conversion failed: ${error.message}`);
+      console.error(`❌ XLSX/XLS to PDF conversion error:`, error);
+      throw new Error(`XLSX/XLS to PDF conversion failed: ${error.message}`);
     }
   }
 
@@ -388,6 +544,46 @@ class LibreOfficeService {
   }
 
   /**
+   * Check if a file format is supported by LibreOffice
+   */
+  isSupportedFormat(filePath) {
+    const extension = path.extname(filePath).toLowerCase();
+    const supportedFormats = [
+      ".docx",
+      ".doc",
+      ".odt",
+      ".rtf",
+      ".xlsx",
+      ".xls",
+      ".ods",
+      ".pptx",
+      ".ppt",
+      ".odp",
+      ".pdf",
+    ];
+    return supportedFormats.includes(extension);
+  }
+
+  /**
+   * Get the document type from file extension
+   */
+  getDocumentType(filePath) {
+    const extension = path.extname(filePath).toLowerCase();
+
+    if ([".docx", ".doc", ".odt", ".rtf"].includes(extension)) {
+      return "text";
+    } else if ([".xlsx", ".xls", ".ods"].includes(extension)) {
+      return "spreadsheet";
+    } else if ([".pptx", ".ppt", ".odp"].includes(extension)) {
+      return "presentation";
+    } else if (extension === ".pdf") {
+      return "pdf";
+    }
+
+    return "unknown";
+  }
+
+  /**
    * Get system status
    */
   async getStatus() {
@@ -397,11 +593,28 @@ class LibreOfficeService {
       version: this.version,
       tempDir: this.tempDir,
       supportedConversions: [
-        "DOCX → PDF",
+        "DOCX/DOC → PDF",
         "PDF → DOCX",
-        "PPTX → PDF",
-        "XLSX → PDF",
+        "PPTX/PPT → PDF",
+        "XLSX/XLS → PDF",
         "PDF → XLSX",
+        "ODT → PDF",
+        "RTF → PDF",
+        "ODS → PDF",
+        "ODP → PDF",
+      ],
+      supportedInputFormats: [
+        ".docx",
+        ".doc",
+        ".odt",
+        ".rtf",
+        ".xlsx",
+        ".xls",
+        ".ods",
+        ".pptx",
+        ".ppt",
+        ".odp",
+        ".pdf",
       ],
     };
   }

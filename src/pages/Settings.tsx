@@ -74,19 +74,26 @@ const Settings = () => {
                 <Label>Plan</Label>
                 <div className="mt-1 text-sm font-medium">
                   {user?.isPremium ? (
-                    <span className="text-yellow-600">Premium ({user.premiumPlan})</span>
+                    <span className="text-yellow-600">
+                      Premium ({user.premiumPlan})
+                    </span>
                   ) : (
                     <span className="text-gray-600">Free</span>
                   )}
                 </div>
                 {user?.isPremium && user.premiumExpiryDate && (
                   <div className="text-xs text-gray-500">
-                    Expires: {new Date(user.premiumExpiryDate).toLocaleDateString()}
+                    Expires:{" "}
+                    {new Date(user.premiumExpiryDate).toLocaleDateString()}
                   </div>
                 )}
               </div>
               {error && <div className="text-red-600 text-sm">{error}</div>}
-              {success && <div className="text-green-600 text-sm">Profile updated successfully!</div>}
+              {success && (
+                <div className="text-green-600 text-sm">
+                  Profile updated successfully!
+                </div>
+              )}
               <Button type="submit" disabled={loading} className="w-full">
                 {loading ? "Saving..." : "Save Changes"}
               </Button>
@@ -98,4 +105,4 @@ const Settings = () => {
   );
 };
 
-export default Settings; 
+export default Settings;

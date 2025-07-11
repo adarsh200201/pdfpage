@@ -4,16 +4,16 @@ const fs = require("fs");
 const fsPromises = require("fs").promises;
 const path = require("path");
 const crypto = require("crypto");
-const puppeteer = require("puppeteer");
-// GHOSTSCRIPT-ONLY: No compress-pdf dependency - using direct Ghostscript CLI
+// LibreOffice-only document conversion - NO PUPPETEER FALLBACKS
 const { body, validationResult } = require("express-validator");
 
 // Import advanced compression service
 const advancedCompressionService = require("../services/advancedCompressionService");
 const professionalCompressionService = require("../services/professionalCompressionService");
 
-// Import document conversion service
+// Import LibreOffice-only document conversion services
 const documentConversionService = require("../services/documentConversionService");
+const libreofficeService = require("../services/libreofficeService");
 
 // Import models and middleware
 const Usage = require("../models/Usage");
@@ -409,7 +409,7 @@ async function performEnterpriseCompression(inputPath, outputPath, options) {
             ).toFixed(1);
 
             console.log(
-              `✅ Enterprise compression successful: ${reduction}% reduction`,
+              `�� Enterprise compression successful: ${reduction}% reduction`,
             );
             resolve({
               success: true,
@@ -1821,7 +1821,7 @@ router.post(
         `📄 PDF has ${numPages} pages, processing with enhanced extraction...`,
       );
       console.log(`📊 PDF Buffer size: ${file.buffer.length} bytes`);
-      console.log(`📋 PDF Analysis starting...`);
+      console.log(`��� PDF Analysis starting...`);
 
       // Enhanced text extraction with multiple extraction methods for better layout preservation
       let pdfData;
@@ -3615,7 +3615,7 @@ function parseFormattedText(
 }
 
 // @route   POST /api/pdf/word-to-pdf-advanced
-// @desc    Advanced Word to PDF conversion with professional formatting
+// @desc    Advanced Word to PDF conversion using LibreOffice ONLY (no fallbacks)
 // @access  Public (with optional auth and usage limits)
 router.post(
   "/word-to-pdf-advanced",
@@ -3624,6 +3624,8 @@ router.post(
   uploadWord.single("file"),
   async (req, res) => {
     const startTime = Date.now();
+    let tempInputPath = null;
+    let tempOutputPath = null;
 
     try {
       const file = req.file;
@@ -3643,7 +3645,7 @@ router.post(
         preserveImages = true,
         preserveLayouts = true,
         pageSize = "A4",
-        quality = "high",
+        quality = "premium", // Use premium quality for advanced conversion
         orientation = "portrait",
         margins = "normal",
         compatibility = "pdf-1.7",
@@ -3682,7 +3684,9 @@ router.post(
         });
       }
 
-      console.log(`🚀 Advanced Word to PDF conversion: ${file.originalname}`);
+      console.log(
+        `🚀 LibreOffice Advanced Word to PDF conversion: ${file.originalname}`,
+      );
       console.log(`📊 Options:`, {
         preserveFormatting,
         preserveImages,
@@ -3691,251 +3695,157 @@ router.post(
         quality,
       });
 
-      // Import advanced conversion libraries
-      const mammoth = require("mammoth");
-      const { PDFDocument, StandardFonts, rgb } = require("pdf-lib");
+      // Create temporary files for LibreOffice conversion
+      const timestamp = Date.now();
+      const randomSuffix = Math.random().toString(36).substring(2, 8);
+      const tempDir = path.join(__dirname, "..", "temp");
 
-      // Advanced HTML extraction with comprehensive style mapping
-      const htmlResult = await mammoth.convertToHtml(
-        { buffer: file.buffer },
-        {
-          styleMap: [
-            // Document structure
-            "p[style-name='Title'] => h1.document-title",
-            "p[style-name='Heading 1'] => h1",
-            "p[style-name='Heading 2'] => h2",
-            "p[style-name='Heading 3'] => h3",
-            "p[style-name='Normal'] => p",
+      // Ensure temp directory exists
+      await fsAsync.mkdir(tempDir, { recursive: true });
 
-            // Text formatting - more comprehensive
-            "r[style-name='Strong'] => strong",
-            "r[style-name='Bold'] => strong",
-            "r[style-name='Emphasis'] => em",
-            "r[style-name='Italic'] => em",
-            "r[style-name='Underline'] => u",
-
-            // Lists - better handling
-            "p[style-name='List Paragraph'] => li",
-            "p[style-name='ListParagraph'] => li",
-            "p[style-name='List Number'] => li.numbered",
-            "p[style-name='List Bullet'] => li.bullet",
-
-            // Special elements
-            "p[style-name='Header'] => div.header",
-            "p[style-name='Footer'] => div.footer",
-            "p[style-name='Quote'] => blockquote",
-
-            // Tables
-            "p[style-name='Table Paragraph'] => td p",
-            "p[style-name='Table Normal'] => td p",
-          ],
-          includeDefaultStyleMap: true,
-          convertImage: preserveImages
-            ? mammoth.images.dataUri
-            : mammoth.images.ignore,
-          ignoreEmptyElements: false,
-          includeEmbeddedStyleMap: true,
-          transformDocument: mammoth.transforms.paragraph(function (paragraph) {
-            // Better paragraph handling
-            return paragraph;
-          }),
-        },
+      const extension = path.extname(file.originalname).toLowerCase();
+      tempInputPath = path.join(
+        tempDir,
+        `word_${timestamp}_${randomSuffix}${extension}`,
+      );
+      tempOutputPath = path.join(
+        tempDir,
+        `word_${timestamp}_${randomSuffix}.pdf`,
       );
 
-      const htmlContent = htmlResult.value;
-      const messages = htmlResult.messages;
+      // Write uploaded file to temp location
+      await fsAsync.writeFile(tempInputPath, file.buffer);
 
-      // Log conversion messages for debugging
-      if (messages.length > 0) {
-        console.log("📋 Conversion messages:", messages.slice(0, 5));
-      }
+      console.log(`📝 Input file saved: ${tempInputPath}`);
+      console.log(`🎯 Target output: ${tempOutputPath}`);
 
-      if (!htmlContent || htmlContent.trim().length === 0) {
-        return res.status(400).json({
-          success: false,
-          message: "No content could be extracted from the Word document",
-        });
-      }
-
-      console.log(`✅ Extracted ${htmlContent.length} characters of HTML`);
-
-      // Enhanced HTML processing with better structure preservation
-      console.log("�� Raw HTML content sample:", htmlContent.substring(0, 500));
-
-      // Parse HTML more carefully to preserve structure
-      let processedContent = htmlContent;
-
-      // First pass: Extract and mark images
-      const imageMatches =
-        processedContent.match(/<img[^>]*src="data:image\/[^"]*"[^>]*>/gi) ||
-        [];
-      const images = imageMatches
-        .map((img, index) => {
-          const srcMatch = img.match(/src="(data:image\/[^"]*)"/);
-          return srcMatch ? { id: `IMG_${index}`, src: srcMatch[1] } : null;
-        })
-        .filter(Boolean);
-
-      console.log(`📷 Found ${images.length} images in document`);
-
-      // Replace images with placeholders for now
-      processedContent = processedContent.replace(/<img[^>]*>/gi, "[IMAGE]");
-
-      // Second pass: Better list handling with proper numbering
-      let listCounter = 1;
-      processedContent = processedContent.replace(
-        /<ol[^>]*>(.*?)<\/ol>/gis,
-        (match, content) => {
-          let numberedItems = content.replace(
-            /<li[^>]*>(.*?)<\/li>/gi,
-            (liMatch, liContent) => {
-              const cleanContent = liContent.replace(/<[^>]*>/g, "").trim();
-              return `\n${listCounter++}. ${cleanContent}`;
-            },
-          );
-          return `\n【NUMBERED_LIST����${numberedItems}\n【/NUMBERED_LIST����\n`;
-        },
-      );
-
-      // Reset counter for each list
-      processedContent = processedContent.replace(/【NUMBERED_LIST】/g, () => {
-        listCounter = 1;
-        return "【NUMBERED_LIST】";
-      });
-
-      // Handle unordered lists
-      processedContent = processedContent.replace(
-        /<ul[^>]*>(.*?)<\/ul>/gis,
-        (match, content) => {
-          let bulletItems = content.replace(
-            /<li[^>]*>(.*?)<\/li>/gi,
-            (liMatch, liContent) => {
-              const cleanContent = liContent.replace(/<[^>]*>/g, "").trim();
-              return `\n• ${cleanContent}`;
-            },
-          );
-          return `\n【BULLET_LIST】${bulletItems}\n���/BULLET_LIST��\n`;
-        },
-      );
-
-      // Third pass: Handle headings and structure
-      processedContent = processedContent
-        // Headers and titles
-        .replace(
-          /<h1[^>]*>(.*?)<\/h1>/gi,
-          "\n\n【HEADING1������$1��/HEADING1】\n\n",
-        )
-        .replace(
-          /<h2[^>]*>(.*?)<\/h2>/gi,
-          "\n\n【HEADING2】$1【/HEADING2】\n\n",
-        )
-        .replace(
-          /<h3[^>]*>(.*?)<\/h3>/gi,
-          "\n\n������HEADING3���$1【/HEADING3】\n\n",
-        )
-
-        // Text formatting
-        .replace(/<strong[^>]*>(.*?)<\/strong>/gi, "【BOLD】$1【/BOLD���")
-        .replace(/<b[^>]*>(.*?)<\/b>/gi, "���BOLD】$1【/BOLD】")
-        .replace(/<em[^>]*>(.*?)<\/em>/gi, "【ITALIC】$1【/ITALIC】")
-        .replace(/<i[^>]*>(.*?)<\/i>/gi, "【ITALIC】$1【/ITALIC】")
-        .replace(/<u[^>]*>(.*?)<\/u>/gi, "【UNDERLINE】$1【/UNDERLINE】")
-
-        // Paragraphs - preserve line breaks
-        .replace(/<p[^>]*>(.*?)<\/p>/gi, "\n【PARAGRAPH】$1��/PARAGRAPH��\n")
-        .replace(/<div[^>]*>(.*?)<\/div>/gi, "\n$1\n")
-        .replace(/<br\s*\/?>/gi, "\n")
-
-        // Clean up remaining HTML
-        .replace(/<[^>]*>/g, "")
-        .replace(/&nbsp;/g, " ")
-        .replace(/&amp;/g, "&")
-        .replace(/&lt;/g, "<")
-        .replace(/&gt;/g, ">")
-        .replace(/&quot;/g, '"')
-        .replace(/&apos;/g, "'");
-
-      // Fourth pass: Structure cleanup and formatting
-      let formattedText = processedContent
-        // Clean up markers and apply proper formatting
-        .replace(/【NUMBERED_LIST】(.*?)【\/NUMBERED_LIST】/gs, "$1")
-        .replace(/��BULLET_LIST】(.*?)【\/BULLET_LIST】/gs, "$1")
-        .replace(/【HEADING1】(.*?)【\/HEADING1】/g, "\n\n���▓▓ $1 ��▓▓\n\n")
-        .replace(/【HEADING2】(.*?)���\/HEADING2】/g, "\n\n▓▓ $1 ▓�����\n\n")
-        .replace(/【HEADING3】(.*?)【\/HEADING3】/g, "\n\n▓ $1 ▓\n\n")
-        .replace(/【BOLD】(.*?)【\/BOLD��/g, "���B:$1】")
-        .replace(/【ITALIC】(.*?)�����\/ITALIC】/g, "��I:$1】")
-        .replace(/【UNDERLINE】(.*?)【\/UNDERLINE���/g, "【U:$1】")
-        .replace(/���PARAGRAPH】(.*?)【\/PARAGRAPH��/g, "$1\n")
-
-        // Clean up excessive whitespace while preserving structure
-        .replace(/\n\s*\n\s*\n/g, "\n\n")
-        .replace(/^\s+|\s+$/g, "")
-        .trim();
-
-      if (!formattedText) {
-        formattedText =
-          "Document appears to be empty or contains no readable text.";
-      }
+      // Use LibreOffice for conversion with advanced options
+      const conversionOptions = {
+        quality: quality, // premium, high, or standard
+        preserveFormatting,
+        preserveImages,
+        preserveLayouts,
+        timeout: 120000, // 2 minutes for complex documents
+      };
 
       console.log(
-        `�� Processed ${formattedText.length} characters with advanced formatting`,
+        `🚀 Starting LibreOffice conversion with options:`,
+        conversionOptions,
       );
 
-      // Create professional PDF document
-      const pdfDoc = await PDFDocument.create();
+      const result = await libreofficeService.convertToPdf(
+        tempInputPath,
+        tempOutputPath,
+        conversionOptions,
+      );
 
-      // Enhanced page size calculation
-      const pageSizes = {
-        A4: { width: 595, height: 842 },
-        Letter: { width: 612, height: 792 },
-        Legal: { width: 612, height: 1008 },
-      };
+      // Read the converted PDF
+      const pdfBuffer = await fsAsync.readFile(tempOutputPath);
 
-      let selectedPageSize = pageSizes[pageSize] || pageSizes.A4;
+      console.log(`✅ LibreOffice conversion completed successfully`);
+      console.log(`📊 Output file size: ${pdfBuffer.length} bytes`);
 
-      // Handle orientation
-      if (orientation === "landscape") {
-        selectedPageSize = {
-          width: selectedPageSize.height,
-          height: selectedPageSize.width,
-        };
+      // Track successful operation
+      const processingTime = Date.now() - startTime;
+      try {
+        await Usage.trackOperation({
+          userId: req.user ? req.user._id : null,
+          sessionId: req.body.sessionId || null,
+          toolUsed: "word-to-pdf-advanced",
+          fileCount: 1,
+          totalFileSize: file.size,
+          processingTime,
+          userAgent: req.headers["user-agent"],
+          ipAddress: getRealIPAddress(req),
+          success: true,
+          deviceType: getDeviceTypeFromRequest(req),
+        });
+      } catch (trackError) {
+        console.error("Error tracking operation:", trackError);
       }
 
-      // Advanced margin calculation
-      const marginSizes = {
-        normal: 72, // 1 inch
-        narrow: 36, // 0.5 inch
-        wide: 108, // 1.5 inches
-      };
+      // Prepare response filename
+      const originalName = path.basename(
+        file.originalname,
+        path.extname(file.originalname),
+      );
+      const timestamp = new Date().toISOString().slice(0, 10);
+      const filename = `${originalName}_advanced_${timestamp}.pdf`;
 
-      const margin = marginSizes[margins] || marginSizes.normal;
-      const contentWidth = selectedPageSize.width - margin * 2;
+      // Send the PDF with proper headers
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader(
+        "Content-Disposition",
+        `attachment; filename="${filename}"`,
+      );
+      res.setHeader("Content-Length", pdfBuffer.length);
+      res.setHeader("X-File-Size", pdfBuffer.length);
+      res.setHeader("X-Processing-Time", processingTime);
+      res.setHeader("X-Conversion-Engine", "LibreOffice");
+      res.setHeader("X-Conversion-Quality", quality);
+            res.setHeader("X-Page-Format", pageSize);
+      res.send(pdfBuffer);
+    } catch (error) {
+      console.error("❌ Advanced Word to PDF conversion error:", error);
 
-      // Load professional font set
-      const fonts = {
-        regular: await pdfDoc.embedFont(StandardFonts.Helvetica),
-        bold: await pdfDoc.embedFont(StandardFonts.HelveticaBold),
-        italic: await pdfDoc.embedFont(StandardFonts.HelveticaOblique),
-        boldItalic: await pdfDoc.embedFont(StandardFonts.HelveticaBoldOblique),
-      };
+      // Clean up temp files
+      if (tempInputPath) {
+        try {
+          await fsAsync.unlink(tempInputPath);
+        } catch (cleanupError) {
+          console.warn("Error cleaning up input file:", cleanupError);
+        }
+      }
+      if (tempOutputPath) {
+        try {
+          await fsAsync.unlink(tempOutputPath);
+        } catch (cleanupError) {
+          console.warn("Error cleaning up output file:", cleanupError);
+        }
+      }
 
-      // Function to sanitize text for WinAnsi encoding compatibility
-      const sanitizeTextForPDF = (text) => {
-        return text
-          .replace(/【/g, "[") // U+3010 �� ASCII bracket
-          .replace(/】/g, "]") // U+3011 → ASCII bracket
-          .replace(/[""]/g, '"') // Smart quotes → ASCII quotes
-          .replace(/['']/g, "'") // Smart apostrophes → ASCII apostrophe
-          .replace(/[—–]/g, "-") // Em/en dashes → ASCII hyphen
-          .replace(/[…]/g, "...") // Ellipsis → ASCII dots
-          .replace(/[^\x20-\x7E\u00A0-\u00FF]/g, "?"); // Replace other non-WinAnsi chars
-      };
+            // Track error
+      try {
+        await Usage.trackOperation({
+          userId: req.user ? req.user._id : null,
+          sessionId: req.body.sessionId || null,
+          toolUsed: "word-to-pdf-advanced",
+          fileCount: 1,
+          totalFileSize: req.file ? req.file.size : 0,
+          processingTime: Date.now() - startTime,
+          userAgent: req.headers["user-agent"],
+          ipAddress: getRealIPAddress(req),
+          success: false,
+          errorMessage: error.message,
+        });
+      } catch (trackError) {
+        console.error("Error tracking failed operation:", trackError);
+      }
 
-      // Quality-based font sizing
-      const baseFontSize =
-        quality === "premium" ? 12 : quality === "high" ? 11 : 10;
-      const baseLineHeight = baseFontSize + 4;
+      res.status(500).json({
+        success: false,
+        message: error.message || "Advanced conversion failed",
+        error: process.env.NODE_ENV === "development" ? error.stack : undefined,
+      });
+    } finally {
+      // Cleanup temp files
+      if (tempInputPath) {
+        try {
+          await fsAsync.unlink(tempInputPath);
+        } catch (cleanupError) {
+          console.warn("Error cleaning up input file:", cleanupError);
+        }
+      }
+      if (tempOutputPath) {
+        try {
+          await fsAsync.unlink(tempOutputPath);
+        } catch (cleanupError) {
+          console.warn("Error cleaning up output file:", cleanupError);
+        }
+      }
+    }
+  },
+);
 
       // Initialize page and position
       let currentPage = pdfDoc.addPage([
@@ -4440,7 +4350,7 @@ router.post(
       console.log(`✅ LibreOffice conversion successful:`);
       console.log(`   📄 Pages: ${pageCount}`);
       console.log(`   📦 Size: ${pdfBuffer.length} bytes`);
-      console.log(`   ���� Time: ${processingTime}ms`);
+      console.log(`   ����� Time: ${processingTime}ms`);
 
       // Track usage
       try {
@@ -4604,7 +4514,7 @@ router.post(
       }
 
       console.log(
-        `🚀 LibreOffice ONLY Word to PDF conversion: ${file.originalname}`,
+        `���� LibreOffice ONLY Word to PDF conversion: ${file.originalname}`,
       );
       console.log(`📊 Options:`, {
         pageSize,
@@ -5100,44 +5010,28 @@ router.post(
       // Save uploaded file to temp location
       fs.writeFileSync(tempInputPath, file.buffer);
 
-      // ONLY LibreOffice conversion - NO FALLBACKS
-      const { spawn } = require("child_process");
+            // Use enhanced LibreOffice service for conversion
+      console.log(
+        `🚀 Starting LibreOffice Excel conversion: ${file.originalname}`,
+      );
+      console.log(`📊 Quality setting: ${quality}`);
 
-      const result = await new Promise((resolve, reject) => {
-        console.log(
-          `🔧 Executing LibreOffice Excel conversion: ${file.originalname}`,
-        );
+      const conversionOptions = {
+        quality: quality, // premium, high, or standard
+        timeout: 120000, // 2 minutes for complex Excel files
+      };
 
-        const process = spawn("libreoffice", [
-          "--headless",
-          "--convert-to",
-          quality === "premium" ? "pdf:calc_pdf_Export" : "pdf",
-          "--outdir",
-          path.dirname(tempOutputPath),
-          tempInputPath,
-        ]);
+      const result = await libreofficeService.convertToPdf(
+        tempInputPath,
+        tempOutputPath,
+        conversionOptions
+      );
 
-        let stdout = "";
-        let stderr = "";
+      console.log(`✅ LibreOffice Excel conversion completed successfully`);
 
-        process.stdout.on("data", (data) => {
-          stdout += data.toString();
-        });
-
-        process.stderr.on("data", (data) => {
-          stderr += data.toString();
-        });
-
-        process.on("close", (code) => {
-          if (code === 0) {
-            console.log(`✅ LibreOffice Excel conversion successful`);
-            resolve({ success: true, pageCount: 1 });
-          } else {
-            console.error(
-              `❌ LibreOffice Excel conversion failed with code ${code}`,
-            );
-            console.error(`stderr: ${stderr}`);
-            reject(
+      // Validate output file exists
+      if (!fs.existsSync(tempOutputPath)) {
+        throw new Error("LibreOffice failed to create output PDF file");
               new Error(
                 `LibreOffice Excel conversion failed: ${stderr || `Exit code ${code}`}`,
               ),
@@ -8950,7 +8844,7 @@ router.post(
       // Send the PDF
       res.send(Buffer.from(pdfBytes));
 
-      console.log(`��� Edited PDF saved for session ${sessionId}`);
+      console.log(`���� Edited PDF saved for session ${sessionId}`);
     } catch (error) {
       console.error("Error saving edited PDF:", error);
       res.status(500).json({

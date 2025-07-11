@@ -32,8 +32,7 @@ export const createPayment = async (
     ?.split("=")[1];
 
   // Use proper API URL with fallback
-  const apiUrl =
-    import.meta.env.VITE_API_URL || "https://pdfpage.onrender.com/api";
+  const apiUrl = "https://pdfpage-app.onrender.com/api";
   const fullUrl = `${apiUrl}/payments/create-order`;
 
   console.log("Creating payment with:", { options, apiUrl: fullUrl });
@@ -133,7 +132,8 @@ export const processPayment = async (
             ?.split("=")[1];
 
           const apiUrl =
-            import.meta.env.VITE_API_URL || "https://pdfpage.onrender.com/api";
+            import.meta.env.VITE_API_URL ||
+            "https://pdfpage-app.onrender.com/api";
           const verifyResponse = await fetch(`${apiUrl}/payments/verify`, {
             method: "POST",
             headers: {

@@ -214,9 +214,7 @@ export class EnhancedPdfToExcelService {
     formData.append("preserveFormatting", String(options.preserveFormatting));
     formData.append("sessionId", Math.random().toString(36).substr(2, 9));
 
-    const API_URL = import.meta.env.DEV
-      ? "/api" // Use proxy in development
-      : import.meta.env.VITE_API_URL || "https://pdfpage.onrender.com/api";
+    const API_URL = "https://pdfpage-app.onrender.com/api";
 
     const response = await fetch(`${API_URL}/pdf/to-excel`, {
       method: "POST",

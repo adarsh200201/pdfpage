@@ -85,7 +85,7 @@ const ExcelToPdfDebug = () => {
       addLog("Starting server-side conversion test...");
 
       const apiUrl =
-        import.meta.env.VITE_API_URL || "https://pdfpage.onrender.com/api";
+        import.meta.env.VITE_API_URL || "https://pdfpage-app.onrender.com/api";
       addLog(`Using API URL: ${apiUrl}`);
 
       // Test server health
@@ -165,7 +165,7 @@ const ExcelToPdfDebug = () => {
     setLogs([]);
     addLog("=== Environment Information ===");
     addLog(
-      `API URL: ${import.meta.env.VITE_API_URL || "https://pdfpage.onrender.com/api"}`,
+      `API URL: ${import.meta.env.VITE_API_URL || "https://pdfpage-app.onrender.com/api"}`,
     );
     addLog(`Mode: ${import.meta.env.MODE}`);
     addLog(`Dev: ${import.meta.env.DEV}`);

@@ -5,6 +5,7 @@ This is a web application for PDF editing with features similar to LightPDF. Bel
 ## Core PDF Processing
 
 ### 1. PDF.js
+
 - **Purpose**: Render PDF documents in the browser
 - **Features**:
   - Display PDFs with high fidelity
@@ -14,6 +15,7 @@ This is a web application for PDF editing with features similar to LightPDF. Bel
 - **Website**: [Mozilla PDF.js](https://mozilla.github.io/pdf.js/)
 
 ### 2. PDF-Lib
+
 - **Purpose**: PDF modification and creation
 - **Features**:
   - Edit existing PDFs
@@ -25,6 +27,7 @@ This is a web application for PDF editing with features similar to LightPDF. Bel
 ## Frontend
 
 ### 3. React
+
 - **Purpose**: UI component library
 - **Features**:
   - Component-based architecture
@@ -33,6 +36,7 @@ This is a web application for PDF editing with features similar to LightPDF. Bel
 - **Website**: [React](https://reactjs.org/)
 
 ### 4. TypeScript
+
 - **Purpose**: Type checking and better developer experience
 - **Features**:
   - Static typing
@@ -41,6 +45,7 @@ This is a web application for PDF editing with features similar to LightPDF. Bel
 - **Website**: [TypeScript](https://www.typescriptlang.org/)
 
 ### 5. Tailwind CSS
+
 - **Purpose**: Utility-first CSS framework
 - **Features**:
   - Responsive design
@@ -51,6 +56,7 @@ This is a web application for PDF editing with features similar to LightPDF. Bel
 ## Backend
 
 ### 6. Node.js with Express
+
 - **Purpose**: Server-side runtime and framework
 - **Features**:
   - API endpoints
@@ -59,6 +65,7 @@ This is a web application for PDF editing with features similar to LightPDF. Bel
 - **Website**: [Node.js](https://nodejs.org/), [Express](https://expressjs.com/)
 
 ### 7. Multer
+
 - **Purpose**: File upload handling
 - **Features**:
   - Handle multipart/form-data
@@ -69,6 +76,7 @@ This is a web application for PDF editing with features similar to LightPDF. Bel
 ## Additional Tools
 
 ### 8. React Dropzone
+
 - **Purpose**: File drag and drop functionality
 - **Features**:
   - Drag and drop interface
@@ -77,6 +85,7 @@ This is a web application for PDF editing with features similar to LightPDF. Bel
 - **Website**: [React Dropzone](https://react-dropzone.js.org/)
 
 ### 9. React Icons
+
 - **Purpose**: Icon library
 - **Features**:
   - Popular icon sets
@@ -85,6 +94,7 @@ This is a web application for PDF editing with features similar to LightPDF. Bel
 - **Website**: [React Icons](https://react-icons.github.io/react-icons/)
 
 ### 10. React Hot Toast
+
 - **Purpose**: Notifications
 - **Features**:
   - Toast notifications
@@ -95,6 +105,7 @@ This is a web application for PDF editing with features similar to LightPDF. Bel
 ## Development Tools
 
 ### 11. Vite
+
 - **Purpose**: Build tool and development server
 - **Features**:
   - Fast development server
@@ -103,6 +114,7 @@ This is a web application for PDF editing with features similar to LightPDF. Bel
 - **Website**: [Vite](https://vitejs.dev/)
 
 ### 12. ESLint & Prettier
+
 - **Purpose**: Code quality and formatting
 - **Features**:
   - Code linting
@@ -113,6 +125,7 @@ This is a web application for PDF editing with features similar to LightPDF. Bel
 ## Complete Toolset Similar to LightPDF
 
 ### 1. PDF Viewing & Basic Tools
+
 - **PDF.js** - Core PDF rendering
 - **pdfjs-dist** - Distribution files for PDF.js
 - **react-pdf** - React wrapper for PDF.js
@@ -120,6 +133,7 @@ This is a web application for PDF editing with features similar to LightPDF. Bel
 - **react-pdf-highlighter** - For text highlighting
 
 ### 2. PDF Editing
+
 - **PDF-Lib** - Core PDF manipulation
 - **pdf-lib** - Create and modify PDFs
 - **react-signature-canvas** - For signatures
@@ -127,6 +141,7 @@ This is a web application for PDF editing with features similar to LightPDF. Bel
 - **fabric.js** - For canvas-based editing
 
 ### 3. File Conversion
+
 - **pdf2pic** - PDF to image conversion
 - **jspdf** - Generate PDFs from HTML/JS
 - **html2canvas** - Convert HTML to canvas/PDF
@@ -136,6 +151,7 @@ This is a web application for PDF editing with features similar to LightPDF. Bel
 - **pdf-merger-js** - Merge multiple PDFs
 
 ### 4. Text & OCR
+
 - **Tesseract.js** - OCR functionality
 - **pdf-parse** - Extract text from PDF
 - **pdf-text-extract** - Text extraction
@@ -143,6 +159,7 @@ This is a web application for PDF editing with features similar to LightPDF. Bel
 - **node-nlp** - Natural language processing
 
 ### 5. Security & Signatures
+
 - **node-forge** - Cryptography for e-signatures
 - **crypto-js** - Encryption/Decryption
 - **jsonwebtoken** - Authentication
@@ -150,6 +167,7 @@ This is a web application for PDF editing with features similar to LightPDF. Bel
 - **pdf-signature** - Digital signatures
 
 ### 6. Cloud & Storage
+
 - **aws-sdk** - AWS S3 integration
 - **firebase** - Firebase storage
 - **dropbox** - Dropbox API
@@ -157,6 +175,7 @@ This is a web application for PDF editing with features similar to LightPDF. Bel
 - **axios** - API requests
 
 ### 7. UI Components
+
 - **@material-ui/core** - UI components
 - **@material-ui/icons** - Icons
 - **react-dropzone** - File upload
@@ -167,6 +186,7 @@ This is a web application for PDF editing with features similar to LightPDF. Bel
 - **react-color** - Color picker
 
 ### 8. Development Tools
+
 - **TypeScript** - Type checking
 - **ESLint** - Code linting
 - **Prettier** - Code formatting
@@ -177,6 +197,7 @@ This is a web application for PDF editing with features similar to LightPDF. Bel
 - **Babel** - JavaScript compiler
 
 ### 9. Performance & Optimization
+
 - **workbox** - Service workers
 - **compression** - Gzip compression
 - **lru-cache** - Caching
@@ -184,6 +205,7 @@ This is a web application for PDF editing with features similar to LightPDF. Bel
 - **reselect** - Memoized selectors
 
 ### 10. Collaboration & Real-time
+
 - **socket.io** - Real-time communication
 - **socket.io-client** - Client-side sockets
 - **quill** - Rich text editor
@@ -191,6 +213,7 @@ This is a web application for PDF editing with features similar to LightPDF. Bel
 - **hocuspocus** - Collaboration backend
 
 ### 11. Additional Tools
+
 - **file-saver** - Save files client-side
 - **jszip** - Create/Extract zip files
 - **moment.js** - Date handling
@@ -202,6 +225,7 @@ This is a web application for PDF editing with features similar to LightPDF. Bel
 - **formik** / **react-hook-form** - Form handling
 
 ### 12. Build & Deployment
+
 - **Docker** - Containerization
 - **nginx** - Web server
 - **pm2** - Process manager
@@ -212,6 +236,7 @@ This is a web application for PDF editing with features similar to LightPDF. Bel
 ## Getting Started
 
 1. Install dependencies:
+
 ```bash
 # Frontend
 cd frontend
@@ -225,6 +250,7 @@ npm install
 2. Set up environment variables (create .env files in both frontend and backend)
 
 3. Start development servers:
+
 ```bash
 # Frontend
 cd frontend

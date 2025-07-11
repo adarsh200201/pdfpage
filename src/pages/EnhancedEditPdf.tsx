@@ -1,10 +1,10 @@
-import React, { useState, useRef } from 'react';
-import { useDropzone } from 'react-dropzone';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { useToast } from '@/hooks/use-toast';
-import { FileText, Upload, X } from 'lucide-react';
-import PDFTextEditor from '@/components/pdf-editor/PDFTextEditor';
+import React, { useState, useRef } from "react";
+import { useDropzone } from "react-dropzone";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useToast } from "@/hooks/use-toast";
+import { FileText, Upload, X } from "lucide-react";
+import PDFTextEditor from "@/components/pdf-editor/PDFTextEditor";
 
 const EnhancedEditPdf: React.FC = () => {
   const [file, setFile] = useState<File | null>(null);
@@ -13,14 +13,17 @@ const EnhancedEditPdf: React.FC = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const onDrop = (acceptedFiles: File[]) => {
-    if (acceptedFiles.length > 0 && acceptedFiles[0].type === 'application/pdf') {
+    if (
+      acceptedFiles.length > 0 &&
+      acceptedFiles[0].type === "application/pdf"
+    ) {
       setFile(acceptedFiles[0]);
       setIsEditing(true);
     } else {
       toast({
-        title: 'Invalid file',
-        description: 'Please upload a valid PDF file',
-        variant: 'destructive',
+        title: "Invalid file",
+        description: "Please upload a valid PDF file",
+        variant: "destructive",
       });
     }
   };
@@ -28,21 +31,21 @@ const EnhancedEditPdf: React.FC = () => {
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
     accept: {
-      'application/pdf': ['.pdf']
+      "application/pdf": [".pdf"],
     },
     maxFiles: 1,
   });
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
-    if (selectedFile && selectedFile.type === 'application/pdf') {
+    if (selectedFile && selectedFile.type === "application/pdf") {
       setFile(selectedFile);
       setIsEditing(true);
     } else if (selectedFile) {
       toast({
-        title: 'Invalid file',
-        description: 'Please upload a valid PDF file',
-        variant: 'destructive',
+        title: "Invalid file",
+        description: "Please upload a valid PDF file",
+        variant: "destructive",
       });
     }
   };
@@ -51,7 +54,7 @@ const EnhancedEditPdf: React.FC = () => {
     setFile(null);
     setIsEditing(false);
     if (fileInputRef.current) {
-      fileInputRef.current.value = '';
+      fileInputRef.current.value = "";
     }
   };
 
@@ -59,34 +62,35 @@ const EnhancedEditPdf: React.FC = () => {
     try {
       // Create a download link
       const url = window.URL.createObjectURL(modifiedPdf);
-      const a = document.createElement('a');
+      const a = document.createElement("a");
       a.href = url;
-      a.download = file ? `edited_${file.name}` : 'edited_document.pdf';
+      a.download = file ? `edited_${file.name}` : "edited_document.pdf";
       document.body.appendChild(a);
       a.click();
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
-      
+
       toast({
-        title: 'Success',
-        description: 'Your PDF has been downloaded',
+        title: "Success",
+        description: "Your PDF has been downloaded",
       });
     } catch (error) {
-      console.error('Error saving PDF:', error);
+      console.error("Error saving PDF:", error);
       toast({
-        title: 'Error',
-        description: 'Failed to save PDF',
-        variant: 'destructive',
+        title: "Error",
+        description: "Failed to save PDF",
+        variant: "destructive",
       });
     }
   };
 
   const handleError = (error: Error) => {
-    console.error('PDF Error:', error);
+    console.error("PDF Error:", error);
     toast({
-      title: 'Error',
-      description: error.message || 'An error occurred while processing the PDF',
-      variant: 'destructive',
+      title: "Error",
+      description:
+        error.message || "An error occurred while processing the PDF",
+      variant: "destructive",
     });
   };
 
@@ -106,7 +110,9 @@ const EnhancedEditPdf: React.FC = () => {
             <div
               {...getRootProps()}
               className={`border-2 border-dashed rounded-lg p-12 text-center cursor-pointer transition-colors ${
-                isDragActive ? 'border-blue-500 bg-blue-50' : 'border-gray-300 hover:border-blue-400'
+                isDragActive
+                  ? "border-blue-500 bg-blue-50"
+                  : "border-gray-300 hover:border-blue-400"
               }`}
             >
               <input {...getInputProps()} />
@@ -114,9 +120,13 @@ const EnhancedEditPdf: React.FC = () => {
                 <Upload className="w-12 h-12 text-gray-400" />
                 <div>
                   <p className="text-lg font-medium">
-                    {isDragActive ? 'Drop the PDF here' : 'Drag & drop a PDF file here'}
+                    {isDragActive
+                      ? "Drop the PDF here"
+                      : "Drag & drop a PDF file here"}
                   </p>
-                  <p className="text-sm text-gray-500 mt-1">or click to select a file</p>
+                  <p className="text-sm text-gray-500 mt-1">
+                    or click to select a file
+                  </p>
                 </div>
                 <Button type="button" variant="outline">
                   Select PDF
@@ -138,23 +148,23 @@ const EnhancedEditPdf: React.FC = () => {
             <div className="flex items-center space-x-2">
               <FileText className="w-5 h-5" />
               <span className="font-medium truncate max-w-xs">
-                {file?.name || 'Document.pdf'}
+                {file?.name || "Document.pdf"}
               </span>
             </div>
-            <Button 
-              variant="ghost" 
-              size="sm" 
+            <Button
+              variant="ghost"
+              size="sm"
               className="text-white hover:bg-gray-700"
               onClick={handleRemoveFile}
             >
               <X className="w-4 h-4 mr-1" /> Close
             </Button>
           </div>
-          
+
           <div className="h-[calc(100vh-250px)]">
             {file && (
-              <PDFTextEditor 
-                file={file} 
+              <PDFTextEditor
+                file={file}
                 onSave={handleSave}
                 onError={handleError}
               />
@@ -164,7 +174,10 @@ const EnhancedEditPdf: React.FC = () => {
       )}
 
       <div className="mt-8 text-center text-sm text-gray-500">
-        <p>Note: For best results, use PDFs with embedded text (not scanned documents).</p>
+        <p>
+          Note: For best results, use PDFs with embedded text (not scanned
+          documents).
+        </p>
       </div>
     </div>
   );
