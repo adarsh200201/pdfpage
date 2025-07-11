@@ -18,7 +18,9 @@ class StatsService {
   private cache: StatsData | null = null;
   private lastFetch: number = 0;
   private readonly CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
-  private readonly API_BASE = "https://pdfpage-app.onrender.com";
+  private readonly API_BASE = import.meta.env.DEV
+    ? "http://localhost:5000"
+    : "https://pdfpage-app.onrender.com";
   private currentController: AbortController | null = null;
 
   async getStats(): Promise<StatsData> {

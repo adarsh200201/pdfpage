@@ -396,3 +396,4 @@ function startServer(port) {
 }
 
 startServer(PORT);
+// Restart again
