@@ -29,8 +29,7 @@ export function LibreOfficeSetup() {
   const checkSystemStatus = async () => {
     setChecking(true);
     try {
-      const apiUrl =
-        import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+      const apiUrl = "https://pdfpage-app.onrender.com/api";
       const response = await fetch(`${apiUrl}/pdf/system-status`);
       const data = await response.json();
       setStatus(data);

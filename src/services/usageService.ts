@@ -37,7 +37,7 @@ export class UsageService {
       }
 
       const response = await fetch(
-        `${import.meta.env.VITE_API_URL}/usage/track`,
+        "https://pdfpage-app.onrender.com/api/usage/track",
         {
           method: "POST",
           headers: {

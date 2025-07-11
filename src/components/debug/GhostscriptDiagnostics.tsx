@@ -63,8 +63,7 @@ const GhostscriptDiagnostics: React.FC = () => {
   const runDiagnostics = async () => {
     setLoading(true);
     try {
-      const apiUrl =
-        import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+      const apiUrl = "https://pdfpage-app.onrender.com/api";
       const response = await fetch(`${apiUrl}/diagnostics/ghostscript`);
       const result = await response.json();
 
@@ -85,8 +84,7 @@ const GhostscriptDiagnostics: React.FC = () => {
 
     setTesting(true);
     try {
-      const apiUrl =
-        import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+      const apiUrl = "https://pdfpage-app.onrender.com/api";
       const response = await fetch(`${apiUrl}/diagnostics/ghostscript/test`, {
         method: "POST",
       });

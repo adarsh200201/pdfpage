@@ -207,8 +207,7 @@ const CompressProfessional = () => {
       setProgress(10);
       setProcessingStatus("Uploading and analyzing document...");
 
-      const apiUrl =
-        import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+      const apiUrl = "https://pdfpage-app.onrender.com/api";
       const response = await fetch(`${apiUrl}/pdf/compress`, {
         method: "POST",
         body: formData,

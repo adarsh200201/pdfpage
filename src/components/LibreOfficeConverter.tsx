@@ -105,8 +105,7 @@ export function LibreOfficeConverter() {
 
   const checkLibreOffice = async () => {
     try {
-      const apiUrl =
-        import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+      const apiUrl = "https://pdfpage-app.onrender.com/api";
       const response = await fetch(`${apiUrl}/pdf/system-status`);
       const data = await response.json();
       setLibreOfficeAvailable(data.libreoffice);
@@ -162,8 +161,7 @@ export function LibreOfficeConverter() {
         });
       }, 500);
 
-      const apiUrl =
-        import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+      const apiUrl = "https://pdfpage-app.onrender.com/api";
       const response = await fetch(`${apiUrl}/pdf/word-to-pdf-libreoffice`, {
         method: "POST",
         body: formData,

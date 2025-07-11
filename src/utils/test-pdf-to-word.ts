@@ -37,7 +37,7 @@ export async function testPdfToWordConversion() {
     });
 
     // Test API endpoint accessibility
-    const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+    const apiUrl = "https://pdfpage-app.onrender.com/api";
     console.log("🌐 Testing API connectivity to:", apiUrl);
 
     try {

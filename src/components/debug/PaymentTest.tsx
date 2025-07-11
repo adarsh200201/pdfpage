@@ -44,8 +44,7 @@ export function PaymentTest() {
     try {
       // Test API Connection
       console.log("Testing API connection...");
-      const apiUrl =
-        import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+      const apiUrl = "https://pdfpage-app.onrender.com/api";
 
       try {
         const healthResponse = await fetch(`${apiUrl}/health`);

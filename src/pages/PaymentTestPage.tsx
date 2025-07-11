@@ -77,8 +77,9 @@ export default function PaymentTestPage() {
               <div>
                 <h4 className="font-semibold mb-2">2. Verify Backend</h4>
                 <p className="text-sm text-gray-600">
-                  Make sure the backend server is running on the correct port
-                  (usually localhost:5000) and the payments route is accessible.
+                  Make sure the backend server at
+                  https://pdfpage-app.onrender.com is accessible and the
+                  payments route is working.
                 </p>
               </div>
 

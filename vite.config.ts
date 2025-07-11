@@ -8,13 +8,7 @@ export default defineConfig({
     host: "localhost",
     port: 3000,
     strictPort: false,
-    proxy: {
-      "/api": {
-        target: "http://localhost:5000",
-        changeOrigin: true,
-        secure: false,
-      },
-    },
+    // Proxy disabled - using live API directly via VITE_API_URL
   },
   plugins: [react()],
   resolve: {
