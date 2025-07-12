@@ -71,26 +71,28 @@ const PdfToPowerPoint = () => {
           });
 
           // Convert PDF to PowerPoint using LibreOffice backend
-          const formData = new FormData();
-          formData.append("file", file);
-          formData.append("preserveLayout", "true");
-
-          const response = await fetch(
-            "https://pdfpage-app.onrender.com/api/pdf/pdf-to-powerpoint-libreoffice",
+          // Use the new service method for consistent error handling
+          const result = await PDFService.convertPdfToPowerPointLibreOffice(
+            file,
             {
-              method: "POST",
-              body: formData,
+              preserveLayout: true,
+              quality: "standard",
             },
           );
 
-          if (!response.ok) {
-            const errorData = await response.json().catch(() => ({}));
-            throw new Error(
-              errorData.message || `Conversion failed: ${response.status}`,
-            );
+          if (!result.success) {
+            throw new Error(result.error || "Conversion failed");
           }
 
-          const arrayBuffer = await response.arrayBuffer();
+          if (!result.data) {
+            throw new Error("No data received from conversion");
+          }
+
+          // Create blob from the ArrayBuffer data
+          const arrayBuffer = result.data;
+
+          // Validation is already handled in the service method
+
           const blob = new Blob([arrayBuffer], {
             type: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
           });
@@ -310,9 +312,15 @@ ${slides
             LibreOffice. Get accurate conversion with proper formatting
             preservation.
           </p>
-          <div className="mt-4 inline-flex items-center px-3 py-1 rounded-full text-sm bg-green-100 text-green-800">
-            <span className="mr-2">🚀</span>
-            Powered by LibreOffice for accurate results!
+          <div className="mt-4 space-y-2">
+            <div className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-green-100 text-green-800">
+              <span className="mr-2">🚀</span>
+              Powered by LibreOffice for accurate results!
+            </div>
+            <div className="text-sm text-text-light">
+              <strong>Tip:</strong> For best results, use PDFs that contain text
+              and images rather than scanned documents.
+            </div>
           </div>
         </div>
 

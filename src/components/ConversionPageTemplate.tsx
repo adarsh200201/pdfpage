@@ -15,7 +15,7 @@ import {
   ArrowRight,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import LibreOfficeService from "@/services/libreOfficeService";
+import { LibreOfficeService } from "@/services/libreOfficeService";
 
 interface ConversionPageTemplateProps {
   title: string;

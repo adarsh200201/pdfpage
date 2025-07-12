@@ -4004,7 +4004,7 @@ ${text.replace(/\n/g, "\\par ").replace(/[{}\\]/g, "")}
         !(pdfBytes instanceof Uint8Array) ||
         pdfBytes.length < 100
       ) {
-        console.error(`❌ Placeholder PDF for page ${pageNumber} is invalid`);
+        console.error(`��� Placeholder PDF for page ${pageNumber} is invalid`);
         throw new Error(
           `Failed to create valid placeholder for page ${pageNumber}`,
         );
@@ -5328,17 +5328,20 @@ ${text.replace(/\n/g, "\\par ").replace(/[{}\\]/g, "")}
 
       console.log("🔄 Sending Excel file to backend LibreOffice service...");
       console.log(
-        `🌐 Target URL: ${this.API_URL}/pdf/excel-to-pdf-libreoffice`,
+        `🌐 Target URL: ${this.API_URL}/api/pdf/excel-to-pdf-libreoffice`,
       );
 
       let response;
       try {
-        response = await fetch(`${this.API_URL}/pdf/excel-to-pdf-libreoffice`, {
-          method: "POST",
-          headers: this.getAuthHeaders(),
-          body: formData,
-          signal: controller.signal,
-        });
+        response = await fetch(
+          `${this.API_URL}/api/pdf/excel-to-pdf-libreoffice`,
+          {
+            method: "POST",
+            headers: this.getAuthHeaders(),
+            body: formData,
+            signal: controller.signal,
+          },
+        );
         clearTimeout(timeoutId);
       } catch (error) {
         clearTimeout(timeoutId);
@@ -5513,13 +5516,13 @@ ${text.replace(/\n/g, "\\par ").replace(/[{}\\]/g, "")}
         "🔄 Sending PowerPoint file to backend LibreOffice service...",
       );
       console.log(
-        `🌐 Target URL: ${this.API_URL}/pdf/powerpoint-to-pdf-libreoffice`,
+        `🌐 Target URL: ${this.API_URL}/api/pdf/powerpoint-to-pdf-libreoffice`,
       );
 
       let response;
       try {
         response = await fetch(
-          `${this.API_URL}/pdf/powerpoint-to-pdf-libreoffice`,
+          `${this.API_URL}/api/pdf/powerpoint-to-pdf-libreoffice`,
           {
             method: "POST",
             headers: this.getAuthHeaders(),
@@ -5607,6 +5610,133 @@ ${text.replace(/\n/g, "\\par ").replace(/[{}\\]/g, "")}
     }
   }
 
+  // Convert PDF to PowerPoint using LibreOffice backend
+  static async convertPdfToPowerPointLibreOffice(
+    file: File,
+    options: {
+      preserveLayout?: boolean;
+      quality?: "standard" | "high" | "premium";
+    } = {},
+  ): Promise<{
+    success: boolean;
+    data?: ArrayBuffer;
+    error?: string;
+    stats?: {
+      pages: number;
+      fileSize: number;
+      processingTime: number;
+      conversionEngine: string;
+    };
+  }> {
+    const { preserveLayout = true, quality = "standard" } = options;
+
+    console.log(
+      "🔧 Using Backend LibreOffice in Docker for 100% accurate PDF to PowerPoint conversion...",
+    );
+
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("preserveLayout", preserveLayout.toString());
+      formData.append("quality", quality);
+
+      console.log(
+        `📁 PDF file details: ${file.name}, size: ${file.size}, type: ${file.type}`,
+      );
+
+      // Validate file
+      if (!file.name.match(/\.pdf$/i)) {
+        throw new Error("File must be a PDF document (.pdf)");
+      }
+
+      // Create abort controller for timeout
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 180000); // 3 minutes timeout
+
+      console.log("🔄 Sending PDF file to backend LibreOffice service...");
+      console.log(
+        `🌐 Target URL: ${this.API_URL}/api/pdf/pdf-to-powerpoint-libreoffice`,
+      );
+
+      let response;
+      try {
+        response = await fetch(
+          `${this.API_URL}/api/pdf/pdf-to-powerpoint-libreoffice`,
+          {
+            method: "POST",
+            headers: this.getAuthHeaders(),
+            body: formData,
+            signal: controller.signal,
+          },
+        );
+
+        console.log(
+          `📊 LibreOffice PDF to PowerPoint endpoint response: ${response.status} ${response.statusText}`,
+        );
+        clearTimeout(timeoutId);
+      } catch (fetchError) {
+        clearTimeout(timeoutId);
+        console.error("🚨 Fetch request failed:", {
+          url: `${this.API_URL}/api/pdf/pdf-to-powerpoint-libreoffice`,
+          error: fetchError,
+        });
+        throw new Error("Network error during PDF to PowerPoint conversion");
+      }
+
+      if (!response.ok) {
+        let errorMessage = `PDF to PowerPoint conversion failed: ${response.status}`;
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.message || errorMessage;
+        } catch {
+          // Response is not JSON, use default message
+        }
+        throw new Error(errorMessage);
+      }
+
+      const arrayBuffer = await response.arrayBuffer();
+
+      // Validate PowerPoint file
+      if (arrayBuffer.byteLength < 1000) {
+        throw new Error("Generated PowerPoint file is too small");
+      }
+
+      // Check PowerPoint file signature (ZIP header for PPTX)
+      const header = new Uint8Array(arrayBuffer.slice(0, 4));
+      if (header[0] !== 0x50 || header[1] !== 0x4b) {
+        throw new Error("Generated file is not a valid PowerPoint format");
+      }
+
+      // Get stats from headers
+      const pages = parseInt(response.headers.get("X-Page-Count") || "0");
+      const processingTime = parseInt(
+        response.headers.get("X-Processing-Time") || "0",
+      );
+      const conversionEngine =
+        response.headers.get("X-Conversion-Engine") || "LibreOffice";
+
+      return {
+        success: true,
+        data: arrayBuffer,
+        stats: {
+          pages,
+          fileSize: arrayBuffer.byteLength,
+          processingTime,
+          conversionEngine,
+        },
+      };
+    } catch (error) {
+      console.error(
+        "Error in LibreOffice PDF to PowerPoint conversion:",
+        error,
+      );
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : "Unknown error",
+      };
+    }
+  }
+
   // Convert Text to PDF using LibreOffice backend
   static async convertTextToPdfLibreOffice(
     file: File,
@@ -5674,17 +5804,22 @@ ${text.replace(/\n/g, "\\par ").replace(/[{}\\]/g, "")}
       const timeoutId = setTimeout(() => controller.abort(), 120000); // 2 minutes timeout
 
       console.log("🔄 Sending Text file to backend LibreOffice service...");
-      console.log(`🌐 Target URL: ${this.API_URL}/pdf/text-to-pdf-libreoffice`);
+      console.log(
+        `🌐 Target URL: ${this.API_URL}/api/pdf/text-to-pdf-libreoffice`,
+      );
 
       let response;
       try {
         // Use ONLY LibreOffice endpoint - NO FALLBACKS
-        response = await fetch(`${this.API_URL}/pdf/text-to-pdf-libreoffice`, {
-          method: "POST",
-          headers: this.getAuthHeaders(),
-          body: formData,
-          signal: controller.signal,
-        });
+        response = await fetch(
+          `${this.API_URL}/api/pdf/text-to-pdf-libreoffice`,
+          {
+            method: "POST",
+            headers: this.getAuthHeaders(),
+            body: formData,
+            signal: controller.signal,
+          },
+        );
 
         console.log(
           `📊 LibreOffice Text endpoint response: ${response.status} ${response.statusText}`,
@@ -6074,7 +6209,7 @@ ${text.replace(/\n/g, "\\par ").replace(/[{}\\]/g, "")}
       const timeoutId = setTimeout(() => controller.abort(), 120000);
 
       const response = await fetch(
-        `${this.API_URL}/pdf/odt-to-pdf-libreoffice`,
+        `${this.API_URL}/api/pdf/odt-to-pdf-libreoffice`,
         {
           method: "POST",
           headers: this.getAuthHeaders(),
@@ -6168,7 +6303,7 @@ ${text.replace(/\n/g, "\\par ").replace(/[{}\\]/g, "")}
       const timeoutId = setTimeout(() => controller.abort(), 120000);
 
       const response = await fetch(
-        `${this.API_URL}/pdf/rtf-to-pdf-libreoffice`,
+        `${this.API_URL}/api/pdf/rtf-to-pdf-libreoffice`,
         {
           method: "POST",
           headers: this.getAuthHeaders(),

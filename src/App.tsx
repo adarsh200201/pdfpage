@@ -115,6 +115,18 @@ import EditPdf from "./pages/EditPdf";
 
 // Import enhanced JPG to PDF component
 import JpgToPdf from "./pages/JpgToPdf";
+import TextToPdf from "./pages/TextToPdf";
+import OdtToPdf from "./pages/OdtToPdf";
+import RtfToPdf from "./pages/RtfToPdf";
+import CsvToXlsx from "./pages/CsvToXlsx";
+import OdtToDocx from "./pages/OdtToDocx";
+import RtfToDocx from "./pages/RtfToDocx";
+import DocxToOdt from "./pages/DocxToOdt";
+import XlsToCsv from "./pages/XlsToCsv";
+import XlsxToOds from "./pages/XlsxToOds";
+import PptxToOdp from "./pages/PptxToOdp";
+import PptxToPng from "./pages/PptxToPng";
+import DocToOdt from "./pages/DocToOdt";
 
 // Import the comprehensive PDF editor
 import SignPdf from "./pages/SignPdf";
@@ -268,12 +280,7 @@ const App = () => {
                       <Route path="/word-to-pdf" element={<WordToPdf />} />
                       <Route
                         path="/pdf-to-powerpoint"
-                        element={
-                          <Navigate
-                            to="/coming-soon?tool=pdf-to-powerpoint"
-                            replace
-                          />
-                        }
+                        element={<PdfToPowerPoint />}
                       />
                       <Route path="/pdf-to-excel" element={<PdfToExcel />} />
                       <Route path="/jpg-to-pdf" element={<JpgToPdf />} />
@@ -283,6 +290,18 @@ const App = () => {
                       />
                       <Route path="/excel-to-pdf" element={<ExcelToPdf />} />
                       <Route path="/html-to-pdf" element={<HtmlToPdf />} />
+                      <Route path="/text-to-pdf" element={<TextToPdf />} />
+                      <Route path="/odt-to-pdf" element={<OdtToPdf />} />
+                      <Route path="/rtf-to-pdf" element={<RtfToPdf />} />
+                      <Route path="/csv-to-xlsx" element={<CsvToXlsx />} />
+                      <Route path="/odt-to-docx" element={<OdtToDocx />} />
+                      <Route path="/rtf-to-docx" element={<RtfToDocx />} />
+                      <Route path="/docx-to-odt" element={<DocxToOdt />} />
+                      <Route path="/xls-to-csv" element={<XlsToCsv />} />
+                      <Route path="/xlsx-to-ods" element={<XlsxToOds />} />
+                      <Route path="/pptx-to-odp" element={<PptxToOdp />} />
+                      <Route path="/pptx-to-png" element={<PptxToPng />} />
+                      <Route path="/doc-to-odt" element={<DocToOdt />} />
 
                       {/* AI-Powered Tools - ENHANCED FEATURES */}
                       <Route

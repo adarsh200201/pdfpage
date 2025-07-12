@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
+import { useToast } from "@/hooks/use-toast";
 import Header from "@/components/layout/Header";
 import FileUpload from "@/components/ui/file-upload";
 import { Button } from "@/components/ui/button";
@@ -35,7 +36,6 @@ import {
 import { cn } from "@/lib/utils";
 import { PDFService } from "@/services/pdfService";
 import { useAuth } from "@/contexts/AuthContext";
-import { useToast } from "@/hooks/use-toast";
 import AuthModal from "@/components/auth/AuthModal";
 
 interface ProcessedFile {
@@ -326,18 +326,66 @@ const BasePDFTool = ({
 // Individual tool implementations
 
 export const PdfToPowerPoint = () => {
+  const { toast } = useToast();
+
   const handleProcess = async (files: ProcessedFile[]) => {
     const file = files[0];
-    // Convert PDF to PowerPoint using service
-    const result = await PDFService.convertPdfToWord(file.file); // Placeholder logic
-    PDFService.downloadFile(result, `${file.name.replace(".pdf", "")}.pptx`);
-    await PDFService.trackUsage("pdf-to-powerpoint", 1, file.size);
+
+    try {
+      // Show real-time feedback
+      toast({
+        title: "🔄 Converting PDF to PowerPoint...",
+        description: "Using LibreOffice for accurate conversion",
+      });
+
+      // Convert PDF to PowerPoint using LibreOffice service
+      const result = await PDFService.convertPdfToPowerPointLibreOffice(
+        file.file,
+      );
+
+      if (result && result.success) {
+        // Download the converted file
+        const fileName = `${file.name.replace(".pdf", "")}.pptx`;
+
+        // Create blob from ArrayBuffer and download
+        const blob = new Blob([result.data], {
+          type: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+        });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = fileName;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+
+        // Track usage
+        await PDFService.trackUsage("pdf-to-powerpoint", 1, file.size);
+
+        // Success notification
+        toast({
+          title: "✅ Conversion Complete!",
+          description: `${fileName} is ready for download`,
+        });
+      } else {
+        throw new Error(result?.error || "Conversion failed");
+      }
+    } catch (error) {
+      console.error("PDF to PowerPoint conversion error:", error);
+      toast({
+        title: "❌ Conversion Failed",
+        description:
+          "There was an error converting your PDF. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   return (
     <BasePDFTool
       toolName="PDF to PowerPoint"
-      description="Convert PDF files to PowerPoint presentations with perfect formatting."
+      description="Convert PDF files to editable PowerPoint presentations (.pptx) using professional LibreOffice engine. Maintains formatting, images, and text structure with real-time conversion feedback."
       icon={Presentation}
       color="red"
       onProcess={handleProcess}

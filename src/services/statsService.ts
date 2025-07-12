@@ -66,7 +66,9 @@ class StatsService {
             if (
               error.name !== "AbortError" &&
               error.name !== "RequestCancelledError" &&
-              error.message !== "Request was cancelled"
+              error.message !== "Request was cancelled" &&
+              !error.message.includes("aborted") &&
+              !error.message.includes("signal is aborted")
             ) {
               errorTracker.trackError(error, "statsService.getStats");
               this.logError(error);
@@ -80,7 +82,15 @@ class StatsService {
   private async fetchStatsFromAPI(): Promise<StatsData> {
     // Cancel any existing request
     if (this.currentController) {
-      this.currentController.abort();
+      try {
+        this.currentController.abort();
+      } catch (abortError) {
+        // Ignore abort errors from previous requests
+        console.debug(
+          "StatsService: Previous request abort ignored:",
+          abortError,
+        );
+      }
     }
 
     const controller = new AbortController();
@@ -127,7 +137,12 @@ class StatsService {
       clearTimeout(abortTimeoutId);
 
       // Handle AbortError gracefully - this is intentional cancellation
-      if (error instanceof Error && error.name === "AbortError") {
+      if (
+        error instanceof Error &&
+        (error.name === "AbortError" ||
+          error.message.includes("aborted") ||
+          error.message.includes("signal is aborted"))
+      ) {
         // Create a specific error type for cancelled requests
         const cancelError = new Error("Request was cancelled");
         cancelError.name = "RequestCancelledError";
@@ -140,6 +155,9 @@ class StatsService {
       if (this.currentController === controller) {
         this.currentController = null;
       }
+
+      // Ensure any pending abort timeout is cleared
+      clearTimeout(abortTimeoutId);
     }
   }
 

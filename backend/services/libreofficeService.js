@@ -517,18 +517,38 @@ class LibreOfficeService {
       const outputDir = path.dirname(outputPath);
       const executable = this.getExecutablePath();
 
-      // Use Draw to convert PDF to PowerPoint
+      // Try multiple conversion approaches for better compatibility
       let command = [
         executable,
         "--headless",
-        "--draw",
         "--convert-to",
-        "pptx",
+        "pptx:impress_MS_PowerPoint_2007_XML", // Use specific PPTX export filter
+        "--outdir",
+        outputDir,
+        inputPath,
       ];
-      command.push("--outdir", outputDir);
-      command.push(inputPath);
 
-      const result = await this.executeCommand(command, timeout);
+      let result;
+      try {
+        result = await this.executeCommand(command, timeout);
+      } catch (error) {
+        console.warn(
+          "First conversion attempt failed, trying fallback method...",
+        );
+
+        // Fallback: Use basic pptx format without specific filter
+        command = [
+          executable,
+          "--headless",
+          "--convert-to",
+          "pptx",
+          "--outdir",
+          outputDir,
+          inputPath,
+        ];
+
+        result = await this.executeCommand(command, timeout);
+      }
 
       // Verify output file exists
       const outputExists = await this.fileExists(outputPath);
@@ -536,12 +556,26 @@ class LibreOfficeService {
         throw new Error("LibreOffice failed to create output file");
       }
 
-      console.log(`✅ PDF to PPTX conversion successful`);
+      // Validate the generated PPTX file
+      const stats = await fs.stat(outputPath);
+      if (stats.size < 1000) {
+        throw new Error("Generated PPTX file is suspiciously small");
+      }
+
+      // Basic validation: Check if it's a valid ZIP file (PPTX is ZIP-based)
+      const fileBuffer = await fs.readFile(outputPath);
+      const header = fileBuffer.slice(0, 4);
+      if (header[0] !== 0x50 || header[1] !== 0x4b) {
+        throw new Error("Generated file is not a valid PPTX format");
+      }
+
+      console.log(`✅ PDF to PPTX conversion successful (${stats.size} bytes)`);
       return {
         success: true,
         outputPath,
-        fileSize: (await fs.stat(outputPath)).size,
+        fileSize: stats.size,
         conversionMethod: "LibreOffice",
+        isValidPptx: true,
       };
     } catch (error) {
       console.error(`❌ PDF to PPTX conversion error:`, error);

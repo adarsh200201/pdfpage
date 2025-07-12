@@ -1,7 +1,7 @@
 import React from "react";
 import { Presentation, ArrowRight, Image } from "lucide-react";
 import ConversionPageTemplate from "@/components/ConversionPageTemplate";
-import LibreOfficeService from "@/services/libreOfficeService";
+import { LibreOfficeService } from "@/services/libreOfficeService";
 
 export default function PptxToPng() {
   return (
