@@ -2679,7 +2679,7 @@ ${text.replace(/\n/g, "\\par ").replace(/[{}\\]/g, "")}
       const scale = quality < 0.3 ? 0.5 : quality < 0.5 ? 0.7 : 0.8;
 
       console.log(
-        `🖼️ Canvas compression: quality=${jpegQuality}, scale=${scale}`,
+        `🖼��� Canvas compression: quality=${jpegQuality}, scale=${scale}`,
       );
 
       for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
@@ -3398,7 +3398,7 @@ ${text.replace(/\n/g, "\\par ").replace(/[{}\\]/g, "")}
           const catalog = context.trailerInfo.Root;
           if (catalog.Metadata) {
             catalog.delete("Metadata");
-            console.log("🗑������ Removed XMP metadata for compression");
+            console.log("🗑������� Removed XMP metadata for compression");
           }
         }
       } catch (xmpError) {
@@ -5508,16 +5508,21 @@ ${text.replace(/\n/g, "\\par ").replace(/[{}\\]/g, "")}
         throw new Error("File must be a PowerPoint document (.ppt or .pptx)");
       }
 
-      // Create abort controller for timeout
+      // Create abort controller for timeout with better error handling
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 120000); // 2 minutes timeout
+      const TIMEOUT_DURATION = 300000; // 5 minutes timeout (increased from 2 minutes)
+      const timeoutId = setTimeout(() => {
+        console.log("⏰ PowerPoint conversion timeout reached, aborting...");
+        controller.abort();
+      }, TIMEOUT_DURATION);
 
       console.log(
         "🔄 Sending PowerPoint file to backend LibreOffice service...",
       );
       console.log(
-        `🌐 Target URL: ${this.API_URL}/api/pdf/powerpoint-to-pdf-libreoffice`,
+        `�� Target URL: ${this.API_URL}/api/pdf/powerpoint-to-pdf-libreoffice`,
       );
+      console.log(`⏱️ Timeout set to ${TIMEOUT_DURATION / 1000} seconds`);
 
       let response;
       try {
@@ -5535,19 +5540,56 @@ ${text.replace(/\n/g, "\\par ").replace(/[{}\\]/g, "")}
           `📊 LibreOffice PowerPoint endpoint response: ${response.status} ${response.statusText}`,
         );
         clearTimeout(timeoutId);
-      } catch (error) {
+      } catch (error: any) {
         clearTimeout(timeoutId);
+
+        // Handle different types of errors more gracefully
         if (error.name === "AbortError") {
+          console.error(
+            "❌ PowerPoint conversion was aborted (timeout or user cancellation)",
+          );
           throw new Error(
-            "LibreOffice PowerPoint conversion timed out after 2 minutes",
+            `PowerPoint conversion timed out after ${TIMEOUT_DURATION / 60000} minutes. This can happen with large or complex PowerPoint files. Please try with a smaller file or contact support.`,
           );
         }
-        throw error;
+
+        if (
+          error.name === "TypeError" &&
+          error.message.includes("Failed to fetch")
+        ) {
+          console.error("❌ Network error during PowerPoint conversion");
+          throw new Error(
+            "Network error during PowerPoint conversion. Please check your internet connection and try again.",
+          );
+        }
+
+        console.error(
+          "❌ Unexpected error during PowerPoint conversion:",
+          error,
+        );
+        throw new Error(
+          `PowerPoint conversion failed: ${error.message || "Unknown error"}`,
+        );
       }
 
       if (!response.ok) {
-        let errorMessage = `LibreOffice PowerPoint conversion failed: ${response.status}`;
+        let errorMessage = `PowerPoint conversion failed (${response.status}: ${response.statusText})`;
         let errorDetails = "";
+
+        // Provide more helpful error messages based on status codes
+        if (response.status === 413) {
+          errorMessage =
+            "PowerPoint file is too large. Please try with a smaller file.";
+        } else if (response.status === 422) {
+          errorMessage =
+            "PowerPoint file format is not supported or file is corrupted.";
+        } else if (response.status === 500) {
+          errorMessage =
+            "Server error during PowerPoint conversion. Please try again later.";
+        } else if (response.status === 503) {
+          errorMessage =
+            "LibreOffice service is temporarily unavailable. Please try again in a few minutes.";
+        }
 
         // Only try to read the response body if it hasn't been consumed
         if (response.body && !response.bodyUsed) {
@@ -5558,20 +5600,24 @@ ${text.replace(/\n/g, "\\par ").replace(/[{}\\]/g, "")}
             // Try to parse as JSON first
             try {
               const errorData = JSON.parse(errorText);
-              errorMessage =
-                errorData.message || errorData.error || errorMessage;
+              const backendMessage = errorData.message || errorData.error;
+              if (backendMessage && backendMessage !== errorMessage) {
+                errorMessage = backendMessage;
+              }
               errorDetails = errorData.details || "";
             } catch (e) {
-              // If not JSON, use the raw text
-              errorMessage = errorText || errorMessage;
+              // If not JSON, use the raw text if it's more informative
+              if (
+                errorText &&
+                errorText.length < 200 &&
+                !errorText.includes("<html")
+              ) {
+                errorMessage = errorText;
+              }
             }
           } catch (e) {
             console.error("Could not read error response:", e);
-            errorMessage = `LibreOffice PowerPoint conversion failed: ${response.status} ${response.statusText}`;
           }
-        } else {
-          console.error("❌ Response body already consumed or empty");
-          errorMessage = `LibreOffice PowerPoint conversion failed: ${response.status} ${response.statusText}`;
         }
 
         const fullError = errorDetails
@@ -5582,6 +5628,19 @@ ${text.replace(/\n/g, "\\par ").replace(/[{}\\]/g, "")}
 
       const blob = await response.blob();
 
+      // Validate the response blob
+      if (!blob || blob.size === 0) {
+        throw new Error("Received empty response from LibreOffice service");
+      }
+
+      // Validate PDF content type
+      if (
+        !blob.type.includes("pdf") &&
+        !blob.type.includes("application/octet-stream")
+      ) {
+        console.warn(`⚠️ Unexpected content type: ${blob.type}`);
+      }
+
       // Get stats from headers
       const pages = parseInt(response.headers.get("X-Page-Count") || "0");
       const processingTime = parseInt(
@@ -5589,6 +5648,13 @@ ${text.replace(/\n/g, "\\par ").replace(/[{}\\]/g, "")}
       );
       const conversionEngine =
         response.headers.get("X-Conversion-Engine") || "LibreOffice";
+
+      console.log(`✅ PowerPoint conversion completed successfully:`, {
+        pages,
+        outputSize: `${(blob.size / 1024 / 1024).toFixed(2)}MB`,
+        processingTime: `${processingTime}ms`,
+        conversionEngine,
+      });
 
       return {
         blob,
@@ -5599,13 +5665,22 @@ ${text.replace(/\n/g, "\\par ").replace(/[{}\\]/g, "")}
           conversionEngine,
         },
       };
-    } catch (error) {
+    } catch (error: any) {
       console.error(
         "Error in LibreOffice PowerPoint to PDF conversion:",
         error,
       );
+
+      // Don't wrap the error again if it's already properly formatted
+      if (
+        error.message &&
+        !error.message.startsWith("LibreOffice PowerPoint conversion failed:")
+      ) {
+        throw error;
+      }
+
       throw new Error(
-        `LibreOffice PowerPoint conversion failed: ${error instanceof Error ? error.message : "Unknown error"}`,
+        `PowerPoint conversion failed: ${error instanceof Error ? error.message : "Unknown error"}`,
       );
     }
   }
@@ -5684,28 +5759,85 @@ ${text.replace(/\n/g, "\\par ").replace(/[{}\\]/g, "")}
       }
 
       if (!response.ok) {
-        let errorMessage = `PDF to PowerPoint conversion failed: ${response.status}`;
+        let errorMessage = `PDF to PowerPoint conversion failed (${response.status}: ${response.statusText})`;
+        let errorDetails = "";
+
+        // Provide specific error messages based on status codes
+        if (response.status === 500) {
+          errorMessage =
+            "LibreOffice service encountered an internal error during PDF to PowerPoint conversion";
+        } else if (response.status === 413) {
+          errorMessage =
+            "PDF file is too large for conversion. Please try with a smaller file.";
+        } else if (response.status === 422) {
+          errorMessage =
+            "PDF file format is not supported or file is corrupted.";
+        } else if (response.status === 503) {
+          errorMessage =
+            "LibreOffice service is temporarily unavailable. Please try again in a few minutes.";
+        }
+
         try {
           const errorData = await response.json();
-          errorMessage = errorData.message || errorMessage;
-        } catch {
-          // Response is not JSON, use default message
+          const backendMessage = errorData.message || errorData.error;
+
+          // Check for specific LibreOffice error patterns
+          if (backendMessage) {
+            if (backendMessage.includes("failed to create output file")) {
+              errorMessage =
+                "LibreOffice could not convert this PDF to PowerPoint. This may happen with:\n• Complex PDF layouts or formatting\n• Password-protected or encrypted PDFs\n• PDFs with unsupported content types\n• Corrupted or damaged PDF files\n\nTry converting a simpler PDF or contact support for assistance.";
+            } else if (backendMessage.includes("timeout")) {
+              errorMessage =
+                "PDF conversion took too long and timed out. Try with a smaller or simpler PDF file.";
+            } else if (backendMessage.includes("memory")) {
+              errorMessage =
+                "PDF file is too complex and requires too much memory. Try with a smaller file.";
+            } else {
+              errorMessage = backendMessage;
+            }
+          }
+
+          errorDetails = errorData.details || "";
+        } catch (e) {
+          // Response is not JSON or can't be read, keep our custom message
+          console.error("Could not parse error response:", e);
         }
-        throw new Error(errorMessage);
+
+        const fullError = errorDetails
+          ? `${errorMessage} (${errorDetails})`
+          : errorMessage;
+        throw new Error(fullError);
       }
 
       const arrayBuffer = await response.arrayBuffer();
 
       // Validate PowerPoint file
       if (arrayBuffer.byteLength < 1000) {
-        throw new Error("Generated PowerPoint file is too small");
+        throw new Error(
+          "Generated PowerPoint file is too small. The conversion may have failed on the server.",
+        );
       }
 
       // Check PowerPoint file signature (ZIP header for PPTX)
       const header = new Uint8Array(arrayBuffer.slice(0, 4));
       if (header[0] !== 0x50 || header[1] !== 0x4b) {
-        throw new Error("Generated file is not a valid PowerPoint format");
+        console.error(
+          "Invalid file header:",
+          Array.from(header)
+            .map((b) => b.toString(16).padStart(2, "0"))
+            .join(" "),
+        );
+        throw new Error(
+          "Generated file is not a valid PowerPoint format. LibreOffice may have encountered an error during conversion.",
+        );
       }
+
+      console.log(
+        `✅ PDF to PowerPoint conversion successful: ${(arrayBuffer.byteLength / 1024 / 1024).toFixed(2)}MB`,
+      );
+      console.log(
+        `📊 Conversion stats: ${pages} pages, ${processingTime}ms processing time`,
+      );
 
       // Get stats from headers
       const pages = parseInt(response.headers.get("X-Page-Count") || "0");

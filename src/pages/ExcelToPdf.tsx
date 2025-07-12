@@ -105,6 +105,12 @@ const ExcelToPdf = () => {
       return;
     }
 
+    // Prevent multiple simultaneous conversion attempts
+    if (isProcessing) {
+      console.log("Conversion already in progress, ignoring duplicate request");
+      return;
+    }
+
     console.log("Starting conversion...");
     setIsProcessing(true);
 
@@ -152,8 +158,18 @@ const ExcelToPdf = () => {
             );
 
             const apiUrl = "https://pdfpage-app.onrender.com/api";
-            const response = await fetch(`${apiUrl}/pdf/excel-to-pdf`, {
+
+            // Get auth token if available
+            const getAuthHeaders = (): Record<string, string> => {
+              const token =
+                localStorage.getItem("pdfpage_token") ||
+                sessionStorage.getItem("pdfpage_token");
+              return token ? { Authorization: `Bearer ${token}` } : {};
+            };
+
+            const response = await fetch(`${apiUrl}/libreoffice/xlsx-to-pdf`, {
               method: "POST",
+              headers: getAuthHeaders(),
               body: formData,
             });
 
@@ -175,13 +191,25 @@ const ExcelToPdf = () => {
               const blob = new Blob([arrayBuffer], { type: "application/pdf" });
               conversionResult = { blob, method: "Server-side" };
             } else {
-              throw new Error("Server conversion failed");
+              const errorText = await response
+                .text()
+                .catch(() => "Unknown error");
+              throw new Error(
+                `Server conversion failed (${response.status}): ${errorText}`,
+              );
             }
-          } catch (serverError) {
+          } catch (serverError: any) {
             console.warn(
               "Server conversion failed, trying client-side:",
               serverError,
             );
+
+            // Show user-friendly error message
+            toast({
+              title: "Server conversion failed",
+              description: "Falling back to client-side conversion...",
+              variant: "destructive",
+            });
 
             // Fallback to client-side conversion
             setFiles((prev) =>

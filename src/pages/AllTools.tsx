@@ -108,11 +108,28 @@ const BasePDFTool = ({
       });
     } catch (error: any) {
       console.error(`Error in ${toolName}:`, error);
+
+      // Format error message for better user experience
+      let errorDescription =
+        error.message || `Failed to process files. Please try again.`;
+
+      // Truncate very long error messages but preserve important info
+      if (errorDescription.length > 300) {
+        const lines = errorDescription.split("\n");
+        if (lines.length > 1) {
+          // Keep first line and add indication of more info
+          errorDescription = lines[0] + "\n\n(See console for full details)";
+        } else {
+          // Truncate long single line
+          errorDescription = errorDescription.substring(0, 297) + "...";
+        }
+      }
+
       toast({
-        title: "Error",
-        description:
-          error.message || `Failed to process files. Please try again.`,
+        title: `${toolName} Failed`,
+        description: errorDescription,
         variant: "destructive",
+        duration: 8000, // Show error longer for complex messages
       });
     } finally {
       setIsProcessing(false);
@@ -331,16 +348,42 @@ export const PdfToPowerPoint = () => {
   const handleProcess = async (files: ProcessedFile[]) => {
     const file = files[0];
 
+    // Validate file size (50MB limit for PDF to PowerPoint)
+    const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
+    if (file.file.size > MAX_FILE_SIZE) {
+      throw new Error(
+        `PDF file is too large (${(file.file.size / 1024 / 1024).toFixed(1)}MB). Maximum size for PDF to PowerPoint conversion is 50MB. Please try with a smaller PDF file.`,
+      );
+    }
+
+    // Check if file is actually a PDF
+    if (
+      !file.file.type.includes("pdf") &&
+      !file.name.toLowerCase().endsWith(".pdf")
+    ) {
+      throw new Error(
+        "Please select a valid PDF file for conversion to PowerPoint.",
+      );
+    }
+
     try {
-      // Show real-time feedback
+      console.log(
+        `🎯 Starting PDF to PowerPoint conversion for: ${file.name} (${(file.file.size / 1024 / 1024).toFixed(2)}MB)`,
+      );
+
+      // Show real-time feedback with more detailed info
       toast({
         title: "🔄 Converting PDF to PowerPoint...",
-        description: "Using LibreOffice for accurate conversion",
+        description: `Processing ${file.name} using LibreOffice engine`,
       });
 
       // Convert PDF to PowerPoint using LibreOffice service
       const result = await PDFService.convertPdfToPowerPointLibreOffice(
         file.file,
+        {
+          preserveLayout: true,
+          quality: "high",
+        },
       );
 
       if (result && result.success) {
@@ -371,13 +414,44 @@ export const PdfToPowerPoint = () => {
       } else {
         throw new Error(result?.error || "Conversion failed");
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("PDF to PowerPoint conversion error:", error);
+
+      // Get more detailed error message
+      let errorDescription =
+        error.message ||
+        "There was an error converting your PDF. Please try again.";
+
+      // Provide specific guidance for common error patterns
+      if (errorDescription.includes("LibreOffice could not convert")) {
+        // Already has detailed guidance, keep it
+      } else if (errorDescription.includes("too large")) {
+        errorDescription =
+          "PDF file is too large. Try with a smaller file (under 50MB).";
+      } else if (errorDescription.includes("Network error")) {
+        errorDescription =
+          "Network connection error. Please check your internet and try again.";
+      } else if (errorDescription.includes("timeout")) {
+        errorDescription =
+          "Conversion timed out. Try with a smaller or simpler PDF file.";
+      } else if (errorDescription.includes("not a valid")) {
+        errorDescription =
+          "The PDF file appears to be corrupted or invalid. Please try with a different PDF.";
+      } else if (errorDescription.length > 300) {
+        // Truncate very long messages but preserve important info
+        const lines = errorDescription.split("\n");
+        if (lines.length > 1) {
+          errorDescription = lines[0] + "\n\n(See console for full details)";
+        } else {
+          errorDescription = errorDescription.substring(0, 297) + "...";
+        }
+      }
+
       toast({
-        title: "❌ Conversion Failed",
-        description:
-          "There was an error converting your PDF. Please try again.",
+        title: "❌ PDF to PowerPoint Conversion Failed",
+        description: errorDescription,
         variant: "destructive",
+        duration: 10000, // Show longer for detailed messages
       });
     }
   };
@@ -1364,7 +1438,20 @@ export const RedactPdf = () => {
 export const PowerPointToPdf = () => {
   const handleProcess = async (files: ProcessedFile[]) => {
     const file = files[0];
+
+    // Validate file size (100MB limit)
+    const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB
+    if (file.file.size > MAX_FILE_SIZE) {
+      throw new Error(
+        `PowerPoint file is too large (${(file.file.size / 1024 / 1024).toFixed(1)}MB). Maximum size is 100MB. Please compress your PowerPoint file or split it into smaller presentations.`,
+      );
+    }
+
     try {
+      console.log(
+        `🎯 Starting PowerPoint to PDF conversion for: ${file.name} (${(file.file.size / 1024 / 1024).toFixed(2)}MB)`,
+      );
+
       // Use LibreOffice conversion for PowerPoint
       const conversionResult =
         await PDFService.convertPowerPointToPdfLibreOffice(file.file, {
@@ -1375,6 +1462,10 @@ export const PowerPointToPdf = () => {
           orientation: "auto",
         });
 
+      console.log(
+        `✅ PowerPoint conversion successful: ${conversionResult.stats.pages} pages, ${(conversionResult.blob.size / 1024 / 1024).toFixed(2)}MB`,
+      );
+
       const downloadUrl = URL.createObjectURL(conversionResult.blob);
       const link = document.createElement("a");
       link.href = downloadUrl;
@@ -1383,9 +1474,31 @@ export const PowerPointToPdf = () => {
       URL.revokeObjectURL(downloadUrl);
 
       await PDFService.trackUsage("powerpoint-to-pdf", 1, file.size);
-    } catch (error) {
+    } catch (error: any) {
       console.error("PowerPoint conversion failed:", error);
-      throw error;
+
+      // Provide more user-friendly error messages
+      let userMessage = error.message || "PowerPoint conversion failed";
+
+      // Check for specific error patterns and provide helpful guidance
+      if (userMessage.includes("timed out")) {
+        userMessage +=
+          "\n\nTips to resolve timeout issues:\n• Try with a smaller PowerPoint file\n• Reduce image quality in your presentation\n• Remove unnecessary animations or media\n• Split large presentations into smaller parts";
+      } else if (userMessage.includes("Network error")) {
+        userMessage +=
+          "\n\nPlease check your internet connection and try again.";
+      } else if (
+        userMessage.includes("not supported") ||
+        userMessage.includes("corrupted")
+      ) {
+        userMessage +=
+          "\n\nPlease ensure your PowerPoint file is valid and try again with a different file.";
+      }
+
+      // Re-throw with enhanced message
+      const enhancedError = new Error(userMessage);
+      enhancedError.name = error.name || "PowerPointConversionError";
+      throw enhancedError;
     }
   };
 
