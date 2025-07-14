@@ -34,6 +34,8 @@ import {
   Heart,
   Layers,
   Type,
+  FileText,
+  Home,
 } from "lucide-react";
 
 // Floating Animation Component
@@ -652,6 +654,146 @@ const ImgPage = () => {
             style={{ display: "block", textAlign: "center" }}
             responsive={true}
           />
+        </div>
+      </div>
+
+      {/* Related Pages Navigation */}
+      <div className="bg-gradient-to-r from-gray-800 via-gray-900 to-black text-white">
+        <div className="container mx-auto px-6 py-12">
+          <div className="text-center mb-8">
+            <h2 className="text-3xl font-bold mb-4">Explore More Tools</h2>
+            <p className="text-gray-300 max-w-2xl mx-auto">
+              Discover our complete suite of professional tools for all your
+              digital needs
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {/* PDF Tools */}
+            <Link to="/available-tools" className="group">
+              <Card className="bg-white/10 backdrop-blur-sm border-white/20 hover:bg-white/20 transition-all duration-300 group-hover:scale-105">
+                <CardContent className="p-6 text-center">
+                  <div className="w-16 h-16 bg-gradient-to-r from-red-500 to-red-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                    <FileText className="w-8 h-8 text-white" />
+                  </div>
+                  <h3 className="text-xl font-bold mb-2">PDF Tools</h3>
+                  <p className="text-gray-300 text-sm mb-4">
+                    Complete PDF processing suite with merge, split, compress,
+                    and convert tools
+                  </p>
+                  <div className="flex items-center justify-center text-red-400 group-hover:text-red-300">
+                    <span className="text-sm font-medium mr-2">
+                      Explore PDF Tools
+                    </span>
+                    <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                  </div>
+                </CardContent>
+              </Card>
+            </Link>
+
+            {/* Favicon Tools */}
+            <Link to="/favicon" className="group">
+              <Card className="bg-white/10 backdrop-blur-sm border-white/20 hover:bg-white/20 transition-all duration-300 group-hover:scale-105">
+                <CardContent className="p-6 text-center">
+                  <div className="w-16 h-16 bg-gradient-to-r from-yellow-500 to-yellow-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                    <Star className="w-8 h-8 text-white" />
+                  </div>
+                  <h3 className="text-xl font-bold mb-2">Favicon Generator</h3>
+                  <p className="text-gray-300 text-sm mb-4">
+                    Create professional favicons from images, text, emojis, and
+                    logos
+                  </p>
+                  <div className="flex items-center justify-center text-yellow-400 group-hover:text-yellow-300">
+                    <span className="text-sm font-medium mr-2">
+                      Create Favicons
+                    </span>
+                    <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                  </div>
+                </CardContent>
+              </Card>
+            </Link>
+
+            {/* All Tools */}
+            <Link to="/" className="group">
+              <Card className="bg-white/10 backdrop-blur-sm border-white/20 hover:bg-white/20 transition-all duration-300 group-hover:scale-105">
+                <CardContent className="p-6 text-center">
+                  <div className="w-16 h-16 bg-gradient-to-r from-blue-500 to-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                    <Home className="w-8 h-8 text-white" />
+                  </div>
+                  <h3 className="text-xl font-bold mb-2">Home</h3>
+                  <p className="text-gray-300 text-sm mb-4">
+                    Return to homepage and discover all available tools and
+                    features
+                  </p>
+                  <div className="flex items-center justify-center text-blue-400 group-hover:text-blue-300">
+                    <span className="text-sm font-medium mr-2">Go Home</span>
+                    <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                  </div>
+                </CardContent>
+              </Card>
+            </Link>
+          </div>
+
+          {/* Quick Navigation */}
+          <div className="mt-12 pt-8 border-t border-gray-700">
+            <div className="text-center">
+              <h3 className="text-lg font-semibold mb-4">
+                Popular Image Tools
+              </h3>
+              <div className="flex flex-wrap justify-center gap-4">
+                <Link to="/img/compress">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="border-gray-600 text-gray-300 hover:bg-gray-700"
+                  >
+                    <Minimize2 className="w-3 h-3 mr-1" />
+                    Compress Image
+                  </Button>
+                </Link>
+                <Link to="/img/crop">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="border-gray-600 text-gray-300 hover:bg-gray-700"
+                  >
+                    <Crop className="w-3 h-3 mr-1" />
+                    Crop Image
+                  </Button>
+                </Link>
+                <Link to="/img/resize">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="border-gray-600 text-gray-300 hover:bg-gray-700"
+                  >
+                    <Move className="w-3 h-3 mr-1" />
+                    Resize Image
+                  </Button>
+                </Link>
+                <Link to="/img/remove-bg">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="border-gray-600 text-gray-300 hover:bg-gray-700"
+                  >
+                    <Layers className="w-3 h-3 mr-1" />
+                    Remove Background
+                  </Button>
+                </Link>
+                <Link to="/pricing">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="border-yellow-600 text-yellow-300 hover:bg-yellow-900/20"
+                  >
+                    <Crown className="w-3 h-3 mr-1" />
+                    Get Premium
+                  </Button>
+                </Link>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 

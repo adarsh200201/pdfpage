@@ -443,6 +443,38 @@ class ProfessionalCompressionService {
   }
 
   /**
+   * Compress PDF from buffer
+   */
+  async compressPDF(buffer, filename, options = {}) {
+    const { level = "medium" } = options;
+
+    // Write buffer to temporary file
+    const inputPath = path.join(
+      this.tempDir,
+      `input_${this.generateJobId()}_${filename}`,
+    );
+
+    try {
+      await fs.writeFile(inputPath, buffer);
+
+      // Compress the file
+      const result = await this.compressPdf(inputPath, level);
+
+      // Clean up input file
+      await fs.unlink(inputPath).catch(() => {});
+
+      return {
+        buffer: result.compressedBuffer,
+        stats: result.stats,
+      };
+    } catch (error) {
+      // Clean up input file on error
+      await fs.unlink(inputPath).catch(() => {});
+      throw error;
+    }
+  }
+
+  /**
    * Get queue status
    */
   getQueueStatus() {

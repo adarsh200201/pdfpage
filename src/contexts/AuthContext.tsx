@@ -91,7 +91,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const fetchUserData = async (token: string) => {
     try {
-      const apiUrl = "https://pdfpage-app.onrender.com/api";
+      const apiUrl = import.meta.env.VITE_API_URL || "/api";
       const response = await fetch(`${apiUrl}/auth/me`, {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -116,7 +116,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     try {
       console.log("🔵 [FRONTEND] Attempting to login user:", { email });
 
-      const apiUrl = "https://pdfpage-app.onrender.com/api";
+      const apiUrl = import.meta.env.VITE_API_URL || "/api";
       const response = await fetch(`${apiUrl}/auth/login`, {
         method: "POST",
         headers: {
@@ -169,7 +169,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         options,
       });
 
-      const apiUrl = "https://pdfpage-app.onrender.com/api";
+      const apiUrl = import.meta.env.VITE_API_URL || "/api";
       const response = await fetch(`${apiUrl}/auth/register`, {
         method: "POST",
         headers: {

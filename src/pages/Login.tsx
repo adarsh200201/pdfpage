@@ -313,7 +313,7 @@ const Login = () => {
       {/* Footer */}
       <div className="p-4 text-center border-t border-gray-100 bg-white/50">
         <p className="text-xs text-gray-500">
-          © 2024 {brandSettings.name}. All rights reserved. •{" "}
+          © 2025 G Initiations eServices Pvt. Ltd. All Rights Reserved. •{" "}
           <Link to="/privacy" className="hover:text-gray-700">
             Privacy
           </Link>{" "}

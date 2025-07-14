@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
-import PDFDebug from "@/components/debug/PDFDebug";
+
 import {
   CheckCircle,
   AlertCircle,
@@ -498,9 +498,6 @@ const Status = () => {
           <h2 className="text-3xl font-bold text-text-dark mb-8 text-center">
             PDF.js Configuration Debug
           </h2>
-          <div className="flex justify-center">
-            <PDFDebug />
-          </div>
         </section>
 
         {/* Contact Support */}

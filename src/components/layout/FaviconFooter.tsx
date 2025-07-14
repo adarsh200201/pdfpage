@@ -116,10 +116,10 @@ const FaviconFooter = () => {
                     <div className="flex items-center gap-2 text-sm text-gray-300">
                       <Mail className="h-4 w-4" />
                       <a
-                        href="mailto:hello@faviconpage.com"
+                        href="mailto:Hipdfpage@gmail.com"
                         className="hover:text-purple-400 transition-colors"
                       >
-                        hello@faviconpage.com
+                        Hipdfpage@gmail.com
                       </a>
                     </div>
                   </div>

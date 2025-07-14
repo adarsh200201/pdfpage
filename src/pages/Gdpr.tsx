@@ -402,10 +402,10 @@ const Gdpr = () => {
                 <p className="mt-2">
                   For urgent matters, contact us directly at{" "}
                   <a
-                    href="mailto:support@pdfpage.com"
+                    href="mailto:Hipdfpage@gmail.com"
                     className="text-brand-red hover:underline"
                   >
-                    support@pdfpage.com
+                    Hipdfpage@gmail.com
                   </a>
                 </p>
               </div>
@@ -491,15 +491,15 @@ const Gdpr = () => {
                   <p>
                     <strong>Email:</strong>{" "}
                     <a
-                      href="mailto:dpo@pdfpage.com"
+                      href="mailto:Hipdfpage@gmail.com"
                       className="text-brand-red hover:underline"
                     >
-                      dpo@pdfpage.com
+                      Hipdfpage@gmail.com
                     </a>
                   </p>
                   <p>
                     <strong>Contact:</strong> Data Protection Officer, PdfPage
-                    Inc., Email: privacy@pdfpage.com
+                    Inc., Email: Hipdfpage@gmail.com
                   </p>
                   <p>
                     <strong>Response Time:</strong> Within 30 days

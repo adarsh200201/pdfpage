@@ -206,22 +206,17 @@ const Pricing = () => {
             <Button
               className="w-full bg-brand-red hover:bg-red-600"
               onClick={() => handleSubscribe("monthly")}
-              disabled={
-                processingPlan === "monthly" ||
-                (user?.isPremium && user?.premiumPlan === "monthly")
-              }
+              disabled={processingPlan === "monthly"}
             >
               {processingPlan === "monthly" ? (
                 <>
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                   Processing...
                 </>
-              ) : user?.isPremium && user?.premiumPlan === "monthly" ? (
-                "Current Plan"
-              ) : user?.isPremium && user?.premiumPlan === "quarterly" ? (
+              ) : user?.isPremium ? (
                 <>
                   <Crown className="w-4 h-4 mr-2" />
-                  Upgrade (Switch to Monthly)
+                  Renew Monthly Plan
                 </>
               ) : (
                 <>
@@ -272,19 +267,14 @@ const Pricing = () => {
             <Button
               className="w-full bg-black text-white hover:bg-gray-800"
               onClick={() => handleSubscribe("quarterly")}
-              disabled={
-                processingPlan === "quarterly" ||
-                (user?.isPremium && user?.premiumPlan === "quarterly")
-              }
+              disabled={processingPlan === "quarterly"}
             >
               {processingPlan === "quarterly" ? (
                 <>
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                   Processing...
                 </>
-              ) : user?.isPremium && user?.premiumPlan === "quarterly" ? (
-                "Current Plan"
-              ) : user?.isPremium && user?.premiumPlan === "monthly" ? (
+              ) : user?.isPremium ? (
                 <>
                   <Crown className="w-4 h-4 mr-2" />
                   Upgrade to Quarterly

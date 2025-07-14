@@ -483,10 +483,10 @@ const Privacy = () => {
                   <p className="text-sm text-text-medium">
                     To exercise any of these rights, please contact us at{" "}
                     <a
-                      href="mailto:privacy@pdfpage.com"
+                      href="mailto:Hipdfpage@gmail.com"
                       className="text-brand-red hover:underline"
                     >
-                      privacy@pdfpage.com
+                      Hipdfpage@gmail.com
                     </a>
                     . We will respond to your request within 30 days.
                   </p>
@@ -512,10 +512,10 @@ const Privacy = () => {
                     <div>
                       <p className="font-medium text-text-dark">Email</p>
                       <a
-                        href="mailto:support@pdfpage.com"
+                        href="mailto:Hipdfpage@gmail.com"
                         className="text-brand-red hover:underline"
                       >
-                        support@pdfpage.com
+                        Hipdfpage@gmail.com
                       </a>
                     </div>
                   </div>
@@ -529,7 +529,7 @@ const Privacy = () => {
                         <br />
                         PDF Processing Platform
                         <br />
-                        Email: support@pdfpage.com
+                        Email: Hipdfpage@gmail.com
                       </p>
                     </div>
                   </div>

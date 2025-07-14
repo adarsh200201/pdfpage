@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import FloatingGoogleSignInPopup from "@/components/auth/FloatingGoogleSignInPopup";
+import ModernAuthBanner from "@/components/auth/FloatingGoogleSignInPopup";
 import { useFloatingGoogleSignIn } from "@/hooks/useFloatingGoogleSignIn";
 
 interface FloatingPopupContextType {
@@ -88,12 +88,12 @@ export const FloatingPopupProvider: React.FC<FloatingPopupProviderProps> = ({
     <FloatingPopupContext.Provider value={contextValue}>
       {children}
 
-      {/* Floating Google Sign-In Popup */}
-      <FloatingGoogleSignInPopup
-        show={showPopup}
-        onDismiss={dismissPopup}
-        usageCount={Math.max(usageCount, localUsageCount)}
-      />
+      {/* Modern Auth Banner */}
+      {showPopup && !isAuthenticated && (
+        <div className="fixed top-4 right-4 z-50 max-w-sm">
+          <ModernAuthBanner variant="minimal" className="shadow-lg" />
+        </div>
+      )}
     </FloatingPopupContext.Provider>
   );
 };

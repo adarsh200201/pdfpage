@@ -189,7 +189,7 @@ app.use("/api/stats", require("./routes/stats"));
 app.use("/api/diagnostics", require("./routes/ghostscript-diagnostic"));
 app.use("/api/libreoffice", require("./routes/libreoffice"));
 app.use("/api/libreoffice-strict", require("./routes/libreoffice-strict"));
-// app.use("/api/schema-test", require("./routes/schema-test"));
+app.use("/api/schema-test", require("./routes/schema-test"));
 
 // Test routes (for schema verification)
 if (

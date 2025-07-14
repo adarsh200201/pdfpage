@@ -7,7 +7,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
-import PDFRotateDebug from "@/components/debug/PDFRotateDebug";
+
 import {
   Upload,
   FileText,
@@ -724,9 +724,6 @@ const RotatePdfAdvanced = () => {
                   DEV
                 </span>
               </summary>
-              <div className="mb-6">
-                <PDFRotateDebug />
-              </div>
             </details>
           </div>
 

@@ -2,6 +2,238 @@
 @tailwind components;
 @tailwind utilities;
 
+/* PWA Styles */
+@layer base {
+  :root {
+    --pwa-primary: #e5322d;
+    --pwa-secondary: #ffc233;
+    --pwa-background: #ffffff;
+    --pwa-surface: #f8f9fa;
+    --pwa-text: #1a1a1a;
+    --pwa-text-secondary: #6b7280;
+  }
+
+  html {
+    /* Prevent zoom on input focus for iOS */
+    -webkit-text-size-adjust: 100%;
+    /* Enable momentum scrolling on iOS */
+    -webkit-overflow-scrolling: touch;
+    /* Improve font rendering */
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    /* Reset Google Translate margins */
+    top: 0px !important;
+    margin-top: 0px !important;
+    /* Prevent rubber band scrolling on iOS */
+    overscroll-behavior-y: none;
+    /* Improve touch responsiveness */
+    touch-action: manipulation;
+  }
+
+  /* PWA Install Button Styles */
+  .pwa-install-button {
+    background: var(--pwa-primary);
+    color: white;
+    border: none;
+    padding: 12px 20px;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 8px rgba(229, 50, 45, 0.2);
+  }
+
+  .pwa-install-button:hover {
+    background: #d12a26;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(229, 50, 45, 0.3);
+  }
+
+  /* Offline indicator */
+  .offline {
+    filter: grayscale(50%);
+  }
+
+  .offline::before {
+    content: "📵 Offline Mode";
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    background: #dc2626;
+    color: white;
+    text-align: center;
+    padding: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    z-index: 10000;
+  }
+}
+
+/* Mobile-First Responsive Utilities */
+@layer utilities {
+  /* Touch-friendly tap targets */
+  .touch-target {
+    min-height: 44px;
+    min-width: 44px;
+    touch-action: manipulation;
+  }
+
+  /* Prevent text selection on touch */
+  .no-select {
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+  }
+
+  /* Better scrolling for mobile */
+  .smooth-scroll {
+    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Hide scrollbars but keep functionality */
+  .hide-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .hide-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Mobile file input improvements */
+  .mobile-file-input {
+    /* Make file inputs more touch-friendly */
+    min-height: 60px;
+    padding: 16px;
+    border: 2px dashed #d1d5db;
+    border-radius: 12px;
+    background: #f9fafb;
+    transition: all 0.2s ease;
+  }
+
+  .mobile-file-input:hover,
+  .mobile-file-input:focus {
+    border-color: var(--pwa-primary);
+    background: #fef2f2;
+  }
+
+  /* PWA safe area support for notched devices */
+  .safe-area-top {
+    padding-top: env(safe-area-inset-top);
+  }
+
+  .safe-area-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  .safe-area-left {
+    padding-left: env(safe-area-inset-left);
+  }
+
+  .safe-area-right {
+    padding-right: env(safe-area-inset-right);
+  }
+
+  /* Better contrast for accessibility */
+  .high-contrast {
+    filter: contrast(1.2);
+  }
+
+  /* Loading states */
+  .loading-shimmer {
+    background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+  }
+
+  @keyframes shimmer {
+    0% {
+      background-position: -200% 0;
+    }
+    100% {
+      background-position: 200% 0;
+    }
+  }
+}
+
+/* Mobile-specific component improvements */
+@layer components {
+  /* Improved mobile buttons */
+  .btn-mobile {
+    @apply touch-target px-6 py-3 text-base font-medium rounded-lg;
+    @apply transition-all duration-200 ease-in-out;
+    @apply active:scale-95 active:bg-opacity-80;
+  }
+
+  /* Mobile-friendly cards */
+  .card-mobile {
+    @apply p-4 sm:p-6 rounded-lg shadow-sm border;
+    @apply transition-shadow duration-200;
+    @apply hover:shadow-md focus-within:shadow-md;
+  }
+
+  /* Mobile navigation */
+  .nav-mobile {
+    @apply fixed bottom-0 left-0 right-0 bg-white border-t;
+    @apply grid grid-cols-4 gap-1 p-2;
+    @apply z-50 safe-area-bottom;
+  }
+
+  .nav-mobile-item {
+    @apply touch-target flex flex-col items-center justify-center;
+    @apply text-xs font-medium text-gray-600;
+    @apply rounded-lg transition-colors duration-200;
+    @apply hover:bg-gray-100 active:bg-gray-200;
+  }
+
+  .nav-mobile-item.active {
+    @apply text-blue-600 bg-blue-50;
+  }
+
+  /* Mobile modal improvements */
+  .modal-mobile {
+    @apply fixed inset-0 z-50 flex items-end justify-center p-4;
+    @apply sm:items-center;
+  }
+
+  .modal-mobile-content {
+    @apply w-full max-w-lg bg-white rounded-t-2xl;
+    @apply sm:rounded-2xl shadow-xl;
+    @apply max-h-[90vh] overflow-y-auto;
+    @apply safe-area-bottom;
+  }
+
+  /* Mobile form improvements */
+  .form-mobile input,
+  .form-mobile textarea,
+  .form-mobile select {
+    @apply text-base; /* Prevent zoom on iOS */
+    @apply min-h-[44px]; /* Touch-friendly height */
+  }
+
+  /* Mobile table improvements */
+  .table-mobile {
+    @apply overflow-x-auto;
+    @apply hide-scrollbar;
+  }
+
+  .table-mobile table {
+    @apply min-w-full;
+  }
+
+  .table-mobile th,
+  .table-mobile td {
+    @apply px-3 py-2 text-sm;
+    @apply sm:px-6 sm:py-4 sm:text-base;
+  }
+}
+
 /* Custom cropper cursor styles */
 .cropper-container {
   touch-action: none;

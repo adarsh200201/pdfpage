@@ -162,10 +162,10 @@ const Footer = () => {
                     <div className="flex items-center gap-2 text-sm text-gray-300">
                       <Mail className="h-4 w-4" />
                       <a
-                        href="mailto:hello@pdfpage.com"
+                        href="mailto:Hipdfpage@gmail.com"
                         className="hover:text-brand-red transition-colors"
                       >
-                        hello@pdfpage.com
+                        Hipdfpage@gmail.com
                       </a>
                     </div>
                   </div>
@@ -291,8 +291,7 @@ const Footer = () => {
               <div className="text-center lg:text-left">
                 {/* Copyright */}
                 <div className="text-gray-400 text-sm">
-                  © {currentYear} G Initiations eServices Pvt. Ltd. All Rights
-                  Reserved.
+                  © 2025 G Initiations eServices Pvt. Ltd. All Rights Reserved.
                 </div>
               </div>
             </div>

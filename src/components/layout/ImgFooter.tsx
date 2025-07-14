@@ -116,10 +116,10 @@ const ImgFooter = () => {
                     <div className="flex items-center gap-2 text-sm text-gray-300">
                       <Mail className="h-4 w-4" />
                       <a
-                        href="mailto:hello@imgpage.com"
+                        href="mailto:Hipdfpage@gmail.com"
                         className="hover:text-blue-400 transition-colors"
                       >
-                        hello@imgpage.com
+                        Hipdfpage@gmail.com
                       </a>
                     </div>
                   </div>

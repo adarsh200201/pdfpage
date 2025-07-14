@@ -14,25 +14,27 @@ router.get("/stats", async (req, res) => {
       console.log("🔧 [API] user-stats");
     }
 
-    // Check if user is authenticated and is admin
-    const authHeader = req.headers.authorization;
-    if (authHeader && authHeader.startsWith("Bearer ")) {
-      const token = authHeader.split(" ")[1];
-      if (token && (token.includes("demo_admin") || token.length > 10)) {
-        if (process.env.DEBUG_AUTH === "true") {
-          console.log("🔐 [AUTH] Admin authenticated");
+    // Check if user is authenticated and is admin (skip in development)
+    if (process.env.NODE_ENV !== "development") {
+      const authHeader = req.headers.authorization;
+      if (authHeader && authHeader.startsWith("Bearer ")) {
+        const token = authHeader.split(" ")[1];
+        if (token && (token.includes("demo_admin") || token.length > 10)) {
+          if (process.env.DEBUG_AUTH === "true") {
+            console.log("🔐 [AUTH] Admin authenticated");
+          }
+        } else {
+          return res.status(401).json({
+            success: false,
+            message: "Invalid authentication token.",
+          });
         }
       } else {
         return res.status(401).json({
           success: false,
-          message: "Invalid authentication token.",
+          message: "Authentication required for admin access.",
         });
       }
-    } else {
-      return res.status(401).json({
-        success: false,
-        message: "Authentication required for admin access.",
-      });
     }
 
     // Get user statistics using the static method
@@ -128,25 +130,27 @@ router.get("/stats", async (req, res) => {
 // @access  Private (admin only) or development mode
 router.get("/recent", async (req, res) => {
   try {
-    // Check if user is authenticated and is admin
-    const authHeader = req.headers.authorization;
-    if (authHeader && authHeader.startsWith("Bearer ")) {
-      const token = authHeader.split(" ")[1];
-      if (token && (token.includes("demo_admin") || token.length > 10)) {
-        if (process.env.DEBUG_AUTH === "true") {
-          console.log("🔐 [AUTH] Admin authenticated for recent users");
+    // Check if user is authenticated and is admin (skip in development)
+    if (process.env.NODE_ENV !== "development") {
+      const authHeader = req.headers.authorization;
+      if (authHeader && authHeader.startsWith("Bearer ")) {
+        const token = authHeader.split(" ")[1];
+        if (token && (token.includes("demo_admin") || token.length > 10)) {
+          if (process.env.DEBUG_AUTH === "true") {
+            console.log("🔐 [AUTH] Admin authenticated for recent users");
+          }
+        } else {
+          return res.status(401).json({
+            success: false,
+            message: "Invalid authentication token.",
+          });
         }
       } else {
         return res.status(401).json({
           success: false,
-          message: "Invalid authentication token.",
+          message: "Authentication required for admin access.",
         });
       }
-    } else {
-      return res.status(401).json({
-        success: false,
-        message: "Authentication required for admin access.",
-      });
     }
 
     const limit = parseInt(req.query.limit) || 20;

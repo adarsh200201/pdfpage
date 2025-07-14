@@ -31,11 +31,10 @@ import { PDFService } from "@/services/pdfService";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { useToolTracking } from "@/hooks/useToolTracking";
-import AuthModal from "@/components/auth/AuthModal";
-import SoftLimitModal from "@/components/modals/SoftLimitModal";
-import RewardBanner from "@/components/ui/RewardBanner";
-import { useSoftLimit, useRewardBanner } from "@/hooks/useSoftLimit";
 import { useFloatingPopup } from "@/contexts/FloatingPopupContext";
+import DownloadModal from "@/components/modals/DownloadModal";
+import { useDownloadModal } from "@/hooks/useDownloadModal";
+import { useActionAuth } from "@/hooks/useActionAuth";
 
 const Merge = () => {
   const [files, setFiles] = useState<MergeFileItem[]>([]);
@@ -45,8 +44,7 @@ const Merge = () => {
   const [isComplete, setIsComplete] = useState(false);
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const [mergedFileUrl, setMergedFileUrl] = useState<string>("");
-  const [showAuthModal, setShowAuthModal] = useState(false);
-  const [usageLimitReached, setUsageLimitReached] = useState(false);
+
   const [progress, setProgress] = useState(0);
   const [mergedFileSize, setMergedFileSize] = useState(0);
   const [previewFile, setPreviewFile] = useState<MergeFileItem | null>(null);
@@ -61,12 +59,21 @@ const Merge = () => {
   const { user, isAuthenticated } = useAuth();
   const { toast } = useToast();
 
-  // Soft limit management
-  const softLimit = useSoftLimit("merge");
-  const rewardBanner = useRewardBanner();
-
   // Floating popup tracking
   const { trackToolUsage } = useFloatingPopup();
+
+  // Download modal
+  const downloadModal = useDownloadModal({
+    countdownSeconds: 5,
+    adSlot: "merge-download-ad",
+    showAd: true,
+  });
+
+  // Action-level authentication
+  const actionAuth = useActionAuth({
+    action: "merge_pdf",
+    requireAuth: true,
+  });
 
   // Mixpanel tracking
   const tracking = useToolTracking({
@@ -268,12 +275,13 @@ const Merge = () => {
       return;
     }
 
-    // Check soft limit before proceeding
-    const canProceed = await softLimit.checkLimit();
-    if (!canProceed) {
-      return; // Soft limit modal will be shown
-    }
+    // Execute merge with authentication check
+    await actionAuth.executeWithAuth(async () => {
+      await performMerge();
+    });
+  };
 
+  const performMerge = async () => {
     setIsProcessing(true);
     setProgress(0);
 
@@ -360,10 +368,27 @@ const Merge = () => {
 
   const downloadMergedFile = () => {
     if (mergedFileUrl) {
-      const downloadLink = document.createElement("a");
-      downloadLink.href = mergedFileUrl;
-      downloadLink.download = "merged-document.pdf";
-      downloadLink.click();
+      // Format file size for display
+      const fileSizeFormatted = mergedFileSize
+        ? `${(mergedFileSize / 1024 / 1024).toFixed(2)} MB`
+        : undefined;
+
+      // Open download modal with ad and countdown
+      downloadModal.openDownloadModal(
+        () => {
+          const downloadLink = document.createElement("a");
+          downloadLink.href = mergedFileUrl;
+          downloadLink.download = "merged-document.pdf";
+          downloadLink.click();
+        },
+        {
+          fileName: "merged-document.pdf",
+          fileSize: fileSizeFormatted,
+          title: "🎉 Your merged PDF is ready!",
+          description:
+            "We've successfully combined your PDF files. Download will start automatically.",
+        },
+      );
     }
   };
 
@@ -551,7 +576,9 @@ const Merge = () => {
                   ) : (
                     <>
                       <Combine className="w-5 h-5 mr-2" />
-                      Merge {files.length} Files
+                      {actionAuth.isAuthenticated
+                        ? `Merge ${files.length} Files`
+                        : `Sign in to Merge ${files.length} Files`}
                     </>
                   )}
                 </Button>
@@ -559,6 +586,12 @@ const Merge = () => {
                 {files.length < 2 && (
                   <p className="text-body-small text-text-light mt-2">
                     Add at least 2 files to merge
+                  </p>
+                )}
+
+                {!actionAuth.isAuthenticated && files.length >= 2 && (
+                  <p className="text-sm text-gray-600 mt-2">
+                    🔒 Sign in with Google to merge your files
                   </p>
                 )}
               </div>
@@ -674,37 +707,8 @@ const Merge = () => {
         type={previewFile?.type || "pdf"}
       />
 
-      {/* Auth Modal */}
-      <AuthModal
-        isOpen={showAuthModal}
-        onClose={() => setShowAuthModal(false)}
-        defaultTab="register"
-      />
-
-      {/* Soft Limit Modal */}
-      <SoftLimitModal
-        isOpen={softLimit.showModal}
-        onClose={() => softLimit.setShowModal(false)}
-        onSuccess={softLimit.onAuthSuccess}
-        usageInfo={
-          softLimit.state.usageInfo
-            ? {
-                currentUsage: softLimit.state.usageInfo.currentUsage || 0,
-                maxUsage: softLimit.state.usageInfo.maxUsage || 2,
-                timeToReset: softLimit.state.usageInfo.timeToReset || "",
-              }
-            : undefined
-        }
-        toolName="merge"
-        redirectPath="/merge"
-      />
-
-      {/* Reward Banner */}
-      <RewardBanner
-        isVisible={rewardBanner.showBanner}
-        onClose={rewardBanner.closeBanner}
-        conversionInfo={rewardBanner.conversionInfo}
-      />
+      {/* Download Modal with Ad */}
+      <DownloadModal {...downloadModal.modalProps} />
     </div>
   );
 };

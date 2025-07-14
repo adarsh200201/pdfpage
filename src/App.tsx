@@ -3,6 +3,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import { NetworkStatus } from "@/components/ui/network-status";
+import PWAStatusBar from "@/components/layout/PWAStatusBar";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useEffect } from "react";
 import { configurePDFjs, getPDFConfigStatus } from "@/lib/pdf-config";
@@ -16,7 +17,7 @@ import {
 import { AuthProvider } from "@/contexts/AuthContext";
 import EnhancedEditPdf from "./pages/EnhancedEditPdf";
 import RealtimeEditor from "./pages/RealtimeEditor";
-import PaymentTestPage from "./pages/PaymentTestPage";
+
 import EnhancedPdfToPpt from "./pages/EnhancedPdfToPpt";
 import EnhancedPdfEditor from "./pages/EnhancedPdfEditor";
 import EnhancedWatermark from "./pages/EnhancedWatermark";
@@ -38,6 +39,7 @@ import ImgUpscale from "./pages/ImgUpscale";
 import ImgToPdf from "./pages/ImgToPdf";
 import ImgMeme from "./pages/ImgMeme";
 import ImgConvert from "./pages/ImgConvert";
+import ImageTools from "./pages/ImageTools";
 // FaviconConverter removed - replaced with separate tools
 import FaviconPage from "./pages/FaviconPage";
 import ImageToFavicon from "./pages/ImageToFavicon";
@@ -45,6 +47,7 @@ import TextToFavicon from "./pages/TextToFavicon";
 import EmojiToFavicon from "./pages/EmojiToFavicon";
 import LogoToFavicon from "./pages/LogoToFavicon";
 import Login from "./pages/Login";
+import ModernLogin from "./pages/ModernLogin";
 import Register from "./pages/Register";
 import ForgotPassword from "./pages/ForgotPassword";
 import Merge from "./pages/Merge";
@@ -60,7 +63,7 @@ import Dashboard from "./pages/Dashboard";
 import Rotate from "./pages/Rotate";
 import RotatePdfAdvanced from "./pages/RotatePdfAdvanced";
 import CropPdf from "./pages/CropPdf";
-import TestAllTools from "./pages/TestAllTools";
+
 import About from "./pages/About";
 import Blog from "./pages/Blog";
 import Careers from "./pages/Careers";
@@ -142,7 +145,6 @@ import AuthCallback from "./pages/AuthCallback";
 import AccountTest from "./pages/AccountTest";
 import AdminRoute from "./components/admin/AdminRoute";
 import LibreOfficeTools from "./pages/LibreOfficeTools";
-import ExcelToPdfDebug from "./components/debug/ExcelToPdfDebug";
 
 const queryClient = new QueryClient();
 
@@ -213,6 +215,7 @@ const App = () => {
               <BrowserRouter>
                 <MixpanelProvider>
                   <GlobalToolTrackingProvider>
+                    <PWAStatusBar />
                     <ScrollRestoration />
                     <Routes>
                       <Route path="/" element={<Index />} />
@@ -255,7 +258,8 @@ const App = () => {
                       />
 
                       {/* Authentication */}
-                      <Route path="/login" element={<Login />} />
+                      <Route path="/login" element={<ModernLogin />} />
+                      <Route path="/login/old" element={<Login />} />
                       <Route path="/register" element={<Register />} />
                       <Route
                         path="/forgot-password"
@@ -338,10 +342,7 @@ const App = () => {
                         path="/realtime-editor"
                         element={<RealtimeEditor />}
                       />
-                      <Route
-                        path="/payment-test"
-                        element={<PaymentTestPage />}
-                      />
+
                       <Route path="/watermark" element={<Watermark />} />
                       <Route path="/protect-pdf" element={<ProtectPdf />} />
                       <Route path="/unlock-pdf" element={<UnlockPdf />} />
@@ -401,24 +402,11 @@ const App = () => {
                       <Route path="/status" element={<Status />} />
                       <Route path="/coming-soon" element={<ComingSoon />} />
 
-                      {/* Development and Testing */}
-                      <Route
-                        path="/test-all-tools"
-                        element={<TestAllTools />}
-                      />
                       <Route
                         path="/available-tools"
                         element={<AvailableTools />}
                       />
                       <Route path="/account-test" element={<AccountTest />} />
-
-                      {/* Debug Tools (Dev Only) */}
-                      {import.meta.env.DEV && (
-                        <Route
-                          path="/debug/excel-to-pdf"
-                          element={<ExcelToPdfDebug />}
-                        />
-                      )}
 
                       {/* Tool Redirect Pages (legacy compatibility - these show working tools now) */}
                       <Route

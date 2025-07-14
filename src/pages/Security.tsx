@@ -522,10 +522,10 @@ const Security = () => {
                   <p>
                     <strong>Security Email:</strong>{" "}
                     <a
-                      href="mailto:security@pdfpage.com"
+                      href="mailto:Hipdfpage@gmail.com"
                       className="text-brand-red hover:underline"
                     >
-                      security@pdfpage.com
+                      Hipdfpage@gmail.com
                     </a>
                   </p>
                   <p>
@@ -536,7 +536,7 @@ const Security = () => {
                   </p>
                 </div>
                 <Button className="mt-4 bg-brand-red hover:bg-red-700" asChild>
-                  <a href="mailto:security@pdfpage.com">
+                  <a href="mailto:Hipdfpage@gmail.com">
                     <Mail className="mr-2 h-4 w-4" />
                     Report Issue
                   </a>

@@ -484,10 +484,10 @@ const Terms = () => {
                     <div>
                       <p className="font-medium text-text-dark">Email</p>
                       <a
-                        href="mailto:legal@pdfpage.com"
+                        href="mailto:Hipdfpage@gmail.com"
                         className="text-brand-red hover:underline"
                       >
-                        legal@pdfpage.com
+                        Hipdfpage@gmail.com
                       </a>
                     </div>
                   </div>
@@ -501,7 +501,7 @@ const Terms = () => {
                         <br />
                         Global Remote Company
                         <br />
-                        Contact: hello@pdfpage.com
+                        Contact: Hipdfpage@gmail.com
                       </p>
                     </div>
                   </div>

@@ -19,10 +19,6 @@ import { PDFService } from "@/services/pdfService";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import AuthModal from "@/components/auth/AuthModal";
-import {
-  validatePDFForRotation,
-  testPDFRotation,
-} from "@/utils/pdf-rotation-test";
 
 interface ProcessedFile {
   id: string;
@@ -40,7 +36,6 @@ const Rotate = () => {
   const [isComplete, setIsComplete] = useState(false);
   const [rotation, setRotation] = useState(0);
   const [showAuthModal, setShowAuthModal] = useState(false);
-  const [usageLimitReached, setUsageLimitReached] = useState(false);
 
   const { user, isAuthenticated } = useAuth();
   const { toast } = useToast();
@@ -213,23 +208,7 @@ const Rotate = () => {
         `✅ PDF validation passed: ${validation.pageCount} pages, content: ${validation.hasContent}`,
       );
 
-      // Test rotation before applying
-      console.log("🔄 Testing PDF rotation...");
-      const rotationTest = await testPDFRotation(file.file, rotation);
-      if (!rotationTest.success) {
-        console.warn("⚠️ Rotation test failed:", rotationTest.error);
-        // Continue anyway, but log the warning
-        toast({
-          title: "Warning",
-          description:
-            "PDF structure may be complex. Proceeding with rotation...",
-          variant: "default",
-        });
-      } else {
-        console.log("✅ Rotation test passed");
-      }
-
-      // Perform actual rotation
+      // Perform rotation
       console.log("🔄 Applying PDF rotation...");
       const rotatedPdfBytes = await PDFService.rotatePDF(file.file, rotation);
 
@@ -446,26 +425,6 @@ const Rotate = () => {
                     )}
                   </div>
                 </div>
-              </div>
-            )}
-
-            {/* Usage Limit Warning */}
-            {usageLimitReached && !isAuthenticated && (
-              <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-6 text-center">
-                <AlertTriangle className="w-12 h-12 text-yellow-500 mx-auto mb-4" />
-                <h3 className="text-heading-small text-text-dark mb-2">
-                  Daily Limit Reached
-                </h3>
-                <p className="text-body-medium text-text-light mb-4">
-                  You've used your 3 free PDF operations today. Sign up to
-                  continue!
-                </p>
-                <Button
-                  onClick={() => setShowAuthModal(true)}
-                  className="bg-brand-red hover:bg-red-600"
-                >
-                  Sign Up Free
-                </Button>
               </div>
             )}
 

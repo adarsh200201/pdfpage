@@ -323,7 +323,7 @@ const Press = () => {
               </div>
               <div>
                 <span className="font-medium text-text-dark">Email:</span>
-                <span className="text-brand-red ml-2">press@pdfpage.com</span>
+                <span className="text-brand-red ml-2">Hipdfpage@gmail.com</span>
               </div>
               <div>
                 <span className="font-medium text-text-dark">

@@ -30,6 +30,10 @@ import {
   Minimize2,
   Crown,
 } from "lucide-react";
+import { cn } from "@/lib/utils";
+import DownloadModal from "@/components/modals/DownloadModal";
+import { useDownloadModal } from "@/hooks/useDownloadModal";
+import { useActionAuth } from "@/hooks/useActionAuth";
 
 interface UploadedFile {
   id: string;
@@ -114,6 +118,8 @@ const COMPRESSION_LEVELS: CompressionLevel[] = [
 const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB
 const ACCEPTED_TYPES = ["application/pdf"];
 
+// Authentication is now enforced via AuthGuard wrapper
+
 export default function Compress() {
   const [uploadedFile, setUploadedFile] = useState<UploadedFile | null>(null);
   const [selectedLevel, setSelectedLevel] = useState<CompressionLevel>(
@@ -127,6 +133,19 @@ export default function Compress() {
   const { user } = useAuth();
   const { toast } = useToast();
   const abortControllerRef = useRef<AbortController | null>(null);
+
+  // Download modal
+  const downloadModal = useDownloadModal({
+    countdownSeconds: 5,
+    adSlot: "compress-download-ad",
+    showAd: true,
+  });
+
+  // Action-level authentication
+  const actionAuth = useActionAuth({
+    action: "compress_pdf",
+    requireAuth: true,
+  });
 
   // File validation
   const validateFile = useCallback((file: File): string | null => {
@@ -187,15 +206,17 @@ export default function Compress() {
 
   // Compression function
   const compressPDF = async () => {
-    if (!uploadedFile || !user) {
-      toast({
-        title: "Authentication Required",
-        description: "Please sign in to compress PDFs",
-        variant: "destructive",
-      });
+    if (!uploadedFile) {
       return;
     }
 
+    // Execute compression with authentication check
+    await actionAuth.executeWithAuth(async () => {
+      await performCompression();
+    });
+  };
+
+  const performCompression = async () => {
     setIsProcessing(true);
     setProgress(0);
     setError(null);
@@ -216,7 +237,10 @@ export default function Compress() {
 
       const startTime = Date.now();
 
-      const apiUrl = "https://pdfpage-app.onrender.com/api";
+      const apiUrl =
+        window.location.hostname === "localhost"
+          ? "http://localhost:5000/api"
+          : "https://pdfpage-app.onrender.com/api";
       const response = await fetch(`${apiUrl}/pdf/compress-pro`, {
         method: "POST",
         body: formData,
@@ -325,17 +349,33 @@ export default function Compress() {
   const downloadFile = () => {
     if (!result) return;
 
-    const link = document.createElement("a");
-    link.href = result.downloadUrl;
-    link.download = result.fileName;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    // Format file sizes
+    const originalSizeMB = (result.originalSize / 1024 / 1024).toFixed(2);
+    const compressedSizeMB = (result.compressedSize / 1024 / 1024).toFixed(2);
+    const compressionPercent = Math.round((1 - result.compressionRatio) * 100);
 
-    toast({
-      title: "Download Started",
-      description: `Downloading ${result.fileName}`,
-    });
+    // Open download modal with ad and countdown
+    downloadModal.openDownloadModal(
+      () => {
+        const link = document.createElement("a");
+        link.href = result.downloadUrl;
+        link.download = result.fileName;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+        toast({
+          title: "Download Started",
+          description: `Downloading ${result.fileName}`,
+        });
+      },
+      {
+        fileName: result.fileName,
+        fileSize: `${compressedSizeMB} MB`,
+        title: "🎆 Your compressed PDF is ready!",
+        description: `Reduced file size by ${compressionPercent}% (${originalSizeMB} MB → ${compressedSizeMB} MB). Download will start automatically.`,
+      },
+    );
   };
 
   // Reset state
@@ -523,28 +563,38 @@ export default function Compress() {
 
             {/* Compress Button */}
             <div className="flex justify-center">
-              {!isProcessing ? (
-                <Button
-                  onClick={compressPDF}
-                  size="lg"
-                  className="bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600"
-                  disabled={!user}
-                >
-                  <Zap className="w-5 h-5 mr-2" />
-                  Compress PDF
-                </Button>
-              ) : (
-                <div className="flex flex-col items-center gap-4">
+              <div className="text-center">
+                {!isProcessing ? (
                   <Button
-                    onClick={cancelCompression}
-                    variant="outline"
+                    onClick={compressPDF}
                     size="lg"
+                    className="bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600"
+                    disabled={false}
                   >
-                    <RefreshCw className="w-5 h-5 mr-2" />
-                    Cancel
+                    <Zap className="w-5 h-5 mr-2" />
+                    {actionAuth.isAuthenticated
+                      ? "Compress PDF"
+                      : "Sign in to Compress PDF"}
                   </Button>
-                </div>
-              )}
+                ) : (
+                  <div className="flex flex-col items-center gap-4">
+                    <Button
+                      onClick={cancelCompression}
+                      variant="outline"
+                      size="lg"
+                    >
+                      <RefreshCw className="w-5 h-5 mr-2" />
+                      Cancel
+                    </Button>
+                  </div>
+                )}
+
+                {!actionAuth.isAuthenticated && !isProcessing && (
+                  <p className="text-sm text-gray-600 mt-2">
+                    🔒 Sign in with Google to compress your PDF
+                  </p>
+                )}
+              </div>
             </div>
 
             {/* Processing Progress */}
@@ -669,6 +719,9 @@ export default function Compress() {
           </div>
         </div>
       </div>
+
+      {/* Download Modal with Ad */}
+      <DownloadModal {...downloadModal.modalProps} />
     </div>
   );
 }

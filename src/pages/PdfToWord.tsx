@@ -67,8 +67,6 @@ const PdfToWord = () => {
   const [isComplete, setIsComplete] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showAdvancedSettings, setShowAdvancedSettings] = useState(false);
-  const [showDebugPanel, setShowDebugPanel] = useState(false);
-  const [debugLog, setDebugLog] = useState<string[]>([]);
 
   // Conversion settings
   const [conversionSettings, setConversionSettings] = useState({
@@ -124,13 +122,6 @@ const PdfToWord = () => {
 
     checkBackendStatus();
   }, []);
-
-  // Debug logging function
-  const addDebugLog = (message: string) => {
-    const timestamp = new Date().toLocaleTimeString();
-    setDebugLog((prev) => [...prev, `[${timestamp}] ${message}`]);
-    console.log(`[PDF-to-Word Debug] ${message}`);
-  };
 
   // PDF debugging function
   const debugPDFFile = async (file: File) => {

@@ -95,7 +95,7 @@ const ScanToPdf = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [isComplete, setIsComplete] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
-  const [usageLimitReached, setUsageLimitReached] = useState(false);
+
   const [progress, setProgress] = useState(0);
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const [settings, setSettings] = useState<ConversionSettings>({
@@ -881,48 +881,6 @@ const ScanToPdf = () => {
                     </p>
                   </div>
                 </div>
-              </div>
-            )}
-
-            {/* Usage Limit Warning */}
-            {usageLimitReached && !isAuthenticated && (
-              <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-6 text-center">
-                <AlertTriangle className="w-12 h-12 text-yellow-500 mx-auto mb-4" />
-                <h3 className="text-heading-small text-text-dark mb-2">
-                  Daily Limit Reached
-                </h3>
-                <p className="text-body-medium text-text-light mb-4">
-                  You've used your 3 free PDF operations today. Sign up to
-                  continue!
-                </p>
-                <Button
-                  onClick={() => setShowAuthModal(true)}
-                  className="bg-brand-red hover:bg-red-600"
-                >
-                  Sign Up Free
-                </Button>
-              </div>
-            )}
-
-            {usageLimitReached && isAuthenticated && !user?.isPremium && (
-              <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-6 text-center">
-                <Crown className="w-12 h-12 text-yellow-500 mx-auto mb-4" />
-                <h3 className="text-heading-small text-text-dark mb-2">
-                  Upgrade to Premium
-                </h3>
-                <p className="text-body-medium text-text-light mb-4">
-                  You've reached your daily limit. Upgrade to Premium for
-                  unlimited access!
-                </p>
-                <Button
-                  className="bg-brand-yellow text-black hover:bg-yellow-400"
-                  asChild
-                >
-                  <Link to="/pricing">
-                    <Crown className="w-4 h-4 mr-2" />
-                    Upgrade Now
-                  </Link>
-                </Button>
               </div>
             )}
 

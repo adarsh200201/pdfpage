@@ -67,7 +67,7 @@ const RepairPdf = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [isComplete, setIsComplete] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
-  const [usageLimitReached, setUsageLimitReached] = useState(false);
+
   const [progress, setProgress] = useState(0);
   const [diagnosticResults, setDiagnosticResults] =
     useState<DiagnosticResult | null>(null);

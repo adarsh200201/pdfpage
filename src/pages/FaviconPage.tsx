@@ -27,6 +27,7 @@ import {
   Layers,
   Palette,
   FileText,
+  Home,
 } from "lucide-react";
 
 // Floating Animation Component
@@ -322,7 +323,7 @@ const FaviconPage = () => {
                 Mobile Devices
               </h3>
               <div className="space-y-2 text-sm text-gray-600">
-                <div>• apple-touch-icon.png (180×180)</div>
+                <div>�� apple-touch-icon.png (180×180)</div>
                 <div>• android-chrome-192x192.png</div>
                 <div>• android-chrome-512x512.png</div>
                 <div>• site.webmanifest (PWA)</div>
@@ -392,6 +393,146 @@ const FaviconPage = () => {
           </div>
         </div>
       </section>
+
+      {/* Related Pages Navigation */}
+      <div className="bg-gradient-to-r from-gray-800 via-gray-900 to-black text-white">
+        <div className="container mx-auto px-6 py-12">
+          <div className="text-center mb-8">
+            <h2 className="text-3xl font-bold mb-4">Explore More Tools</h2>
+            <p className="text-gray-300 max-w-2xl mx-auto">
+              Discover our complete suite of professional tools for all your
+              digital needs
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {/* PDF Tools */}
+            <Link to="/available-tools" className="group">
+              <Card className="bg-white/10 backdrop-blur-sm border-white/20 hover:bg-white/20 transition-all duration-300 group-hover:scale-105">
+                <CardContent className="p-6 text-center">
+                  <div className="w-16 h-16 bg-gradient-to-r from-red-500 to-red-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                    <FileText className="w-8 h-8 text-white" />
+                  </div>
+                  <h3 className="text-xl font-bold mb-2">PDF Tools</h3>
+                  <p className="text-gray-300 text-sm mb-4">
+                    Complete PDF processing suite with merge, split, compress,
+                    and convert tools
+                  </p>
+                  <div className="flex items-center justify-center text-red-400 group-hover:text-red-300">
+                    <span className="text-sm font-medium mr-2">
+                      Explore PDF Tools
+                    </span>
+                    <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                  </div>
+                </CardContent>
+              </Card>
+            </Link>
+
+            {/* Image Tools */}
+            <Link to="/img" className="group">
+              <Card className="bg-white/10 backdrop-blur-sm border-white/20 hover:bg-white/20 transition-all duration-300 group-hover:scale-105">
+                <CardContent className="p-6 text-center">
+                  <div className="w-16 h-16 bg-gradient-to-r from-purple-500 to-pink-500 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                    <Image className="w-8 h-8 text-white" />
+                  </div>
+                  <h3 className="text-xl font-bold mb-2">Image Tools</h3>
+                  <p className="text-gray-300 text-sm mb-4">
+                    Professional image editing, compression, and format
+                    conversion tools
+                  </p>
+                  <div className="flex items-center justify-center text-purple-400 group-hover:text-purple-300">
+                    <span className="text-sm font-medium mr-2">
+                      Edit Images
+                    </span>
+                    <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                  </div>
+                </CardContent>
+              </Card>
+            </Link>
+
+            {/* Home */}
+            <Link to="/" className="group">
+              <Card className="bg-white/10 backdrop-blur-sm border-white/20 hover:bg-white/20 transition-all duration-300 group-hover:scale-105">
+                <CardContent className="p-6 text-center">
+                  <div className="w-16 h-16 bg-gradient-to-r from-blue-500 to-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                    <Home className="w-8 h-8 text-white" />
+                  </div>
+                  <h3 className="text-xl font-bold mb-2">Homepage</h3>
+                  <p className="text-gray-300 text-sm mb-4">
+                    Return to homepage and discover all available tools and
+                    features
+                  </p>
+                  <div className="flex items-center justify-center text-blue-400 group-hover:text-blue-300">
+                    <span className="text-sm font-medium mr-2">Go Home</span>
+                    <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                  </div>
+                </CardContent>
+              </Card>
+            </Link>
+          </div>
+
+          {/* Quick Navigation */}
+          <div className="mt-12 pt-8 border-t border-gray-700">
+            <div className="text-center">
+              <h3 className="text-lg font-semibold mb-4">
+                Featured Favicon Tools
+              </h3>
+              <div className="flex flex-wrap justify-center gap-4">
+                <Link to="/favicon/image-to-favicon">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="border-gray-600 text-gray-300 hover:bg-gray-700"
+                  >
+                    <Image className="w-3 h-3 mr-1" />
+                    Image to Favicon
+                  </Button>
+                </Link>
+                <Link to="/favicon/text-to-favicon">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="border-gray-600 text-gray-300 hover:bg-gray-700"
+                  >
+                    <Type className="w-3 h-3 mr-1" />
+                    Text to Favicon
+                  </Button>
+                </Link>
+                <Link to="/favicon/emoji-to-favicon">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="border-gray-600 text-gray-300 hover:bg-gray-700"
+                  >
+                    <Smile className="w-3 h-3 mr-1" />
+                    Emoji to Favicon
+                  </Button>
+                </Link>
+                <Link to="/favicon/logo-to-favicon">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="border-gray-600 text-gray-300 hover:bg-gray-700"
+                  >
+                    <Sparkles className="w-3 h-3 mr-1" />
+                    Logo to Favicon
+                  </Button>
+                </Link>
+                <Link to="/pricing">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="border-yellow-600 text-yellow-300 hover:bg-yellow-900/20"
+                  >
+                    <Crown className="w-3 h-3 mr-1" />
+                    Get Premium
+                  </Button>
+                </Link>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
 
       <AdSense />
       <FaviconFooter />
