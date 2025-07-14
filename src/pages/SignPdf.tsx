@@ -10,7 +10,8 @@ import PDFEditorCanvas from "@/components/pdf-editor/PDFEditorCanvas";
 import PageThumbnails from "@/components/pdf-editor/PageThumbnails";
 import PropertiesPanel from "@/components/pdf-editor/PropertiesPanel";
 import PDFErrorBoundary from "@/components/pdf-editor/PDFErrorBoundary";
-import { usePDFEditor } from "@/hooks/usePDFEditor";
+import ErrorBoundaryWrapper from "@/components/ErrorBoundaryWrapper";
+import { useRealtimePDFEditor } from "@/hooks/useRealtimePDFEditor";
 import { useAuth } from "@/contexts/AuthContext";
 import { PDFService } from "@/services/pdfService";
 import { useToast } from "@/hooks/use-toast";
@@ -72,7 +73,7 @@ const SignPdf = () => {
   const { toast } = useToast();
 
   // Initialize PDF editor
-  const { state, actions, selectors, computed } = usePDFEditor();
+  const { state, actions, selectors, computed } = useRealtimePDFEditor();
 
   // Handle file upload
   const handleFileUpload = useCallback(
@@ -463,6 +464,10 @@ const SignPdf = () => {
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Defensive check to prevent frame access errors
+      if (!e || typeof e.preventDefault !== "function") {
+        return;
+      }
       if (e.ctrlKey || e.metaKey) {
         switch (e.key) {
           case "z":
@@ -599,391 +604,393 @@ const SignPdf = () => {
   }
 
   return (
-    <div className="min-h-screen bg-bg-light">
-      <Header />
+    <ErrorBoundaryWrapper fallbackMessage="We're having trouble loading the PDF editor. This might be due to a browser compatibility issue.">
+      <div className="min-h-screen bg-bg-light">
+        <Header />
 
-      <div className="max-w-full px-4 sm:px-6 lg:px-8 py-4">
-        <PromoBanner className="mb-6" />
+        <div className="max-w-full px-4 sm:px-6 lg:px-8 py-4">
+          <PromoBanner className="mb-6" />
 
-        {/* Navigation */}
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center space-x-2">
-            <Link
-              to="/"
-              className="text-body-medium text-text-light hover:text-brand-red"
-            >
-              <ArrowLeft className="w-4 h-4 mr-1 inline" />
-              Back to Home
-            </Link>
+          {/* Navigation */}
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center space-x-2">
+              <Link
+                to="/"
+                className="text-body-medium text-text-light hover:text-brand-red"
+              >
+                <ArrowLeft className="w-4 h-4 mr-1 inline" />
+                Back to Home
+              </Link>
+            </div>
+
+            {file && (
+              <div className="flex items-center space-x-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowThumbnails(!showThumbnails)}
+                >
+                  <Layers className="w-4 h-4 mr-1" />
+                  {showThumbnails ? "Hide" : "Show"} Pages
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowProperties(!showProperties)}
+                >
+                  <FileText className="w-4 h-4 mr-1" />
+                  {showProperties ? "Hide" : "Show"} Properties
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setIsFullscreen(!isFullscreen)}
+                >
+                  {isFullscreen ? (
+                    <Minimize className="w-4 h-4" />
+                  ) : (
+                    <Maximize className="w-4 h-4" />
+                  )}
+                </Button>
+              </div>
+            )}
           </div>
 
-          {file && (
-            <div className="flex items-center space-x-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setShowThumbnails(!showThumbnails)}
-              >
-                <Layers className="w-4 h-4 mr-1" />
-                {showThumbnails ? "Hide" : "Show"} Pages
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setShowProperties(!showProperties)}
-              >
-                <FileText className="w-4 h-4 mr-1" />
-                {showProperties ? "Hide" : "Show"} Properties
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setIsFullscreen(!isFullscreen)}
-              >
-                {isFullscreen ? (
-                  <Minimize className="w-4 h-4" />
-                ) : (
-                  <Maximize className="w-4 h-4" />
+          {/* Header */}
+          {!file && (
+            <div className="text-center mb-8">
+              <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                <PenTool className="w-8 h-8 text-white" />
+              </div>
+              <h1 className="text-heading-medium text-text-dark mb-4">
+                Professional PDF Editor
+              </h1>
+              <p className="text-body-large text-text-light max-w-3xl mx-auto">
+                Create, edit, and sign PDF documents with our advanced real-time
+                editor. Add text, shapes, signatures, images, and annotations
+                with professional precision.
+              </p>
+              <div className="mt-6 flex flex-wrap justify-center gap-3">
+                <div className="inline-flex items-center px-4 py-2 rounded-full text-sm bg-blue-100 text-blue-800">
+                  <span className="mr-2">✨</span>
+                  Real-time editing
+                </div>
+                <div className="inline-flex items-center px-4 py-2 rounded-full text-sm bg-green-100 text-green-800">
+                  <span className="mr-2">🎨</span>
+                  Professional tools
+                </div>
+                <div className="inline-flex items-center px-4 py-2 rounded-full text-sm bg-purple-100 text-purple-800">
+                  <span className="mr-2">⚡</span>
+                  Instant preview
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Main Content */}
+          {!file ? (
+            <div className="max-w-2xl mx-auto">
+              <div className="bg-white rounded-xl p-8 shadow-sm border border-gray-100">
+                <FileUpload
+                  onFilesSelect={handleFileUpload}
+                  accept=".pdf"
+                  multiple={false}
+                  maxSize={50}
+                  allowedTypes={["pdf"]}
+                  uploadText="Select PDF file to sign"
+                  supportText="Supports PDF format • Max 50MB"
+                />
+              </div>
+
+              {/* Quick Actions */}
+              <div className="mt-8 text-center">
+                <h3 className="text-lg font-semibold text-text-dark mb-4">
+                  Quick Start
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="p-4 bg-white rounded-lg border border-gray-200">
+                    <PenTool className="w-8 h-8 text-blue-500 mx-auto mb-2" />
+                    <h4 className="font-medium mb-1">Sign Documents</h4>
+                    <p className="text-sm text-gray-600">
+                      Add electronic signatures anywhere on your PDF
+                    </p>
+                  </div>
+                  <div className="p-4 bg-white rounded-lg border border-gray-200">
+                    <FileText className="w-8 h-8 text-green-500 mx-auto mb-2" />
+                    <h4 className="font-medium mb-1">Add Text & Annotations</h4>
+                    <p className="text-sm text-gray-600">
+                      Insert text, comments, and markup elements
+                    </p>
+                  </div>
+                  <div className="p-4 bg-white rounded-lg border border-gray-200">
+                    <Upload className="w-8 h-8 text-purple-500 mx-auto mb-2" />
+                    <h4 className="font-medium mb-1">Insert Images</h4>
+                    <p className="text-sm text-gray-600">
+                      Add logos, stamps, and other images
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : showSignatureOptions ? (
+            // Signature Options Screen
+            <div className="max-w-4xl mx-auto">
+              <div className="bg-white rounded-xl p-8 shadow-sm border border-gray-100">
+                <div className="text-center mb-8">
+                  <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                    <PenTool className="w-8 h-8 text-white" />
+                  </div>
+                  <h2 className="text-2xl font-bold text-gray-900 mb-2">
+                    Add Your Signature
+                  </h2>
+                  <p className="text-gray-600">
+                    Choose how you'd like to create your signature
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                  {/* Draw Signature */}
+                  <div
+                    className="cursor-pointer group"
+                    onClick={() => handleSignatureTypeSelect("draw")}
+                  >
+                    <div className="bg-gray-50 rounded-xl p-6 border-2 border-transparent group-hover:border-blue-500 group-hover:bg-blue-50 transition-all duration-200">
+                      <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mx-auto mb-4 group-hover:bg-blue-200">
+                        <PenTool className="w-6 h-6 text-blue-600" />
+                      </div>
+                      <h3 className="text-lg font-semibold text-center mb-2">
+                        Draw
+                      </h3>
+                      <p className="text-sm text-gray-600 text-center">
+                        Draw your signature with mouse or touch
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Upload Image */}
+                  <div
+                    className="cursor-pointer group"
+                    onClick={() => handleSignatureTypeSelect("upload")}
+                  >
+                    <div className="bg-gray-50 rounded-xl p-6 border-2 border-transparent group-hover:border-green-500 group-hover:bg-green-50 transition-all duration-200">
+                      <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center mx-auto mb-4 group-hover:bg-green-200">
+                        <Upload className="w-6 h-6 text-green-600" />
+                      </div>
+                      <h3 className="text-lg font-semibold text-center mb-2">
+                        Image
+                      </h3>
+                      <p className="text-sm text-gray-600 text-center">
+                        Upload an image of your signature
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Type Signature */}
+                  <div
+                    className="cursor-pointer group"
+                    onClick={() => handleSignatureTypeSelect("type")}
+                  >
+                    <div className="bg-gray-50 rounded-xl p-6 border-2 border-transparent group-hover:border-purple-500 group-hover:bg-purple-50 transition-all duration-200">
+                      <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center mx-auto mb-4 group-hover:bg-purple-200">
+                        <FileText className="w-6 h-6 text-purple-600" />
+                      </div>
+                      <h3 className="text-lg font-semibold text-center mb-2">
+                        Type
+                      </h3>
+                      <p className="text-sm text-gray-600 text-center">
+                        Type your name as a signature
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="text-center">
+                  <Button
+                    variant="outline"
+                    onClick={() => setFile(null)}
+                    className="mr-4"
+                  >
+                    Choose Different PDF
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setShowSignatureOptions(false);
+                      actions.setTool("select");
+                    }}
+                  >
+                    Skip Signature & Edit PDF
+                  </Button>
+                </div>
+              </div>
+            </div>
+          ) : isCreatingSignature ? (
+            // Signature Creation Screen
+            <SignatureCreationScreen
+              type={signatureMode!}
+              onComplete={handleSignatureCreated}
+              onCancel={() => {
+                setIsCreatingSignature(false);
+                setShowSignatureOptions(true);
+              }}
+            />
+          ) : (
+            <PDFErrorBoundary>
+              <div
+                className={cn(
+                  "bg-white rounded-xl shadow-sm border border-gray-100",
+                  isFullscreen && "fixed inset-4 z-50",
                 )}
-              </Button>
+              >
+                {/* Editor Toolbar */}
+                <EditorToolbar
+                  currentTool={state.currentTool}
+                  onToolChange={actions.setTool}
+                  onUndo={actions.undo}
+                  onRedo={actions.redo}
+                  onCopy={actions.copyElements}
+                  onPaste={actions.pasteElements}
+                  onDelete={actions.deleteSelectedElements}
+                  onZoomIn={handleZoomIn}
+                  onZoomOut={handleZoomOut}
+                  onSave={handleSave}
+                  onDownload={handleSave}
+                  zoom={state.zoom}
+                  canUndo={computed.canUndo}
+                  canRedo={computed.canRedo}
+                  hasSelection={computed.hasSelection}
+                  canPaste={computed.canPaste}
+                  selectedColor={selectedColor}
+                  onColorChange={setSelectedColor}
+                  selectedStrokeWidth={selectedStrokeWidth}
+                  onStrokeWidthChange={setSelectedStrokeWidth}
+                  selectedFontSize={selectedFontSize}
+                  onFontSizeChange={setSelectedFontSize}
+                />
+
+                {/* Editor Layout */}
+                <div className="flex h-[calc(100vh-200px)]">
+                  {/* Page Thumbnails */}
+                  {showThumbnails && (
+                    <PageThumbnails
+                      file={file}
+                      currentPage={state.pageIndex}
+                      totalPages={pdfPages}
+                      onPageChange={handlePageChange}
+                    />
+                  )}
+
+                  {/* Main Canvas Area */}
+                  <div className="flex-1 relative">
+                    <PDFEditorCanvas
+                      file={file}
+                      pageIndex={state.pageIndex}
+                      zoom={state.zoom}
+                      elements={state.elements}
+                      selectedElements={state.selectedElements}
+                      currentTool={state.currentTool}
+                      isDrawing={state.isDrawing}
+                      currentDrawPath={state.currentDrawPath}
+                      selectedColor={selectedColor}
+                      selectedStrokeWidth={selectedStrokeWidth}
+                      selectedFontSize={selectedFontSize}
+                      onElementAdd={actions.addElement}
+                      onElementUpdate={actions.updateElement}
+                      onElementSelect={actions.selectElements}
+                      onElementToggleSelect={actions.toggleElementSelection}
+                      onStartDrawing={actions.startDrawing}
+                      onAddDrawPoint={actions.addDrawPoint}
+                      onEndDrawing={actions.endDrawing}
+                      onCanvasSizeChange={actions.setCanvasSize}
+                      onSignaturePlace={
+                        signatureData ? handleSignaturePlace : undefined
+                      }
+                      className="h-full"
+                    />
+
+                    {/* Processing Overlay */}
+                    {isProcessing && (
+                      <div className="absolute inset-0 bg-white bg-opacity-90 flex items-center justify-center z-10">
+                        <div className="text-center">
+                          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
+                          <span className="text-lg font-medium">
+                            Processing PDF...
+                          </span>
+                          <p className="text-sm text-gray-500 mt-2">
+                            Applying your edits
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Properties Panel */}
+                  {showProperties && (
+                    <PropertiesPanel
+                      selectedElements={selectors.getSelectedElements()}
+                      onElementUpdate={actions.updateElement}
+                      onElementDelete={actions.deleteElements}
+                      onElementCopy={actions.copyElements}
+                    />
+                  )}
+                </div>
+              </div>
+            </PDFErrorBoundary>
+          )}
+
+          {/* Premium Features */}
+          {!user?.isPremium && (
+            <div className="max-w-4xl mx-auto mt-8">
+              <div className="bg-gradient-to-r from-yellow-50 to-orange-50 border border-yellow-200 rounded-xl p-6">
+                <div className="flex items-center mb-4">
+                  <Crown className="w-6 h-6 text-yellow-600 mr-2" />
+                  <h3 className="text-lg font-semibold text-orange-800">
+                    Unlock Premium Features
+                  </h3>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                  <div className="flex items-center">
+                    <Star className="w-4 h-4 mr-2 text-yellow-600" />
+                    <span className="text-sm text-orange-700">
+                      Unlimited PDF editing
+                    </span>
+                  </div>
+                  <div className="flex items-center">
+                    <Star className="w-4 h-4 mr-2 text-yellow-600" />
+                    <span className="text-sm text-orange-700">
+                      Advanced signature tools
+                    </span>
+                  </div>
+                  <div className="flex items-center">
+                    <Star className="w-4 h-4 mr-2 text-yellow-600" />
+                    <span className="text-sm text-orange-700">
+                      Batch processing
+                    </span>
+                  </div>
+                  <div className="flex items-center">
+                    <Star className="w-4 h-4 mr-2 text-yellow-600" />
+                    <span className="text-sm text-orange-700">
+                      Priority support
+                    </span>
+                  </div>
+                </div>
+                <Button className="bg-yellow-600 text-white hover:bg-yellow-700">
+                  <Crown className="w-4 h-4 mr-2" />
+                  Get Premium Access
+                </Button>
+              </div>
             </div>
           )}
         </div>
 
-        {/* Header */}
-        {!file && (
-          <div className="text-center mb-8">
-            <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
-              <PenTool className="w-8 h-8 text-white" />
-            </div>
-            <h1 className="text-heading-medium text-text-dark mb-4">
-              Professional PDF Editor
-            </h1>
-            <p className="text-body-large text-text-light max-w-3xl mx-auto">
-              Create, edit, and sign PDF documents with our advanced real-time
-              editor. Add text, shapes, signatures, images, and annotations with
-              professional precision.
-            </p>
-            <div className="mt-6 flex flex-wrap justify-center gap-3">
-              <div className="inline-flex items-center px-4 py-2 rounded-full text-sm bg-blue-100 text-blue-800">
-                <span className="mr-2">✨</span>
-                Real-time editing
-              </div>
-              <div className="inline-flex items-center px-4 py-2 rounded-full text-sm bg-green-100 text-green-800">
-                <span className="mr-2">🎨</span>
-                Professional tools
-              </div>
-              <div className="inline-flex items-center px-4 py-2 rounded-full text-sm bg-purple-100 text-purple-800">
-                <span className="mr-2">⚡</span>
-                Instant preview
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Main Content */}
-        {!file ? (
-          <div className="max-w-2xl mx-auto">
-            <div className="bg-white rounded-xl p-8 shadow-sm border border-gray-100">
-              <FileUpload
-                onFilesSelect={handleFileUpload}
-                accept=".pdf"
-                multiple={false}
-                maxSize={50}
-                allowedTypes={["pdf"]}
-                uploadText="Select PDF file to sign"
-                supportText="Supports PDF format • Max 50MB"
-              />
-            </div>
-
-            {/* Quick Actions */}
-            <div className="mt-8 text-center">
-              <h3 className="text-lg font-semibold text-text-dark mb-4">
-                Quick Start
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="p-4 bg-white rounded-lg border border-gray-200">
-                  <PenTool className="w-8 h-8 text-blue-500 mx-auto mb-2" />
-                  <h4 className="font-medium mb-1">Sign Documents</h4>
-                  <p className="text-sm text-gray-600">
-                    Add electronic signatures anywhere on your PDF
-                  </p>
-                </div>
-                <div className="p-4 bg-white rounded-lg border border-gray-200">
-                  <FileText className="w-8 h-8 text-green-500 mx-auto mb-2" />
-                  <h4 className="font-medium mb-1">Add Text & Annotations</h4>
-                  <p className="text-sm text-gray-600">
-                    Insert text, comments, and markup elements
-                  </p>
-                </div>
-                <div className="p-4 bg-white rounded-lg border border-gray-200">
-                  <Upload className="w-8 h-8 text-purple-500 mx-auto mb-2" />
-                  <h4 className="font-medium mb-1">Insert Images</h4>
-                  <p className="text-sm text-gray-600">
-                    Add logos, stamps, and other images
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-        ) : showSignatureOptions ? (
-          // Signature Options Screen
-          <div className="max-w-4xl mx-auto">
-            <div className="bg-white rounded-xl p-8 shadow-sm border border-gray-100">
-              <div className="text-center mb-8">
-                <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                  <PenTool className="w-8 h-8 text-white" />
-                </div>
-                <h2 className="text-2xl font-bold text-gray-900 mb-2">
-                  Add Your Signature
-                </h2>
-                <p className="text-gray-600">
-                  Choose how you'd like to create your signature
-                </p>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                {/* Draw Signature */}
-                <div
-                  className="cursor-pointer group"
-                  onClick={() => handleSignatureTypeSelect("draw")}
-                >
-                  <div className="bg-gray-50 rounded-xl p-6 border-2 border-transparent group-hover:border-blue-500 group-hover:bg-blue-50 transition-all duration-200">
-                    <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mx-auto mb-4 group-hover:bg-blue-200">
-                      <PenTool className="w-6 h-6 text-blue-600" />
-                    </div>
-                    <h3 className="text-lg font-semibold text-center mb-2">
-                      Draw
-                    </h3>
-                    <p className="text-sm text-gray-600 text-center">
-                      Draw your signature with mouse or touch
-                    </p>
-                  </div>
-                </div>
-
-                {/* Upload Image */}
-                <div
-                  className="cursor-pointer group"
-                  onClick={() => handleSignatureTypeSelect("upload")}
-                >
-                  <div className="bg-gray-50 rounded-xl p-6 border-2 border-transparent group-hover:border-green-500 group-hover:bg-green-50 transition-all duration-200">
-                    <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center mx-auto mb-4 group-hover:bg-green-200">
-                      <Upload className="w-6 h-6 text-green-600" />
-                    </div>
-                    <h3 className="text-lg font-semibold text-center mb-2">
-                      Image
-                    </h3>
-                    <p className="text-sm text-gray-600 text-center">
-                      Upload an image of your signature
-                    </p>
-                  </div>
-                </div>
-
-                {/* Type Signature */}
-                <div
-                  className="cursor-pointer group"
-                  onClick={() => handleSignatureTypeSelect("type")}
-                >
-                  <div className="bg-gray-50 rounded-xl p-6 border-2 border-transparent group-hover:border-purple-500 group-hover:bg-purple-50 transition-all duration-200">
-                    <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center mx-auto mb-4 group-hover:bg-purple-200">
-                      <FileText className="w-6 h-6 text-purple-600" />
-                    </div>
-                    <h3 className="text-lg font-semibold text-center mb-2">
-                      Type
-                    </h3>
-                    <p className="text-sm text-gray-600 text-center">
-                      Type your name as a signature
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="text-center">
-                <Button
-                  variant="outline"
-                  onClick={() => setFile(null)}
-                  className="mr-4"
-                >
-                  Choose Different PDF
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    setShowSignatureOptions(false);
-                    actions.setTool("select");
-                  }}
-                >
-                  Skip Signature & Edit PDF
-                </Button>
-              </div>
-            </div>
-          </div>
-        ) : isCreatingSignature ? (
-          // Signature Creation Screen
-          <SignatureCreationScreen
-            type={signatureMode!}
-            onComplete={handleSignatureCreated}
-            onCancel={() => {
-              setIsCreatingSignature(false);
-              setShowSignatureOptions(true);
-            }}
-          />
-        ) : (
-          <PDFErrorBoundary>
-            <div
-              className={cn(
-                "bg-white rounded-xl shadow-sm border border-gray-100",
-                isFullscreen && "fixed inset-4 z-50",
-              )}
-            >
-              {/* Editor Toolbar */}
-              <EditorToolbar
-                currentTool={state.currentTool}
-                onToolChange={actions.setTool}
-                onUndo={actions.undo}
-                onRedo={actions.redo}
-                onCopy={actions.copyElements}
-                onPaste={actions.pasteElements}
-                onDelete={actions.deleteSelectedElements}
-                onZoomIn={handleZoomIn}
-                onZoomOut={handleZoomOut}
-                onSave={handleSave}
-                onDownload={handleSave}
-                zoom={state.zoom}
-                canUndo={computed.canUndo}
-                canRedo={computed.canRedo}
-                hasSelection={computed.hasSelection}
-                canPaste={computed.canPaste}
-                selectedColor={selectedColor}
-                onColorChange={setSelectedColor}
-                selectedStrokeWidth={selectedStrokeWidth}
-                onStrokeWidthChange={setSelectedStrokeWidth}
-                selectedFontSize={selectedFontSize}
-                onFontSizeChange={setSelectedFontSize}
-              />
-
-              {/* Editor Layout */}
-              <div className="flex h-[calc(100vh-200px)]">
-                {/* Page Thumbnails */}
-                {showThumbnails && (
-                  <PageThumbnails
-                    file={file}
-                    currentPage={state.pageIndex}
-                    totalPages={pdfPages}
-                    onPageChange={handlePageChange}
-                  />
-                )}
-
-                {/* Main Canvas Area */}
-                <div className="flex-1 relative">
-                  <PDFEditorCanvas
-                    file={file}
-                    pageIndex={state.pageIndex}
-                    zoom={state.zoom}
-                    elements={state.elements}
-                    selectedElements={state.selectedElements}
-                    currentTool={state.currentTool}
-                    isDrawing={state.isDrawing}
-                    currentDrawPath={state.currentDrawPath}
-                    selectedColor={selectedColor}
-                    selectedStrokeWidth={selectedStrokeWidth}
-                    selectedFontSize={selectedFontSize}
-                    onElementAdd={actions.addElement}
-                    onElementUpdate={actions.updateElement}
-                    onElementSelect={actions.selectElements}
-                    onElementToggleSelect={actions.toggleElementSelection}
-                    onStartDrawing={actions.startDrawing}
-                    onAddDrawPoint={actions.addDrawPoint}
-                    onEndDrawing={actions.endDrawing}
-                    onCanvasSizeChange={actions.setCanvasSize}
-                    onSignaturePlace={
-                      signatureData ? handleSignaturePlace : undefined
-                    }
-                    className="h-full"
-                  />
-
-                  {/* Processing Overlay */}
-                  {isProcessing && (
-                    <div className="absolute inset-0 bg-white bg-opacity-90 flex items-center justify-center z-10">
-                      <div className="text-center">
-                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
-                        <span className="text-lg font-medium">
-                          Processing PDF...
-                        </span>
-                        <p className="text-sm text-gray-500 mt-2">
-                          Applying your edits
-                        </p>
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* Properties Panel */}
-                {showProperties && (
-                  <PropertiesPanel
-                    selectedElements={selectors.getSelectedElements()}
-                    onElementUpdate={actions.updateElement}
-                    onElementDelete={actions.deleteElements}
-                    onElementCopy={actions.copyElements}
-                  />
-                )}
-              </div>
-            </div>
-          </PDFErrorBoundary>
-        )}
-
-        {/* Premium Features */}
-        {!user?.isPremium && (
-          <div className="max-w-4xl mx-auto mt-8">
-            <div className="bg-gradient-to-r from-yellow-50 to-orange-50 border border-yellow-200 rounded-xl p-6">
-              <div className="flex items-center mb-4">
-                <Crown className="w-6 h-6 text-yellow-600 mr-2" />
-                <h3 className="text-lg font-semibold text-orange-800">
-                  Unlock Premium Features
-                </h3>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                <div className="flex items-center">
-                  <Star className="w-4 h-4 mr-2 text-yellow-600" />
-                  <span className="text-sm text-orange-700">
-                    Unlimited PDF editing
-                  </span>
-                </div>
-                <div className="flex items-center">
-                  <Star className="w-4 h-4 mr-2 text-yellow-600" />
-                  <span className="text-sm text-orange-700">
-                    Advanced signature tools
-                  </span>
-                </div>
-                <div className="flex items-center">
-                  <Star className="w-4 h-4 mr-2 text-yellow-600" />
-                  <span className="text-sm text-orange-700">
-                    Batch processing
-                  </span>
-                </div>
-                <div className="flex items-center">
-                  <Star className="w-4 h-4 mr-2 text-yellow-600" />
-                  <span className="text-sm text-orange-700">
-                    Priority support
-                  </span>
-                </div>
-              </div>
-              <Button className="bg-yellow-600 text-white hover:bg-yellow-700">
-                <Crown className="w-4 h-4 mr-2" />
-                Get Premium Access
-              </Button>
-            </div>
-          </div>
-        )}
+        {/* Auth Modal */}
+        <AuthModal
+          isOpen={showAuthModal}
+          onClose={() => setShowAuthModal(false)}
+          defaultTab="register"
+        />
       </div>
-
-      {/* Auth Modal */}
-      <AuthModal
-        isOpen={showAuthModal}
-        onClose={() => setShowAuthModal(false)}
-        defaultTab="register"
-      />
-    </div>
+    </ErrorBoundaryWrapper>
   );
 };
 

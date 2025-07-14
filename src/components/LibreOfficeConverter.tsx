@@ -1,14 +1,7 @@
 import React, { useState, useCallback } from "react";
 import { useDropzone } from "react-dropzone";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   Select,
@@ -17,481 +10,336 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Label } from "@/components/ui/label";
-import { Checkbox } from "@/components/ui/checkbox";
 import {
-  Upload,
   FileText,
+  FileSpreadsheet,
+  Presentation,
+  Image,
+  Upload,
   Download,
-  CheckCircle,
-  XCircle,
   AlertCircle,
-  Loader2,
+  CheckCircle,
+  Shield,
+  X,
+  Zap,
 } from "lucide-react";
+import {
+  LIBREOFFICE_TOOLS,
+  validateFileType,
+  LibreOfficeToolConfig,
+} from "@/config/libreoffice-tools";
 
-interface ConversionOptions {
-  quality: "standard" | "high" | "premium";
-  preserveFormatting: boolean;
-  preserveImages: boolean;
-  preserveLayouts: boolean;
-  pageSize: "A4" | "Letter" | "Legal" | "auto";
-  orientation: "auto" | "portrait" | "landscape";
-}
-
-interface ConversionResult {
-  success: boolean;
-  message: string;
-  downloadUrl?: string;
-  fileName?: string;
-  processingTime?: number;
-  pageCount?: number;
+interface FileWithValidation {
+  file: File;
+  isValid: boolean;
   error?: string;
+  toolId?: string;
 }
 
-const SUPPORTED_FORMATS = {
-  "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
-    "Word Document (.docx)",
-  "application/msword": "Word Document (.doc)",
-  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet":
-    "Excel Spreadsheet (.xlsx)",
-  "application/vnd.ms-excel": "Excel Spreadsheet (.xls)",
-  "application/vnd.openxmlformats-officedocument.presentationml.presentation":
-    "PowerPoint Presentation (.pptx)",
-  "application/vnd.ms-powerpoint": "PowerPoint Presentation (.ppt)",
-  "application/vnd.oasis.opendocument.text": "OpenDocument Text (.odt)",
-  "application/vnd.oasis.opendocument.spreadsheet":
-    "OpenDocument Spreadsheet (.ods)",
-  "application/vnd.oasis.opendocument.presentation":
-    "OpenDocument Presentation (.odp)",
-  "text/rtf": "Rich Text Format (.rtf)",
-};
+const LibreOfficeConverter: React.FC = () => {
+  const [selectedTool, setSelectedTool] = useState<string>("");
+  const [files, setFiles] = useState<FileWithValidation[]>([]);
+  const [processing, setProcessing] = useState(false);
 
-export function LibreOfficeConverter() {
-  const [file, setFile] = useState<File | null>(null);
-  const [converting, setConverting] = useState(false);
-  const [progress, setProgress] = useState(0);
-  const [result, setResult] = useState<ConversionResult | null>(null);
-  const [options, setOptions] = useState<ConversionOptions>({
-    quality: "high",
-    preserveFormatting: true,
-    preserveImages: true,
-    preserveLayouts: true,
-    pageSize: "A4",
-    orientation: "auto",
-  });
-  const [libreOfficeAvailable, setLibreOfficeAvailable] = useState<
-    boolean | null
-  >(null);
+  const getIcon = (iconName: string) => {
+    const icons = {
+      FileText,
+      FileSpreadsheet,
+      Presentation,
+      Image,
+    };
+    return icons[iconName as keyof typeof icons] || FileText;
+  };
 
-  const onDrop = useCallback((acceptedFiles: File[]) => {
-    if (acceptedFiles.length > 0) {
-      setFile(acceptedFiles[0]);
-      setResult(null);
-    }
-  }, []);
+  const onDrop = useCallback(
+    (acceptedFiles: File[]) => {
+      if (!selectedTool) {
+        alert("Please select a conversion tool first");
+        return;
+      }
+
+      const validatedFiles = acceptedFiles.map((file) => {
+        const validation = validateFileType(file.name, selectedTool);
+        return {
+          file,
+          isValid: validation.isValid,
+          error: validation.error,
+          toolId: selectedTool,
+        };
+      });
+
+      setFiles(validatedFiles);
+    },
+    [selectedTool],
+  );
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
-    accept: Object.keys(SUPPORTED_FORMATS).reduce(
-      (acc, key) => {
-        acc[key] = [];
-        return acc;
-      },
-      {} as Record<string, string[]>,
-    ),
     multiple: false,
-    maxSize: 100 * 1024 * 1024, // 100MB
+    disabled: !selectedTool,
   });
 
-  const checkLibreOffice = async () => {
-    try {
-      const apiUrl = "https://pdfpage-app.onrender.com/api";
-      const response = await fetch(`${apiUrl}/pdf/system-status`);
-      const data = await response.json();
-      setLibreOfficeAvailable(data.libreoffice);
-      return data.libreoffice;
-    } catch (error) {
-      console.error("Failed to check LibreOffice status:", error);
-      setLibreOfficeAvailable(false);
-      return false;
-    }
+  const removeFile = (index: number) => {
+    setFiles(files.filter((_, i) => i !== index));
   };
 
-  React.useEffect(() => {
-    checkLibreOffice();
-  }, []);
+  const processFiles = async () => {
+    const validFiles = files.filter((f) => f.isValid);
+    if (validFiles.length === 0) return;
 
-  const convertFile = async () => {
-    if (!file) return;
-
-    // Check LibreOffice availability first
-    const isAvailable = await checkLibreOffice();
-    if (!isAvailable) {
-      setResult({
-        success: false,
-        message:
-          "LibreOffice is not available. Please install LibreOffice first.",
-        error: "LIBREOFFICE_UNAVAILABLE",
-      });
-      return;
-    }
-
-    setConverting(true);
-    setProgress(0);
-    setResult(null);
-
+    setProcessing(true);
     try {
-      const formData = new FormData();
-      formData.append("file", file);
-      formData.append("quality", options.quality);
-      formData.append(
-        "preserveFormatting",
-        options.preserveFormatting.toString(),
-      );
-      formData.append("preserveImages", options.preserveImages.toString());
-      formData.append("preserveLayouts", options.preserveLayouts.toString());
-      formData.append("pageSize", options.pageSize);
-      formData.append("orientation", options.orientation);
+      // Here you would call your backend API
+      const tool = LIBREOFFICE_TOOLS.find((t) => t.id === selectedTool);
 
-      // Simulate progress updates
-      const progressInterval = setInterval(() => {
-        setProgress((prev) => {
-          if (prev >= 90) return prev;
-          return prev + Math.random() * 10;
+      for (const fileItem of validFiles) {
+        const formData = new FormData();
+        formData.append("file", fileItem.file);
+        formData.append("toolId", selectedTool);
+
+        const response = await fetch("/api/libreoffice-strict/convert", {
+          method: "POST",
+          body: formData,
         });
-      }, 500);
 
-      const apiUrl = "https://pdfpage-app.onrender.com/api";
-      const response = await fetch(`${apiUrl}/pdf/word-to-pdf-libreoffice`, {
-        method: "POST",
-        body: formData,
-      });
-
-      clearInterval(progressInterval);
-      setProgress(100);
-
-      if (response.ok) {
-        const blob = await response.blob();
-        const downloadUrl = URL.createObjectURL(blob);
-        const fileName = file.name.replace(/\.[^/.]+$/, ".pdf");
-
-        // Get additional info from headers
-        const processingTime = response.headers.get("X-Processing-Time");
-        const pageCount = response.headers.get("X-Page-Count");
-
-        setResult({
-          success: true,
-          message: "Document converted successfully!",
-          downloadUrl,
-          fileName,
-          processingTime: processingTime ? parseInt(processingTime) : undefined,
-          pageCount: pageCount ? parseInt(pageCount) : undefined,
-        });
-      } else {
-        const errorData = await response.json();
-        setResult({
-          success: false,
-          message: errorData.message || "Conversion failed",
-          error: errorData.error,
-        });
+        if (response.ok) {
+          const blob = await response.blob();
+          const url = window.URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = `${fileItem.file.name.split(".")[0]}${tool?.outputType}`;
+          document.body.appendChild(a);
+          a.click();
+          window.URL.revokeObjectURL(url);
+          document.body.removeChild(a);
+        } else {
+          throw new Error("Conversion failed");
+        }
       }
     } catch (error) {
       console.error("Conversion error:", error);
-      setResult({
-        success: false,
-        message: "Network error occurred during conversion",
-        error: "NETWORK_ERROR",
-      });
+      alert("Conversion failed. Please try again.");
     } finally {
-      setConverting(false);
-      setProgress(0);
+      setProcessing(false);
     }
   };
 
-  const resetConverter = () => {
-    setFile(null);
-    setResult(null);
-    setProgress(0);
-  };
-
-  if (libreOfficeAvailable === false) {
-    return (
-      <Card className="w-full max-w-2xl mx-auto">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <XCircle className="h-5 w-5 text-red-600" />
-            LibreOffice Required
-          </CardTitle>
-          <CardDescription>
-            LibreOffice must be installed to use this conversion tool
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Alert>
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription>
-              Please install LibreOffice and restart the backend server to use
-              document conversion features.
-            </AlertDescription>
-          </Alert>
-          <Button
-            onClick={checkLibreOffice}
-            className="w-full mt-4"
-            variant="outline"
-          >
-            Check Again
-          </Button>
-        </CardContent>
-      </Card>
-    );
-  }
+  const selectedToolConfig = LIBREOFFICE_TOOLS.find(
+    (t) => t.id === selectedTool,
+  );
 
   return (
-    <div className="w-full max-w-2xl mx-auto space-y-6">
+    <div className="max-w-4xl mx-auto p-6 space-y-6">
+      {/* Header */}
+      <Card className="border-l-4 border-l-blue-500">
+        <CardHeader>
+          <CardTitle className="flex items-center space-x-2">
+            <Shield className="w-6 h-6 text-blue-600" />
+            <span>LibreOffice-Only Conversion Tools</span>
+          </CardTitle>
+          <div className="space-y-2 text-sm text-gray-600">
+            <p className="flex items-center space-x-2">
+              <Shield className="w-4 h-4 text-green-600" />
+              <span>
+                All conversions handled exclusively by LibreOffice in headless
+                mode
+              </span>
+            </p>
+            <p className="flex items-center space-x-2">
+              <X className="w-4 h-4 text-red-600" />
+              <span>No fallback libraries (Puppeteer, Pandoc, Mammoth)</span>
+            </p>
+            <p className="flex items-center space-x-2">
+              <CheckCircle className="w-4 h-4 text-green-600" />
+              <span>
+                Accurate, format-pure results for professional processing
+              </span>
+            </p>
+          </div>
+        </CardHeader>
+      </Card>
+
+      {/* Tool Selection */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <FileText className="h-5 w-5" />
-            LibreOffice Document Converter
-          </CardTitle>
-          <CardDescription>
-            Convert Word, Excel, PowerPoint, and other documents to PDF using
-            LibreOffice
-          </CardDescription>
+          <CardTitle>Select Conversion Tool</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-6">
-          {/* File Upload */}
-          <div className="space-y-4">
-            <Label>Select Document</Label>
-            <div
-              {...getRootProps()}
-              className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors ${
-                isDragActive
-                  ? "border-primary bg-primary/10"
-                  : "border-gray-300 hover:border-primary"
-              }`}
-            >
-              <input {...getInputProps()} />
-              <Upload className="h-12 w-12 mx-auto mb-4 text-gray-400" />
-              {file ? (
+        <CardContent>
+          <Select value={selectedTool} onValueChange={setSelectedTool}>
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="Choose a conversion tool..." />
+            </SelectTrigger>
+            <SelectContent>
+              {LIBREOFFICE_TOOLS.map((tool) => {
+                const IconComponent = getIcon(tool.icon);
+                return (
+                  <SelectItem key={tool.id} value={tool.id}>
+                    <div className="flex items-center space-x-2">
+                      <IconComponent className="w-4 h-4" />
+                      <span>{tool.name}</span>
+                      <span className="text-xs text-gray-500">
+                        ({tool.acceptedTypes.join(", ")})
+                      </span>
+                    </div>
+                  </SelectItem>
+                );
+              })}
+            </SelectContent>
+          </Select>
+
+          {selectedToolConfig && (
+            <div className="mt-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+              <h3 className="font-semibold text-blue-900 mb-2">
+                {selectedToolConfig.name}
+              </h3>
+              <p className="text-sm text-blue-700 mb-3">
+                {selectedToolConfig.description}
+              </p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                 <div>
-                  <p className="font-medium">{file.name}</p>
-                  <p className="text-sm text-gray-500">
-                    {(file.size / 1024 / 1024).toFixed(2)} MB
-                  </p>
-                  <p className="text-xs text-gray-400 mt-2">
-                    {SUPPORTED_FORMATS[
-                      file.type as keyof typeof SUPPORTED_FORMATS
-                    ] || "Supported format"}
-                  </p>
+                  <span className="font-medium text-green-700">
+                    ✅ Accept:{" "}
+                  </span>
+                  <span className="text-green-600">
+                    {selectedToolConfig.acceptedTypes.join(", ")}
+                  </span>
                 </div>
-              ) : (
                 <div>
-                  <p className="text-lg mb-2">
-                    {isDragActive
-                      ? "Drop your document here"
-                      : "Drag & drop a document or click to browse"}
-                  </p>
-                  <p className="text-sm text-gray-500">
-                    Supports: Word, Excel, PowerPoint, OpenDocument, RTF
-                  </p>
-                  <p className="text-xs text-gray-400 mt-1">
-                    Maximum file size: 100MB
-                  </p>
+                  <span className="font-medium text-blue-700">📤 Output: </span>
+                  <span className="text-blue-600">
+                    {selectedToolConfig.outputType}
+                  </span>
                 </div>
-              )}
+                <div className="md:col-span-2">
+                  <span className="font-medium text-red-700">❌ Reject: </span>
+                  <span className="text-red-600">
+                    {selectedToolConfig.rejectedTypes.join(", ")}
+                  </span>
+                </div>
+              </div>
             </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* File Upload */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Upload File</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div
+            {...getRootProps()}
+            className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
+              !selectedTool
+                ? "border-gray-200 bg-gray-50 cursor-not-allowed"
+                : isDragActive
+                  ? "border-blue-400 bg-blue-50"
+                  : "border-gray-300 hover:border-blue-400 cursor-pointer"
+            }`}
+          >
+            <input {...getInputProps()} />
+            <Upload className="w-12 h-12 mx-auto mb-4 text-gray-400" />
+
+            {!selectedTool ? (
+              <p className="text-gray-500">
+                Please select a conversion tool first
+              </p>
+            ) : isDragActive ? (
+              <p className="text-blue-600">Drop the file here...</p>
+            ) : (
+              <div>
+                <p className="text-gray-600 mb-2">
+                  Drag & drop a file here, or click to select
+                </p>
+                <p className="text-sm text-gray-500">
+                  Only accepts: {selectedToolConfig?.acceptedTypes.join(", ")}
+                </p>
+              </div>
+            )}
           </div>
 
-          {/* Conversion Options */}
-          {file && (
-            <div className="space-y-4">
-              <Label>Conversion Options</Label>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="quality">Quality</Label>
-                  <Select
-                    value={options.quality}
-                    onValueChange={(value: any) =>
-                      setOptions({ ...options, quality: value })
-                    }
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="standard">Standard</SelectItem>
-                      <SelectItem value="high">High</SelectItem>
-                      <SelectItem value="premium">Premium</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="pageSize">Page Size</Label>
-                  <Select
-                    value={options.pageSize}
-                    onValueChange={(value: any) =>
-                      setOptions({ ...options, pageSize: value })
-                    }
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="auto">Auto</SelectItem>
-                      <SelectItem value="A4">A4</SelectItem>
-                      <SelectItem value="Letter">Letter</SelectItem>
-                      <SelectItem value="Legal">Legal</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              <div className="space-y-3">
-                <div className="flex items-center space-x-2">
-                  <Checkbox
-                    id="preserveFormatting"
-                    checked={options.preserveFormatting}
-                    onCheckedChange={(checked) =>
-                      setOptions({
-                        ...options,
-                        preserveFormatting: checked as boolean,
-                      })
-                    }
-                  />
-                  <Label htmlFor="preserveFormatting">
-                    Preserve original formatting
-                  </Label>
-                </div>
-
-                <div className="flex items-center space-x-2">
-                  <Checkbox
-                    id="preserveImages"
-                    checked={options.preserveImages}
-                    onCheckedChange={(checked) =>
-                      setOptions({
-                        ...options,
-                        preserveImages: checked as boolean,
-                      })
-                    }
-                  />
-                  <Label htmlFor="preserveImages">Preserve images</Label>
-                </div>
-
-                <div className="flex items-center space-x-2">
-                  <Checkbox
-                    id="preserveLayouts"
-                    checked={options.preserveLayouts}
-                    onCheckedChange={(checked) =>
-                      setOptions({
-                        ...options,
-                        preserveLayouts: checked as boolean,
-                      })
-                    }
-                  />
-                  <Label htmlFor="preserveLayouts">Preserve layouts</Label>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Convert Button */}
-          {file && (
-            <Button
-              onClick={convertFile}
-              disabled={converting}
-              className="w-full"
-              size="lg"
-            >
-              {converting ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Converting...
-                </>
-              ) : (
-                <>
-                  <FileText className="h-4 w-4 mr-2" />
-                  Convert to PDF
-                </>
-              )}
-            </Button>
-          )}
-
-          {/* Progress */}
-          {converting && (
-            <div className="space-y-2">
-              <div className="flex justify-between text-sm">
-                <span>Converting document...</span>
-                <span>{Math.round(progress)}%</span>
-              </div>
-              <Progress value={progress} className="w-full" />
-            </div>
-          )}
-
-          {/* Results */}
-          {result && (
-            <Alert
-              className={
-                result.success
-                  ? "border-green-200 bg-green-50"
-                  : "border-red-200 bg-red-50"
-              }
-            >
-              {result.success ? (
-                <CheckCircle className="h-4 w-4 text-green-600" />
-              ) : (
-                <XCircle className="h-4 w-4 text-red-600" />
-              )}
-              <AlertDescription>
-                <div className="space-y-3">
-                  <p>{result.message}</p>
-
-                  {result.success && result.downloadUrl && (
-                    <div className="space-y-2">
-                      {result.pageCount && (
-                        <p className="text-sm text-gray-600">
-                          Pages: {result.pageCount}
-                        </p>
-                      )}
-                      {result.processingTime && (
-                        <p className="text-sm text-gray-600">
-                          Processing time:{" "}
-                          {(result.processingTime / 1000).toFixed(1)}s
-                        </p>
-                      )}
-                      <div className="flex gap-2">
-                        <Button asChild>
-                          <a
-                            href={result.downloadUrl}
-                            download={result.fileName}
-                            className="flex items-center gap-2"
-                          >
-                            <Download className="h-4 w-4" />
-                            Download PDF
-                          </a>
-                        </Button>
-                        <Button variant="outline" onClick={resetConverter}>
-                          Convert Another
-                        </Button>
-                      </div>
-                    </div>
-                  )}
-
-                  {!result.success &&
-                    result.error === "LIBREOFFICE_UNAVAILABLE" && (
-                      <p className="text-sm text-red-600">
-                        Please install LibreOffice and restart the backend
-                        server.
-                      </p>
+          {/* File List */}
+          {files.length > 0 && (
+            <div className="mt-4 space-y-2">
+              {files.map((fileItem, index) => (
+                <div
+                  key={index}
+                  className={`flex items-center justify-between p-3 rounded-lg border ${
+                    fileItem.isValid
+                      ? "border-green-200 bg-green-50"
+                      : "border-red-200 bg-red-50"
+                  }`}
+                >
+                  <div className="flex items-center space-x-2">
+                    {fileItem.isValid ? (
+                      <CheckCircle className="w-5 h-5 text-green-600" />
+                    ) : (
+                      <AlertCircle className="w-5 h-5 text-red-600" />
                     )}
+                    <span className="font-medium">{fileItem.file.name}</span>
+                    <span className="text-xs text-gray-500">
+                      ({(fileItem.file.size / 1024 / 1024).toFixed(2)} MB)
+                    </span>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => removeFile(index)}
+                  >
+                    <X className="w-4 h-4" />
+                  </Button>
                 </div>
+              ))}
+            </div>
+          )}
+
+          {/* Error Messages */}
+          {files.some((f) => !f.isValid) && (
+            <Alert className="mt-4 border-red-200 bg-red-50">
+              <AlertCircle className="h-4 w-4 text-red-600" />
+              <AlertDescription className="text-red-700">
+                {files.find((f) => !f.isValid)?.error}
               </AlertDescription>
             </Alert>
           )}
+
+          {/* Process Button */}
+          {files.some((f) => f.isValid) && (
+            <div className="mt-4">
+              <Button
+                onClick={processFiles}
+                disabled={processing}
+                className="w-full"
+              >
+                {processing ? (
+                  <div className="flex items-center space-x-2">
+                    <Zap className="w-4 h-4 animate-spin" />
+                    <span>Converting with LibreOffice...</span>
+                  </div>
+                ) : (
+                  <div className="flex items-center space-x-2">
+                    <Download className="w-4 h-4" />
+                    <span>Convert File</span>
+                  </div>
+                )}
+              </Button>
+            </div>
+          )}
         </CardContent>
       </Card>
+
+      {/* Warning */}
+      <Alert className="border-amber-200 bg-amber-50">
+        <AlertCircle className="h-4 w-4 text-amber-600" />
+        <AlertDescription className="text-amber-700">
+          <strong>⚠️ Strict Validation:</strong> Only the specified input file
+          types are accepted. Uploading unsupported formats will be rejected
+          automatically. No fallback conversion methods are available.
+        </AlertDescription>
+      </Alert>
     </div>
   );
-}
+};
+
+export default LibreOfficeConverter;

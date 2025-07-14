@@ -367,7 +367,10 @@ const App = () => {
                       {/* Dashboard and Settings */}
                       <Route path="/pricing" element={<Pricing />} />
                       <Route path="/dashboard" element={<Dashboard />} />
-                      <Route path="/admin" element={<AdminRoute />} />
+                      <Route
+                        path="/jEG7MtWenZDOfC3-iFMYJC_1aaA"
+                        element={<AdminRoute />}
+                      />
                       <Route path="/settings" element={<Settings />} />
 
                       {/* Company Pages */}

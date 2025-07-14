@@ -1,171 +1,356 @@
-import React, { useState } from "react";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { LibreOfficeSetup } from "@/components/LibreOfficeSetup";
-import { LibreOfficeConverter } from "@/components/LibreOfficeConverter";
+import React from "react";
+import { Helmet } from "react-helmet-async";
+import LibreOfficeConverter from "@/components/LibreOfficeConverter";
 import {
+  Shield,
   FileText,
-  Settings,
-  Download,
+  FileSpreadsheet,
+  Presentation,
   CheckCircle,
+  X,
   AlertTriangle,
 } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { LIBREOFFICE_TOOLS } from "@/config/libreoffice-tools";
 
-export default function LibreOfficeTools() {
-  return (
-    <div className="min-h-screen bg-bg-light py-8">
-      <div className="container mx-auto px-4">
-        {/* Header */}
-        <div className="text-center mb-8">
-          <h1 className="text-heading-large text-text-dark mb-4">
-            LibreOffice Document Converter
-          </h1>
-          <p className="text-body-large text-text-light max-w-2xl mx-auto">
-            Convert Word, Excel, PowerPoint, and other documents to PDF using
-            the powerful LibreOffice engine. Professional quality conversions
-            with advanced formatting preservation.
-          </p>
-        </div>
-
-        {/* Features Overview */}
-        <div className="grid md:grid-cols-3 gap-6 mb-8">
-          <Card>
-            <CardHeader className="text-center">
-              <FileText className="h-8 w-8 mx-auto mb-2 text-primary" />
-              <CardTitle className="text-lg">Multiple Formats</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-center text-gray-600">
-                Supports Word, Excel, PowerPoint, OpenDocument, and RTF files
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="text-center">
-              <CheckCircle className="h-8 w-8 mx-auto mb-2 text-primary" />
-              <CardTitle className="text-lg">High Quality</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-center text-gray-600">
-                Preserves formatting, images, and layouts with professional
-                results
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="text-center">
-              <Settings className="h-8 w-8 mx-auto mb-2 text-primary" />
-              <CardTitle className="text-lg">Customizable</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-center text-gray-600">
-                Adjust quality, page size, and preservation options for optimal
-                results
-              </p>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Main Content */}
-        <Tabs defaultValue="converter" className="w-full">
-          <TabsList className="grid w-full grid-cols-2 mb-6">
-            <TabsTrigger value="converter" className="flex items-center gap-2">
-              <FileText className="h-4 w-4" />
-              Document Converter
-            </TabsTrigger>
-            <TabsTrigger value="setup" className="flex items-center gap-2">
-              <Settings className="h-4 w-4" />
-              Setup & Status
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="converter">
-            <LibreOfficeConverter />
-          </TabsContent>
-
-          <TabsContent value="setup">
-            <LibreOfficeSetup />
-          </TabsContent>
-        </Tabs>
-
-        {/* Installation Notice */}
-        <Card className="mt-8 border-orange-200 bg-orange-50">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-orange-800">
-              <AlertTriangle className="h-5 w-5" />
-              Installation Required
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-orange-700 space-y-2">
-              <p>
-                <strong>LibreOffice must be installed</strong> on your system
-                for document conversion to work.
-              </p>
-              <p className="text-sm">
-                If you're seeing conversion errors, please:
-              </p>
-              <ul className="text-sm list-disc list-inside space-y-1 ml-4">
-                <li>Install LibreOffice from the official website</li>
-                <li>Ensure it's added to your system PATH</li>
-                <li>Restart the backend server</li>
-                <li>Check the "Setup & Status" tab for verification</li>
-              </ul>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Supported Formats */}
-        <Card className="mt-8">
-          <CardHeader>
-            <CardTitle>Supported Document Formats</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid md:grid-cols-2 gap-6">
-              <div>
-                <h4 className="font-semibold mb-3 text-gray-800">
-                  Microsoft Office
-                </h4>
-                <ul className="space-y-2 text-sm text-gray-600">
-                  <li className="flex items-center gap-2">
-                    <CheckCircle className="h-4 w-4 text-green-600" />
-                    Word Documents (.docx, .doc)
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <CheckCircle className="h-4 w-4 text-green-600" />
-                    Excel Spreadsheets (.xlsx, .xls)
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <CheckCircle className="h-4 w-4 text-green-600" />
-                    PowerPoint Presentations (.pptx, .ppt)
-                  </li>
-                </ul>
-              </div>
-              <div>
-                <h4 className="font-semibold mb-3 text-gray-800">
-                  Other Formats
-                </h4>
-                <ul className="space-y-2 text-sm text-gray-600">
-                  <li className="flex items-center gap-2">
-                    <CheckCircle className="h-4 w-4 text-green-600" />
-                    OpenDocument Text (.odt)
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <CheckCircle className="h-4 w-4 text-green-600" />
-                    OpenDocument Spreadsheet (.ods)
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <CheckCircle className="h-4 w-4 text-green-600" />
-                    Rich Text Format (.rtf)
-                  </li>
-                </ul>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    </div>
+const LibreOfficeTools: React.FC = () => {
+  const documentTools = LIBREOFFICE_TOOLS.filter(
+    (tool) => tool.category === "document",
   );
-}
+  const spreadsheetTools = LIBREOFFICE_TOOLS.filter(
+    (tool) => tool.category === "spreadsheet",
+  );
+  const presentationTools = LIBREOFFICE_TOOLS.filter(
+    (tool) => tool.category === "presentation",
+  );
+
+  return (
+    <>
+      <Helmet>
+        <title>
+          LibreOffice Document Converter | Professional Format Conversion
+        </title>
+        <meta
+          name="description"
+          content="Professional document conversion using LibreOffice. Convert between ODT, DOCX, RTF, PDF, CSV, XLSX, ODS, PPTX formats with strict validation and no fallback libraries."
+        />
+        <meta
+          name="keywords"
+          content="LibreOffice converter, document conversion, ODT to PDF, DOCX to ODT, RTF to PDF, CSV to XLSX, professional conversion"
+        />
+      </Helmet>
+
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50">
+        {/* Hero Section */}
+        <div className="bg-gradient-to-r from-blue-600 to-indigo-700 text-white py-16">
+          <div className="max-w-6xl mx-auto px-4 text-center">
+            <div className="flex justify-center mb-6">
+              <div className="bg-white/20 p-4 rounded-full">
+                <Shield className="w-12 h-12" />
+              </div>
+            </div>
+            <h1 className="text-4xl md:text-5xl font-bold mb-6">
+              LibreOffice Professional Converter
+            </h1>
+            <p className="text-xl md:text-2xl mb-8 text-blue-100">
+              Strict File Type Validation • No Fallback Libraries • Pure Format
+              Results
+            </p>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-4xl mx-auto">
+              <div className="bg-white/10 p-4 rounded-lg backdrop-blur-sm">
+                <Shield className="w-8 h-8 mx-auto mb-2" />
+                <h3 className="font-semibold mb-1">LibreOffice Only</h3>
+                <p className="text-sm text-blue-100">
+                  Exclusive headless mode processing
+                </p>
+              </div>
+              <div className="bg-white/10 p-4 rounded-lg backdrop-blur-sm">
+                <CheckCircle className="w-8 h-8 mx-auto mb-2" />
+                <h3 className="font-semibold mb-1">Strict Validation</h3>
+                <p className="text-sm text-blue-100">
+                  Only accepted file types processed
+                </p>
+              </div>
+              <div className="bg-white/10 p-4 rounded-lg backdrop-blur-sm">
+                <X className="w-8 h-8 mx-auto mb-2" />
+                <h3 className="font-semibold mb-1">No Fallbacks</h3>
+                <p className="text-sm text-blue-100">
+                  No Puppeteer, Pandoc, or Mammoth
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Main Converter */}
+        <div className="py-12">
+          <LibreOfficeConverter />
+        </div>
+
+        {/* Supported Tools Overview */}
+        <div className="max-w-6xl mx-auto px-4 py-12">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl font-bold text-gray-900 mb-4">
+              Supported Conversion Tools
+            </h2>
+            <p className="text-lg text-gray-600">
+              {LIBREOFFICE_TOOLS.length} professional conversion tools with
+              strict format validation
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            {/* Document Tools */}
+            <Card className="border-l-4 border-l-blue-500">
+              <CardHeader>
+                <CardTitle className="flex items-center space-x-2">
+                  <FileText className="w-5 h-5 text-blue-600" />
+                  <span>Document Tools</span>
+                  <Badge variant="secondary">{documentTools.length}</Badge>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {documentTools.map((tool) => (
+                  <div
+                    key={tool.id}
+                    className="p-3 bg-blue-50 rounded-lg border border-blue-200"
+                  >
+                    <div className="font-medium text-blue-900 mb-1">
+                      {tool.name}
+                    </div>
+                    <div className="text-xs space-y-1">
+                      <div>
+                        <span className="text-green-700 font-medium">
+                          Accept:{" "}
+                        </span>
+                        <span className="text-green-600">
+                          {tool.acceptedTypes.join(", ")}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-red-700 font-medium">
+                          Reject:{" "}
+                        </span>
+                        <span className="text-red-600">
+                          {tool.rejectedTypes.slice(0, 3).join(", ")}
+                          {tool.rejectedTypes.length > 3 && "..."}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+
+            {/* Spreadsheet Tools */}
+            <Card className="border-l-4 border-l-green-500">
+              <CardHeader>
+                <CardTitle className="flex items-center space-x-2">
+                  <FileSpreadsheet className="w-5 h-5 text-green-600" />
+                  <span>Spreadsheet Tools</span>
+                  <Badge variant="secondary">{spreadsheetTools.length}</Badge>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {spreadsheetTools.map((tool) => (
+                  <div
+                    key={tool.id}
+                    className="p-3 bg-green-50 rounded-lg border border-green-200"
+                  >
+                    <div className="font-medium text-green-900 mb-1">
+                      {tool.name}
+                    </div>
+                    <div className="text-xs space-y-1">
+                      <div>
+                        <span className="text-green-700 font-medium">
+                          Accept:{" "}
+                        </span>
+                        <span className="text-green-600">
+                          {tool.acceptedTypes.join(", ")}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-red-700 font-medium">
+                          Reject:{" "}
+                        </span>
+                        <span className="text-red-600">
+                          {tool.rejectedTypes.join(", ")}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+
+            {/* Presentation Tools */}
+            <Card className="border-l-4 border-l-purple-500">
+              <CardHeader>
+                <CardTitle className="flex items-center space-x-2">
+                  <Presentation className="w-5 h-5 text-purple-600" />
+                  <span>Presentation Tools</span>
+                  <Badge variant="secondary">{presentationTools.length}</Badge>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {presentationTools.map((tool) => (
+                  <div
+                    key={tool.id}
+                    className="p-3 bg-purple-50 rounded-lg border border-purple-200"
+                  >
+                    <div className="font-medium text-purple-900 mb-1">
+                      {tool.name}
+                    </div>
+                    <div className="text-xs space-y-1">
+                      <div>
+                        <span className="text-green-700 font-medium">
+                          Accept:{" "}
+                        </span>
+                        <span className="text-green-600">
+                          {tool.acceptedTypes.join(", ")}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-red-700 font-medium">
+                          Reject:{" "}
+                        </span>
+                        <span className="text-red-600">
+                          {tool.rejectedTypes.slice(0, 3).join(", ")}
+                          {tool.rejectedTypes.length > 3 && "..."}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+
+        {/* Important Notice */}
+        <div className="bg-amber-50 border-t border-amber-200 py-12">
+          <div className="max-w-4xl mx-auto px-4">
+            <Card className="border-amber-200 bg-amber-50">
+              <CardHeader>
+                <CardTitle className="flex items-center space-x-2 text-amber-800">
+                  <AlertTriangle className="w-6 h-6" />
+                  <span>Important: Strict Validation Policy</span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4 text-amber-700">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <h3 className="font-semibold flex items-center space-x-2">
+                      <Shield className="w-4 h-4" />
+                      <span>What We Use</span>
+                    </h3>
+                    <ul className="space-y-1 text-sm">
+                      <li>✅ LibreOffice headless mode only</li>
+                      <li>✅ Strict file type validation</li>
+                      <li>✅ Professional format accuracy</li>
+                      <li>✅ No data corruption risk</li>
+                    </ul>
+                  </div>
+                  <div className="space-y-2">
+                    <h3 className="font-semibold flex items-center space-x-2">
+                      <X className="w-4 h-4" />
+                      <span>What We Don't Use</span>
+                    </h3>
+                    <ul className="space-y-1 text-sm">
+                      <li>❌ Puppeteer browser automation</li>
+                      <li>❌ Pandoc universal converter</li>
+                      <li>❌ Mammoth.js library</li>
+                      <li>❌ Any fallback methods</li>
+                    </ul>
+                  </div>
+                </div>
+                <div className="border-t border-amber-300 pt-4">
+                  <p className="font-medium">
+                    ⚠️ If you upload an unsupported file type, you will receive
+                    an immediate rejection with the message:
+                  </p>
+                  <div className="mt-2 p-3 bg-red-100 border border-red-300 rounded-lg">
+                    <code className="text-red-700 text-sm">
+                      ❌ Unsupported file format. This tool only accepts .xyz.
+                      Please upload the correct file.
+                    </code>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+
+        {/* Features */}
+        <div className="bg-white py-16">
+          <div className="max-w-6xl mx-auto px-4">
+            <div className="text-center mb-12">
+              <h2 className="text-3xl font-bold text-gray-900 mb-4">
+                Why Choose LibreOffice-Only Conversion?
+              </h2>
+              <p className="text-lg text-gray-600">
+                Professional-grade document processing with guaranteed
+                reliability
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              <div className="text-center p-6">
+                <div className="bg-blue-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Shield className="w-8 h-8 text-blue-600" />
+                </div>
+                <h3 className="font-semibold text-gray-900 mb-2">
+                  Format Purity
+                </h3>
+                <p className="text-sm text-gray-600">
+                  LibreOffice maintains original formatting and document
+                  structure integrity
+                </p>
+              </div>
+
+              <div className="text-center p-6">
+                <div className="bg-green-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <CheckCircle className="w-8 h-8 text-green-600" />
+                </div>
+                <h3 className="font-semibold text-gray-900 mb-2">
+                  Predictable Results
+                </h3>
+                <p className="text-sm text-gray-600">
+                  No random fallbacks or unexpected conversion methods
+                </p>
+              </div>
+
+              <div className="text-center p-6">
+                <div className="bg-purple-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <FileText className="w-8 h-8 text-purple-600" />
+                </div>
+                <h3 className="font-semibold text-gray-900 mb-2">
+                  Professional Quality
+                </h3>
+                <p className="text-sm text-gray-600">
+                  Enterprise-grade conversion suitable for business documents
+                </p>
+              </div>
+
+              <div className="text-center p-6">
+                <div className="bg-red-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <AlertTriangle className="w-8 h-8 text-red-600" />
+                </div>
+                <h3 className="font-semibold text-gray-900 mb-2">
+                  Strict Validation
+                </h3>
+                <p className="text-sm text-gray-600">
+                  Only accepted file types processed - no exceptions or
+                  workarounds
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </>
+  );
+};
+
+export default LibreOfficeTools;

@@ -188,6 +188,7 @@ app.use("/api/analytics", require("./routes/analytics"));
 app.use("/api/stats", require("./routes/stats"));
 app.use("/api/diagnostics", require("./routes/ghostscript-diagnostic"));
 app.use("/api/libreoffice", require("./routes/libreoffice"));
+app.use("/api/libreoffice-strict", require("./routes/libreoffice-strict"));
 // app.use("/api/schema-test", require("./routes/schema-test"));
 
 // Test routes (for schema verification)
@@ -277,6 +278,10 @@ app.use("*", (req, res) => {
     message: "Route not found",
   });
 });
+
+// Ensure required directories exist
+const { ensureDirectories } = require("./utils/ensureDirectories");
+ensureDirectories();
 
 // Connect to MongoDB
 console.log("🔌 Attempting to connect to MongoDB...");

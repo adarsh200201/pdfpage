@@ -46,7 +46,6 @@ import MobileMenu from "./MobileMenu";
 
 const Header = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [showMegaMenu, setShowMegaMenu] = useState(false);
 
   const { user, isAuthenticated, logout } = useAuth();
 
@@ -103,18 +102,18 @@ const Header = () => {
   ];
 
   return (
-    <header className="bg-white shadow-sm border-b border-gray-100 sticky top-0 z-50">
+    <header className="bg-gradient-to-r from-white via-gray-50 to-white shadow-lg border-b border-gray-200 sticky top-0 z-50 backdrop-blur-md">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center h-16">
+        <div className="flex justify-between items-center h-18">
           {/* Logo */}
           <div className="flex items-center">
-            <Link to="/" className="flex items-center space-x-2">
-              <div className="w-8 h-8 bg-gradient-to-br from-red-500 via-red-600 to-red-700 rounded-xl flex items-center justify-center shadow-lg ring-2 ring-red-500/20">
-                <span className="text-white font-bold text-sm tracking-tight">
+            <Link to="/" className="flex items-center space-x-3 group">
+              <div className="w-10 h-10 bg-gradient-to-br from-red-500 via-red-600 to-red-700 rounded-2xl flex items-center justify-center shadow-xl ring-2 ring-red-500/30 group-hover:shadow-red-500/25 transition-all duration-300 group-hover:scale-105">
+                <span className="text-white font-bold text-base tracking-tight">
                   PP
                 </span>
               </div>
-              <span className="font-bold text-xl bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 bg-clip-text text-transparent ml-2">
+              <span className="font-bold text-2xl bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 bg-clip-text text-transparent">
                 Pdf
                 <span className="bg-gradient-to-r from-red-500 to-red-600 bg-clip-text text-transparent">
                   Page
@@ -126,12 +125,12 @@ const Header = () => {
           {/* Desktop Navigation */}
           <nav className="hidden lg:flex items-center space-x-6">
             <div className="relative group">
-              <button className="text-body-medium text-text-medium hover:text-brand-red transition-colors duration-200 flex items-center">
-                <Download className="w-4 h-4 mr-1" />
+              <button className="text-body-medium text-text-medium hover:text-brand-red transition-all duration-300 flex items-center px-3 py-2 rounded-lg hover:bg-red-50 hover:shadow-sm">
+                <Download className="w-4 h-4 mr-2 text-red-500" />
                 Convert from PDF
-                <ChevronDown className="w-4 h-4 ml-1" />
+                <ChevronDown className="w-4 h-4 ml-2 transition-transform group-hover:rotate-180" />
               </button>
-              <div className="absolute top-full left-0 mt-2 w-56 bg-white shadow-lg border border-gray-200 rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
+              <div className="absolute top-full left-0 mt-3 w-64 bg-white shadow-2xl border border-gray-200 rounded-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 z-50 backdrop-blur-sm">
                 <div className="py-2">
                   {convertFromPdf.map((item) => {
                     const IconComponent = item.icon;
@@ -139,9 +138,9 @@ const Header = () => {
                       <Link
                         key={item.href}
                         to={item.href}
-                        className="flex items-center px-4 py-2 text-sm text-text-medium hover:bg-gray-50 hover:text-brand-red transition-colors"
+                        className="flex items-center px-4 py-3 text-sm text-text-medium hover:bg-gradient-to-r hover:from-red-50 hover:to-red-100 hover:text-brand-red transition-all duration-200 rounded-lg mx-2 my-1"
                       >
-                        <IconComponent className="w-4 h-4 mr-3" />
+                        <IconComponent className="w-4 h-4 mr-3 text-red-500" />
                         {item.label}
                       </Link>
                     );
@@ -151,12 +150,12 @@ const Header = () => {
             </div>
 
             <div className="relative group">
-              <button className="text-body-medium text-text-medium hover:text-brand-red transition-colors duration-200 flex items-center">
-                <Upload className="w-4 h-4 mr-1" />
+              <button className="text-body-medium text-text-medium hover:text-brand-red transition-all duration-300 flex items-center px-3 py-2 rounded-lg hover:bg-blue-50 hover:shadow-sm">
+                <Upload className="w-4 h-4 mr-2 text-blue-500" />
                 Convert to PDF
-                <ChevronDown className="w-4 h-4 ml-1" />
+                <ChevronDown className="w-4 h-4 ml-2 transition-transform group-hover:rotate-180" />
               </button>
-              <div className="absolute top-full left-0 mt-2 w-56 bg-white shadow-lg border border-gray-200 rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
+              <div className="absolute top-full left-0 mt-3 w-64 bg-white shadow-2xl border border-gray-200 rounded-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 z-50 backdrop-blur-sm">
                 <div className="py-2 max-h-80 overflow-y-auto">
                   {convertToPdf.map((item) => {
                     const IconComponent = item.icon;
@@ -164,9 +163,9 @@ const Header = () => {
                       <Link
                         key={item.href}
                         to={item.href}
-                        className="flex items-center px-4 py-2 text-sm text-text-medium hover:bg-gray-50 hover:text-brand-red transition-colors"
+                        className="flex items-center px-4 py-3 text-sm text-text-medium hover:bg-gradient-to-r hover:from-blue-50 hover:to-blue-100 hover:text-blue-600 transition-all duration-200 rounded-lg mx-2 my-1"
                       >
-                        <IconComponent className="w-4 h-4 mr-3" />
+                        <IconComponent className="w-4 h-4 mr-3 text-blue-500" />
                         {item.label}
                       </Link>
                     );
@@ -176,12 +175,12 @@ const Header = () => {
             </div>
 
             <div className="relative group">
-              <button className="text-body-medium text-text-medium hover:text-brand-red transition-colors duration-200 flex items-center">
-                <Image className="w-4 h-4 mr-1" />
+              <button className="text-body-medium text-text-medium hover:text-brand-red transition-all duration-300 flex items-center px-3 py-2 rounded-lg hover:bg-purple-50 hover:shadow-sm">
+                <Image className="w-4 h-4 mr-2 text-purple-500" />
                 Image Tools
-                <ChevronDown className="w-4 h-4 ml-1" />
+                <ChevronDown className="w-4 h-4 ml-2 transition-transform group-hover:rotate-180" />
               </button>
-              <div className="absolute top-full left-0 mt-2 w-56 bg-white shadow-lg border border-gray-200 rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
+              <div className="absolute top-full left-0 mt-3 w-64 bg-white shadow-2xl border border-gray-200 rounded-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 z-50 backdrop-blur-sm">
                 <div className="py-2">
                   {imageConversion.map((item) => {
                     const IconComponent = item.icon;
@@ -189,9 +188,9 @@ const Header = () => {
                       <Link
                         key={item.href}
                         to={item.href}
-                        className="flex items-center px-4 py-2 text-sm text-text-medium hover:bg-gray-50 hover:text-brand-red transition-colors"
+                        className="flex items-center px-4 py-3 text-sm text-text-medium hover:bg-gradient-to-r hover:from-purple-50 hover:to-purple-100 hover:text-purple-600 transition-all duration-200 rounded-lg mx-2 my-1"
                       >
-                        <IconComponent className="w-4 h-4 mr-3" />
+                        <IconComponent className="w-4 h-4 mr-3 text-purple-500" />
                         {item.label}
                       </Link>
                     );
@@ -199,9 +198,9 @@ const Header = () => {
                   <div className="border-t border-gray-100 my-2"></div>
                   <Link
                     to="/img"
-                    className="flex items-center px-4 py-2 text-sm text-text-medium hover:bg-gray-50 hover:text-blue-600 transition-colors"
+                    className="flex items-center px-4 py-3 text-sm text-text-medium hover:bg-gradient-to-r hover:from-purple-50 hover:to-purple-100 hover:text-purple-600 transition-all duration-200 rounded-lg mx-2 my-1"
                   >
-                    <Image className="w-4 h-4 mr-3" />
+                    <Image className="w-4 h-4 mr-3 text-purple-500" />
                     All Image Tools
                   </Link>
                 </div>
@@ -210,20 +209,133 @@ const Header = () => {
 
             <Link
               to="/favicon"
-              className="text-body-medium text-text-medium hover:text-brand-red transition-colors duration-200 flex items-center"
+              className="text-body-medium text-text-medium hover:text-brand-red transition-all duration-300 flex items-center px-3 py-2 rounded-lg hover:bg-yellow-50 hover:shadow-sm"
             >
-              <Star className="w-4 h-4 mr-1" />
+              <Star className="w-4 h-4 mr-2 text-yellow-500" />
               Favicon
             </Link>
 
-            <button
-              onClick={() => setShowMegaMenu(!showMegaMenu)}
-              className="text-body-medium text-text-medium hover:text-brand-red transition-colors duration-200 flex items-center"
-            >
-              <Zap className="w-4 h-4 mr-1" />
-              All Tools
-              <ChevronDown className="w-4 h-4 ml-1" />
-            </button>
+            <div className="relative group">
+              <button className="text-body-medium text-text-medium hover:text-brand-red transition-all duration-300 flex items-center px-3 py-2 rounded-lg hover:bg-green-50 hover:shadow-sm">
+                <Zap className="w-4 h-4 mr-2 text-green-500" />
+                All Tools
+                <ChevronDown className="w-4 h-4 ml-2 transition-transform group-hover:rotate-180" />
+              </button>
+
+              {/* Mega Menu */}
+              <div className="absolute top-full left-0 mt-3 w-screen max-w-6xl bg-white shadow-2xl border border-gray-200 rounded-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 z-50 backdrop-blur-sm -translate-x-1/2">
+                <div className="px-8 py-8">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+                    {/* Essential PDF Tools */}
+                    <div>
+                      <h3 className="text-lg font-semibold text-text-dark mb-4 flex items-center">
+                        <Zap className="w-5 h-5 mr-2 text-brand-red" />
+                        Essential Tools
+                      </h3>
+                      <div className="space-y-2">
+                        {essentialTools.map((item) => {
+                          const IconComponent = item.icon;
+                          return (
+                            <Link
+                              key={item.href}
+                              to={item.href}
+                              className="flex items-center text-sm text-text-medium hover:text-green-600 transition-colors"
+                            >
+                              <IconComponent className="w-4 h-4 mr-3 text-green-500" />
+                              {item.label}
+                            </Link>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Convert from PDF */}
+                    <div>
+                      <h3 className="text-lg font-semibold text-text-dark mb-4 flex items-center">
+                        <Download className="w-5 h-5 mr-2 text-brand-red" />
+                        Convert from PDF
+                      </h3>
+                      <div className="space-y-2 max-h-60 overflow-y-auto">
+                        {convertFromPdf.map((item) => {
+                          const IconComponent = item.icon;
+                          return (
+                            <Link
+                              key={item.href}
+                              to={item.href}
+                              className="flex items-center text-sm text-text-medium hover:text-red-600 transition-colors"
+                            >
+                              <IconComponent className="w-4 h-4 mr-3 text-red-500" />
+                              {item.label}
+                            </Link>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Convert to PDF */}
+                    <div>
+                      <h3 className="text-lg font-semibold text-text-dark mb-4 flex items-center">
+                        <Upload className="w-5 h-5 mr-2 text-brand-red" />
+                        Convert to PDF
+                      </h3>
+                      <div className="space-y-2 max-h-60 overflow-y-auto">
+                        {convertToPdf.map((item) => {
+                          const IconComponent = item.icon;
+                          return (
+                            <Link
+                              key={item.href}
+                              to={item.href}
+                              className="flex items-center text-sm text-text-medium hover:text-blue-600 transition-colors"
+                            >
+                              <IconComponent className="w-4 h-4 mr-3 text-blue-500" />
+                              {item.label}
+                            </Link>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Image & Other Tools */}
+                    <div>
+                      <h3 className="text-lg font-semibold text-text-dark mb-4 flex items-center">
+                        <Image className="w-5 h-5 mr-2 text-brand-red" />
+                        Image & Special Tools
+                      </h3>
+                      <div className="space-y-2">
+                        {imageConversion.map((item) => {
+                          const IconComponent = item.icon;
+                          return (
+                            <Link
+                              key={item.href}
+                              to={item.href}
+                              className="flex items-center text-sm text-text-medium hover:text-purple-600 transition-colors"
+                            >
+                              <IconComponent className="w-4 h-4 mr-3 text-purple-500" />
+                              {item.label}
+                            </Link>
+                          );
+                        })}
+                        <div className="border-t border-gray-100 my-3"></div>
+                        <Link
+                          to="/img"
+                          className="flex items-center text-sm text-text-medium hover:text-purple-600 transition-colors"
+                        >
+                          <Image className="w-4 h-4 mr-3 text-purple-500" />
+                          All Image Tools
+                        </Link>
+                        <Link
+                          to="/favicon"
+                          className="flex items-center text-sm text-text-medium hover:text-yellow-600 transition-colors"
+                        >
+                          <Star className="w-4 h-4 mr-3 text-yellow-500" />
+                          Favicon Generator
+                        </Link>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
           </nav>
 
           {/* Right Side Actions */}
@@ -302,128 +414,6 @@ const Header = () => {
         isOpen={mobileMenuOpen}
         onClose={() => setMobileMenuOpen(false)}
       />
-
-      {/* Comprehensive Mega Menu */}
-      {showMegaMenu && (
-        <div className="absolute top-full left-0 w-full bg-white shadow-2xl border-t border-gray-100 z-40">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-              {/* Essential PDF Tools */}
-              <div>
-                <h3 className="text-lg font-semibold text-text-dark mb-4 flex items-center">
-                  <Zap className="w-5 h-5 mr-2 text-brand-red" />
-                  Essential Tools
-                </h3>
-                <div className="space-y-2">
-                  {essentialTools.map((item) => {
-                    const IconComponent = item.icon;
-                    return (
-                      <Link
-                        key={item.href}
-                        to={item.href}
-                        className="flex items-center text-sm text-text-medium hover:text-brand-red transition-colors"
-                        onClick={() => setShowMegaMenu(false)}
-                      >
-                        <IconComponent className="w-4 h-4 mr-3" />
-                        {item.label}
-                      </Link>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Convert from PDF */}
-              <div>
-                <h3 className="text-lg font-semibold text-text-dark mb-4 flex items-center">
-                  <Download className="w-5 h-5 mr-2 text-brand-red" />
-                  Convert from PDF
-                </h3>
-                <div className="space-y-2 max-h-60 overflow-y-auto">
-                  {convertFromPdf.map((item) => {
-                    const IconComponent = item.icon;
-                    return (
-                      <Link
-                        key={item.href}
-                        to={item.href}
-                        className="flex items-center text-sm text-text-medium hover:text-brand-red transition-colors"
-                        onClick={() => setShowMegaMenu(false)}
-                      >
-                        <IconComponent className="w-4 h-4 mr-3" />
-                        {item.label}
-                      </Link>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Convert to PDF */}
-              <div>
-                <h3 className="text-lg font-semibold text-text-dark mb-4 flex items-center">
-                  <Upload className="w-5 h-5 mr-2 text-brand-red" />
-                  Convert to PDF
-                </h3>
-                <div className="space-y-2 max-h-60 overflow-y-auto">
-                  {convertToPdf.map((item) => {
-                    const IconComponent = item.icon;
-                    return (
-                      <Link
-                        key={item.href}
-                        to={item.href}
-                        className="flex items-center text-sm text-text-medium hover:text-brand-red transition-colors"
-                        onClick={() => setShowMegaMenu(false)}
-                      >
-                        <IconComponent className="w-4 h-4 mr-3" />
-                        {item.label}
-                      </Link>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Image & Other Tools */}
-              <div>
-                <h3 className="text-lg font-semibold text-text-dark mb-4 flex items-center">
-                  <Image className="w-5 h-5 mr-2 text-brand-red" />
-                  Image & Special Tools
-                </h3>
-                <div className="space-y-2">
-                  {imageConversion.map((item) => {
-                    const IconComponent = item.icon;
-                    return (
-                      <Link
-                        key={item.href}
-                        to={item.href}
-                        className="flex items-center text-sm text-text-medium hover:text-brand-red transition-colors"
-                        onClick={() => setShowMegaMenu(false)}
-                      >
-                        <IconComponent className="w-4 h-4 mr-3" />
-                        {item.label}
-                      </Link>
-                    );
-                  })}
-                  <div className="border-t border-gray-100 my-3"></div>
-                  <Link
-                    to="/img"
-                    className="flex items-center text-sm text-text-medium hover:text-blue-600 transition-colors"
-                    onClick={() => setShowMegaMenu(false)}
-                  >
-                    <Image className="w-4 h-4 mr-3" />
-                    All Image Tools
-                  </Link>
-                  <Link
-                    to="/favicon"
-                    className="flex items-center text-sm text-text-medium hover:text-brand-red transition-colors"
-                    onClick={() => setShowMegaMenu(false)}
-                  >
-                    <Star className="w-4 h-4 mr-3" />
-                    Favicon Generator
-                  </Link>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </header>
   );
 };

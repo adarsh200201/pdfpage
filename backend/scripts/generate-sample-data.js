@@ -287,7 +287,7 @@ const generateAllSampleData = async () => {
 
     console.log("\n✅ Sample data generation completed successfully!");
     console.log(
-      "📊 You can now view real data in the admin dashboard at /admin",
+      "📊 You can now view real data in the admin dashboard at /jEG7MtWenZDOfC3-iFMYJC_1aaA",
     );
 
     process.exit(0);
