@@ -79,30 +79,9 @@ const securityMiddleware = (app) => {
     });
   };
 
-  // Strict rate limiting for authentication routes
-  app.use(
-    "/api/auth",
-    createRateLimit(
-      15 * 60 * 1000,
-      5,
-      "Too many authentication attempts",
-      true,
-    ),
-  );
-
-  // Moderate rate limiting for file upload routes
-  app.use(
-    ["/api/pdf", "/api/image", "/api/upload"],
-    createRateLimit(60 * 1000, 10, "Too many file uploads"),
-  );
-
-  // General API rate limiting
-  if (process.env.NODE_ENV === "production") {
-    app.use(
-      "/api",
-      createRateLimit(15 * 60 * 1000, 100, "Too many API requests"),
-    );
-  }
+  // Rate limiting completely disabled per user request
+  // No restrictions on authentication, file uploads, or API requests
+  console.log("Rate limiting disabled - unlimited requests allowed");
 
   // Request size limiting
   app.use((req, res, next) => {

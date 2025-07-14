@@ -74,66 +74,11 @@ app.use(
   }),
 );
 
-// Rate limiting configuration
-const isDevelopment = process.env.NODE_ENV !== "production";
-
-// Special lenient rate limiting for admin routes
-const adminLimiter = rateLimit({
-  windowMs: 1 * 60 * 1000, // 1 minute
-  max: 2000, // Very high limit for admin dashboard
-  message: "Too many admin requests, please try again later.",
-  standardHeaders: true,
-  legacyHeaders: false,
-  keyGenerator: (req) => {
-    // Use multiple factors for key generation to prevent bypass
-    return req.ip + "|" + (req.headers["user-agent"] || "") + "|admin";
-  },
-  skip: (req) => {
-    // Skip rate limiting for localhost in development
-    return process.env.NODE_ENV === "development" && req.ip === "::1";
-  },
-});
-
-// Apply admin rate limiting to admin routes
-app.use("/api/users", adminLimiter);
-app.use("/api/analytics", adminLimiter);
-app.use("/api/usage", adminLimiter);
-app.use("/api/schema-test", adminLimiter);
-
-// General rate limiting
-if (isDevelopment) {
-  // Lenient rate limiting for development
-  const devLimiter = rateLimit({
-    windowMs: 1 * 60 * 1000, // 1 minute
-    max: 500, // High limit for development
-    message: "Too many requests from this IP, please try again later.",
-    standardHeaders: true,
-    legacyHeaders: false,
-    keyGenerator: (req) => {
-      // Use IP + user agent for development
-      return req.ip + "|" + (req.headers["user-agent"] || "");
-    },
-    skip: (req) => {
-      // Skip rate limiting for localhost in development
-      return req.ip === "::1" || req.ip === "127.0.0.1";
-    },
-  });
-  app.use(devLimiter);
-} else {
-  // Production rate limiting
-  const prodLimiter = rateLimit({
-    windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 100, // limit each IP to 100 requests per windowMs
-    message: "Too many requests from this IP, please try again later.",
-    standardHeaders: true,
-    legacyHeaders: false,
-    keyGenerator: (req) => {
-      // Use IP + user agent for more secure rate limiting
-      return req.ip + "|" + (req.headers["user-agent"] || "");
-    },
-  });
-  app.use(prodLimiter);
-}
+// Rate limiting completely disabled per user request
+// No restrictions on any routes - unlimited requests allowed
+console.log(
+  "All rate limiting disabled - unlimited requests allowed for all routes",
+);
 
 // Compression middleware
 app.use(compression());
@@ -389,7 +334,7 @@ function startServer(port) {
         console.log(`🔄 Nodemon will restart automatically...`);
         process.exit(1); // Let nodemon handle the restart
       } else {
-        console.log(`❌ Cannot start server - port ${port} is occupied`);
+        console.log(`��� Cannot start server - port ${port} is occupied`);
         process.exit(1);
       }
     } else {
