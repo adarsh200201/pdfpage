@@ -68,9 +68,7 @@ export const FloatingPopupProvider: React.FC<FloatingPopupProviderProps> = ({
 
   // Manual popup trigger
   const showPopupManually = () => {
-    if (!isAuthenticated) {
-      triggerPopup(localUsageCount);
-    }
+    triggerPopup(localUsageCount);
   };
 
   // Get current usage count
@@ -88,7 +86,7 @@ export const FloatingPopupProvider: React.FC<FloatingPopupProviderProps> = ({
     <FloatingPopupContext.Provider value={contextValue}>
       {children}
 
-      {/* Modern Auth Banner */}
+      {/* Modern Auth Banner - Only show for non-authenticated users */}
       {showPopup && !isAuthenticated && (
         <ModernAuthBanner variant="featured" onClose={dismissPopup} />
       )}

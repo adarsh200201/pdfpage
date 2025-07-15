@@ -22,7 +22,7 @@ import {
 import { cn } from "@/lib/utils";
 
 const ModernLogin: React.FC = () => {
-  const { login, isAuthenticated, isLoading } = useAuth();
+  const { loginWithGoogle, isAuthenticated, isLoading } = useAuth();
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -40,7 +40,7 @@ const ModernLogin: React.FC = () => {
   const handleGoogleLogin = async () => {
     setIsGoogleLoading(true);
     try {
-      await login();
+      await loginWithGoogle();
 
       toast({
         title: "Welcome to PdfPage! 🎉",

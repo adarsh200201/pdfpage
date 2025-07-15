@@ -1,4 +1,4 @@
-import * as React from "react";
+import React, { useEffect } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -152,7 +152,7 @@ const queryClient = new QueryClient();
 const ScrollRestoration = () => {
   const location = useLocation();
 
-  React.useEffect(() => {
+  useEffect(() => {
     // Don't automatically scroll to top when navigating to tool pages
     // Let users stay where they are or let individual tools control their own scrolling
     const isToolPage =
@@ -185,7 +185,7 @@ const ScrollRestoration = () => {
 
 const App = () => {
   // Initialize PDF.js configuration on app start
-  React.useEffect(() => {
+  useEffect(() => {
     const initializePDFjs = async () => {
       try {
         // Configure PDF.js with proper worker setup

@@ -41,10 +41,10 @@ export const useFloatingGoogleSignIn = (
       !isPopupDismissed() &&
       !showPopup
     ) {
-      // Small delay to let the page load
+      // Small delay to let the page load, reduced from 2000ms to 1500ms
       const timer = setTimeout(() => {
         setShowPopup(true);
-      }, 2000);
+      }, 1500);
 
       return () => clearTimeout(timer);
     }
@@ -84,6 +84,8 @@ export const useFloatingGoogleSignIn = (
   // Function to dismiss popup
   const dismissPopup = () => {
     setShowPopup(false);
+    // Set a short-term dismissal to prevent immediate re-showing
+    Cookies.set(dismissCookieName, "true", { expires: 1 }); // 1 day
   };
 
   return {
