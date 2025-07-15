@@ -47,10 +47,8 @@ const ModernAuthBanner: React.FC<ModernAuthBannerProps> = ({
   }
 
   return (
-    <div
-      className={`fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 ${className}`}
-    >
-      <div className="bg-gray-900 text-white rounded-lg shadow-2xl w-full max-w-md mx-4 relative">
+    <div className={`fixed top-4 right-4 z-50 ${className}`}>
+      <div className="bg-gray-900 text-white rounded-lg shadow-2xl w-80 max-w-sm relative">
         {/* Close Button */}
         <button
           onClick={handleClose}
