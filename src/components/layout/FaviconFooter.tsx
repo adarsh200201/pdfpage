@@ -171,27 +171,27 @@ const FaviconFooter = () => {
                     {[
                       {
                         icon: Twitter,
-                        href: "https://twitter.com/faviconpage",
+                        href: "https://twitter.com/signup",
                         label: "Twitter",
                       },
                       {
                         icon: Facebook,
-                        href: "https://facebook.com/faviconpage",
+                        href: "https://facebook.com/login",
                         label: "Facebook",
                       },
                       {
                         icon: Linkedin,
-                        href: "https://linkedin.com/company/faviconpage",
+                        href: "https://linkedin.com/signup",
                         label: "LinkedIn",
                       },
                       {
                         icon: Instagram,
-                        href: "https://instagram.com/faviconpage",
+                        href: "https://instagram.com/accounts/login/",
                         label: "Instagram",
                       },
                       {
                         icon: Youtube,
-                        href: "https://youtube.com/faviconpage",
+                        href: "https://youtube.com/signin",
                         label: "YouTube",
                       },
                     ].map((social) => (

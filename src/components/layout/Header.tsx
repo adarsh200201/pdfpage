@@ -331,34 +331,31 @@ const Header = () => {
             <div className="flex items-center">
               <Link to="/" className="flex items-center space-x-3 group">
                 <div className="relative">
-                  <div className="w-12 h-12 bg-gradient-to-br from-red-500 via-red-600 to-red-700 rounded-2xl flex items-center justify-center shadow-xl ring-2 ring-red-500/20 group-hover:shadow-red-500/30 transition-all duration-300 group-hover:scale-105">
-                    <span className="text-white font-bold text-lg tracking-tight">
-                      PP
-                    </span>
-                  </div>
+                  <img
+                    src="https://cdn.builder.io/api/v1/image/assets%2Ffcbdb28308084edfa1fffc265e57f46e%2F5791d498f9994470ae52d766d30e56ee?format=webp&width=800"
+                    alt="PdfPage Logo"
+                    className="h-12 w-auto group-hover:scale-105 transition-transform opacity-90 mix-blend-multiply"
+                  />
                   {user?.isPremium && (
                     <div className="absolute -top-1 -right-1 w-5 h-5 bg-gradient-to-r from-yellow-400 to-yellow-500 rounded-full flex items-center justify-center">
                       <Crown className="w-3 h-3 text-white" />
                     </div>
                   )}
                 </div>
-                <div className="flex flex-col">
-                  <span className="font-bold text-2xl bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 bg-clip-text text-transparent">
-                    Pdf
-                    <span className="bg-gradient-to-r from-red-500 to-red-600 bg-clip-text text-transparent">
-                      Page
-                    </span>
-                  </span>
-                  {user?.isPremium && (
-                    <Badge
-                      variant="secondary"
-                      className="text-xs bg-gradient-to-r from-yellow-100 to-yellow-200 text-yellow-800 border-yellow-300"
-                    >
-                      <Crown className="w-3 h-3 mr-1" />
-                      Premium
-                    </Badge>
-                  )}
-                </div>
+                <img
+                  src="https://cdn.builder.io/api/v1/image/assets%2Ffcbdb28308084edfa1fffc265e57f46e%2F61ee37d28c9648a8ac684ced4eab1117?format=webp&width=800"
+                  alt="Pdf Page"
+                  className="h-8 w-auto ml-2 opacity-90 mix-blend-multiply"
+                />
+                {user?.isPremium && (
+                  <Badge
+                    variant="secondary"
+                    className="text-xs bg-gradient-to-r from-yellow-100 to-yellow-200 text-yellow-800 border-yellow-300"
+                  >
+                    <Crown className="w-3 h-3 mr-1" />
+                    Premium
+                  </Badge>
+                )}
               </Link>
             </div>
 
@@ -516,14 +513,14 @@ const Header = () => {
               {/* User Actions */}
               {isAuthenticated && user ? (
                 <div className="flex items-center space-x-3">
-                  {/* Notifications */}
-                  <button className="relative p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-xl transition-all duration-200">
+                  {/* Notifications - Hidden on mobile */}
+                  <button className="hidden md:block relative p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-xl transition-all duration-200">
                     <Bell className="w-5 h-5" />
                     <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
                   </button>
 
-                  {/* Help */}
-                  <button className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-xl transition-all duration-200">
+                  {/* Help - Hidden on mobile */}
+                  <button className="hidden md:block p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-xl transition-all duration-200">
                     <HelpCircle className="w-5 h-5" />
                   </button>
 
@@ -754,7 +751,7 @@ const Header = () => {
               <div className="px-6 py-3 bg-gray-50 border-t border-gray-100">
                 <div className="flex items-center justify-between text-xs text-gray-500">
                   <span>Press ESC to close</span>
-                  <span>⌘K to open search</span>
+                  <span>���K to open search</span>
                 </div>
               </div>
             </div>

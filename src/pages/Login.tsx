@@ -63,7 +63,22 @@ const Login = () => {
     setIsLoading(true);
 
     try {
-      await login(formData.email, formData.password);
+      // Frontend validation
+      if (!formData.email || !formData.email.trim()) {
+        throw new Error("Please enter your email address");
+      }
+
+      if (!formData.password || !formData.password.trim()) {
+        throw new Error("Please enter your password");
+      }
+
+      // Email format validation
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(formData.email.trim())) {
+        throw new Error("Please enter a valid email address");
+      }
+
+      await login(formData.email.trim(), formData.password);
       toast({
         title: "Welcome back!",
         description: "You have been successfully logged in.",
@@ -93,22 +108,16 @@ const Login = () => {
       <div className="p-4 sm:p-6">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <Link to="/" className="flex items-center space-x-2 group">
-            <div
-              className={`w-10 h-10 bg-gradient-to-br ${brandSettings.gradientFrom} ${brandSettings.gradientTo} rounded-xl flex items-center justify-center group-hover:scale-105 transition-transform`}
-            >
-              <ImageIcon className="w-6 h-6 text-white" />
-            </div>
-            <div className="flex flex-col">
-              <span className="font-bold text-xl text-gray-900">
-                {isFromImageContext ? "Img" : "Pdf"}
-                <span className={brandSettings.textAccent}>
-                  {isFromImageContext ? "Page" : "Page"}
-                </span>
-              </span>
-              <span className="text-xs text-gray-500">
-                {brandSettings.subtitle}
-              </span>
-            </div>
+            <img
+              src="https://cdn.builder.io/api/v1/image/assets%2Ffcbdb28308084edfa1fffc265e57f46e%2F5791d498f9994470ae52d766d30e56ee?format=webp&width=800"
+              alt="PdfPage Logo"
+              className="h-12 w-auto group-hover:scale-105 transition-transform opacity-90 mix-blend-multiply"
+            />
+            <img
+              src="https://cdn.builder.io/api/v1/image/assets%2Ffcbdb28308084edfa1fffc265e57f46e%2F61ee37d28c9648a8ac684ced4eab1117?format=webp&width=800"
+              alt="Pdf Page"
+              className="h-8 w-auto opacity-90 mix-blend-multiply"
+            />
           </Link>
 
           <Link

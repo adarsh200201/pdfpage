@@ -171,27 +171,27 @@ const ImgFooter = () => {
                     {[
                       {
                         icon: Twitter,
-                        href: "https://twitter.com/imgpage",
+                        href: "https://twitter.com/signup",
                         label: "Twitter",
                       },
                       {
                         icon: Facebook,
-                        href: "https://facebook.com/imgpage",
+                        href: "https://facebook.com/login",
                         label: "Facebook",
                       },
                       {
                         icon: Linkedin,
-                        href: "https://linkedin.com/company/imgpage",
+                        href: "https://linkedin.com/signup",
                         label: "LinkedIn",
                       },
                       {
                         icon: Instagram,
-                        href: "https://instagram.com/imgpage",
+                        href: "https://instagram.com/accounts/login/",
                         label: "Instagram",
                       },
                       {
                         icon: Youtube,
-                        href: "https://youtube.com/imgpage",
+                        href: "https://youtube.com/signin",
                         label: "YouTube",
                       },
                     ].map((social) => (

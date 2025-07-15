@@ -1,8 +1,1 @@
-# Favicon Placeholder
-# 
-# This is a placeholder file. Replace with actual favicon.ico
-# 
-# To generate favicon.ico:
-# 1. Create 16x16, 32x32, 48x48 PNG versions of your logo
-# 2. Use online tool like https://www.favicon.cc/ or
-# 3. Use ImageMagick: convert icon.png -define icon:auto-resize=16,32,48 favicon.ico
+# This is a placeholder - will be replaced with proper favicon generated from new logo

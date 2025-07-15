@@ -1,20 +1,23 @@
-import React from "react";
+import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
-import { Sparkles, ArrowRight } from "lucide-react";
+import { X } from "lucide-react";
 
 interface ModernAuthBannerProps {
   variant?: "minimal" | "featured";
   className?: string;
+  onClose?: () => void;
 }
 
 const ModernAuthBanner: React.FC<ModernAuthBannerProps> = ({
   variant = "minimal",
   className = "",
+  onClose,
 }) => {
-  const { loginWithGoogle, isAuthenticated } = useAuth();
+  const { loginWithGoogle, isAuthenticated, user } = useAuth();
   const { toast } = useToast();
+  const [isVisible, setIsVisible] = useState(true);
 
   const handleGoogleSignIn = async () => {
     try {
@@ -34,67 +37,32 @@ const ModernAuthBanner: React.FC<ModernAuthBannerProps> = ({
     }
   };
 
-  if (isAuthenticated) {
-    return null;
-  }
+  const handleClose = () => {
+    setIsVisible(false);
+    onClose?.();
+  };
 
-  if (variant === "minimal") {
-    return (
-      <div
-        className={`bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-100 rounded-lg p-4 ${className}`}
-      >
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-              <Sparkles className="w-4 h-4 text-blue-600" />
-            </div>
-            <div>
-              <p className="text-sm font-medium text-gray-900">
-                Unlock Premium Features
-              </p>
-              <p className="text-xs text-gray-600">
-                Save time with faster processing & advanced tools
-              </p>
-            </div>
-          </div>
-          <Button
-            onClick={handleGoogleSignIn}
-            size="sm"
-            className="bg-blue-600 hover:bg-blue-700 text-white"
-          >
-            Sign In
-            <ArrowRight className="w-3 h-3 ml-1" />
-          </Button>
-        </div>
-      </div>
-    );
+  if (isAuthenticated || !isVisible) {
+    return null;
   }
 
   return (
     <div
-      className={`bg-white border border-gray-200 rounded-xl shadow-sm p-6 ${className}`}
+      className={`fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 ${className}`}
     >
-      <div className="text-center">
-        <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center mx-auto mb-4">
-          <Sparkles className="w-6 h-6 text-white" />
-        </div>
-
-        <h3 className="text-lg font-semibold text-gray-900 mb-2">
-          Ready to get started?
-        </h3>
-
-        <p className="text-gray-600 mb-6 max-w-sm mx-auto">
-          Sign in to access all PDF tools with faster processing and unlimited
-          usage.
-        </p>
-
-        <Button
-          onClick={handleGoogleSignIn}
-          className="w-full bg-white hover:bg-gray-50 text-gray-700 border border-gray-300 shadow-sm h-11"
-          variant="outline"
+      <div className="bg-gray-900 text-white rounded-lg shadow-2xl w-full max-w-md mx-4 relative">
+        {/* Close Button */}
+        <button
+          onClick={handleClose}
+          className="absolute top-4 right-4 text-gray-400 hover:text-white transition-colors"
         >
-          <div className="flex items-center justify-center gap-3">
-            <svg className="w-4 h-4" viewBox="0 0 24 24">
+          <X className="w-5 h-5" />
+        </button>
+
+        {/* Header */}
+        <div className="p-6 pb-4">
+          <div className="flex items-center gap-3 mb-6">
+            <svg className="w-6 h-6" viewBox="0 0 24 24">
               <path
                 fill="#4285F4"
                 d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
@@ -112,13 +80,48 @@ const ModernAuthBanner: React.FC<ModernAuthBannerProps> = ({
                 d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
               />
             </svg>
-            Continue with Google
+            <span className="text-sm font-medium">
+              Sign in to pdfpage.com with google.com
+            </span>
           </div>
-        </Button>
 
-        <p className="text-xs text-gray-500 mt-3">
-          Free forever • No credit card required
-        </p>
+          {/* User Profile Section */}
+          <div className="flex items-center gap-4 mb-6">
+            <div className="w-12 h-12 bg-red-500 rounded-full flex items-center justify-center">
+              <span className="text-white font-semibold text-lg">A</span>
+            </div>
+            <div>
+              <div className="font-medium text-white mb-1">
+                ADARSH KUMAR mefgi
+              </div>
+              <div className="text-gray-300 text-sm">
+                adarshkumar.18434@marwadieducation.edu.in
+              </div>
+            </div>
+          </div>
+
+          {/* Continue Button */}
+          <Button
+            onClick={handleGoogleSignIn}
+            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 rounded-md mb-4"
+          >
+            Continue as ADARSH KUMAR
+          </Button>
+
+          {/* Privacy Text */}
+          <div className="text-xs text-gray-400 leading-relaxed">
+            To continue, google.com will share your name, email address, and
+            profile picture with this site. See this site's{" "}
+            <a href="/privacy" className="text-blue-400 hover:underline">
+              privacy policy
+            </a>{" "}
+            and{" "}
+            <a href="/terms" className="text-blue-400 hover:underline">
+              terms of service
+            </a>
+            .
+          </div>
+        </div>
       </div>
     </div>
   );

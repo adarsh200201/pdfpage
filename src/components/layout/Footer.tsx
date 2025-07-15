@@ -217,27 +217,27 @@ const Footer = () => {
                     {[
                       {
                         icon: Twitter,
-                        href: "https://twitter.com/pdfpage",
+                        href: "https://twitter.com/signup",
                         label: "Twitter",
                       },
                       {
                         icon: Facebook,
-                        href: "https://facebook.com/pdfpage",
+                        href: "https://facebook.com/login",
                         label: "Facebook",
                       },
                       {
                         icon: Linkedin,
-                        href: "https://linkedin.com/company/pdfpage",
+                        href: "https://linkedin.com/signup",
                         label: "LinkedIn",
                       },
                       {
                         icon: Instagram,
-                        href: "https://instagram.com/pdfpage",
+                        href: "https://instagram.com/accounts/login/",
                         label: "Instagram",
                       },
                       {
                         icon: Youtube,
-                        href: "https://youtube.com/pdfpage",
+                        href: "https://youtube.com/signin",
                         label: "YouTube",
                       },
                     ].map((social) => (

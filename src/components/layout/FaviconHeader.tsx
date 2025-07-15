@@ -70,12 +70,16 @@ const FaviconHeader = () => {
           {/* Logo */}
           <div className="flex items-center">
             <Link to="/favicon" className="flex items-center space-x-2">
-              <div className="w-8 h-8 bg-gradient-to-br from-purple-600 to-blue-600 rounded-lg flex items-center justify-center">
-                <Globe className="text-white font-bold text-sm w-5 h-5" />
-              </div>
-              <span className="font-bold text-xl text-text-dark">
-                Favicon<span className="text-purple-600">Generator</span>
-              </span>
+              <img
+                src="https://cdn.builder.io/api/v1/image/assets%2Ffcbdb28308084edfa1fffc265e57f46e%2F5791d498f9994470ae52d766d30e56ee?format=webp&width=800"
+                alt="PdfPage Logo"
+                className="h-10 w-auto hover:scale-105 transition-transform opacity-90 mix-blend-multiply"
+              />
+              <img
+                src="https://cdn.builder.io/api/v1/image/assets%2Ffcbdb28308084edfa1fffc265e57f46e%2F61ee37d28c9648a8ac684ced4eab1117?format=webp&width=800"
+                alt="Pdf Page"
+                className="h-6 w-auto opacity-90 mix-blend-multiply"
+              />
             </Link>
           </div>
 

@@ -90,9 +90,7 @@ export const FloatingPopupProvider: React.FC<FloatingPopupProviderProps> = ({
 
       {/* Modern Auth Banner */}
       {showPopup && !isAuthenticated && (
-        <div className="fixed top-4 right-4 z-50 max-w-sm">
-          <ModernAuthBanner variant="minimal" className="shadow-lg" />
-        </div>
+        <ModernAuthBanner variant="featured" onClose={dismissPopup} />
       )}
     </FloatingPopupContext.Provider>
   );
