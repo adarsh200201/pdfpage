@@ -108,7 +108,8 @@ app.use(
       "http://localhost:5173",
       "http://localhost:8080", // Frontend dev server
       /^http:\/\/localhost:\d+$/, // Allow any localhost port for development
-      "https://pdfpagee.netlify.app", // Production frontend
+      "https://pdfpage.in", // Primary production domain
+      "https://pdfpagee.netlify.app", // Secondary production frontend
       "https://pdfpage-app.onrender.com", // Production backend
       "https://accounts.google.com", // Google OAuth
     ],
