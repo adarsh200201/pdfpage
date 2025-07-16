@@ -18,6 +18,14 @@ const AuthGuard: React.FC<AuthGuardProps> = ({
   const navigate = useNavigate();
   const location = useLocation();
 
+  // Check if authentication is disabled for testing
+  const isTestingMode = import.meta.env.VITE_DISABLE_AUTH === "true";
+
+  if (isTestingMode) {
+    console.log("🔧 [TESTING MODE] AuthGuard bypassed - allowing access");
+    return <>{children}</>;
+  }
+
   useEffect(() => {
     if (!isLoading && requireAuth && !isAuthenticated) {
       // Store the current path for redirect after login

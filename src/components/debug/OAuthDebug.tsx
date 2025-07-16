@@ -68,9 +68,8 @@ export function OAuthDebug() {
 
   const testGoogleLogin = () => {
     addResult("🔐 Testing Google login redirect...");
-    const googleOAuthUrl = import.meta.env.DEV
-      ? "http://localhost:5000/api/auth/google"
-      : `/api/auth/google`;
+    const apiUrl = import.meta.env.VITE_API_URL || "/api";
+    const googleOAuthUrl = `${apiUrl}/auth/google`;
 
     addResult(`Redirecting to: ${googleOAuthUrl}`);
 
@@ -115,10 +114,7 @@ export function OAuthDebug() {
             {import.meta.env.DEV ? "Development" : "Production"}
           </p>
           <p>
-            <strong>Expected OAuth URL:</strong>{" "}
-            {import.meta.env.DEV
-              ? "http://localhost:5000/api/auth/google"
-              : "/api/auth/google"}
+            <strong>Expected OAuth URL:</strong> {googleOAuthUrl}
           </p>
         </div>
       </CardContent>

@@ -273,12 +273,73 @@ app.use((err, req, res, next) => {
   });
 });
 
-// 404 handler
-app.use("*", (req, res) => {
-  res.status(404).json({
-    message: "Route not found",
+// Handle non-API routes in production
+if (process.env.NODE_ENV === "production") {
+  // For frontend routes accessed on backend domain, provide helpful redirect
+  const frontendRoutes = [
+    "/word-to-pdf",
+    "/pdf-to-word",
+    "/pdf-to-jpg",
+    "/jpg-to-pdf",
+    "/compress",
+    "/merge",
+    "/split",
+    "/rotate",
+    "/unlock",
+    "/protect",
+    "/excel-to-pdf",
+    "/pdf-to-excel",
+    "/powerpoint-to-pdf",
+    "/pdf-to-powerpoint",
+    "/html-to-pdf",
+    "/text-to-pdf",
+    "/sign",
+    "/watermark",
+    "/crop",
+    "/libreoffice",
+    "/ai-pdf-editor",
+    "/ai-pdf-to-ppt",
+    "/ai-watermark",
+  ];
+
+  app.get("*", (req, res) => {
+    if (!req.path.startsWith("/api/")) {
+      // Check if this is a frontend route
+      const isFrontendRoute = frontendRoutes.some((route) =>
+        req.path.startsWith(route),
+      );
+
+      if (isFrontendRoute) {
+        const frontendUrl = `https://pdfpage.in${req.path}`;
+        res.status(200).json({
+          message:
+            "This is a backend API server. For the web interface, please visit:",
+          redirect: frontendUrl,
+          info: "The frontend is deployed separately at pdfpage.in",
+          backend:
+            "This server (pdfpage-app.onrender.com) handles API requests only",
+        });
+      } else {
+        res.status(404).json({
+          message: "Route not found",
+          availableEndpoints: "/api/*",
+          frontend: "https://pdfpage.in",
+        });
+      }
+    } else {
+      res.status(404).json({
+        message: "API route not found",
+      });
+    }
   });
-});
+} else {
+  // Development 404 handler
+  app.use("*", (req, res) => {
+    res.status(404).json({
+      message: "Route not found",
+    });
+  });
+}
 
 // Ensure required directories exist
 const { ensureDirectories } = require("./utils/ensureDirectories");

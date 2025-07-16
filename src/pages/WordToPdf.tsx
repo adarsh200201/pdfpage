@@ -185,7 +185,10 @@ const WordToPdf = () => {
 
           // Use LibreOffice backend service for conversion
           console.log(
-            `Converting ${fileStatus.file.name} using LibreOffice backend...`,
+            `🐳 Converting ${fileStatus.file.name} using REAL LibreOffice Docker service...`,
+          );
+          console.log(
+            "✅ Using professional-grade conversion for perfect results!",
           );
 
           // Progress update callback
@@ -203,7 +206,9 @@ const WordToPdf = () => {
             onProgress: updateProgress,
           });
 
-          console.log("✅ LibreOffice Word to PDF conversion completed");
+          console.log(
+            "✅ REAL LibreOffice Docker conversion completed successfully!",
+          );
 
           const processingTime = Date.now() - startTime;
 
@@ -264,6 +269,18 @@ const WordToPdf = () => {
         } catch (error) {
           console.error(`Error converting ${fileStatus.file.name}:`, error);
 
+          // If it's a LibreOffice installation error, log the helpful message
+          if (
+            error instanceof Error &&
+            error.message.includes("LibreOffice Not Installed")
+          ) {
+            console.log("\n" + "=".repeat(60));
+            console.log("📋 LIBREOFFICE INSTALLATION GUIDE");
+            console.log("=".repeat(60));
+            console.log(error.message);
+            console.log("=".repeat(60) + "\n");
+          }
+
           // Enhanced error message for LibreOffice unavailability
           let errorMessage =
             error instanceof Error ? error.message : "Conversion failed";
@@ -271,10 +288,11 @@ const WordToPdf = () => {
           if (
             conversionSettings.conversionMethod === "libreoffice" &&
             (errorMessage.includes("LibreOffice") ||
-              errorMessage.includes("not available"))
+              errorMessage.includes("not available") ||
+              errorMessage.includes("Not Installed"))
           ) {
-            errorMessage =
-              "LibreOffice conversion service is currently unavailable. Please try again later or contact support if the issue persists.";
+            // Keep the detailed error message from the service
+            // errorMessage is already set with helpful installation instructions
           }
 
           setFiles((prev) =>
@@ -292,7 +310,10 @@ const WordToPdf = () => {
 
           toast({
             title: `❌ Error converting ${fileStatus.file.name}`,
-            description: errorMessage,
+            description:
+              errorMessage.length > 200
+                ? "LibreOffice is not installed on development server. Check console for installation instructions."
+                : errorMessage,
             variant: "destructive",
           });
         }

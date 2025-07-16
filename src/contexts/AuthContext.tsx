@@ -75,11 +75,30 @@ export const useAuth = () => {
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
-  // Real authentication - check for valid token and user data
-  const [user, setUser] = useState<User | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  // Check if authentication is disabled for testing
+  const isTestingMode = import.meta.env.VITE_DISABLE_AUTH === "true";
+
+  const [user, setUser] = useState<User | null>(
+    isTestingMode
+      ? {
+          id: "test-user-123",
+          email: "test@example.com",
+          name: "Test User",
+          isPremium: true,
+          totalUploads: 0,
+        }
+      : null,
+  );
+  const [isLoading, setIsLoading] = useState(!isTestingMode);
 
   useEffect(() => {
+    if (isTestingMode) {
+      console.log(
+        "🔧 [TESTING MODE] Authentication bypassed - user always authenticated",
+      );
+      return;
+    }
+
     const token = Cookies.get("token");
     if (token) {
       // Verify token and get user data
@@ -87,7 +106,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     } else {
       setIsLoading(false);
     }
-  }, []);
+  }, [isTestingMode]);
 
   const fetchUserData = async (token: string) => {
     try {
@@ -268,7 +287,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const value = {
     user,
-    isAuthenticated: !!user, // Real authentication check - user must exist
+    isAuthenticated: isTestingMode ? true : !!user,
     isLoading,
     login,
     register,

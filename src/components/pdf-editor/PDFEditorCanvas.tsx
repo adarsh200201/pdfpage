@@ -22,7 +22,7 @@ interface PDFEditorCanvasProps {
   currentTool: ToolType;
   isDrawing: boolean;
   currentDrawPath: Point[];
-  settings: EditorSettings;
+  settings?: EditorSettings;
   onElementAdd: (
     element: Omit<PDFElement, "id" | "createdAt" | "updatedAt">,
   ) => string;
@@ -56,6 +56,23 @@ export function PDFEditorCanvas({
   onPageSizeChange,
   className,
 }: PDFEditorCanvasProps) {
+  // Default settings if not provided
+  const defaultSettings: EditorSettings = {
+    snapToGrid: false,
+    gridSize: 20,
+    showGrid: false,
+    showRulers: false,
+    autoSave: true,
+    defaultFontSize: 14,
+    defaultFontFamily: "Arial",
+    defaultStrokeWidth: 2,
+    defaultStrokeColor: "#000000",
+    defaultFillColor: "#ffffff",
+    defaultTextColor: "#000000",
+  };
+
+  const editorSettings = settings || defaultSettings;
+
   const canvasContainerRef = useRef<HTMLDivElement>(null);
   const pdfCanvasRef = useRef<HTMLCanvasElement>(null);
   const fabricCanvasRef = useRef<fabric.Canvas | null>(null);
@@ -527,7 +544,7 @@ export function PDFEditorCanvas({
         <canvas id="fabric-canvas" className="absolute top-0 left-0 z-10" />
 
         {/* Grid overlay */}
-        {settings.showGrid && (
+        {editorSettings.showGrid && (
           <div
             className="absolute top-0 left-0 w-full h-full pointer-events-none z-5"
             style={{
@@ -535,7 +552,7 @@ export function PDFEditorCanvas({
                 linear-gradient(rgba(0,0,0,0.1) 1px, transparent 1px),
                 linear-gradient(90deg, rgba(0,0,0,0.1) 1px, transparent 1px)
               `,
-              backgroundSize: `${settings.gridSize}px ${settings.gridSize}px`,
+              backgroundSize: `${editorSettings.gridSize}px ${editorSettings.gridSize}px`,
             }}
           />
         )}

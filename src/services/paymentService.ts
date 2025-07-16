@@ -31,12 +31,11 @@ export const createPayment = async (
     .find((row) => row.startsWith("token="))
     ?.split("=")[1];
 
-  // Use proxy URL to stay on same domain
-  const apiUrl =
-    window.location.hostname === "localhost"
-      ? "http://localhost:5000"
-      : window.location.origin;
-  const fullUrl = `${apiUrl}/api/payments/create-order`;
+  // Use environment variable for API URL
+  const baseApiUrl = import.meta.env.VITE_API_URL || "/api";
+  const fullUrl = baseApiUrl.startsWith("http")
+    ? `${baseApiUrl}/payments/create-order`
+    : `${window.location.origin}${baseApiUrl}/payments/create-order`;
 
   console.log("Creating payment with:", { options, apiUrl: fullUrl });
 
@@ -50,9 +49,13 @@ export const createPayment = async (
       body: JSON.stringify(options),
     });
 
-    const responseData = await response.json();
-
     if (!response.ok) {
+      let responseData;
+      try {
+        responseData = await response.json();
+      } catch {
+        responseData = { message: response.statusText };
+      }
       console.error("Payment creation failed:", {
         status: response.status,
         statusText: response.statusText,
@@ -78,6 +81,8 @@ export const createPayment = async (
         );
       }
     }
+
+    const responseData = await response.json();
 
     if (!responseData.orderId) {
       throw new Error("Invalid response from payment service");
@@ -134,11 +139,11 @@ export const processPayment = async (
             .find((row) => row.startsWith("token="))
             ?.split("=")[1];
 
-          const apiUrl =
-            window.location.hostname === "localhost"
-              ? "http://localhost:5000"
-              : window.location.origin;
-          const verifyResponse = await fetch(`${apiUrl}/api/payments/verify`, {
+          const baseApiUrl = import.meta.env.VITE_API_URL || "/api";
+          const verifyUrl = baseApiUrl.startsWith("http")
+            ? `${baseApiUrl}/payments/verify`
+            : `${window.location.origin}${baseApiUrl}/payments/verify`;
+          const verifyResponse = await fetch(verifyUrl, {
             method: "POST",
             headers: {
               "Content-Type": "application/json",

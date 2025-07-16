@@ -92,6 +92,7 @@ const PdfToWord = () => {
   const [backendStatus, setBackendStatus] = useState<
     "checking" | "available" | "unavailable"
   >("checking");
+  const [showDebugPanel, setShowDebugPanel] = useState(false);
 
   const { isAuthenticated, user } = useAuth();
   const { toast } = useToast();
