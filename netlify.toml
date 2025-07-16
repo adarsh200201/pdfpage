@@ -23,7 +23,7 @@
   VITE_APP_VERSION = "$npm_package_version"
   VITE_APP_NAME = "PDF Page"
   VITE_APP_ENV = "production"
-        VITE_API_URL = "/api"
+  VITE_API_URL = "/api"
 
 [context.production.environment]
   NODE_ENV = "production"
@@ -37,29 +37,32 @@
   NODE_ENV = "development"
   VITE_APP_ENV = "development"
 
-# Server-side proxy for API endpoints (including Google OAuth)
-# This ensures all requests stay on pdfpage.in domain - no backend URLs exposed to client
-# OAuth flow: /api/auth/google -> proxied to backend -> user never sees render.com
-[[redirects]]
-  from = "/api/*"
-  to = "https://pdfpage-app.onrender.com/api/:splat"
-  status = 200
-  force = true
+# ========== REDIRECTS ==========
 
-# Specific rule for Google OAuth (more explicit)
+# ✅ 1. Specific rule for Google OAuth
 [[redirects]]
   from = "/api/auth/*"
   to = "https://pdfpage-app.onrender.com/api/auth/:splat"
   status = 200
   force = true
 
-# SPA fallback - this should be last
+# ✅ 2. General API proxy
+[[redirects]]
+  from = "/api/*"
+  to = "https://pdfpage-app.onrender.com/api/:splat"
+  status = 200
+  force = true
+
+# ✅ 3. SPA fallback (must be last)
 [[redirects]]
   from = "/*"
   to = "/index.html"
   status = 200
   force = false
 
+# ========== HEADERS ==========
+
+# Cache static assets
 [[headers]]
   for = "/assets/*"
   [headers.values]
@@ -83,6 +86,7 @@
     Content-Type = "application/javascript"
     Cache-Control = "public, max-age=31536000, immutable"
 
+# Security headers
 [[headers]]
   for = "/*"
   [headers.values]
@@ -90,4 +94,13 @@
     X-Content-Type-Options = "nosniff"
     X-XSS-Protection = "1; mode=block"
     Referrer-Policy = "strict-origin-when-cross-origin"
-                        Content-Security-Policy = "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' blob: data: https://www.google-analytics.com https://www.googletagmanager.com https://cdn.jsdelivr.net https://unpkg.com https://checkout.razorpay.com https://translate.google.com; worker-src 'self' blob: data: https://cdn.jsdelivr.net https://unpkg.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: blob: https:; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://www.google-analytics.com https://analytics.google.com https://api.razorpay.com https://lumberjack.razorpay.com https://api.mixpanel.com; frame-src 'self' https://checkout.razorpay.com https://api.razorpay.com;"
+    Content-Security-Policy = '''
+      default-src 'self';
+      script-src 'self' 'unsafe-inline' 'unsafe-eval' blob: data: https://www.google-analytics.com https://www.googletagmanager.com https://cdn.jsdelivr.net https://unpkg.com https://checkout.razorpay.com https://translate.google.com;
+      worker-src 'self' blob: data: https://cdn.jsdelivr.net https://unpkg.com;
+      style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
+      img-src 'self' data: blob: https:;
+      font-src 'self' https://fonts.gstatic.com;
+      connect-src 'self' https://www.google-analytics.com https://analytics.google.com https://api.razorpay.com https://lumberjack.razorpay.com https://api.mixpanel.com;
+      frame-src 'self' https://checkout.razorpay.com https://api.razorpay.com;
+    '''
