@@ -6,6 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Link } from "react-router-dom";
 import { useRealTimeStats } from "@/hooks/useRealTimeStats";
 import { useState, useEffect } from "react";
+import { OAuthDebug } from "@/components/debug/OAuthDebug";
 import {
   Users,
   Globe,
@@ -115,6 +116,15 @@ const About = () => {
   return (
     <div className="min-h-screen bg-background">
       <Header />
+
+      {/* OAuth Debug (Development Only) */}
+      {import.meta.env.DEV && (
+        <div className="p-4 bg-yellow-50 border-b border-yellow-200">
+          <div className="max-w-4xl mx-auto">
+            <OAuthDebug />
+          </div>
+        </div>
+      )}
 
       {/* Hero Section */}
       <section className="py-20 bg-gradient-to-br from-brand-red/5 to-red-50">

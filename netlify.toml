@@ -45,7 +45,13 @@
   to = "https://pdfpage-app.onrender.com/api/:splat"
   status = 200
   force = true
-  headers = { X-Proxy-Origin = "pdfpage.in" }
+
+# Specific rule for Google OAuth (more explicit)
+[[redirects]]
+  from = "/api/auth/*"
+  to = "https://pdfpage-app.onrender.com/api/auth/:splat"
+  status = 200
+  force = true
 
 # SPA fallback - this should be last
 [[redirects]]
