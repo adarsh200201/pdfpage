@@ -5,8 +5,12 @@
  * Replace process.env.NODE_ENV with import.meta.env.DEV for Vite compatibility
  */
 
-const fs = require("fs");
-const path = require("path");
+import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const SRC_DIR = path.join(__dirname, "../src");
 

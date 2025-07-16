@@ -5,8 +5,12 @@
  * Ensures no backend URLs are exposed in the production bundle
  */
 
-const fs = require("fs");
-const path = require("path");
+import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const BACKEND_URL_PATTERN = /https:\/\/pdfpage-app\.onrender\.com/gi;
 const DIST_DIR = path.join(__dirname, "../dist");
