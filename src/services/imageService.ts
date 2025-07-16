@@ -13,7 +13,7 @@ export class ImageService {
 
   // Get base API URL for image service calls
   private getBaseURL(): string {
-    return "https://pdfpage-app.onrender.com";
+    return "";
   }
 
   // Compress multiple images using backend API

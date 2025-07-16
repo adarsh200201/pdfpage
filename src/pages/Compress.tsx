@@ -240,7 +240,7 @@ export default function Compress() {
       const apiUrl =
         window.location.hostname === "localhost"
           ? "http://localhost:5000/api"
-          : "https://pdfpage-app.onrender.com/api";
+          : "/api";
       const response = await fetch(`${apiUrl}/pdf/compress-pro`, {
         method: "POST",
         body: formData,
@@ -465,7 +465,7 @@ export default function Compress() {
                       Drag & drop your PDF file or click to browse
                     </p>
                     <div className="flex flex-wrap justify-center gap-4 text-sm text-gray-500">
-                      <span>• Max file size: 100MB</span>
+                      <span>�� Max file size: 100MB</span>
                       <span>• PDF files only</span>
                       <span>• Secure processing</span>
                     </div>

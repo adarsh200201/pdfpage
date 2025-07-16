@@ -33,7 +33,7 @@ interface ConversionResult {
 }
 
 export class HtmlToPdfService {
-  private static API_URL = "https://pdfpage-app.onrender.com";
+  private static API_URL = "";
 
   /**
    * Test if the backend route is accessible by making a minimal POST request

@@ -15,7 +15,7 @@ import { useRealtimePDFEditor } from "@/hooks/useRealtimePDFEditor";
 import { useAuth } from "@/contexts/AuthContext";
 import { PDFService } from "@/services/pdfService";
 import { useToast } from "@/hooks/use-toast";
-import { loadPDFDocument } from "@/lib/pdf-worker-config";
+import { loadPDFDocument, configurePDFWorker } from "@/lib/pdf-worker-config";
 import {
   ArrowLeft,
   Download,
@@ -74,6 +74,26 @@ const SignPdf = () => {
 
   // Initialize PDF editor
   const { state, actions, selectors, computed } = useRealtimePDFEditor();
+
+  // Initialize PDF worker on component mount
+  useEffect(() => {
+    const initializePDFWorker = async () => {
+      try {
+        await configurePDFWorker();
+        console.log("✅ PDF worker initialized successfully for SignPdf");
+      } catch (error) {
+        console.error("❌ Failed to initialize PDF worker:", error);
+        toast({
+          title: "PDF System Error",
+          description:
+            "Failed to initialize PDF processing. Please refresh the page.",
+          variant: "destructive",
+        });
+      }
+    };
+
+    initializePDFWorker();
+  }, [toast]);
 
   // Handle file upload
   const handleFileUpload = useCallback(

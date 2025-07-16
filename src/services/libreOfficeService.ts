@@ -24,7 +24,7 @@ interface ConversionResult {
 }
 
 export class LibreOfficeService {
-  private static API_URL = "https://pdfpage-app.onrender.com";
+  private static API_URL = "";
 
   /**
    * Make LibreOffice conversion request to specific endpoint

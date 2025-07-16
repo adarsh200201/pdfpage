@@ -36,21 +36,18 @@ export class UsageService {
         return true;
       }
 
-      const response = await fetch(
-        "https://pdfpage-app.onrender.com/api/usage/track",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            toolUsed,
-            fileSize,
-            timestamp: new Date(),
-          }),
+      const response = await fetch("/api/usage/track", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
         },
-      );
+        body: JSON.stringify({
+          toolUsed,
+          fileSize,
+          timestamp: new Date(),
+        }),
+      });
 
       return response.ok;
     } catch (error) {

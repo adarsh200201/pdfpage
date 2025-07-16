@@ -1,5 +1,6 @@
 import React, { useRef, useEffect, useState, useCallback } from "react";
 import { useToast } from "@/hooks/use-toast";
+import { configurePDFWorker } from "@/lib/pdf-worker-config";
 import {
   AnyElement,
   Point,
@@ -109,9 +110,8 @@ export default function EnhancedPDFEditorCanvas({
       try {
         const pdfjsLib = await import("pdfjs-dist");
 
-        if (!pdfjsLib.GlobalWorkerOptions.workerSrc) {
-          pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js`;
-        }
+        // Ensure PDF worker is configured
+        await configurePDFWorker();
 
         const arrayBuffer = await file.arrayBuffer();
         const loadingTask = pdfjsLib.getDocument({

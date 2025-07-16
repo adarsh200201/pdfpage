@@ -1,6 +1,7 @@
 import React, { useRef, useEffect, useState, useCallback } from "react";
 import * as fabric from "fabric";
 import * as pdfjsLib from "pdfjs-dist";
+import { configurePDFWorker } from "@/lib/pdf-worker-config";
 import { PDFDocumentProxy } from "pdfjs-dist";
 import { useToast } from "@/hooks/use-toast";
 import {

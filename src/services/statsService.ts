@@ -19,9 +19,7 @@ class StatsService {
   private lastFetch: number = 0;
   private readonly CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
   private readonly API_BASE =
-    window.location.hostname === "localhost"
-      ? "http://localhost:5000"
-      : "https://pdfpage-app.onrender.com";
+    window.location.hostname === "localhost" ? "http://localhost:5000" : "";
   private currentController: AbortController | null = null;
 
   async getStats(): Promise<StatsData> {

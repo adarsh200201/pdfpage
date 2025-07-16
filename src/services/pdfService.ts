@@ -39,7 +39,7 @@ export interface UsageLimitInfo {
 }
 
 export class PDFService {
-  private static API_URL = "https://pdfpage-app.onrender.com";
+  private static API_URL = "";
 
   // Track ongoing conversions to prevent concurrent LibreOffice calls
   private static ongoingConversions = new Set<string>();

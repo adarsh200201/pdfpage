@@ -21,16 +21,68 @@ export const configurePDFWorker = async (): Promise<void> => {
         `https://cdn.jsdelivr.net/npm/pdfjs-dist@${PDFJS_VERSION}/build/pdf.worker.min.js`,
         `https://unpkg.com/pdfjs-dist@${PDFJS_VERSION}/build/pdf.worker.min.js`,
         `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${PDFJS_VERSION}/pdf.worker.min.js`,
+        // Local fallback for development
+        "/pdf.worker.min.js",
       ];
 
-      // Use the first CDN source as primary
+      // Set the worker source
       pdfjsLib.GlobalWorkerOptions.workerSrc = workerSources[0];
 
-      console.log(`PDF.js worker configured with version ${PDFJS_VERSION}`);
+      console.log(`✅ PDF.js worker configured with version ${PDFJS_VERSION}`);
+      console.log(`📍 Worker source: ${workerSources[0]}`);
+    } else {
+      console.log(
+        `✅ PDF.js worker already configured: ${pdfjsLib.GlobalWorkerOptions.workerSrc}`,
+      );
+    }
+
+    // Verify the worker is accessible
+    const isWorkerValid = await testWorkerConnection(
+      pdfjsLib.GlobalWorkerOptions.workerSrc,
+    );
+    if (!isWorkerValid) {
+      console.warn(
+        "⚠️ PDF worker may not be accessible, trying fallback sources...",
+      );
+      // Try fallback sources if primary fails
+      for (let i = 1; i < workerSources.length; i++) {
+        try {
+          pdfjsLib.GlobalWorkerOptions.workerSrc = workerSources[i];
+          const fallbackValid = await testWorkerConnection(workerSources[i]);
+          if (fallbackValid) {
+            console.log(
+              `✅ Fallback worker source working: ${workerSources[i]}`,
+            );
+            break;
+          }
+        } catch (fallbackError) {
+          console.warn(`❌ Fallback ${i} failed:`, fallbackError);
+        }
+      }
     }
   } catch (error) {
-    console.error("Failed to configure PDF.js worker:", error);
-    throw error;
+    console.error("❌ Failed to configure PDF.js worker:", error);
+    throw new Error(`PDF worker configuration failed: ${error.message}`);
+  }
+};
+
+/**
+ * Test if the PDF worker source is accessible
+ */
+const testWorkerConnection = async (workerSrc: string): Promise<boolean> => {
+  try {
+    if (!workerSrc || workerSrc.startsWith("/")) {
+      // Skip test for local files
+      return true;
+    }
+
+    const response = await fetch(workerSrc, {
+      method: "HEAD",
+      mode: "no-cors",
+    });
+    return true; // If no error thrown, worker is accessible
+  } catch (error) {
+    return false;
   }
 };
 
