@@ -18,6 +18,10 @@ export async function registerServiceWorker(): Promise<ServiceWorkerRegistration
     return null;
   }
 
+  // Temporarily disable service worker to fix cache issues
+  console.log("📱 Service worker registration temporarily disabled");
+  return null;
+
   try {
     console.log("📱 Registering service worker...");
 
@@ -33,14 +37,22 @@ export async function registerServiceWorker(): Promise<ServiceWorkerRegistration
 
     // Check for updates
     registration.addEventListener("updatefound", () => {
-      console.log("🔄 Service worker update found");
-      handleServiceWorkerUpdate(registration);
-    });
+      console.log("📱 Service worker update found");
+      const newWorker = registration.installing;
 
-    // Check if SW is already controlling the page
-    if (navigator.serviceWorker.controller) {
-      console.log("📱 Service worker is controlling the page");
-    }
+      if (newWorker) {
+        newWorker.addEventListener("statechange", () => {
+          if (newWorker.state === "installed") {
+            if (navigator.serviceWorker.controller) {
+              console.log("📱 New content available, refresh to update");
+              // Optionally show update notification
+            } else {
+              console.log("📱 Content cached for offline use");
+            }
+          }
+        });
+      }
+    });
 
     return registration;
   } catch (error) {
@@ -49,273 +61,122 @@ export async function registerServiceWorker(): Promise<ServiceWorkerRegistration
   }
 }
 
-// Handle service worker updates
-function handleServiceWorkerUpdate(registration: ServiceWorkerRegistration) {
-  const newWorker = registration.installing;
+// Install prompt handling
+export function setupInstallPrompt(): PWAInstallPrompt | null {
+  let deferredPrompt: any = null;
 
-  if (!newWorker) return;
-
-  newWorker.addEventListener("statechange", () => {
-    if (newWorker.state === "installed" && navigator.serviceWorker.controller) {
-      // New version is available
-      console.log("🎉 New app version available!");
-
-      // Show update notification
-      showUpdateNotification(() => {
-        // User chose to update
-        newWorker.postMessage({ type: "SKIP_WAITING" });
-        window.location.reload();
-      });
-    }
-  });
-}
-
-// Show update notification to user
-function showUpdateNotification(onUpdate: () => void) {
-  // Create custom notification element
-  const notification = document.createElement("div");
-  notification.className = "pwa-update-notification";
-  notification.innerHTML = `
-    <div style="
-      position: fixed;
-      top: 20px;
-      right: 20px;
-      background: #e5322d;
-      color: white;
-      padding: 16px 20px;
-      border-radius: 8px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-      z-index: 10000;
-      max-width: 300px;
-      font-family: system-ui, -apple-system, sans-serif;
-    ">
-      <div style="font-weight: 600; margin-bottom: 8px;">
-        🎉 New version available!
-      </div>
-      <div style="font-size: 14px; margin-bottom: 12px; opacity: 0.9;">
-        Click to update and get the latest features.
-      </div>
-      <div style="display: flex; gap: 8px;">
-        <button id="pwa-update-btn" style="
-          background: white;
-          color: #e5322d;
-          border: none;
-          padding: 6px 12px;
-          border-radius: 4px;
-          font-weight: 600;
-          cursor: pointer;
-          font-size: 12px;
-        ">Update Now</button>
-        <button id="pwa-dismiss-btn" style="
-          background: transparent;
-          color: white;
-          border: 1px solid rgba(255,255,255,0.3);
-          padding: 6px 12px;
-          border-radius: 4px;
-          cursor: pointer;
-          font-size: 12px;
-        ">Later</button>
-      </div>
-    </div>
-  `;
-
-  document.body.appendChild(notification);
-
-  // Handle update button
-  const updateBtn = notification.querySelector("#pwa-update-btn");
-  updateBtn?.addEventListener("click", () => {
-    notification.remove();
-    onUpdate();
+  window.addEventListener("beforeinstallprompt", (e) => {
+    console.log("📱 Install prompt available");
+    e.preventDefault();
+    deferredPrompt = e;
   });
 
-  // Handle dismiss button
-  const dismissBtn = notification.querySelector("#pwa-dismiss-btn");
-  dismissBtn?.addEventListener("click", () => {
-    notification.remove();
-  });
+  if (deferredPrompt) {
+    return {
+      prompt: async () => {
+        if (deferredPrompt) {
+          deferredPrompt.prompt();
+          return deferredPrompt.userChoice;
+        }
+      },
+      userChoice: deferredPrompt.userChoice,
+    };
+  }
 
-  // Auto-dismiss after 10 seconds
-  setTimeout(() => {
-    if (notification.parentNode) {
-      notification.remove();
-    }
-  }, 10000);
+  return null;
 }
 
-// PWA install prompt handling
-export class PWAInstallManager {
-  private deferredPrompt: PWAInstallPrompt | null = null;
-  private isInstalled = false;
-
-  constructor() {
-    this.init();
-  }
-
-  private init() {
-    // Listen for install prompt
-    window.addEventListener("beforeinstallprompt", (e) => {
-      console.log("📱 PWA install prompt triggered");
-      e.preventDefault();
-      this.deferredPrompt = e as any;
-      this.showInstallButton();
-    });
-
-    // Listen for app installed
-    window.addEventListener("appinstalled", () => {
-      console.log("🎉 PWA installed successfully");
-      this.isInstalled = true;
-      this.hideInstallButton();
-      this.deferredPrompt = null;
-    });
-
-    // Check if already installed
-    if (window.matchMedia("(display-mode: standalone)").matches) {
-      this.isInstalled = true;
-      console.log("📱 PWA is running in standalone mode");
-    }
-  }
-
-  public async showInstallPrompt(): Promise<boolean> {
-    if (!this.deferredPrompt) {
-      console.log("📱 No install prompt available");
-      return false;
-    }
-
-    try {
-      await this.deferredPrompt.prompt();
-      const choiceResult = await this.deferredPrompt.userChoice;
-
-      console.log("📱 User install choice:", choiceResult.outcome);
-
-      if (choiceResult.outcome === "accepted") {
-        this.deferredPrompt = null;
-        return true;
-      }
-
-      return false;
-    } catch (error) {
-      console.error("📱 Install prompt failed:", error);
-      return false;
-    }
-  }
-
-  public isInstallable(): boolean {
-    return !!this.deferredPrompt && !this.isInstalled;
-  }
-
-  public isAppInstalled(): boolean {
-    return this.isInstalled;
-  }
-
-  private showInstallButton() {
-    // Create floating install button
-    if (document.getElementById("pwa-install-btn")) return;
-
-    const installBtn = document.createElement("button");
-    installBtn.id = "pwa-install-btn";
-    installBtn.innerHTML = `
-      <div style="
-        position: fixed;
-        bottom: 20px;
-        right: 20px;
-        background: #e5322d;
-        color: white;
-        border: none;
-        padding: 12px 16px;
-        border-radius: 50px;
-        box-shadow: 0 4px 12px rgba(229, 50, 45, 0.3);
-        cursor: pointer;
-        z-index: 9999;
-        font-family: system-ui, -apple-system, sans-serif;
-        font-weight: 600;
-        font-size: 14px;
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        transition: transform 0.2s ease;
-      " onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
-        📱 Install App
-      </div>
-    `;
-
-    installBtn.addEventListener("click", () => {
-      this.showInstallPrompt();
-    });
-
-    document.body.appendChild(installBtn);
-  }
-
-  private hideInstallButton() {
-    const installBtn = document.getElementById("pwa-install-btn");
-    if (installBtn) {
-      installBtn.remove();
-    }
-  }
+// Check if running as PWA
+export function isPWA(): boolean {
+  return (
+    window.matchMedia("(display-mode: standalone)").matches ||
+    (window.navigator as any).standalone === true ||
+    document.referrer.includes("android-app://")
+  );
 }
 
-// PWA feature detection
-export function getPWAFeatures() {
+// Get PWA capabilities
+export function getPWACapabilities() {
   return {
     serviceWorker: "serviceWorker" in navigator,
-    installPrompt: "onbeforeinstallprompt" in window,
     notifications: "Notification" in window,
+    pushMessaging: "PushManager" in window,
     backgroundSync:
       "serviceWorker" in navigator &&
       "sync" in window.ServiceWorkerRegistration.prototype,
-    pushMessaging: "serviceWorker" in navigator && "PushManager" in window,
-    offlineStorage: "caches" in window,
     webShare: "share" in navigator,
+    installPrompt: "BeforeInstallPromptEvent" in window,
     fullscreen: "requestFullscreen" in document.documentElement,
-    standalone: window.matchMedia("(display-mode: standalone)").matches,
-  };
-}
-
-// Network status detection
-export function getNetworkStatus() {
-  return {
-    online: navigator.onLine,
-    connection:
-      (navigator as any).connection ||
-      (navigator as any).mozConnection ||
-      (navigator as any).webkitConnection,
+    offlineStorage: "caches" in window,
+    standalone: isPWA(),
   };
 }
 
 // Initialize PWA features
-export function initializePWA() {
+export function initializePWA(): void {
   console.log("🚀 Initializing PWA features...");
 
-  const features = getPWAFeatures();
-  console.log("📱 PWA Features:", features);
+  const capabilities = getPWACapabilities();
+  console.log("📱 PWA Features:", capabilities);
 
   // Register service worker
   registerServiceWorker();
 
-  // Initialize install manager
-  const installManager = new PWAInstallManager();
+  // Setup install prompt
+  setupInstallPrompt();
 
-  // Network status monitoring
-  window.addEventListener("online", () => {
-    console.log("🌐 App is back online");
-    document.body.classList.remove("offline");
+  // Handle app installation
+  window.addEventListener("appinstalled", (e) => {
+    console.log("📱 App installed successfully");
   });
 
-  window.addEventListener("offline", () => {
-    console.log("📵 App is offline");
-    document.body.classList.add("offline");
+  // Handle visibility changes for background sync
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden) {
+      console.log("📱 App became visible, checking for updates");
+    }
   });
 
-  return {
-    features,
-    installManager,
-    networkStatus: getNetworkStatus(),
-  };
+  console.log("✅ PWA initialization complete");
 }
 
-export default {
-  registerServiceWorker,
-  PWAInstallManager,
-  getPWAFeatures,
-  getNetworkStatus,
-  initializePWA,
-};
+// Show install banner (if available)
+export async function showInstallBanner(): Promise<boolean> {
+  const installPrompt = setupInstallPrompt();
+
+  if (installPrompt) {
+    try {
+      await installPrompt.prompt();
+      const choice = await installPrompt.userChoice;
+      return choice.outcome === "accepted";
+    } catch (error) {
+      console.error("❌ Install prompt failed:", error);
+      return false;
+    }
+  }
+
+  return false;
+}
+
+// Update service worker
+export async function updateServiceWorker(): Promise<void> {
+  if ("serviceWorker" in navigator) {
+    const registration = await navigator.serviceWorker.getRegistration();
+
+    if (registration) {
+      registration.update();
+      console.log("📱 Checking for service worker updates...");
+    }
+  }
+}
+
+// Clear caches (for troubleshooting)
+export async function clearAllCaches(): Promise<void> {
+  if ("caches" in window) {
+    const cacheNames = await caches.keys();
+
+    await Promise.all(cacheNames.map((cacheName) => caches.delete(cacheName)));
+
+    console.log("🗑️ All caches cleared");
+  }
+}
