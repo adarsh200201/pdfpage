@@ -33,7 +33,10 @@ interface ConversionResult {
 }
 
 export class HtmlToPdfService {
-  private static API_URL = "";
+  private static API_URL =
+    window.location.hostname === "localhost"
+      ? "http://localhost:5000"
+      : window.location.origin;
 
   /**
    * Test if the backend route is accessible by making a minimal POST request

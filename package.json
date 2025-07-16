@@ -5,14 +5,15 @@
   "scripts": {
     "dev": "vite",
     "dev:full": "concurrently \"npm run backend:dev\" \"npm run dev\"",
-    "build": "vite build",
+    "build": "vite build && node scripts/verify-proxy-security.js",
     "start": "vite preview --port 3000",
     "backend:dev": "npm run dev --prefix backend",
     "backend:start": "npm run start --prefix backend",
     "install:all": "npm install && npm install --prefix backend",
     "test": "vitest",
     "format.fix": "prettier --write .",
-    "typecheck": "tsc"
+    "typecheck": "tsc",
+    "verify-proxy": "node scripts/verify-proxy-security.js"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.0",

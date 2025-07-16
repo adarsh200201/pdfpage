@@ -32,7 +32,10 @@ export const createPayment = async (
     ?.split("=")[1];
 
   // Use proxy URL to stay on same domain
-  const apiUrl = "";
+  const apiUrl =
+    window.location.hostname === "localhost"
+      ? "http://localhost:5000"
+      : window.location.origin;
   const fullUrl = `${apiUrl}/api/payments/create-order`;
 
   console.log("Creating payment with:", { options, apiUrl: fullUrl });
@@ -131,7 +134,10 @@ export const processPayment = async (
             .find((row) => row.startsWith("token="))
             ?.split("=")[1];
 
-          const apiUrl = "";
+          const apiUrl =
+            window.location.hostname === "localhost"
+              ? "http://localhost:5000"
+              : window.location.origin;
           const verifyResponse = await fetch(`${apiUrl}/api/payments/verify`, {
             method: "POST",
             headers: {

@@ -19,7 +19,9 @@ class StatsService {
   private lastFetch: number = 0;
   private readonly CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
   private readonly API_BASE =
-    window.location.hostname === "localhost" ? "http://localhost:5000" : "";
+    window.location.hostname === "localhost"
+      ? "http://localhost:5000"
+      : window.location.origin;
   private currentController: AbortController | null = null;
 
   async getStats(): Promise<StatsData> {

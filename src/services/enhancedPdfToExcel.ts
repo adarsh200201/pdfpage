@@ -214,7 +214,10 @@ export class EnhancedPdfToExcelService {
     formData.append("preserveFormatting", String(options.preserveFormatting));
     formData.append("sessionId", Math.random().toString(36).substr(2, 9));
 
-    const API_URL = "";
+    const API_URL =
+      window.location.hostname === "localhost"
+        ? "http://localhost:5000"
+        : window.location.origin;
 
     const response = await fetch(`${API_URL}/api/pdf/to-excel`, {
       method: "POST",

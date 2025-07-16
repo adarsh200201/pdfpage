@@ -90,7 +90,7 @@ class ErrorHandler {
     }
 
     // In development, log to console
-    if (process.env.NODE_ENV === "development") {
+    if (import.meta.env.DEV) {
       console.warn("Error handled by ErrorHandler:", errorDetails);
     }
 
@@ -103,7 +103,7 @@ class ErrorHandler {
     this.errorLog.push(errorDetails);
 
     // In development, show a minimal log
-    if (process.env.NODE_ENV === "development") {
+    if (import.meta.env.DEV) {
       console.debug("Silent error handled:", errorDetails.message);
     }
   }

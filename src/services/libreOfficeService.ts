@@ -24,7 +24,10 @@ interface ConversionResult {
 }
 
 export class LibreOfficeService {
-  private static API_URL = "";
+  private static API_URL =
+    window.location.hostname === "localhost"
+      ? "http://localhost:5000"
+      : window.location.origin;
 
   /**
    * Make LibreOffice conversion request to specific endpoint

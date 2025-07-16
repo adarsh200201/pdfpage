@@ -39,7 +39,10 @@ export interface UsageLimitInfo {
 }
 
 export class PDFService {
-  private static API_URL = "";
+  private static API_URL =
+    window.location.hostname === "localhost"
+      ? "http://localhost:5000"
+      : window.location.origin;
 
   // Track ongoing conversions to prevent concurrent LibreOffice calls
   private static ongoingConversions = new Set<string>();
@@ -5485,7 +5488,7 @@ ${text.replace(/\n/g, "\\par ").replace(/[{}\\]/g, "")}
 
     console.log("✅ LibreOffice confirmed available in backend Docker");
     console.log(
-      "���� Using Backend LibreOffice in Docker for 100% accurate PowerPoint conversion...",
+      "����� Using Backend LibreOffice in Docker for 100% accurate PowerPoint conversion...",
     );
 
     try {
@@ -5517,7 +5520,7 @@ ${text.replace(/\n/g, "\\par ").replace(/[{}\\]/g, "")}
       }, TIMEOUT_DURATION);
 
       console.log(
-        "🔄 Sending PowerPoint file to backend LibreOffice service...",
+        "�� Sending PowerPoint file to backend LibreOffice service...",
       );
       console.log(
         `�� Target URL: ${this.API_URL}/api/pdf/powerpoint-to-pdf-libreoffice`,

@@ -13,7 +13,9 @@ export class ImageService {
 
   // Get base API URL for image service calls
   private getBaseURL(): string {
-    return "";
+    return window.location.hostname === "localhost"
+      ? "http://localhost:5000"
+      : window.location.origin;
   }
 
   // Compress multiple images using backend API

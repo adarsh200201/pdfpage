@@ -29,7 +29,10 @@ export function LibreOfficeSetup() {
   const checkSystemStatus = async () => {
     setChecking(true);
     try {
-      const apiUrl = "/api";
+      const apiUrl =
+        window.location.hostname === "localhost"
+          ? "http://localhost:5000/api"
+          : "/api";
       const response = await fetch(`${apiUrl}/pdf/system-status`);
       const data = await response.json();
       setStatus(data);

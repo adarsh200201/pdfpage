@@ -36,7 +36,12 @@ export class UsageService {
         return true;
       }
 
-      const response = await fetch("/api/usage/track", {
+      const apiUrl =
+        window.location.hostname === "localhost"
+          ? "http://localhost:5000/api/usage/track"
+          : "/api/usage/track";
+
+      const response = await fetch(apiUrl, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

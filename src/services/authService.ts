@@ -12,27 +12,36 @@ interface GoogleAuthResponse {
 
 export const authService = {
   /**
-   * Initiate Google OAuth login
+   * Initiate Google OAuth login via server-side proxy
+   * In production: Browser calls /api/auth/google -> Netlify proxies to backend
+   * User never sees or interacts with backend domain
    */
   loginWithGoogle: () => {
-    // Use seamless proxy URL that stays on same domain
-    const googleOAuthUrl = `/api/auth/google`;
+    // Server-side proxy URL - backend domain never exposed to client
+    const googleOAuthUrl = import.meta.env.DEV
+      ? "http://localhost:5000/api/auth/google"
+      : `/api/auth/google`;
 
     // Store the current location to redirect back after auth
     sessionStorage.setItem("authRedirectUrl", window.location.pathname);
 
-    // Redirect to Google OAuth
+    // Redirect to server-side proxy (Netlify handles the backend forwarding)
     window.location.href = googleOAuthUrl;
   },
 
   /**
-   * Handle auth callback from Google
+   * Handle auth callback via server-side proxy
+   * All requests stay on pdfpage.in domain
    */
   handleAuthCallback: async (
     token: string,
   ): Promise<GoogleAuthResponse["user"]> => {
-    // Use seamless proxy URL that stays on same domain
-    const response = await fetch(`/api/auth/me`, {
+    // Server-side proxy URL - backend domain never exposed to client
+    const apiUrl = import.meta.env.DEV
+      ? "http://localhost:5000/api/auth/me"
+      : `/api/auth/me`;
+
+    const response = await fetch(apiUrl, {
       headers: {
         Authorization: `Bearer ${token}`,
       },

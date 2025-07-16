@@ -37,13 +37,15 @@
   NODE_ENV = "development"
   VITE_APP_ENV = "development"
 
-# Seamless proxy redirects for API endpoints
-# This makes all /api/* requests appear to come from the same domain
+# Server-side proxy for API endpoints (including Google OAuth)
+# This ensures all requests stay on pdfpage.in domain - no backend URLs exposed to client
+# OAuth flow: /api/auth/google -> proxied to backend -> user never sees render.com
 [[redirects]]
   from = "/api/*"
   to = "https://pdfpage-app.onrender.com/api/:splat"
   status = 200
   force = true
+  headers = { X-Proxy-Origin = "pdfpage.in" }
 
 # SPA fallback - this should be last
 [[redirects]]
