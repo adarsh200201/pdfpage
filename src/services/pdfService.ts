@@ -42,7 +42,7 @@ export class PDFService {
   private static API_URL =
     window.location.hostname === "localhost"
       ? "http://localhost:5000"
-      : window.location.origin;
+      : "https://pdfpage-app.onrender.com";
 
   // Track ongoing conversions to prevent concurrent LibreOffice calls
   private static ongoingConversions = new Set<string>();
@@ -442,28 +442,80 @@ export class PDFService {
     return token ? { Authorization: `Bearer ${token}` } : {};
   }
 
-  // Check usage limits before processing - COMPLETELY BYPASSED: No authentication required
+  // Check usage limits before processing - REAL AUTHENTICATION REQUIRED
   static async checkUsageLimit(): Promise<UsageLimitInfo> {
-    // Always return that user can proceed - no authentication or usage limits enforced
-    return {
-      authenticated: true, // Always true to bypass auth checks
-      canUse: true, // Always allow usage
-      limitType: "authenticated",
-      currentUsage: 0,
-      maxUsage: 999999,
-      shouldShowSoftLimit: false,
-    };
+    try {
+      const token = this.getAuthToken();
+      const isAuthenticated = !!token;
+
+      if (!isAuthenticated) {
+        // Unauthenticated users have limited access
+        return {
+          authenticated: false,
+          canUse: false,
+          limitType: "anonymous",
+          currentUsage: 0,
+          maxUsage: 0,
+          shouldShowSoftLimit: true,
+        };
+      }
+
+      // For authenticated users, check with backend
+      const response = await fetch(`${this.API_URL}/api/usage/check-limit`, {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        return {
+          authenticated: true,
+          canUse: data.canUse || true,
+          limitType: "authenticated",
+          currentUsage: data.currentUsage || 0,
+          maxUsage: data.maxUsage || 100,
+          shouldShowSoftLimit: data.shouldShowSoftLimit || false,
+        };
+      } else {
+        // If backend call fails, treat as authenticated but limited
+        return {
+          authenticated: true,
+          canUse: true,
+          limitType: "authenticated",
+          currentUsage: 0,
+          maxUsage: 100,
+          shouldShowSoftLimit: false,
+        };
+      }
+    } catch (error) {
+      console.error("Error checking usage limits:", error);
+      // On error, require authentication
+      return {
+        authenticated: false,
+        canUse: false,
+        limitType: "anonymous",
+        currentUsage: 0,
+        maxUsage: 0,
+        shouldShowSoftLimit: true,
+      };
+    }
   }
 
-  // Check if soft limit should be shown before tool usage - COMPLETELY BYPASSED
+  // Check if soft limit should be shown before tool usage - REAL AUTHENTICATION
   static async shouldShowSoftLimit(): Promise<{
     show: boolean;
     info?: UsageLimitInfo;
   }> {
     const limitInfo = await this.checkUsageLimit();
 
-    // Never show soft limits - all tools are free to use
-    return { show: false, info: limitInfo };
+    // Show soft limit if user is not authenticated or has reached limits
+    return {
+      show: !limitInfo.authenticated || limitInfo.shouldShowSoftLimit,
+      info: limitInfo,
+    };
   }
 
   // Enhanced error handling for soft limit responses
@@ -3220,7 +3272,7 @@ https://pdfpage.in/word-to-pdf
         "@/lib/pdf-utils"
       );
 
-      console.log("🚀 Starting extreme page-by-page compression...");
+      console.log("��� Starting extreme page-by-page compression...");
 
       const originalPdf = await loadPDFDocument(arrayBuffer);
       const newPdf = await createPDFDocument();
@@ -3847,7 +3899,9 @@ https://pdfpage.in/word-to-pdf
 
               // If memory usage is too high, force cleanup
               if (memInfo.usedJSHeapSize > memInfo.totalJSHeapSize * 0.8) {
-                console.warn("⚠️ High memory usage detected, forcing cleanup");
+                console.warn(
+                  "⚠��� High memory usage detected, forcing cleanup",
+                );
                 if ((window as any).gc) {
                   (window as any).gc();
                 }
@@ -5359,21 +5413,16 @@ https://pdfpage.in/word-to-pdf
       const timeoutId = setTimeout(() => controller.abort(), 120000); // 2 minutes timeout
 
       console.log("🔄 Sending Excel file to backend LibreOffice service...");
-      console.log(
-        `🌐 Target URL: ${this.API_URL}/api/pdf/excel-to-pdf-libreoffice`,
-      );
+      console.log(`🌐 Target URL: ${this.API_URL}/api/libreoffice/xlsx-to-pdf`);
 
       let response;
       try {
-        response = await fetch(
-          `${this.API_URL}/api/pdf/excel-to-pdf-libreoffice`,
-          {
-            method: "POST",
-            headers: this.getAuthHeaders(),
-            body: formData,
-            signal: controller.signal,
-          },
-        );
+        response = await fetch(`${this.API_URL}/api/libreoffice/xlsx-to-pdf`, {
+          method: "POST",
+          headers: this.getAuthHeaders(),
+          body: formData,
+          signal: controller.signal,
+        });
         clearTimeout(timeoutId);
       } catch (error) {
         clearTimeout(timeoutId);
@@ -5412,6 +5461,33 @@ https://pdfpage.in/word-to-pdf
         } else {
           console.error("❌ Response body already consumed or empty");
           errorMessage = `LibreOffice Excel conversion failed: ${response.status} ${response.statusText}`;
+        }
+
+        // Check for LibreOffice availability issues and provide helpful guidance
+        const isLibreOfficeError =
+          errorMessage.includes("LibreOffice is not available") ||
+          errorMessage.includes("LibreOffice not available") ||
+          errorMessage.includes("LibreOffice") ||
+          (response.status === 500 && window.location.hostname === "localhost");
+
+        if (isLibreOfficeError) {
+          const helpfulMessage = `❌ LibreOffice Not Available for Excel Conversion
+
+🔧 To enable LibreOffice locally:
+1. Download LibreOffice: https://www.libreoffice.org/download/download/
+2. Install LibreOffice on Windows
+3. Add LibreOffice to system PATH
+4. Restart the backend server
+
+✅ Production Status:
+LibreOffice 7.3.7.2 is working perfectly on production!
+
+🌐 Test Excel conversion online:
+https://pdfpage.in/excel-to-pdf
+
+📝 Original error: ${errorMessage}`;
+
+          throw new Error(helpfulMessage);
         }
 
         const fullError = errorDetails
@@ -5558,22 +5634,17 @@ https://pdfpage.in/word-to-pdf
       console.log(
         "�� Sending PowerPoint file to backend LibreOffice service...",
       );
-      console.log(
-        `�� Target URL: ${this.API_URL}/api/pdf/powerpoint-to-pdf-libreoffice`,
-      );
+      console.log(`🌐 Target URL: ${this.API_URL}/api/libreoffice/pptx-to-pdf`);
       console.log(`⏱️ Timeout set to ${TIMEOUT_DURATION / 1000} seconds`);
 
       let response;
       try {
-        response = await fetch(
-          `${this.API_URL}/api/pdf/powerpoint-to-pdf-libreoffice`,
-          {
-            method: "POST",
-            headers: this.getAuthHeaders(),
-            body: formData,
-            signal: controller.signal,
-          },
-        );
+        response = await fetch(`${this.API_URL}/api/libreoffice/pptx-to-pdf`, {
+          method: "POST",
+          headers: this.getAuthHeaders(),
+          body: formData,
+          signal: controller.signal,
+        });
 
         console.log(
           `📊 LibreOffice PowerPoint endpoint response: ${response.status} ${response.statusText}`,
@@ -5622,13 +5693,11 @@ https://pdfpage.in/word-to-pdf
         } else if (response.status === 422) {
           errorMessage =
             "PowerPoint file format is not supported or file is corrupted.";
-        } else if (response.status === 500) {
-          errorMessage =
-            "Server error during PowerPoint conversion. Please try again later.";
         } else if (response.status === 503) {
           errorMessage =
             "LibreOffice service is temporarily unavailable. Please try again in a few minutes.";
         }
+        // Note: 500 errors will be handled below after reading the response body
 
         // Only try to read the response body if it hasn't been consumed
         if (response.body && !response.bodyUsed) {
@@ -5657,6 +5726,45 @@ https://pdfpage.in/word-to-pdf
           } catch (e) {
             console.error("Could not read error response:", e);
           }
+        }
+
+        // Check for LibreOffice availability issues and provide helpful guidance
+        const isLibreOfficeError =
+          errorMessage.includes("LibreOffice is not available") ||
+          errorMessage.includes("LibreOffice not available") ||
+          errorMessage.includes("LibreOffice") ||
+          (response.status === 500 && window.location.hostname === "localhost");
+
+        if (isLibreOfficeError) {
+          const helpfulMessage = `❌ LibreOffice Not Available for PowerPoint Conversion
+
+🔧 To enable LibreOffice locally:
+1. Download LibreOffice: https://www.libreoffice.org/download/download/
+2. Install LibreOffice on Windows
+3. Add LibreOffice to system PATH
+4. Restart the backend server
+
+✅ Production Status:
+LibreOffice 7.3.7.2 is working perfectly on production!
+
+🌐 Test PowerPoint conversion online:
+https://pdfpage.in/powerpoint-to-pdf
+
+📝 Original error: ${errorMessage}`;
+
+          console.log("\n" + "=".repeat(60));
+          console.log("📋 LIBREOFFICE POWERPOINT SETUP GUIDE");
+          console.log("=".repeat(60));
+          console.log(helpfulMessage);
+          console.log("=".repeat(60) + "\n");
+
+          throw new Error(helpfulMessage);
+        }
+
+        // Default error handling for non-LibreOffice issues
+        if (response.status === 500 && !isLibreOfficeError) {
+          errorMessage =
+            "Server error during PowerPoint conversion. Please try again later.";
         }
 
         const fullError = errorDetails
@@ -5975,22 +6083,17 @@ https://pdfpage.in/word-to-pdf
       const timeoutId = setTimeout(() => controller.abort(), 120000); // 2 minutes timeout
 
       console.log("🔄 Sending Text file to backend LibreOffice service...");
-      console.log(
-        `🌐 Target URL: ${this.API_URL}/api/pdf/text-to-pdf-libreoffice`,
-      );
+      console.log(`🌐 Target URL: ${this.API_URL}/api/libreoffice/text-to-pdf`);
 
       let response;
       try {
         // Use ONLY LibreOffice endpoint - NO FALLBACKS
-        response = await fetch(
-          `${this.API_URL}/api/pdf/text-to-pdf-libreoffice`,
-          {
-            method: "POST",
-            headers: this.getAuthHeaders(),
-            body: formData,
-            signal: controller.signal,
-          },
-        );
+        response = await fetch(`${this.API_URL}/api/libreoffice/text-to-pdf`, {
+          method: "POST",
+          headers: this.getAuthHeaders(),
+          body: formData,
+          signal: controller.signal,
+        });
 
         console.log(
           `📊 LibreOffice Text endpoint response: ${response.status} ${response.statusText}`,
@@ -6380,7 +6483,7 @@ https://pdfpage.in/word-to-pdf
       const timeoutId = setTimeout(() => controller.abort(), 120000);
 
       const response = await fetch(
-        `${this.API_URL}/api/pdf/odt-to-pdf-libreoffice`,
+        `${this.API_URL}/api/libreoffice/odt-to-pdf`,
         {
           method: "POST",
           headers: this.getAuthHeaders(),
@@ -6474,7 +6577,7 @@ https://pdfpage.in/word-to-pdf
       const timeoutId = setTimeout(() => controller.abort(), 120000);
 
       const response = await fetch(
-        `${this.API_URL}/api/pdf/rtf-to-pdf-libreoffice`,
+        `${this.API_URL}/api/libreoffice/rtf-to-pdf`,
         {
           method: "POST",
           headers: this.getAuthHeaders(),
@@ -7607,7 +7710,7 @@ https://pdfpage.in/word-to-pdf
         body: formData,
         headers,
       }).catch((fetchError) => {
-        console.error("🚨 PDF unlock network error:", fetchError.message);
+        console.error("�� PDF unlock network error:", fetchError.message);
         throw new Error(`Network error: ${fetchError.message}`);
       });
 

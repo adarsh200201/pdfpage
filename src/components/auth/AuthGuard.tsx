@@ -18,13 +18,7 @@ const AuthGuard: React.FC<AuthGuardProps> = ({
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Check if authentication is disabled for testing
-  const isTestingMode = import.meta.env.VITE_DISABLE_AUTH === "true";
-
-  if (isTestingMode) {
-    console.log("🔧 [TESTING MODE] AuthGuard bypassed - allowing access");
-    return <>{children}</>;
-  }
+  // Real authentication guard - no bypass allowed
 
   useEffect(() => {
     if (!isLoading && requireAuth && !isAuthenticated) {

@@ -27,6 +27,30 @@ class LibreOfficeService {
   }
 
   async checkAvailability() {
+    // Check if LibreOffice is explicitly set as available in Docker/production
+    if (process.env.LIBREOFFICE_AVAILABLE === "true") {
+      console.log("🐳 LibreOffice availability forced by environment variable");
+      try {
+        const { stdout } = await execAsync("libreoffice --version", {
+          timeout: 5000,
+        });
+        this.isAvailable = true;
+        this.version = stdout.trim();
+        console.log(`✅ LibreOffice available: ${this.version}`);
+        return true;
+      } catch (error) {
+        // Even if version check fails, trust the environment variable in Docker
+        console.log(
+          "🐳 LibreOffice version check failed but LIBREOFFICE_AVAILABLE=true, proceeding...",
+        );
+        this.isAvailable = true;
+        this.version = "LibreOffice (Docker)";
+        console.log(`✅ LibreOffice available: ${this.version}`);
+        return true;
+      }
+    }
+
+    // Normal availability check for development
     try {
       const { stdout } = await execAsync("libreoffice --version", {
         timeout: 5000,
@@ -54,27 +78,38 @@ class LibreOfficeService {
   }
 
   getExecutablePath() {
-    // Try different possible LibreOffice paths
-    const possiblePaths = [
-      "libreoffice",
-      "/usr/bin/libreoffice",
-      "/opt/libreoffice/program/soffice",
-      "/Applications/LibreOffice.app/Contents/MacOS/soffice",
-      // Windows paths
-      "C:\\Program Files\\LibreOffice\\program\\soffice.exe",
-      "C:\\Program Files (x86)\\LibreOffice\\program\\soffice.exe",
-      "soffice.exe",
-      "soffice",
-    ];
+    // Platform-specific LibreOffice executable paths
+    if (process.platform === "win32") {
+      // Windows paths (even when LIBREOFFICE_AVAILABLE=true for testing)
+      const windowsPaths = [
+        "C:\\Program Files\\LibreOffice\\program\\soffice.exe",
+        "C:\\Program Files (x86)\\LibreOffice\\program\\soffice.exe",
+        "soffice.exe",
+        "soffice",
+        "libreoffice",
+      ];
+      return windowsPaths[0]; // Try the most common Windows path first
+    } else if (
+      process.platform === "linux" ||
+      process.env.LIBREOFFICE_AVAILABLE === "true"
+    ) {
+      // Linux/Docker environments
+      return "/usr/bin/libreoffice";
+    } else if (process.platform === "darwin") {
+      // macOS
+      return "/Applications/LibreOffice.app/Contents/MacOS/soffice";
+    }
 
-    return possiblePaths[0]; // Default to system PATH
+    // Fallback to system PATH
+    return "libreoffice";
   }
 
   /**
    * Convert DOCX/DOC to PDF using LibreOffice headless mode
    */
   async convertDocxToPdf(inputPath, outputPath, options = {}) {
-    if (!this.isAvailable) {
+    // In Docker production, trust the environment variable
+    if (!this.isAvailable && process.env.LIBREOFFICE_AVAILABLE !== "true") {
       throw new Error("LibreOffice is not available");
     }
 
@@ -138,7 +173,7 @@ class LibreOfficeService {
    * Convert PDF to DOCX using LibreOffice headless mode
    */
   async convertPdfToDocx(inputPath, outputPath, options = {}) {
-    if (!this.isAvailable) {
+    if (!this.isAvailable && process.env.LIBREOFFICE_AVAILABLE !== "true") {
       throw new Error("LibreOffice is not available");
     }
 

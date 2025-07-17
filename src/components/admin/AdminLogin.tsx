@@ -23,7 +23,10 @@ const AdminLogin = ({ onLogin }: AdminLoginProps) => {
     setError(null);
 
     try {
-      const apiUrl = import.meta.env.VITE_API_URL || "/api";
+      const apiUrl =
+        window.location.hostname === "localhost"
+          ? "http://localhost:5000"
+          : "https://pdfpage-app.onrender.com";
       const response = await fetch(`${apiUrl}/auth/login`, {
         method: "POST",
         headers: {

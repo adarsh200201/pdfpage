@@ -21,7 +21,7 @@ class StatsService {
   private readonly API_BASE =
     window.location.hostname === "localhost"
       ? "http://localhost:5000"
-      : window.location.origin;
+      : "https://pdfpage-app.onrender.com";
   private currentController: AbortController | null = null;
 
   async getStats(): Promise<StatsData> {

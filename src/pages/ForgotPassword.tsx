@@ -58,7 +58,7 @@ const ForgotPassword: React.FC = () => {
 
     try {
       const response = await fetch(
-        `${import.meta.env.VITE_API_URL}/auth/forgot-password`,
+        `${window.location.hostname === "localhost" ? "http://localhost:5000" : "https://pdfpage-app.onrender.com"}/api/auth/forgot-password`,
         {
           method: "POST",
           headers: {
@@ -107,7 +107,7 @@ const ForgotPassword: React.FC = () => {
 
     try {
       const response = await fetch(
-        `${import.meta.env.VITE_API_URL}/auth/verify-otp`,
+        `${window.location.hostname === "localhost" ? "http://localhost:5000" : "https://pdfpage-app.onrender.com"}/api/auth/verify-otp`,
         {
           method: "POST",
           headers: {
@@ -174,7 +174,7 @@ const ForgotPassword: React.FC = () => {
 
     try {
       const response = await fetch(
-        `${import.meta.env.VITE_API_URL}/auth/reset-password`,
+        `${window.location.hostname === "localhost" ? "http://localhost:5000" : "https://pdfpage-app.onrender.com"}/api/auth/reset-password`,
         {
           method: "POST",
           headers: {

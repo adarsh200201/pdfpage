@@ -217,7 +217,7 @@ export class EnhancedPdfToExcelService {
     const API_URL =
       window.location.hostname === "localhost"
         ? "http://localhost:5000"
-        : window.location.origin;
+        : "https://pdfpage-app.onrender.com";
 
     const response = await fetch(`${API_URL}/api/pdf/to-excel`, {
       method: "POST",

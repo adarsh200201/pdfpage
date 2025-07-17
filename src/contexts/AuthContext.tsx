@@ -75,30 +75,11 @@ export const useAuth = () => {
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
-  // Check if authentication is disabled for testing
-  const isTestingMode = import.meta.env.VITE_DISABLE_AUTH === "true";
-
-  const [user, setUser] = useState<User | null>(
-    isTestingMode
-      ? {
-          id: "test-user-123",
-          email: "test@example.com",
-          name: "Test User",
-          isPremium: true,
-          totalUploads: 0,
-        }
-      : null,
-  );
-  const [isLoading, setIsLoading] = useState(!isTestingMode);
+  // Real authentication - no testing mode bypass
+  const [user, setUser] = useState<User | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    if (isTestingMode) {
-      console.log(
-        "🔧 [TESTING MODE] Authentication bypassed - user always authenticated",
-      );
-      return;
-    }
-
     const token = Cookies.get("token");
     if (token) {
       // Verify token and get user data
@@ -106,11 +87,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     } else {
       setIsLoading(false);
     }
-  }, [isTestingMode]);
+  }, []);
 
   const fetchUserData = async (token: string) => {
     try {
-      const apiUrl = import.meta.env.VITE_API_URL || "/api";
+      const apiUrl =
+        window.location.hostname === "localhost"
+          ? "http://localhost:5000"
+          : "https://pdfpage-app.onrender.com";
       const response = await fetch(`${apiUrl}/auth/me`, {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -135,7 +119,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     try {
       console.log("🔵 [FRONTEND] Attempting to login user:", { email });
 
-      const apiUrl = import.meta.env.VITE_API_URL || "/api";
+      const apiUrl =
+        window.location.hostname === "localhost"
+          ? "http://localhost:5000"
+          : "https://pdfpage-app.onrender.com";
       const response = await fetch(`${apiUrl}/auth/login`, {
         method: "POST",
         headers: {
@@ -188,7 +175,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         options,
       });
 
-      const apiUrl = import.meta.env.VITE_API_URL || "/api";
+      const apiUrl =
+        window.location.hostname === "localhost"
+          ? "http://localhost:5000"
+          : "https://pdfpage-app.onrender.com";
       const response = await fetch(`${apiUrl}/auth/register`, {
         method: "POST",
         headers: {
@@ -287,7 +277,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const value = {
     user,
-    isAuthenticated: isTestingMode ? true : !!user,
+    isAuthenticated: !!user,
     isLoading,
     login,
     register,

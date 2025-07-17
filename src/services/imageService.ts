@@ -15,7 +15,7 @@ export class ImageService {
   private getBaseURL(): string {
     return window.location.hostname === "localhost"
       ? "http://localhost:5000"
-      : window.location.origin;
+      : "https://pdfpage-app.onrender.com";
   }
 
   // Compress multiple images using backend API

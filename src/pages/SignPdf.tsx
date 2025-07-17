@@ -895,8 +895,8 @@ const SignPdf = () => {
                     <PageThumbnails
                       file={file}
                       currentPage={state.pageIndex}
-                      totalPages={pdfPages}
-                      onPageChange={handlePageChange}
+                      onPageSelect={handlePageChange}
+                      elements={state.elements}
                     />
                   )}
 

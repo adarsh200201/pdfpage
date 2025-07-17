@@ -27,7 +27,7 @@ export class LibreOfficeService {
   private static API_URL =
     window.location.hostname === "localhost"
       ? "http://localhost:5000"
-      : window.location.origin;
+      : "https://pdfpage-app.onrender.com";
 
   /**
    * Make LibreOffice conversion request to specific endpoint

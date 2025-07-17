@@ -20,7 +20,7 @@ export const authService = {
     // Server-side proxy URL - backend domain never exposed to client
     const googleOAuthUrl = import.meta.env.DEV
       ? "http://localhost:5000/api/auth/google"
-      : `/api/auth/google`;
+      : "https://pdfpage-app.onrender.com/api/auth/google";
 
     // Store the current location to redirect back after auth
     sessionStorage.setItem("authRedirectUrl", window.location.pathname);
@@ -39,7 +39,7 @@ export const authService = {
     // Server-side proxy URL - backend domain never exposed to client
     const apiUrl = import.meta.env.DEV
       ? "http://localhost:5000/api/auth/me"
-      : `/api/auth/me`;
+      : "https://pdfpage-app.onrender.com/api/auth/me";
 
     const response = await fetch(apiUrl, {
       headers: {

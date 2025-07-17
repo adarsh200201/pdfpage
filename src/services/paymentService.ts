@@ -32,10 +32,13 @@ export const createPayment = async (
     ?.split("=")[1];
 
   // Use environment variable for API URL
-  const baseApiUrl = import.meta.env.VITE_API_URL || "/api";
+  const baseApiUrl =
+    window.location.hostname === "localhost"
+      ? "http://localhost:5000/api"
+      : "https://pdfpage-app.onrender.com/api";
   const fullUrl = baseApiUrl.startsWith("http")
     ? `${baseApiUrl}/payments/create-order`
-    : `${window.location.origin}${baseApiUrl}/payments/create-order`;
+    : `https://pdfpage-app.onrender.com${baseApiUrl}/payments/create-order`;
 
   console.log("Creating payment with:", { options, apiUrl: fullUrl });
 
@@ -139,10 +142,13 @@ export const processPayment = async (
             .find((row) => row.startsWith("token="))
             ?.split("=")[1];
 
-          const baseApiUrl = import.meta.env.VITE_API_URL || "/api";
+          const baseApiUrl =
+            window.location.hostname === "localhost"
+              ? "http://localhost:5000/api"
+              : "https://pdfpage-app.onrender.com/api";
           const verifyUrl = baseApiUrl.startsWith("http")
             ? `${baseApiUrl}/payments/verify`
-            : `${window.location.origin}${baseApiUrl}/payments/verify`;
+            : `https://pdfpage-app.onrender.com${baseApiUrl}/payments/verify`;
           const verifyResponse = await fetch(verifyUrl, {
             method: "POST",
             headers: {
