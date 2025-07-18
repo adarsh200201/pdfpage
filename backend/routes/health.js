@@ -94,4 +94,14 @@ router.get("/live", (req, res) => {
   });
 });
 
+// Ping endpoint for cron job wake-up (lightweight)
+router.get("/ping", (req, res) => {
+  res.status(200).json({
+    status: "pong",
+    timestamp: new Date().toISOString(),
+    uptime: Math.floor(process.uptime()),
+    message: "Server is awake",
+  });
+});
+
 module.exports = router;

@@ -191,6 +191,7 @@ app.use("/api/diagnostics", require("./routes/ghostscript-diagnostic"));
 app.use("/api/libreoffice", require("./routes/libreoffice"));
 app.use("/api/libreoffice-strict", require("./routes/libreoffice-strict"));
 app.use("/api/schema-test", require("./routes/schema-test"));
+app.use("/api/cron", require("./routes/cron-status"));
 
 // Test routes (for schema verification)
 if (
@@ -414,4 +415,9 @@ function startServer(port) {
 }
 
 startServer(PORT);
+
+// Initialize cron jobs after server starts
+setTimeout(() => {
+  require("./init-cron")();
+}, 3000);
 // Restart again
