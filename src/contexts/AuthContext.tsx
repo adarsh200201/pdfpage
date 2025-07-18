@@ -43,6 +43,7 @@ interface AuthContextType {
   logout: () => void;
   updateUser: (userData: Partial<User>) => void;
   refreshUser: () => Promise<void>;
+  checkAuth: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -67,6 +68,7 @@ export const useAuth = () => {
       clearAuth: () => {},
       refreshAuth: async () => {},
       updateUser: (updates: any) => {},
+      checkAuth: async () => {},
     };
   }
   return context;
@@ -85,9 +87,61 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       // Verify token and get user data
       fetchUserData(token);
     } else {
+      // Check if we have user data in localStorage but no token
+      const savedUser = localStorage.getItem("pdfpage_user");
+      if (savedUser) {
+        try {
+          const userData = JSON.parse(savedUser);
+          console.log(
+            "🔄 [AUTH] Found saved user data but no token - cleared localStorage",
+          );
+          localStorage.removeItem("pdfpage_user");
+        } catch (e) {
+          localStorage.removeItem("pdfpage_user");
+        }
+      }
       setIsLoading(false);
     }
-  }, []);
+
+    // Add retry mechanism for when user comes back online
+    const handleOnline = () => {
+      const token = Cookies.get("token");
+      if (token && !user) {
+        console.log("🔄 [AUTH] Back online - retrying authentication");
+        fetchUserData(token);
+      }
+    };
+
+    // Add app visibility checking for better persistent login
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        const token = Cookies.get("token");
+        if (token && !user) {
+          console.log("🔄 [AUTH] App became visible - checking authentication");
+          fetchUserData(token);
+        }
+      }
+    };
+
+    // Add focus checking for better persistent login
+    const handleFocus = () => {
+      const token = Cookies.get("token");
+      if (token && !user) {
+        console.log("🔄 [AUTH] App focused - checking authentication");
+        fetchUserData(token);
+      }
+    };
+
+    window.addEventListener("online", handleOnline);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    window.addEventListener("focus", handleFocus);
+
+    return () => {
+      window.removeEventListener("online", handleOnline);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.removeEventListener("focus", handleFocus);
+    };
+  }, [user]);
 
   const fetchUserData = async (token: string) => {
     try {
@@ -104,12 +158,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       if (response.ok) {
         const data = await response.json();
         setUser(data.user);
+        // Store user data in localStorage for extra persistence
+        localStorage.setItem("pdfpage_user", JSON.stringify(data.user));
+        console.log(
+          "✅ [AUTH] User data fetched successfully - persistent login active",
+        );
       } else {
+        console.log(
+          "🔴 [AUTH] Token invalid or expired, removing from storage",
+        );
         Cookies.remove("token");
+        localStorage.removeItem("pdfpage_user");
+        setUser(null);
       }
     } catch (error) {
-      console.error("Error fetching user data:", error);
-      Cookies.remove("token");
+      console.error("🔴 [AUTH] Error fetching user data:", error);
+      // Don't remove token on network errors - could be temporary
+      if (error instanceof TypeError && error.message.includes("fetch")) {
+        console.log("🔄 [AUTH] Network error - keeping token for retry");
+      } else {
+        Cookies.remove("token");
+        localStorage.removeItem("pdfpage_user");
+        setUser(null);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -135,6 +206,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         const data = await response.json();
         const { token, user, conversion } = data;
         Cookies.set("token", token, { expires: 365 }); // 1 year for persistent login
+        localStorage.setItem("pdfpage_user", JSON.stringify(user));
         setUser(user);
 
         // Track user login in Mixpanel
@@ -199,6 +271,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         console.log("✅ [FRONTEND] Registration successful");
         const { token, user, conversion } = responseData;
         Cookies.set("token", token, { expires: 365 }); // 1 year for persistent login
+        localStorage.setItem("pdfpage_user", JSON.stringify(user));
         setUser(user);
 
         // Track user signup in Mixpanel
@@ -251,7 +324,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     mixpanelService.reset();
 
     Cookies.remove("token");
+    localStorage.removeItem("pdfpage_user");
     setUser(null);
+    console.log("🔄 [AUTH] User logged out - clearing all stored data");
   };
 
   const updateUser = (userData: Partial<User>) => {
@@ -275,6 +350,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   };
 
+  // Add method to check authentication silently (for app focus/visibility events)
+  const checkAuth = async () => {
+    const token = Cookies.get("token");
+    if (token && !user) {
+      console.log("🔄 [AUTH] Checking authentication silently");
+      await fetchUserData(token);
+    }
+  };
+
   const value = {
     user,
     isAuthenticated: !!user,
@@ -285,6 +369,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     logout,
     updateUser,
     refreshUser,
+    checkAuth,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

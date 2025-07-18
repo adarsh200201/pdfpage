@@ -30,14 +30,16 @@ const AuthCallback: React.FC = () => {
 
       if (token) {
         try {
-          // Set the token in cookies
-          Cookies.set("token", token, { expires: 30 });
+          // Set the token in cookies for 1 year (persistent login)
+          Cookies.set("token", token, { expires: 365 });
 
           // Fetch user data with the token
           const user = await authService.handleAuthCallback(token);
 
           // Ensure user data is valid before updating
           if (user && user.id) {
+            // Store user data in localStorage for extra persistence
+            localStorage.setItem("pdfpage_user", JSON.stringify(user));
             updateUser(user);
 
             toast({
@@ -55,8 +57,9 @@ const AuthCallback: React.FC = () => {
           }
         } catch (error) {
           console.error("Auth callback error:", error);
-          // Clear invalid token
+          // Clear invalid token and user data
           Cookies.remove("token");
+          localStorage.removeItem("pdfpage_user");
           toast({
             title: "Authentication Error",
             description: "There was an error completing the sign-in process.",

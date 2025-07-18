@@ -208,7 +208,7 @@ const CompressProfessional = () => {
       setProcessingStatus("Uploading and analyzing document...");
 
       const apiUrl = "https://pdfpage-app.onrender.com/api";
-      const response = await fetch(`${apiUrl}/pdf/compress`, {
+      const response = await fetch(`${apiUrl}/pdf/compress-pro`, {
         method: "POST",
         body: formData,
       });

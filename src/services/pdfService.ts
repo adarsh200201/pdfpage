@@ -693,7 +693,7 @@ export class PDFService {
         },
       };
     } catch (error) {
-      console.error("����� PDF to Word conversion failed:", error);
+      console.error("������ PDF to Word conversion failed:", error);
 
       // Provide more specific error messages
       let errorMessage = "Failed to convert PDF to Word";
@@ -1191,10 +1191,10 @@ export class PDFService {
       onProgress?.(30);
 
       console.log(
-        `🌐 Making API request to: ${this.API_URL}/pdf/compress with level: ${backendLevel}`,
+        `🌐 Making API request to: ${this.API_URL}/pdf/compress-pro with level: ${backendLevel}`,
       );
 
-      const response = await fetch(`${this.API_URL}/api/pdf/compress`, {
+      const response = await fetch(`${this.API_URL}/api/pdf/compress-pro`, {
         method: "POST",
         body: formData,
         headers: {
@@ -1203,7 +1203,7 @@ export class PDFService {
         },
       }).catch((fetchError) => {
         console.error("��� Fetch request failed:", {
-          url: `${this.API_URL}/pdf/compress`,
+          url: `${this.API_URL}/pdf/compress-pro`,
           error: fetchError.message,
           type: fetchError.name,
         });
@@ -3136,7 +3136,7 @@ https://pdfpage.in/word-to-pdf
         const compressionRatio =
           (originalSize - bestResult.length) / originalSize;
         console.log(
-          `������ Image optimization successful: ${(compressionRatio * 100).toFixed(1)}% reduction`,
+          `�������� Image optimization successful: ${(compressionRatio * 100).toFixed(1)}% reduction`,
         );
         return bestResult;
       }
@@ -4003,7 +4003,7 @@ https://pdfpage.in/word-to-pdf
                     );
                   } else {
                     console.error(
-                      `❌ All methods failed for page ${i + 1}, creating placeholder`,
+                      `��� All methods failed for page ${i + 1}, creating placeholder`,
                     );
                     const placeholderPdf = await this.createPlaceholderPDF(
                       i + 1,
@@ -5383,7 +5383,7 @@ https://pdfpage.in/word-to-pdf
       throw new Error(errorMessage);
     }
 
-    console.log("✅ LibreOffice confirmed available in backend Docker");
+    console.log("��� LibreOffice confirmed available in backend Docker");
     console.log(
       "🔧 Using Backend LibreOffice in Docker for 100% accurate Excel conversion...",
     );
