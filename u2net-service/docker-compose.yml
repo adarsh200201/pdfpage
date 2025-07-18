@@ -1,0 +1,30 @@
+services:
+  u2net-bg-removal:
+    build: .
+    container_name: u2net-bg-removal
+    ports:
+      - "5001:5000" # Map to port 5001 to avoid conflicts with your main backend
+    environment:
+      - FLASK_ENV=production
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - ./saved_models:/app/saved_models # Mount models directory for persistence
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+        reservations:
+          memory: 1G
+    networks:
+      - u2net-network
+
+networks:
+  u2net-network:
+    driver: bridge

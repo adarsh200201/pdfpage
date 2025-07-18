@@ -1,0 +1,32 @@
+services:
+  u2net-bg-removal:
+    build:
+      context: .
+      dockerfile: Dockerfile.fast
+    container_name: u2net-bg-removal-fast
+    ports:
+      - "5001:5000"
+    environment:
+      - FLASK_ENV=production
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - ./saved_models:/app/saved_models
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+        reservations:
+          memory: 512M
+    networks:
+      - u2net-network
+
+networks:
+  u2net-network:
+    driver: bridge
