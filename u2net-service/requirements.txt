@@ -1,7 +1,23 @@
-flask>=2.0.0
-flask-cors>=3.0.0
-pillow>=9.0.0
-numpy>=1.21.0
-opencv-python-headless>=4.5.0
-scikit-image>=0.19.0
-gunicorn>=20.1.0
+# Real U²-Net AI Background Removal Service Requirements
+
+# Core framework
+flask==3.0.0
+flask-cors==4.0.0
+gunicorn==21.2.0
+
+# AI/ML dependencies
+torch==2.1.0
+torchvision==0.16.0
+numpy==1.24.3
+
+# Image processing
+Pillow==10.0.0
+opencv-python-headless==4.8.0.74
+
+# Utilities
+requests==2.31.0
+urllib3==2.0.4
+
+# Development (optional)
+# matplotlib==3.7.2  # For visualization during development
+# tqdm==4.66.1       # For progress bars during model download

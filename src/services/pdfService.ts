@@ -1191,7 +1191,7 @@ export class PDFService {
       onProgress?.(30);
 
       console.log(
-        `🌐 Making API request to: ${this.API_URL}/pdf/compress-pro with level: ${backendLevel}`,
+        `🌐 Making API request to: ${this.API_URL}/api/pdf/compress-pro with level: ${backendLevel}`,
       );
 
       const response = await fetch(`${this.API_URL}/api/pdf/compress-pro`, {
@@ -1203,7 +1203,7 @@ export class PDFService {
         },
       }).catch((fetchError) => {
         console.error("��� Fetch request failed:", {
-          url: `${this.API_URL}/pdf/compress-pro`,
+          url: `${this.API_URL}/api/pdf/compress-pro`,
           error: fetchError.message,
           type: fetchError.name,
         });
@@ -3078,7 +3078,7 @@ https://pdfpage.in/word-to-pdf
             const scale = Math.min(1200 / width, 1600 / height, 1);
             copiedPage.scale(scale, scale);
             console.log(
-              `📏 Scaled page ${i + 1} by ${(scale * 100).toFixed(1)}%`,
+              `�� Scaled page ${i + 1} by ${(scale * 100).toFixed(1)}%`,
             );
           }
 

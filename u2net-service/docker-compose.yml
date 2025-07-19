@@ -1,30 +1,48 @@
+version: "3.8"
+
 services:
-  u2net-bg-removal:
-    build: .
-    container_name: u2net-bg-removal
+  u2net-ai:
+    build:
+      context: .
+      dockerfile: Dockerfile.production
+    container_name: u2net-ai-service
     ports:
-      - "5001:5000" # Map to port 5001 to avoid conflicts with your main backend
+      - "5001:5000"
     environment:
       - FLASK_ENV=production
       - PYTHONUNBUFFERED=1
     volumes:
-      - ./saved_models:/app/saved_models # Mount models directory for persistence
+      # Cache downloaded models to avoid re-downloading
+      - ./saved_models:/app/saved_models
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
       interval: 30s
-      timeout: 10s
+      timeout: 30s
       retries: 3
-      start_period: 40s
+      start_period: 60s
     deploy:
       resources:
         limits:
           memory: 2G
+          cpus: "1.0"
         reservations:
-          memory: 1G
-    networks:
-      - u2net-network
+          memory: 512M
+          cpus: "0.5"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
+        max-file: "3"
+
+# Optional: Add Redis for caching if needed in future
+# redis:
+#   image: redis:7-alpine
+#   container_name: u2net-redis
+#   ports:
+#     - "6379:6379"
+#   restart: unless-stopped
 
 networks:
-  u2net-network:
-    driver: bridge
+  default:
+    name: u2net-network

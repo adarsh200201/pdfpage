@@ -237,8 +237,11 @@ export default function Compress() {
 
       const startTime = Date.now();
 
-      const apiUrl = import.meta.env.VITE_API_URL || "/api";
-      const response = await fetch(`${apiUrl}/pdf/compress-pro`, {
+      const apiUrl =
+        window.location.hostname === "localhost"
+          ? "http://localhost:5000"
+          : "https://pdfpage-app.onrender.com";
+      const response = await fetch(`${apiUrl}/api/pdf/compress-pro`, {
         method: "POST",
         body: formData,
         signal: abortControllerRef.current.signal,

@@ -14,15 +14,26 @@ const securityMiddleware = (app) => {
             scriptSrc: [
               "'self'",
               "'unsafe-inline'", // Required for some React features
+              "'unsafe-eval'", // Required for Google Translate
+              "blob:",
+              "data:",
               "https://www.google-analytics.com",
               "https://www.googletagmanager.com",
+              "https://cdn.jsdelivr.net",
+              "https://unpkg.com",
               "https://checkout.razorpay.com",
+              "https://translate.google.com",
+              "https://translate.googleapis.com",
             ],
             connectSrc: [
               "'self'",
+              "https://pdfpage-app.onrender.com",
+              "https://www.google-analytics.com",
+              "https://analytics.google.com",
               "https://api.razorpay.com",
               "https://lumberjack.razorpay.com",
-              "https://www.google-analytics.com",
+              "https://api.mixpanel.com",
+              "https://translate.googleapis.com",
             ],
             frameSrc: [
               "'self'",

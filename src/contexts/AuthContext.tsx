@@ -149,7 +149,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         window.location.hostname === "localhost"
           ? "http://localhost:5000"
           : "https://pdfpage-app.onrender.com";
-      const response = await fetch(`${apiUrl}/auth/me`, {
+      const response = await fetch(`${apiUrl}/api/auth/me`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -194,7 +194,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         window.location.hostname === "localhost"
           ? "http://localhost:5000"
           : "https://pdfpage-app.onrender.com";
-      const response = await fetch(`${apiUrl}/auth/login`, {
+      const response = await fetch(`${apiUrl}/api/auth/login`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -251,7 +251,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         window.location.hostname === "localhost"
           ? "http://localhost:5000"
           : "https://pdfpage-app.onrender.com";
-      const response = await fetch(`${apiUrl}/auth/register`, {
+      const response = await fetch(`${apiUrl}/api/auth/register`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

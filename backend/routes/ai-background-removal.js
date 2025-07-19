@@ -55,74 +55,8 @@ const AI_MODELS = {
   },
 };
 
-// Simulated AI processing function (replace with actual U²-Net integration)
-async function processWithAI(inputBuffer, options) {
-  const startTime = Date.now();
-
-  // Simulate AI processing time based on precision
-  const processingTime = {
-    fast: 1000,
-    balanced: 2500,
-    precise: 4000,
-  };
-
-  await new Promise((resolve) =>
-    setTimeout(resolve, processingTime[options.precision] || 2500),
-  );
-
-  try {
-    // Use Sharp for actual image processing (simulating AI background removal)
-    const image = sharp(inputBuffer);
-    const metadata = await image.metadata();
-
-    // Create a basic mask (in production, this would be AI-generated)
-    const maskBuffer = await sharp({
-      create: {
-        width: metadata.width,
-        height: metadata.height,
-        channels: 1,
-        background: { r: 255, g: 255, b: 255 },
-      },
-    })
-      .png()
-      .toBuffer();
-
-    // Apply the mask to create transparency
-    let processedImage = image.png();
-
-    // Apply edge smoothing
-    if (options.edgeSmoothing > 0) {
-      processedImage = processedImage.blur(options.edgeSmoothing * 0.5);
-    }
-
-    // Convert to desired output format
-    if (options.outputFormat === "webp") {
-      processedImage = processedImage.webp({ quality: 95 });
-    } else {
-      processedImage = processedImage.png({ quality: 95 });
-    }
-
-    const outputBuffer = await processedImage.toBuffer();
-    const processingTimeMs = Date.now() - startTime;
-
-    const modelConfig = AI_MODELS[options.model] || AI_MODELS.general;
-
-    return {
-      buffer: outputBuffer,
-      metadata: {
-        model: modelConfig.name,
-        confidence: modelConfig.confidence,
-        edgeQuality: modelConfig.edgeQuality,
-        processingTime: processingTimeMs,
-        precision: options.precision,
-        originalSize: inputBuffer.length,
-        resultSize: outputBuffer.length,
-      },
-    };
-  } catch (error) {
-    throw new Error(`AI processing failed: ${error.message}`);
-  }
-}
+// REMOVED: Fake AI processing - Only real U²-Net service is used now
+// All processing is handled by the real U²-Net neural network service
 
 // Real U²-Net background removal integration
 async function advancedBackgroundRemoval(inputBuffer, options) {
