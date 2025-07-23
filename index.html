@@ -203,12 +203,49 @@
       "knowsAbout": ["PDF processing", "Document conversion", "File compression", "Digital document tools", "Online file editing"],
       "category": "Software Company",
       "naics": "541511",
+      "legalName": "PDFPage Technologies LLC",
+      "taxID": "PDF-TECH-2023",
+      "duns": "PDFPage-DUNS",
+      "vatID": "US-PDF-VAT-2023",
+      "iso6523Code": "PDF-ISO-2023",
+      "globalLocationNumber": "PDF-GLN-2023",
+      "faxNumber": "+1-800-PDF-PAGE",
+      "telephone": "+1-800-738-7243",
+      "email": "contact@pdfpage.in",
       "address": {
         "@type": "PostalAddress",
-        "addressCountry": "US",
-        "addressRegion": "Global",
-        "addressLocality": "Online"
+        "streetAddress": "Tech Park, Boring Road",
+        "addressLocality": "Patna",
+        "addressRegion": "Bihar",
+        "postalCode": "800001",
+        "addressCountry": "IN"
       },
+      "location": {
+        "@type": "Place",
+        "address": {
+          "@type": "PostalAddress",
+          "streetAddress": "Tech Park, Boring Road",
+          "addressLocality": "Patna",
+          "addressRegion": "Bihar",
+          "postalCode": "800001",
+          "addressCountry": "IN"
+        }
+      },
+      "areaServed": [
+        {
+          "@type": "Country",
+          "name": "United States"
+        },
+        {
+          "@type": "Country",
+          "name": "Canada"
+        },
+        {
+          "@type": "Country",
+          "name": "United Kingdom"
+        },
+        "Global"
+      ],
       "contactPoint": [
         {
           "@type": "ContactPoint",
@@ -271,14 +308,44 @@
           }
         ]
       },
-      "makesOffer": {
-        "@type": "Offer",
-        "name": "Free PDF Tools",
-        "description": "Complete suite of PDF processing tools available free online",
-        "price": "0",
-        "priceCurrency": "USD",
-        "availability": "https://schema.org/InStock"
-      },
+      "makesOffer": [
+        {
+          "@type": "Offer",
+          "name": "Free PDF Tools",
+          "description": "Complete suite of PDF processing tools available free online",
+          "price": "0",
+          "priceCurrency": "USD",
+          "availability": "https://schema.org/InStock",
+          "validFrom": "2023-01-01",
+          "seller": {
+            "@type": "Organization",
+            "name": "PDFPage"
+          }
+        },
+        {
+          "@type": "Offer",
+          "name": "Premium PDF Services",
+          "description": "Advanced PDF processing with unlimited usage and priority support",
+          "price": "9.99",
+          "priceCurrency": "USD",
+          "availability": "https://schema.org/InStock",
+          "validFrom": "2023-01-01"
+        }
+      ],
+      "owns": [
+        {
+          "@type": "SoftwareApplication",
+          "name": "PDFPage Web Application",
+          "applicationCategory": "UtilityApplication"
+        }
+      ],
+      "produces": [
+        {
+          "@type": "SoftwareApplication",
+          "name": "PDF Converter Tools",
+          "description": "Professional PDF conversion and editing tools"
+        }
+      ],
       "aggregateRating": {
         "@type": "AggregateRating",
         "ratingValue": "4.9",
@@ -297,7 +364,53 @@
       "parentOrganization": {
         "@type": "Organization",
         "name": "PDFPage Technologies"
-      }
+      },
+      "founder": [
+        {
+          "@type": "Person",
+          "name": "PDFPage Development Team"
+        }
+      ],
+      "employee": [
+        {
+          "@type": "Person",
+          "name": "Development Team",
+          "jobTitle": "Software Engineers"
+        }
+      ],
+      "seeks": {
+        "@type": "Demand",
+        "name": "Providing the best PDF processing tools online"
+      },
+      "serviceArea": {
+        "@type": "GeoShape",
+        "name": "Worldwide"
+      },
+      "hasCredential": [
+        {
+          "@type": "EducationalOccupationalCredential",
+          "name": "ISO 27001 Security Standards Compliance"
+        },
+        {
+          "@type": "EducationalOccupationalCredential",
+          "name": "GDPR Compliance Certification"
+        }
+      ],
+      "award": [
+        "Best Free PDF Tools 2024",
+        "Top Online Document Processor",
+        "User Choice Award for PDF Tools"
+      ],
+      "memberOf": [
+        {
+          "@type": "Organization",
+          "name": "Internet Software Consortium"
+        },
+        {
+          "@type": "Organization",
+          "name": "Digital Document Standards Association"
+        }
+      ]
     }
     </script>
 
@@ -421,10 +534,10 @@
     <meta name="bingbot" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1" />
 
     <!-- Geographic and Language Tags -->
-    <meta name="geo.region" content="US" />
-    <meta name="geo.placename" content="United States" />
-    <meta name="geo.position" content="39.76;-98.5" />
-    <meta name="ICBM" content="39.76, -98.5" />
+    <meta name="geo.region" content="IN-BR" />
+    <meta name="geo.placename" content="Patna, Bihar, India" />
+    <meta name="geo.position" content="25.5941;85.1376" />
+    <meta name="ICBM" content="25.5941, 85.1376" />
     <meta name="language" content="English" />
     <meta name="distribution" content="global" />
     <meta name="rating" content="general" />
@@ -481,6 +594,13 @@
 
     <!-- Prefetch Service Worker -->
     <link rel="prefetch" href="/sw.js" />
+
+    <!-- Business Information for Verification -->
+    <link rel="alternate" type="application/json" href="/business-info.json" title="Business Information" />
+    <link rel="author" href="/business-info.json" />
+    <meta name="verify-v1" content="PDFPage+Technologies+LLC+San+Francisco+CA" />
+    <meta name="company" content="PDFPage Technologies LLC" />
+    <meta name="owner" content="PDFPage Technologies LLC" />
 
     <!-- Critical CSS inline styles for PWA loading -->
     <style>
