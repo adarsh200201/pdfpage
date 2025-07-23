@@ -910,9 +910,45 @@ export class ImageService {
   } | null> {
     const startTime = Date.now();
 
-    // First try our AI-powered backend with U²-Net model
+    console.log("🎯 Starting professional background removal...");
+
+    // Try external APIs first (more reliable)
+    const services = [
+      { name: "removebg", apiKey: import.meta.env.VITE_REMOVEBG_API_KEY },
+      { name: "photroom", apiKey: import.meta.env.VITE_PHOTROOM_API_KEY },
+      { name: "clipdrop", apiKey: import.meta.env.VITE_CLIPDROP_API_KEY },
+    ];
+
+    // First try external API services
+    for (const service of services) {
+      if (!service.apiKey) {
+        console.log(`⏭️ Skipping ${service.name} - no API key configured`);
+        continue;
+      }
+
+      try {
+        console.log(`🚀 Trying ${service.name} API...`);
+        onProgress?.(10);
+
+        const result = await this.callBackgroundRemovalAPI(
+          service,
+          file,
+          options,
+          onProgress,
+        );
+        if (result) {
+          console.log(`✅ Successfully used ${service.name} API`);
+          return result;
+        }
+      } catch (error) {
+        console.warn(`❌ ${service.name} API failed:`, error.message);
+        continue;
+      }
+    }
+
+    // Then try our AI-powered backend with U²-Net model as fallback
     try {
-      console.log("🧠 Using AI U²-Net model for background removal...");
+      console.log("🧠 Trying internal U²-Net service as fallback...");
       onProgress?.(15);
 
       const formData = new FormData();
@@ -928,9 +964,12 @@ export class ImageService {
         }),
       );
 
-      const response = await fetch(`${this.getBaseURL()}/image/remove-bg-ai`, {
+      const response = await fetch(`${this.getBaseURL()}/api/image/remove-bg-ai`, {
         method: "POST",
         body: formData,
+        headers: {
+          'Accept': 'application/octet-stream',
+        },
       });
 
       if (response.ok) {
@@ -956,6 +995,7 @@ export class ImageService {
           { type: `image/${options.outputFormat || "png"}` },
         );
 
+        console.log("✅ Internal U²-Net service succeeded");
         return {
           file: resultFile,
           blob,
@@ -972,40 +1012,10 @@ export class ImageService {
         };
       }
     } catch (error) {
-      console.warn("AI backend failed, trying external APIs:", error);
+      console.warn("❌ Internal AI backend failed:", error.message);
     }
 
-    // Fallback to external API services
-    const services = [
-      { name: "removebg", apiKey: import.meta.env.VITE_REMOVEBG_API_KEY },
-      { name: "photroom", apiKey: import.meta.env.VITE_PHOTROOM_API_KEY },
-      { name: "clipdrop", apiKey: import.meta.env.VITE_CLIPDROP_API_KEY },
-    ];
-
-    for (const service of services) {
-      if (!service.apiKey) continue;
-
-      try {
-        console.log(`Trying ${service.name} API...`);
-        onProgress?.(10);
-
-        const result = await this.callBackgroundRemovalAPI(
-          service,
-          file,
-          options,
-          onProgress,
-        );
-        if (result) {
-          console.log(`Successfully used ${service.name} API`);
-          return result;
-        }
-      } catch (error) {
-        console.warn(`${service.name} API failed:`, error);
-        continue;
-      }
-    }
-
-    console.log("No API services available or all failed");
+    console.log("❌ All API services failed or unavailable");
     return null;
   }
 
@@ -1060,21 +1070,32 @@ export class ImageService {
 
       onProgress?.(30);
 
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+
       const response = await fetch("https://api.remove.bg/v1.0/removebg", {
         method: "POST",
         headers: {
           "X-Api-Key": apiKey,
         },
         body: formData,
+        signal: controller.signal,
       });
 
+      clearTimeout(timeoutId);
       onProgress?.(70);
 
       if (!response.ok) {
         if (response.status === 402) {
-          throw new Error("Remove.bg API quota exceeded");
+          throw new Error("Remove.bg API quota exceeded - trying other services");
         }
-        throw new Error(`Remove.bg API error: ${response.status}`);
+        if (response.status === 403) {
+          throw new Error("Remove.bg API key invalid - trying other services");
+        }
+        if (response.status === 400) {
+          throw new Error("Remove.bg API: Invalid image format - trying other services");
+        }
+        throw new Error(`Remove.bg API error ${response.status} - trying other services`);
       }
 
       const blob = await response.blob();
@@ -1124,18 +1145,29 @@ export class ImageService {
 
       onProgress?.(30);
 
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+
       const response = await fetch("https://sdk.photoroom.com/v1/segment", {
         method: "POST",
         headers: {
           "x-api-key": apiKey,
         },
         body: formData,
+        signal: controller.signal,
       });
 
+      clearTimeout(timeoutId);
       onProgress?.(70);
 
       if (!response.ok) {
-        throw new Error(`Photroom API error: ${response.status}`);
+        if (response.status === 401) {
+          throw new Error("Photroom API key invalid - trying other services");
+        }
+        if (response.status === 429) {
+          throw new Error("Photroom API rate limit exceeded - trying other services");
+        }
+        throw new Error(`Photroom API error ${response.status} - trying other services`);
       }
 
       const blob = await response.blob();
@@ -1184,6 +1216,9 @@ export class ImageService {
 
       onProgress?.(30);
 
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+
       const response = await fetch(
         "https://clipdrop-api.co/remove-background/v1",
         {
@@ -1192,13 +1227,21 @@ export class ImageService {
             "x-api-key": apiKey,
           },
           body: formData,
+          signal: controller.signal,
         },
       );
 
+      clearTimeout(timeoutId);
       onProgress?.(70);
 
       if (!response.ok) {
-        throw new Error(`ClipDrop API error: ${response.status}`);
+        if (response.status === 401) {
+          throw new Error("ClipDrop API key invalid - trying other services");
+        }
+        if (response.status === 402) {
+          throw new Error("ClipDrop API quota exceeded - trying other services");
+        }
+        throw new Error(`ClipDrop API error ${response.status} - trying other services`);
       }
 
       const blob = await response.blob();
