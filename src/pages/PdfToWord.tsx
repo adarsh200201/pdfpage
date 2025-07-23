@@ -622,12 +622,12 @@ const PdfToWord = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
       <SEO
-        title="PDF to Word Converter Online - Free, Fast & Accurate | PDFPage"
-        description="Convert PDF to Word (DOCX) online for free. Maintain formatting, fonts, and layout. No signup required. Fast, secure, and accurate PDF to Word conversion."
-        keywords="PDF to Word converter, PDF to DOCX, convert PDF to Word online, free PDF converter, PDF to Word free, PDF editor, document converter"
+        title="PDF to Word Converter Free | PDFPage - Convert PDF to DOCX Online"
+        description="Convert PDF to Word online free with PDFPage. Fast, secure PDF to DOCX converter. No registration, no watermark. Works on mobile, desktop. Trusted by millions worldwide. Try now!"
+        keywords="pdf to word, convert pdf to word, free pdf to word converter, online pdf to word, pdf to word converter online, pdf to docx, pdf to word pdfpage, pdf to word converter free, convert pdf to editable word, best pdf to word converter, pdf to doc converter, convert pdf to docx free, word from pdf, pdf2word, pdftoword, pd to word, pdf word convert, how to convert pdf to word for free, pdf to word converter without login, pdf to word converter without watermark, secure pdf to word converter, fast pdf to word conversion"
         canonical="/pdf-to-word"
         ogImage="/images/pdf-to-word-converter.jpg"
-        toolName="PDF to Word Converter"
+        toolName="PDF to Word Converter Free Online"
         toolType="pdf"
         schemaData={{
           "@type": "FAQPage",

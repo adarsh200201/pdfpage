@@ -531,9 +531,9 @@ const Index = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-white">
       <SEO
-        title="PDFPage - Free PDF & Image Tools Online | Convert, Edit & Optimize"
-        description="Professional PDF and image processing tools. Convert PDF to Word, merge PDFs, compress images, remove backgrounds. 25+ free tools, no registration required. Trusted by millions worldwide."
-        keywords="pdfpage, pdf page, PDF converter, PDF to Word, merge PDF, split PDF, compress PDF, image compressor, remove background, favicon generator, PDF tools online, free PDF editor"
+        title="PDFPage - Free PDF Tools Online | Convert PDF to Word, Merge, Compress"
+        description="PDFPage offers 25+ free PDF tools online. Convert PDF to Word, merge, split, compress PDFs instantly. No registration required. Works on mobile & desktop. Trusted by 2M+ users worldwide. Try now!"
+        keywords="pdfpage, pdf page, pdf-page, pd page, pdpage, pdfpage.in, pdf tools, free pdf tools, online pdf tools, pdf converter, convert pdf to word, merge pdf, split pdf, compress pdf, edit pdf, sign pdf, pdf to word, pdf to jpg, jpg to pdf, word to pdf, excel to pdf, powerpoint to pdf, free pdf converter, online pdf converter, pdf editor online, pdf merger online, pdf splitter online, pdf compressor online, best pdf tools, pdf toolkit, document converter, file converter online, secure pdf tools, fast pdf converter, professional pdf tools, pdf processing, pdf tools without registration, pdf tools no login, mobile pdf tools, pdf tools chrome, pdf tools mobile friendly"
         canonical="/"
         ogImage="/og-image-home-1200x630.png"
         schemaData={{

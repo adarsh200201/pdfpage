@@ -17,6 +17,8 @@ import EnhancedSecurityHeaders from "@/components/EnhancedSecurityHeaders";
 import AccessibilityEnhancer from "@/components/AccessibilityEnhancer";
 import LocalBusinessSchema from "@/components/LocalBusinessSchema";
 import GoogleSearchOptimizer from "@/components/GoogleSearchOptimizer";
+import GoogleKnowledgePanelOptimizer from "@/components/GoogleKnowledgePanelOptimizer";
+import EnhancedBreadcrumbSchema from "@/components/EnhancedBreadcrumbSchema";
 import {
   BrowserRouter,
   Routes,
@@ -114,6 +116,12 @@ import ExcelToPdf from "./pages/ExcelToPdf";
 
 // Import dedicated HTML to PDF component
 import HtmlToPdf from "./pages/HtmlToPdf";
+
+// Import PDF converter landing page
+import PdfConverter from "./pages/PdfConverter";
+
+// Import all PDF tools page
+import AllPdfTools from "./pages/AllPdfTools";
 
 // Import professional OCR PDF component
 import OcrPdfProfessional from "./pages/OcrPdfProfessional";
@@ -235,6 +243,8 @@ const App = () => {
                     <AccessibilityEnhancer />
                     <LocalBusinessSchema />
                     <GoogleSearchOptimizer />
+                    <GoogleKnowledgePanelOptimizer />
+                    <EnhancedBreadcrumbSchema />
                     <PWAStatusBar />
                     <ScrollRestoration />
                     <Routes>
@@ -296,6 +306,9 @@ const App = () => {
                         element={<CompressProcessing />}
                       />
                       <Route path="/convert" element={<Convert />} />
+                      <Route path="/pdf-converter" element={<PdfConverter />} />
+                      <Route path="/all-tools" element={<AllPdfTools />} />
+                      <Route path="/pdf-tools" element={<AllPdfTools />} />
                       <Route path="/rotate" element={<Rotate />} />
 
                       {/* PDF Conversion Tools - ALL WORKING */}
