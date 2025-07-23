@@ -46,8 +46,8 @@ const EnhancedSecurityHeaders = ({
     
     // Styles - Allow Google Fonts and inline styles
     strictMode
-      ? "style-src 'self' 'nonce-{nonce}' https://fonts.googleapis.com"
-      : "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://tagmanager.google.com",
+      ? "style-src 'self' 'nonce-{nonce}' https://fonts.googleapis.com https://www.gstatic.com"
+      : "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://tagmanager.google.com https://www.gstatic.com https://translate.googleapis.com",
     
     // Fonts - Allow Google Fonts and local fonts
     "font-src 'self' https://fonts.gstatic.com data:",
@@ -83,11 +83,14 @@ const EnhancedSecurityHeaders = ({
     [
       "connect-src 'self'",
       "https://www.google-analytics.com",
-      "https://stats.g.doubleclick.net", 
+      "https://stats.g.doubleclick.net",
       "https://www.googletagmanager.com",
       "https://region1.google-analytics.com",
       "https://api.pdfpage.in",
-      "wss://ws.pdfpage.in"
+      "https://pdfpage-app.onrender.com",
+      "https://translate.googleapis.com",
+      "wss://ws.pdfpage.in",
+      "wss://pdfpage-app.onrender.com"
     ].join(' '),
     
     // Base URI restriction

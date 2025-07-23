@@ -33,7 +33,7 @@ export const SEO_CONFIG = {
     facebook: "https://facebook.com/pdfpage",
     linkedin: "https://linkedin.com/company/pdfpage",
     youtube: "https://youtube.com/@pdfpage",
-    instagram: "https://instagram.com/pdfpage"
+    instagram: "https://www.instagram.com/pdfpage_official"
   },
 
   // Business Information for Local SEO
@@ -52,7 +52,10 @@ export const SEO_CONFIG = {
     sameAs: [
       "https://twitter.com/pdfpage",
       "https://facebook.com/pdfpage",
-      "https://linkedin.com/company/pdfpage"
+      "https://linkedin.com/company/pdfpage",
+      "https://youtube.com/@pdfpage",
+      "https://www.instagram.com/pdfpage_official",
+      "https://github.com/pdfpage"
     ]
   },
 

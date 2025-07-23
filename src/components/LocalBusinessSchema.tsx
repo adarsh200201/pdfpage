@@ -180,10 +180,10 @@ const LocalBusinessSchema = ({
     })),
     "sameAs": [
       "https://twitter.com/pdfpage",
-      "https://facebook.com/pdfpage", 
+      "https://facebook.com/pdfpage",
       "https://linkedin.com/company/pdfpage",
       "https://youtube.com/@pdfpage",
-      "https://instagram.com/pdfpage",
+      "https://www.instagram.com/pdfpage_official",
       "https://github.com/pdfpage"
     ],
     "foundingDate": "2024-01-01",

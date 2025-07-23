@@ -5,11 +5,21 @@ Allow: /
 Allow: /pdf/*
 Allow: /img/*
 Allow: /favicon/*
+Allow: /merge
+Allow: /split
+Allow: /compress
+Allow: /pdf-to-word
+Allow: /available-tools
+Allow: /pricing
+Allow: /about
+Allow: /blog
 
 # Block admin and private areas
 Disallow: /admin
 Disallow: /api
 Disallow: /private
+Disallow: /_next/
+Disallow: /static/
 
 # Block duplicate or test pages
 Disallow: /*?*
@@ -23,6 +33,22 @@ Crawl-delay: 1
 Sitemap: https://pdfpage.in/sitemap.xml
 Sitemap: https://pdfpage.in/sitemap-images.xml
 
-# Cache for better performance
+# Googlebot specific settings
 User-agent: Googlebot
+Allow: /
 Crawl-delay: 0
+
+# Bingbot specific settings
+User-agent: Bingbot
+Allow: /
+Crawl-delay: 1
+
+# Social media crawlers
+User-agent: facebookexternalhit
+Allow: /
+
+User-agent: Twitterbot
+Allow: /
+
+User-agent: LinkedInBot
+Allow: /

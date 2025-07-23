@@ -114,23 +114,35 @@ const CoreWebVitals = ({ debug = false, onReport }: CoreWebVitalsProps) => {
 
   // Performance optimization helpers
   useEffect(() => {
-    // Preload critical resources
+    // Preload critical resources only if they don't exist and are actually needed
     const preloadCriticalResources = () => {
       const criticalResources = [
-        '/fonts/inter-var.woff2',
-        '/icons/apple-touch-icon.png',
-        '/logo.svg'
+        { href: '/fonts/inter-var.woff2', as: 'font', type: 'font/woff2', checkUsage: true },
+        { href: '/icons/apple-touch-icon.png', as: 'image', checkUsage: false },
+        { href: '/logo.svg', as: 'image', checkUsage: false }
       ];
 
       criticalResources.forEach(resource => {
-        const link = document.createElement('link');
-        link.rel = 'preload';
-        link.as = resource.includes('.woff') ? 'font' : 'image';
-        link.href = resource;
-        if (resource.includes('.woff')) {
-          link.crossOrigin = 'anonymous';
+        // Check if already preloaded
+        const existing = document.querySelector(`link[rel="preload"][href="${resource.href}"]`);
+        if (!existing) {
+          // Check if resource is actually used on the page
+          if (resource.checkUsage) {
+            const fontUsed = document.querySelector('*[style*="font-family"]') ||
+                           getComputedStyle(document.body).fontFamily.includes('Inter');
+            if (!fontUsed) return;
+          }
+
+          const link = document.createElement('link');
+          link.rel = 'preload';
+          link.href = resource.href;
+          link.as = resource.as;
+          if (resource.type) link.type = resource.type;
+          if (resource.as === 'font') {
+            link.crossOrigin = 'anonymous';
+          }
+          document.head.appendChild(link);
         }
-        document.head.appendChild(link);
       });
     };
 

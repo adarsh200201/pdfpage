@@ -73,7 +73,10 @@ const SEO = ({
     "sameAs": [
       "https://twitter.com/pdfpage",
       "https://facebook.com/pdfpage",
-      "https://linkedin.com/company/pdfpage"
+      "https://linkedin.com/company/pdfpage",
+      "https://www.instagram.com/pdfpage_official",
+      "https://youtube.com/@pdfpage",
+      "https://github.com/pdfpage"
     ]
   };
 

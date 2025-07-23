@@ -16,6 +16,7 @@ import SearchConsoleVerification from "@/components/SearchConsoleVerification";
 import EnhancedSecurityHeaders from "@/components/EnhancedSecurityHeaders";
 import AccessibilityEnhancer from "@/components/AccessibilityEnhancer";
 import LocalBusinessSchema from "@/components/LocalBusinessSchema";
+import GoogleSearchOptimizer from "@/components/GoogleSearchOptimizer";
 import {
   BrowserRouter,
   Routes,
@@ -230,10 +231,10 @@ const App = () => {
                     <CriticalRenderingOptimizer />
                     <CoreWebVitals debug={false} />
                     <SecurityHeaders />
-                    <EnhancedSecurityHeaders />
                     <SearchConsoleVerification />
                     <AccessibilityEnhancer />
                     <LocalBusinessSchema />
+                    <GoogleSearchOptimizer />
                     <PWAStatusBar />
                     <ScrollRestoration />
                     <Routes>

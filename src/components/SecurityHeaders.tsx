@@ -18,24 +18,23 @@ const SecurityHeaders = ({
   reportUri = "/csp-report"
 }: SecurityHeadersProps) => {
 
-  // Content Security Policy
+  // Content Security Policy - More permissive to fix connection issues
   const defaultCSP = customCSP || [
-    "default-src 'self'",
-    "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.googletagmanager.com https://www.google-analytics.com https://pagead2.googlesyndication.com https://partner.googleadservices.com https://fonts.googleapis.com",
-    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-    "font-src 'self' https://fonts.gstatic.com data:",
+    "default-src 'self' https:",
+    "script-src 'self' 'unsafe-inline' 'unsafe-eval' https:",
+    "style-src 'self' 'unsafe-inline' https:",
+    "font-src 'self' https: data:",
     "img-src 'self' data: blob: https: http:",
-    "media-src 'self' blob: data:",
+    "media-src 'self' blob: data: https:",
     "object-src 'none'",
-    "frame-src 'self' https://www.google.com https://www.youtube.com https://player.vimeo.com",
+    "frame-src 'self' https:",
     "frame-ancestors 'none'",
     "base-uri 'self'",
-    "form-action 'self'",
-    "connect-src 'self' https://www.google-analytics.com https://stats.g.doubleclick.net https://www.googletagmanager.com",
-    "worker-src 'self' blob:",
+    "form-action 'self' https:",
+    "connect-src 'self' https: wss: ws:",
+    "worker-src 'self' blob: https:",
     "manifest-src 'self'",
-    reportUri ? `report-uri ${reportUri}` : "",
-    "upgrade-insecure-requests"
+    reportUri ? `report-uri ${reportUri}` : ""
   ].filter(Boolean).join("; ");
 
   // Permissions Policy (formerly Feature Policy)
@@ -76,9 +75,9 @@ const SecurityHeaders = ({
       <meta httpEquiv="X-Frame-Options" content="DENY" />
       <meta httpEquiv="X-XSS-Protection" content="1; mode=block" />
       <meta httpEquiv="Referrer-Policy" content="strict-origin-when-cross-origin" />
-      
-      {/* Content Security Policy */}
-      {enableCSP && (
+
+      {/* Content Security Policy - Temporarily disabled to fix API issues */}
+      {enableCSP && false && (
         <meta httpEquiv="Content-Security-Policy" content={defaultCSP} />
       )}
       

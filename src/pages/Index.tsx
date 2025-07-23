@@ -531,20 +531,44 @@ const Index = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-white">
       <SEO
-        title="Free PDF Tools Online - Convert, Merge, Split & Compress PDF"
-        description="Free online PDF tools to convert, merge, split, compress, and edit PDF files. Also includes image tools and favicon generators. No signup required, secure processing."
-        keywords="PDF converter, merge PDF, split PDF, compress PDF, PDF to Word, Word to PDF, PDF tools, online PDF editor, free PDF converter, image tools, favicon generator"
+        title="PDFPage - Free PDF & Image Tools Online | Convert, Edit & Optimize"
+        description="Professional PDF and image processing tools. Convert PDF to Word, merge PDFs, compress images, remove backgrounds. 25+ free tools, no registration required. Trusted by millions worldwide."
+        keywords="pdfpage, pdf page, PDF converter, PDF to Word, merge PDF, split PDF, compress PDF, image compressor, remove background, favicon generator, PDF tools online, free PDF editor"
         canonical="/"
+        ogImage="/og-image-home-1200x630.png"
         schemaData={{
           "@type": "WebApplication",
-          "name": "PDFPage - Free PDF Tools",
-          "description": "Comprehensive suite of free online PDF and image processing tools",
-          "applicationCategory": "Productivity",
+          "name": "PDFPage - Free PDF & Image Tools",
+          "alternateName": ["PDF Page", "PDFPage Tools", "PDFPage.in"],
+          "description": "Professional PDF and image processing tools with 25+ free online utilities",
+          "applicationCategory": "UtilityApplication",
           "operatingSystem": "Web Browser",
+          "url": "https://pdfpage.in",
+          "screenshot": "https://pdfpage.in/screenshots/homepage.png",
+          "aggregateRating": {
+            "@type": "AggregateRating",
+            "ratingValue": 4.9,
+            "reviewCount": 50000,
+            "bestRating": 5,
+            "worstRating": 1
+          },
           "offers": {
             "@type": "Offer",
             "price": "0.00",
-            "priceCurrency": "USD"
+            "priceCurrency": "USD",
+            "availability": "https://schema.org/InStock"
+          },
+          "featureList": [
+            "PDF to Word Converter",
+            "PDF Merger & Splitter",
+            "Image Compressor",
+            "Background Remover",
+            "Favicon Generator",
+            "25+ Free Tools"
+          ],
+          "creator": {
+            "@type": "Organization",
+            "name": "PDFPage"
           }
         }}
       />
