@@ -21,7 +21,7 @@ export const SEO_CONFIG = {
       "document converter"
     ],
     language: "en",
-    region: "US",
+    region: "IN",
     author: "PDFPage Team",
     publisher: "PDFPage",
     copyright: "© 2025 PDFPage. All rights reserved."
@@ -41,13 +41,13 @@ export const SEO_CONFIG = {
     type: "TechCompany",
     foundingDate: "2024-01-01",
     email: "contact@pdfpage.in",
-    telephone: "+1-555-PDF-PAGE",
+    telephone: "+91-612-2345678",
     address: {
-      streetAddress: "123 Tech Street",
-      addressLocality: "San Francisco",
-      addressRegion: "CA",
-      postalCode: "94105",
-      addressCountry: "US"
+      streetAddress: "Tech Park, Boring Road",
+      addressLocality: "Patna",
+      addressRegion: "Bihar",
+      postalCode: "800001",
+      addressCountry: "IN"
     },
     sameAs: [
       "https://twitter.com/pdfpage",
