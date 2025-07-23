@@ -31,14 +31,14 @@ const LocalBusinessSchema = ({
   businessType = "TechnologyCompany",
   description = "Leading provider of free online PDF and image processing tools. Convert, edit, compress, and optimize your documents and images with professional-grade tools.",
   address = {
-    streetAddress: "123 Tech Street",
-    addressLocality: "San Francisco", 
-    addressRegion: "CA",
-    postalCode: "94105",
-    addressCountry: "US"
+    streetAddress: "Tech Park, Boring Road",
+    addressLocality: "Patna",
+    addressRegion: "Bihar",
+    postalCode: "800001",
+    addressCountry: "IN"
   },
   contactInfo = {
-    telephone: "+1-555-PDF-PAGE",
+    telephone: "+91-612-2345678",
     email: "contact@pdfpage.in",
     website: "https://pdfpage.in"
   },
@@ -94,8 +94,8 @@ const LocalBusinessSchema = ({
     },
     "geo": {
       "@type": "GeoCoordinates",
-      "latitude": 37.7749,
-      "longitude": -122.4194
+      "latitude": 25.5941,
+      "longitude": 85.1376
     },
     "openingHoursSpecification": businessHours.map(hours => ({
       "@type": "OpeningHoursSpecification",
@@ -377,8 +377,8 @@ const LocalBusinessSchema = ({
       {/* Geographic Meta Tags */}
       <meta name="geo.region" content={`${address.addressCountry}-${address.addressRegion}`} />
       <meta name="geo.placename" content={address.addressLocality} />
-      <meta name="geo.position" content="37.7749;-122.4194" />
-      <meta name="ICBM" content="37.7749, -122.4194" />
+      <meta name="geo.position" content="25.5941;85.1376" />
+      <meta name="ICBM" content="25.5941, 85.1376" />
       
       {/* Contact Information */}
       <meta name="contact" content={contactInfo.email} />
