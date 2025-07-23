@@ -8,6 +8,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import AdSense from "@/components/ads/AdSense";
 import { PromoBanner } from "@/components/ui/promo-banner";
+import SEO from "@/components/SEO";
 import { useRealTimeStats } from "@/hooks/useRealTimeStats";
 import { useMixpanel } from "@/hooks/useMixpanel";
 import {
@@ -529,6 +530,24 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-white">
+      <SEO
+        title="Free PDF Tools Online - Convert, Merge, Split & Compress PDF"
+        description="Free online PDF tools to convert, merge, split, compress, and edit PDF files. Also includes image tools and favicon generators. No signup required, secure processing."
+        keywords="PDF converter, merge PDF, split PDF, compress PDF, PDF to Word, Word to PDF, PDF tools, online PDF editor, free PDF converter, image tools, favicon generator"
+        canonical="/"
+        schemaData={{
+          "@type": "WebApplication",
+          "name": "PDFPage - Free PDF Tools",
+          "description": "Comprehensive suite of free online PDF and image processing tools",
+          "applicationCategory": "Productivity",
+          "operatingSystem": "Web Browser",
+          "offers": {
+            "@type": "Offer",
+            "price": "0.00",
+            "priceCurrency": "USD"
+          }
+        }}
+      />
       <Header />
 
       {/* Promotional Banner */}

@@ -132,11 +132,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       }
     };
 
+    // Add periodic authentication check (every 5 minutes)
+    const periodicCheck = setInterval(() => {
+      const token = Cookies.get("token");
+      if (token && user) {
+        const lastAuth = localStorage.getItem("pdfpage_auth_timestamp");
+        const now = Date.now();
+        // Check if last auth was more than 30 minutes ago
+        if (lastAuth && now - parseInt(lastAuth) > 30 * 60 * 1000) {
+          console.log("🔄 [AUTH] Periodic authentication check");
+          fetchUserData(token);
+        }
+      }
+    }, 5 * 60 * 1000); // Every 5 minutes
+
     window.addEventListener("online", handleOnline);
     document.addEventListener("visibilitychange", handleVisibilityChange);
     window.addEventListener("focus", handleFocus);
 
     return () => {
+      clearInterval(periodicCheck);
       window.removeEventListener("online", handleOnline);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
       window.removeEventListener("focus", handleFocus);
@@ -160,6 +175,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         setUser(data.user);
         // Store user data in localStorage for extra persistence
         localStorage.setItem("pdfpage_user", JSON.stringify(data.user));
+        localStorage.setItem("pdfpage_auth_timestamp", Date.now().toString());
         console.log(
           "✅ [AUTH] User data fetched successfully - persistent login active",
         );
@@ -205,8 +221,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       if (response.ok) {
         const data = await response.json();
         const { token, user, conversion } = data;
-        Cookies.set("token", token, { expires: 365 }); // 1 year for persistent login
+        Cookies.set("token", token, { expires: 730, secure: true, sameSite: 'lax' }); // 2 years for persistent login
         localStorage.setItem("pdfpage_user", JSON.stringify(user));
+        localStorage.setItem("pdfpage_auth_timestamp", Date.now().toString());
         setUser(user);
 
         // Track user login in Mixpanel
@@ -270,8 +287,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       if (response.ok) {
         console.log("✅ [FRONTEND] Registration successful");
         const { token, user, conversion } = responseData;
-        Cookies.set("token", token, { expires: 365 }); // 1 year for persistent login
+        Cookies.set("token", token, { expires: 730, secure: true, sameSite: 'lax' }); // 2 years for persistent login
         localStorage.setItem("pdfpage_user", JSON.stringify(user));
+        localStorage.setItem("pdfpage_auth_timestamp", Date.now().toString());
         setUser(user);
 
         // Track user signup in Mixpanel
@@ -325,6 +343,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
     Cookies.remove("token");
     localStorage.removeItem("pdfpage_user");
+    localStorage.removeItem("pdfpage_auth_timestamp");
     setUser(null);
     console.log("🔄 [AUTH] User logged out - clearing all stored data");
   };

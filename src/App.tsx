@@ -7,6 +7,15 @@ import { NetworkStatus } from "@/components/ui/network-status";
 import PWAStatusBar from "@/components/layout/PWAStatusBar";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { configurePDFjs, getPDFConfigStatus } from "@/lib/pdf-config";
+import { HelmetProvider } from "react-helmet-async";
+import PerformanceOptimizer from "@/components/PerformanceOptimizer";
+import CoreWebVitals from "@/components/CoreWebVitals";
+import SecurityHeaders from "@/components/SecurityHeaders";
+import CriticalRenderingOptimizer from "@/components/CriticalRenderingOptimizer";
+import SearchConsoleVerification from "@/components/SearchConsoleVerification";
+import EnhancedSecurityHeaders from "@/components/EnhancedSecurityHeaders";
+import AccessibilityEnhancer from "@/components/AccessibilityEnhancer";
+import LocalBusinessSchema from "@/components/LocalBusinessSchema";
 import {
   BrowserRouter,
   Routes,
@@ -48,6 +57,8 @@ import EmojiToFavicon from "./pages/EmojiToFavicon";
 import LogoToFavicon from "./pages/LogoToFavicon";
 import Login from "./pages/Login";
 import ModernLogin from "./pages/ModernLogin";
+import Blog from "./pages/Blog";
+import SEOTest from "./pages/SEOTest";
 import Register from "./pages/Register";
 import ForgotPassword from "./pages/ForgotPassword";
 import Merge from "./pages/Merge";
@@ -65,7 +76,6 @@ import RotatePdfAdvanced from "./pages/RotatePdfAdvanced";
 import CropPdf from "./pages/CropPdf";
 
 import About from "./pages/About";
-import Blog from "./pages/Blog";
 import Careers from "./pages/Careers";
 import Contact from "./pages/Contact";
 import Affiliate from "./pages/Affiliate";
@@ -201,7 +211,8 @@ const App = () => {
   }, []);
 
   return (
-    <QueryClientProvider client={queryClient}>
+    <HelmetProvider>
+      <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <FloatingPopupProvider>
           <LanguageProvider>
@@ -215,6 +226,14 @@ const App = () => {
               <BrowserRouter>
                 <MixpanelProvider>
                   <GlobalToolTrackingProvider>
+                    <PerformanceOptimizer />
+                    <CriticalRenderingOptimizer />
+                    <CoreWebVitals debug={false} />
+                    <SecurityHeaders />
+                    <EnhancedSecurityHeaders />
+                    <SearchConsoleVerification />
+                    <AccessibilityEnhancer />
+                    <LocalBusinessSchema />
                     <PWAStatusBar />
                     <ScrollRestoration />
                     <Routes>
@@ -377,6 +396,7 @@ const App = () => {
                       {/* Company Pages */}
                       <Route path="/about" element={<About />} />
                       <Route path="/blog" element={<Blog />} />
+                      <Route path="/seo-test" element={<SEOTest />} />
                       <Route path="/careers" element={<Careers />} />
                       <Route path="/contact" element={<Contact />} />
                       <Route path="/affiliate" element={<Affiliate />} />
@@ -429,7 +449,8 @@ const App = () => {
           </LanguageProvider>
         </FloatingPopupProvider>
       </AuthProvider>
-    </QueryClientProvider>
+      </QueryClientProvider>
+    </HelmetProvider>
   );
 };
 

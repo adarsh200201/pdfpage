@@ -1,306 +1,343 @@
+import { Link } from "react-router-dom";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
-import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Link } from "react-router-dom";
+import { Button } from "@/components/ui/button";
+import SEO from "@/components/SEO";
 import {
   Calendar,
   Clock,
   User,
   ArrowRight,
-  Search,
   FileText,
-  Shield,
+  ImageIcon,
   Zap,
+  Shield,
   Lightbulb,
   TrendingUp,
-  BookOpen,
 } from "lucide-react";
 
 const Blog = () => {
-  const featuredPost = {
-    title: "10 PDF Security Best Practices Every Business Should Know",
-    excerpt:
-      "Learn how to protect your sensitive documents with these essential PDF security strategies that will keep your business data safe.",
-    author: "Sarah Chen",
-    date: "Dec 15, 2024",
-    readTime: "8 min read",
-    image:
-      "https://images.unsplash.com/photo-1555421689-491a97ff2040?w=800&h=400&fit=crop",
-    category: "Security",
-    href: "/blog/pdf-security-best-practices",
-  };
-
-  const recentPosts = [
+  const blogPosts = [
     {
-      title: "How to Compress PDFs Without Losing Quality",
-      excerpt:
-        "Step-by-step guide to reducing PDF file sizes while maintaining document clarity and readability.",
-      author: "Michael Rodriguez",
-      date: "Dec 12, 2024",
+      id: 1,
+      title: "How to Convert PDF to Word Without Losing Formatting",
+      description: "Learn the best methods to convert PDF documents to Word while preserving layouts, fonts, and formatting. Step-by-step guide with tips and tricks.",
+      slug: "pdf-to-word-without-losing-formatting",
+      category: "PDF Conversion",
       readTime: "5 min read",
-      image:
-        "https://images.unsplash.com/photo-1586281380349-632531db7ed4?w=400&h=250&fit=crop",
-      category: "Tutorials",
-      href: "/blog/compress-pdf-guide",
+      publishDate: "2025-01-20",
+      author: "PDFPage Team",
+      image: "/blog/pdf-to-word-guide.jpg",
+      tags: ["PDF", "Word", "Conversion", "Formatting"],
+      featured: true,
     },
     {
-      title:
-        "Digital Signatures vs. Electronic Signatures: What's the Difference?",
-      excerpt:
-        "Understanding the legal and technical differences between digital and electronic signatures for documents.",
-      author: "Emily Johnson",
-      date: "Dec 10, 2024",
+      id: 2,
+      title: "10 Best Practices for PDF Compression Without Quality Loss",
+      description: "Discover professional techniques to reduce PDF file sizes while maintaining document quality. Perfect for web optimization and email attachments.",
+      slug: "pdf-compression-best-practices",
+      category: "PDF Optimization",
+      readTime: "7 min read", 
+      publishDate: "2025-01-18",
+      author: "PDFPage Team",
+      image: "/blog/pdf-compression-guide.jpg",
+      tags: ["PDF", "Compression", "Optimization", "File Size"],
+      featured: true,
+    },
+    {
+      id: 3,
+      title: "Image Compression Guide: Reduce File Size by 90% Without Quality Loss",
+      description: "Complete guide to image compression techniques, formats, and tools. Learn when to use JPG vs PNG vs WebP for optimal results.",
+      slug: "image-compression-guide",
+      category: "Image Optimization",
       readTime: "6 min read",
-      image:
-        "https://images.unsplash.com/photo-1450101499163-c8848c66ca85?w=400&h=250&fit=crop",
-      category: "Legal",
-      href: "/blog/digital-vs-electronic-signatures",
+      publishDate: "2025-01-15",
+      author: "PDFPage Team", 
+      image: "/blog/image-compression-guide.jpg",
+      tags: ["Images", "Compression", "WebP", "Optimization"],
+      featured: false,
     },
     {
-      title: "The Complete Guide to PDF Accessibility",
-      excerpt:
-        "Make your PDFs accessible to everyone with these comprehensive accessibility guidelines and best practices.",
-      author: "David Kim",
-      date: "Dec 8, 2024",
-      readTime: "10 min read",
-      image:
-        "https://images.unsplash.com/photo-1573164713714-d95e436ab8d6?w=400&h=250&fit=crop",
-      category: "Accessibility",
-      href: "/blog/pdf-accessibility-guide",
+      id: 4,
+      title: "Free PDF Tools for Students: Study Smarter, Not Harder",
+      description: "Essential PDF tools every student needs for research, note-taking, and document management. Boost your productivity with these free resources.",
+      slug: "free-pdf-tools-students",
+      category: "Education",
+      readTime: "4 min read",
+      publishDate: "2025-01-12",
+      author: "PDFPage Team",
+      image: "/blog/pdf-tools-students.jpg",
+      tags: ["Education", "Students", "PDF Tools", "Productivity"],
+      featured: false,
     },
     {
-      title: "5 Ways PDF Tools Can Boost Your Remote Team's Productivity",
-      excerpt:
-        "Discover how the right PDF tools can streamline workflows and improve collaboration for distributed teams.",
-      author: "Sarah Chen",
-      date: "Dec 5, 2024",
-      readTime: "7 min read",
-      image:
-        "https://images.unsplash.com/photo-1600880292203-757bb62b4baf?w=400&h=250&fit=crop",
-      category: "Productivity",
-      href: "/blog/pdf-tools-remote-teams",
-    },
-    {
-      title: "Understanding PDF/A: The Standard for Long-term Archiving",
-      excerpt:
-        "Everything you need to know about PDF/A format and why it's essential for document preservation.",
-      author: "Michael Rodriguez",
-      date: "Dec 3, 2024",
+      id: 5,
+      title: "How to Create Professional Favicons for Your Website",
+      description: "Step-by-step guide to creating high-quality favicons that look great across all devices and browsers. Includes sizing, formats, and best practices.",
+      slug: "create-professional-favicons",
+      category: "Web Development",
       readTime: "8 min read",
-      image:
-        "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=250&fit=crop",
-      category: "Standards",
-      href: "/blog/pdf-a-archiving-standard",
+      publishDate: "2025-01-10",
+      author: "PDFPage Team",
+      image: "/blog/favicon-creation-guide.jpg",
+      tags: ["Favicon", "Web Design", "Icons", "Branding"],
+      featured: false,
     },
     {
-      title: "Common PDF Problems and How to Fix Them",
-      excerpt:
-        "Troubleshoot the most frequent PDF issues with our comprehensive problem-solving guide.",
-      author: "Emily Johnson",
-      date: "Nov 30, 2024",
-      readTime: "9 min read",
-      image:
-        "https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?w=400&h=250&fit=crop",
-      category: "Troubleshooting",
-      href: "/blog/common-pdf-problems",
+      id: 6,
+      title: "PDF Security: How to Password Protect and Encrypt Documents",
+      description: "Complete guide to PDF security features including password protection, encryption levels, and permission settings. Keep your documents safe.",
+      slug: "pdf-security-password-protection",
+      category: "PDF Security",
+      readTime: "6 min read",
+      publishDate: "2025-01-08",
+      author: "PDFPage Team",
+      image: "/blog/pdf-security-guide.jpg",
+      tags: ["PDF", "Security", "Encryption", "Privacy"],
+      featured: false,
     },
   ];
 
   const categories = [
-    { name: "All Posts", count: 24, icon: BookOpen },
-    { name: "Tutorials", count: 8, icon: Lightbulb },
-    { name: "Security", count: 6, icon: Shield },
-    { name: "Productivity", count: 5, icon: TrendingUp },
-    { name: "Legal", count: 3, icon: FileText },
-    { name: "Accessibility", count: 2, icon: Zap },
+    { name: "PDF Conversion", count: 8, icon: FileText },
+    { name: "Image Optimization", count: 6, icon: ImageIcon },
+    { name: "PDF Optimization", count: 5, icon: Zap },
+    { name: "PDF Security", count: 4, icon: Shield },
+    { name: "Web Development", count: 3, icon: Lightbulb },
+    { name: "Education", count: 3, icon: TrendingUp },
   ];
 
+  const featuredPosts = blogPosts.filter(post => post.featured);
+  const regularPosts = blogPosts.filter(post => !post.featured);
+
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-white">
+      <SEO
+        title="PDF & Image Tools Blog - Tips, Guides & Best Practices"
+        description="Expert guides on PDF conversion, image optimization, and document management. Learn how to use PDF tools effectively with step-by-step tutorials and best practices."
+        keywords="PDF tutorials, image optimization guide, document conversion tips, PDF compression, online tools guide, productivity tips, PDF best practices"
+        canonical="/blog"
+        schemaData={{
+          "@type": "Blog",
+          "name": "PDFPage Blog",
+          "description": "Expert guides and tutorials for PDF and image tools",
+          "blogPost": blogPosts.map(post => ({
+            "@type": "BlogPosting",
+            "headline": post.title,
+            "description": post.description,
+            "url": `https://pdfpage.in/blog/${post.slug}`,
+            "datePublished": post.publishDate,
+            "author": {
+              "@type": "Organization",
+              "name": post.author
+            }
+          }))
+        }}
+      />
+      
       <Header />
 
-      {/* Hero Section */}
-      <section className="py-20 bg-gradient-to-br from-brand-red/5 to-red-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center max-w-4xl mx-auto mb-12">
-            <h1 className="text-4xl lg:text-6xl font-bold text-text-dark mb-6">
-              PDF <span className="text-brand-red">Knowledge Hub</span>
-            </h1>
-            <p className="text-xl text-text-medium mb-8">
-              Expert insights, tutorials, and best practices for mastering PDF
-              workflows
-            </p>
-            <div className="max-w-md mx-auto relative">
-              <Input
-                placeholder="Search articles..."
-                className="pl-10 pr-4 py-3 text-lg"
-              />
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-text-medium" />
-            </div>
-          </div>
-        </div>
-      </section>
-
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div className="grid lg:grid-cols-4 gap-8">
-          {/* Sidebar */}
-          <div className="lg:col-span-1">
-            <div className="bg-white rounded-lg shadow-sm border p-6 sticky top-24">
-              <h3 className="font-semibold text-text-dark mb-4">Categories</h3>
-              <div className="space-y-2">
-                {categories.map((category, index) => (
-                  <button
-                    key={index}
-                    className="w-full flex items-center justify-between p-2 rounded-lg hover:bg-gray-50 transition-colors"
-                  >
-                    <div className="flex items-center gap-2">
-                      <category.icon className="h-4 w-4 text-brand-red" />
-                      <span className="text-text-medium">{category.name}</span>
-                    </div>
-                    <Badge variant="secondary" className="text-xs">
-                      {category.count}
-                    </Badge>
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
+        {/* Header Section */}
+        <div className="text-center mb-12">
+          <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-6">
+            PDF & Image Tools Blog
+          </h1>
+          <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+            Expert guides, tutorials, and best practices for PDF conversion, 
+            image optimization, and document management tools.
+          </p>
+        </div>
 
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
           {/* Main Content */}
           <div className="lg:col-span-3">
-            {/* Featured Post */}
-            <div className="mb-12">
-              <h2 className="text-2xl font-bold text-text-dark mb-6">
-                Featured Article
-              </h2>
-              <Card className="overflow-hidden shadow-lg">
-                <div className="md:flex">
-                  <div className="md:w-1/2">
-                    <img
-                      src={featuredPost.image}
-                      alt={featuredPost.title}
-                      className="w-full h-64 md:h-full object-cover"
-                    />
-                  </div>
-                  <div className="md:w-1/2 p-6">
-                    <Badge className="mb-3 bg-brand-red/10 text-brand-red border-brand-red/20">
-                      {featuredPost.category}
-                    </Badge>
-                    <h3 className="text-xl font-bold text-text-dark mb-3 line-clamp-2">
-                      {featuredPost.title}
-                    </h3>
-                    <p className="text-text-medium mb-4 line-clamp-3">
-                      {featuredPost.excerpt}
-                    </p>
-                    <div className="flex items-center gap-4 text-sm text-text-light mb-4">
-                      <div className="flex items-center gap-1">
-                        <User className="h-4 w-4" />
-                        <span>{featuredPost.author}</span>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <Calendar className="h-4 w-4" />
-                        <span>{featuredPost.date}</span>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <Clock className="h-4 w-4" />
-                        <span>{featuredPost.readTime}</span>
-                      </div>
-                    </div>
-                    <Button asChild>
-                      <Link to={featuredPost.href}>
-                        Read Article <ArrowRight className="ml-2 h-4 w-4" />
-                      </Link>
-                    </Button>
-                  </div>
+            {/* Featured Posts */}
+            {featuredPosts.length > 0 && (
+              <div className="mb-12">
+                <h2 className="text-2xl font-bold text-gray-900 mb-6 flex items-center">
+                  <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                    Featured Articles
+                  </span>
+                </h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {featuredPosts.map((post) => (
+                    <Card key={post.id} className="group hover:shadow-xl transition-all duration-300 border-2 hover:border-blue-200">
+                      <CardHeader className="p-0">
+                        <div className="aspect-video bg-gradient-to-br from-blue-100 to-purple-100 rounded-t-lg flex items-center justify-center relative overflow-hidden">
+                          <div className="absolute inset-0 bg-gradient-to-br from-blue-600/10 to-purple-600/10" />
+                          <FileText className="w-16 h-16 text-blue-600" />
+                          <Badge className="absolute top-3 right-3 bg-orange-500">Featured</Badge>
+                        </div>
+                      </CardHeader>
+                      <CardContent className="p-6">
+                        <div className="flex items-center gap-2 mb-3">
+                          <Badge variant="outline" className="text-xs">
+                            {post.category}
+                          </Badge>
+                          <span className="text-sm text-gray-500 flex items-center gap-1">
+                            <Clock className="w-3 h-3" />
+                            {post.readTime}
+                          </span>
+                        </div>
+                        <CardTitle className="text-xl mb-3 group-hover:text-blue-600 transition-colors line-clamp-2">
+                          {post.title}
+                        </CardTitle>
+                        <CardDescription className="text-gray-600 mb-4 line-clamp-3">
+                          {post.description}
+                        </CardDescription>
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2 text-sm text-gray-500">
+                            <User className="w-4 h-4" />
+                            <span>{post.author}</span>
+                            <Calendar className="w-4 h-4 ml-2" />
+                            <span>{new Date(post.publishDate).toLocaleDateString()}</span>
+                          </div>
+                          <Button variant="ghost" size="sm" className="group-hover:text-blue-600">
+                            Read More
+                            <ArrowRight className="w-4 h-4 ml-1 group-hover:translate-x-1 transition-transform" />
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
                 </div>
-              </Card>
-            </div>
+              </div>
+            )}
 
-            {/* Recent Posts */}
+            {/* Regular Posts */}
             <div>
-              <h2 className="text-2xl font-bold text-text-dark mb-6">
-                Recent Articles
-              </h2>
-              <div className="grid md:grid-cols-2 gap-6">
-                {recentPosts.map((post, index) => (
-                  <Card
-                    key={index}
-                    className="overflow-hidden shadow-lg hover:shadow-xl transition-shadow"
-                  >
-                    <CardHeader className="p-0">
-                      <img
-                        src={post.image}
-                        alt={post.title}
-                        className="w-full h-48 object-cover"
-                      />
-                    </CardHeader>
+              <h2 className="text-2xl font-bold text-gray-900 mb-6">Latest Articles</h2>
+              <div className="space-y-6">
+                {regularPosts.map((post) => (
+                  <Card key={post.id} className="group hover:shadow-lg transition-all duration-300">
                     <CardContent className="p-6">
-                      <Badge className="mb-3 bg-brand-red/10 text-brand-red border-brand-red/20">
-                        {post.category}
-                      </Badge>
-                      <h3 className="text-lg font-semibold text-text-dark mb-3 line-clamp-2">
-                        {post.title}
-                      </h3>
-                      <p className="text-text-medium mb-4 line-clamp-2">
-                        {post.excerpt}
-                      </p>
-                      <div className="flex items-center gap-4 text-sm text-text-light mb-4">
-                        <div className="flex items-center gap-1">
-                          <User className="h-3 w-3" />
-                          <span>{post.author}</span>
+                      <div className="flex gap-6">
+                        <div className="w-32 h-24 bg-gradient-to-br from-gray-100 to-gray-200 rounded-lg flex items-center justify-center flex-shrink-0">
+                          <FileText className="w-8 h-8 text-gray-600" />
                         </div>
-                        <div className="flex items-center gap-1">
-                          <Calendar className="h-3 w-3" />
-                          <span>{post.date}</span>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <Clock className="h-3 w-3" />
-                          <span>{post.readTime}</span>
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-2">
+                            <Badge variant="outline" className="text-xs">
+                              {post.category}
+                            </Badge>
+                            <span className="text-sm text-gray-500 flex items-center gap-1">
+                              <Clock className="w-3 h-3" />
+                              {post.readTime}
+                            </span>
+                          </div>
+                          <h3 className="text-lg font-semibold text-gray-900 mb-2 group-hover:text-blue-600 transition-colors line-clamp-2">
+                            {post.title}
+                          </h3>
+                          <p className="text-gray-600 text-sm mb-3 line-clamp-2">
+                            {post.description}
+                          </p>
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2 text-sm text-gray-500">
+                              <User className="w-3 h-3" />
+                              <span>{post.author}</span>
+                              <Calendar className="w-3 h-3 ml-2" />
+                              <span>{new Date(post.publishDate).toLocaleDateString()}</span>
+                            </div>
+                            <Button variant="ghost" size="sm" className="group-hover:text-blue-600">
+                              Read More
+                              <ArrowRight className="w-4 h-4 ml-1 group-hover:translate-x-1 transition-transform" />
+                            </Button>
+                          </div>
                         </div>
                       </div>
-                      <Button variant="outline" size="sm" asChild>
-                        <Link to={post.href}>
-                          Read More <ArrowRight className="ml-2 h-3 w-3" />
-                        </Link>
-                      </Button>
                     </CardContent>
                   </Card>
                 ))}
               </div>
             </div>
+          </div>
 
-            {/* Load More */}
-            <div className="text-center mt-12">
-              <Button variant="outline" size="lg">
-                Load More Articles
-              </Button>
+          {/* Sidebar */}
+          <div className="lg:col-span-1">
+            <div className="space-y-8">
+              {/* Categories */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Categories</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {categories.map((category) => {
+                    const IconComponent = category.icon;
+                    return (
+                      <Link
+                        key={category.name}
+                        to={`/blog/category/${category.name.toLowerCase().replace(/\s+/g, '-')}`}
+                        className="flex items-center justify-between p-2 rounded-lg hover:bg-gray-50 transition-colors group"
+                      >
+                        <div className="flex items-center gap-2">
+                          <IconComponent className="w-4 h-4 text-gray-500 group-hover:text-blue-600" />
+                          <span className="text-sm font-medium text-gray-700 group-hover:text-blue-600">
+                            {category.name}
+                          </span>
+                        </div>
+                        <Badge variant="secondary" className="text-xs">
+                          {category.count}
+                        </Badge>
+                      </Link>
+                    );
+                  })}
+                </CardContent>
+              </Card>
+
+              {/* Newsletter Signup */}
+              <Card className="bg-gradient-to-br from-blue-50 to-purple-50 border-blue-200">
+                <CardHeader>
+                  <CardTitle className="text-lg text-center">Stay Updated</CardTitle>
+                  <CardDescription className="text-center">
+                    Get the latest tips and tutorials delivered to your inbox
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    <input
+                      type="email"
+                      placeholder="Enter your email"
+                      className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                    <Button className="w-full">
+                      Subscribe
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Popular Tools */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Popular Tools</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {[
+                    { name: "PDF to Word", href: "/pdf-to-word" },
+                    { name: "Merge PDF", href: "/merge-pdf" },
+                    { name: "Compress PDF", href: "/compress-pdf" },
+                    { name: "Image Compressor", href: "/img/compress" },
+                    { name: "Split PDF", href: "/split-pdf" },
+                  ].map((tool) => (
+                    <Link
+                      key={tool.name}
+                      to={tool.href}
+                      className="block p-2 rounded-lg hover:bg-gray-50 transition-colors group"
+                    >
+                      <span className="text-sm font-medium text-gray-700 group-hover:text-blue-600">
+                        {tool.name}
+                      </span>
+                    </Link>
+                  ))}
+                </CardContent>
+              </Card>
             </div>
           </div>
         </div>
       </div>
-
-      {/* Newsletter Section */}
-      <section className="py-16 bg-gray-50">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h2 className="text-3xl font-bold text-text-dark mb-4">
-            Stay Updated
-          </h2>
-          <p className="text-lg text-text-medium mb-8">
-            Get the latest PDF tips, tutorials, and industry insights delivered
-            to your inbox.
-          </p>
-          <div className="flex flex-col sm:flex-row gap-4 max-w-md mx-auto">
-            <Input placeholder="Enter your email" className="flex-1" />
-            <Button className="bg-brand-red hover:bg-red-700">Subscribe</Button>
-          </div>
-          <p className="text-sm text-text-light mt-3">
-            Join 50,000+ subscribers. Unsubscribe anytime.
-          </p>
-        </div>
-      </section>
 
       <Footer />
     </div>

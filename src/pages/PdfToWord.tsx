@@ -10,6 +10,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { PDFService } from "@/services/pdfService";
 import { useToast } from "@/hooks/use-toast";
 import { Progress } from "@/components/ui/progress";
+import SEO from "@/components/SEO";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
@@ -620,6 +621,60 @@ const PdfToWord = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
+      <SEO
+        title="PDF to Word Converter Online - Free, Fast & Accurate | PDFPage"
+        description="Convert PDF to Word (DOCX) online for free. Maintain formatting, fonts, and layout. No signup required. Fast, secure, and accurate PDF to Word conversion."
+        keywords="PDF to Word converter, PDF to DOCX, convert PDF to Word online, free PDF converter, PDF to Word free, PDF editor, document converter"
+        canonical="/pdf-to-word"
+        ogImage="/images/pdf-to-word-converter.jpg"
+        toolName="PDF to Word Converter"
+        toolType="pdf"
+        schemaData={{
+          "@type": "FAQPage",
+          "mainEntity": [
+            {
+              "@type": "Question",
+              "name": "How do I convert PDF to Word for free?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Upload your PDF file, click 'Convert to Word', and download the converted DOCX file. No registration required and completely free."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "Will the formatting be preserved?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Yes, our advanced conversion engine preserves text formatting, fonts, images, tables, and layout as closely as possible."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "What file formats are supported?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "We support PDF input and convert to Microsoft Word DOCX format, which is compatible with Word 2007 and later versions."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "Is my document secure?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Yes, all files are processed securely and automatically deleted from our servers after conversion. We never store or access your documents."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "Can I convert password-protected PDFs?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "You'll need to remove the password first using our PDF unlock tool, then convert the unlocked PDF to Word."
+              }
+            }
+          ]
+        }}
+      />
       <Header />
 
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">

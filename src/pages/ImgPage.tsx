@@ -8,6 +8,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import AdSense from "@/components/ads/AdSense";
+import { cn } from "@/lib/utils";
+import SEO from "@/components/SEO";
+import LiveStats from "@/components/LiveStats";
 import {
   ImageIcon,
   Minimize2,
@@ -106,12 +109,13 @@ const ImgPage = () => {
   const imageTools = [
     {
       title: "Compress Image",
-      description: "Reduce image file size without losing quality",
+      description: "Reduce image file size by up to 90% without losing quality. Perfect for web optimization and faster loading.",
       icon: Minimize2,
       path: "/img/compress",
       color: "text-blue-600",
       bgColor: "bg-blue-50",
       category: "optimize",
+      featured: true,
     },
     {
       title: "Resize Image",
@@ -251,6 +255,34 @@ const ImgPage = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
+      <SEO
+        title="Free Image Tools Online - Compress, Resize, Convert & Edit Images"
+        description="Free online image tools to compress, resize, crop, convert and edit images. Remove backgrounds, add watermarks, and convert between formats. Fast and secure processing."
+        keywords="image compressor, resize image, crop image, image converter, remove background, JPG to PNG, PNG to JPG, image editor, online image tools, free image converter"
+        canonical="/img"
+        toolType="image"
+        isFreeTool={true}
+        schemaData={{
+          "@type": "CollectionPage",
+          "name": "Image Processing Tools",
+          "description": "Collection of free online image processing and editing tools",
+          "mainEntity": {
+            "@type": "ItemList",
+            "itemListElement": [
+              {
+                "@type": "SoftwareApplication",
+                "name": "Image Compressor",
+                "url": "https://pdfpage.in/img/compress"
+              },
+              {
+                "@type": "SoftwareApplication",
+                "name": "Image Resizer",
+                "url": "https://pdfpage.in/img/resize"
+              }
+            ]
+          }
+        }}
+      />
       <ImgHeader />
 
       {/* Enhanced Hero Section */}
@@ -366,7 +398,10 @@ const ImgPage = () => {
               const IconComponent = tool.icon;
               return (
                 <Link key={index} to={tool.path} className="group block">
-                  <Card className="h-full transition-all duration-500 hover:shadow-2xl hover:-translate-y-3 border-2 hover:border-gradient-to-r hover:from-blue-400 hover:to-purple-400 relative overflow-hidden bg-white/80 backdrop-blur-sm">
+                  <Card className={cn(
+                    "h-full transition-all duration-500 hover:shadow-2xl hover:-translate-y-3 border-2 hover:border-gradient-to-r hover:from-blue-400 hover:to-purple-400 relative overflow-hidden bg-white/80 backdrop-blur-sm",
+                    tool.featured && "ring-2 ring-blue-500 ring-opacity-50 border-blue-300 shadow-lg"
+                  )}>
                     {/* Animated background gradient */}
                     <div className="absolute inset-0 bg-gradient-to-br from-blue-600/5 via-purple-600/5 to-pink-600/5 opacity-0 group-hover:opacity-100 transition-all duration-500" />
 
@@ -426,6 +461,15 @@ const ImgPage = () => {
                             <Crown className="w-3 h-3 mr-1" />
                             Pro
                             <div className="absolute inset-0 bg-gradient-to-r from-yellow-400/20 to-red-500/20 rounded animate-ping" />
+                          </Badge>
+                        )}
+
+                        {/* Featured badge */}
+                        {tool.featured && !tool.premium && (
+                          <Badge className="bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-lg relative">
+                            <Star className="w-3 h-3 mr-1" />
+                            Popular
+                            <div className="absolute inset-0 bg-gradient-to-r from-blue-400/20 to-blue-600/20 rounded animate-pulse" />
                           </Badge>
                         )}
                       </div>
@@ -547,6 +591,15 @@ const ImgPage = () => {
               );
             })}
           </div>
+        </div>
+
+        {/* Live Statistics */}
+        <div className="mb-8">
+          <LiveStats
+            variant="banner"
+            toolSpecific={true}
+            toolName="Image Processing Tools"
+          />
         </div>
 
         {/* Testimonials Section */}
