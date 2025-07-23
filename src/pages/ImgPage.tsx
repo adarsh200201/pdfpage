@@ -593,14 +593,7 @@ const ImgPage = () => {
           </div>
         </div>
 
-        {/* Live Statistics */}
-        <div className="mb-8">
-          <LiveStats
-            variant="banner"
-            toolSpecific={true}
-            toolName="Image Processing Tools"
-          />
-        </div>
+
 
         {/* Testimonials Section */}
         <section className="py-6 bg-white rounded-3xl shadow-xl mb-4">
