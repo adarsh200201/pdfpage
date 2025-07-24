@@ -189,6 +189,9 @@ app.use("/api/*", (req, res, next) => {
 // Health check routes (should be first, no rate limiting)
 app.use("/api/health", require("./routes/health"));
 
+// CORS debugging route (for troubleshooting) - temporarily enabled for production
+app.use("/api/cors-debug", require("./routes/cors-debug"));
+
 // Routes
 app.use("/api/auth", require("./routes/auth"));
 app.use("/api/users", require("./routes/users"));
