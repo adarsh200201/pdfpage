@@ -1,0 +1,16 @@
+{
+  "name": "PdfPage",
+  "short_name": "PdfPage",
+  "description": "PDF Tools",
+  "start_url": "/",
+  "display": "standalone",
+  "theme_color": "#e5322d",
+  "background_color": "#ffffff",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "48x48",
+      "type": "image/x-icon"
+    }
+  ]
+}

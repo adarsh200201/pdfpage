@@ -1,0 +1,97 @@
+<!doctype html>
+<html>
+  <head>
+    <title>Proxy Test</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        padding: 20px;
+      }
+      .result {
+        margin: 10px 0;
+        padding: 10px;
+        border-radius: 5px;
+      }
+      .success {
+        background: #d4edda;
+        color: #155724;
+      }
+      .error {
+        background: #f8d7da;
+        color: #721c24;
+      }
+      .info {
+        background: #d1ecf1;
+        color: #0c5460;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Proxy Configuration Test</h1>
+    <button onclick="testProxy()">Test Proxy</button>
+    <div id="results"></div>
+
+    <script>
+      async function testProxy() {
+        const results = document.getElementById("results");
+        results.innerHTML = "";
+
+        function addResult(message, type) {
+          const div = document.createElement("div");
+          div.className = `result ${type}`;
+          div.textContent = message;
+          results.appendChild(div);
+        }
+
+        // Test the proxy
+        addResult("Testing /api/health endpoint...", "info");
+
+        try {
+          const response = await fetch("/api/health");
+
+          if (response.ok) {
+            const data = await response.text();
+            addResult(
+              `✅ Proxy working! Status: ${response.status}`,
+              "success",
+            );
+            addResult(`Response: ${data}`, "info");
+          } else {
+            addResult(
+              `❌ Proxy failed with status: ${response.status}`,
+              "error",
+            );
+          }
+        } catch (error) {
+          addResult(`❌ Proxy error: ${error.message}`, "error");
+        }
+
+        // Test OAuth endpoint
+        addResult("Testing /api/auth/google endpoint...", "info");
+
+        try {
+          const response = await fetch("/api/auth/google", {
+            method: "HEAD",
+            redirect: "manual",
+          });
+
+          if (response.status === 302) {
+            addResult(
+              `✅ OAuth endpoint working! Redirects properly.`,
+              "success",
+            );
+          } else if (response.status === 404) {
+            addResult(
+              `❌ OAuth endpoint returns 404 - proxy not working`,
+              "error",
+            );
+          } else {
+            addResult(`ℹ️ OAuth endpoint status: ${response.status}`, "info");
+          }
+        } catch (error) {
+          addResult(`❌ OAuth test error: ${error.message}`, "error");
+        }
+      }
+    </script>
+  </body>
+</html>

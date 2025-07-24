@@ -1,0 +1,25 @@
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background circle -->
+  <circle cx="256" cy="256" r="256" fill="#e5322d"/>
+  
+  <!-- PDF Document icon -->
+  <g transform="translate(128, 96)">
+    <!-- Document background -->
+    <rect x="0" y="40" width="240" height="300" rx="8" ry="8" fill="white" opacity="0.95"/>
+    
+    <!-- Document fold -->
+    <path d="M200 40 L240 80 L200 80 Z" fill="#f0f0f0"/>
+    
+    <!-- PDF text -->
+    <text x="120" y="200" text-anchor="middle" font-family="Arial, sans-serif" font-size="32" font-weight="bold" fill="#e5322d">PDF</text>
+    
+    <!-- Document lines -->
+    <rect x="20" y="220" width="180" height="3" rx="1" fill="#ddd"/>
+    <rect x="20" y="240" width="150" height="3" rx="1" fill="#ddd"/>
+    <rect x="20" y="260" width="170" height="3" rx="1" fill="#ddd"/>
+    <rect x="20" y="280" width="140" height="3" rx="1" fill="#ddd"/>
+  </g>
+  
+  <!-- Highlight circle -->
+  <circle cx="256" cy="256" r="240" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="8"/>
+</svg>

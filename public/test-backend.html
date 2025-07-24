@@ -1,0 +1,119 @@
+<!doctype html>
+<html>
+  <head>
+    <title>Backend Connectivity Test</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        padding: 20px;
+      }
+      .test {
+        margin: 10px 0;
+        padding: 10px;
+        border-radius: 5px;
+      }
+      .success {
+        background: #d4edda;
+        color: #155724;
+        border: 1px solid #c3e6cb;
+      }
+      .error {
+        background: #f8d7da;
+        color: #721c24;
+        border: 1px solid #f5c6cb;
+      }
+      .testing {
+        background: #fff3cd;
+        color: #856404;
+        border: 1px solid #ffeaa7;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Backend Connectivity Test</h1>
+    <div id="results"></div>
+
+    <script>
+      const results = document.getElementById("results");
+
+      function addResult(message, type) {
+        const div = document.createElement("div");
+        div.className = `test ${type}`;
+        div.textContent = message;
+        results.appendChild(div);
+      }
+
+      async function testBackend() {
+        // Test 1: Direct backend connection
+        addResult("Testing direct backend connection...", "testing");
+        try {
+          const response = await fetch(
+            "https://pdfpage-app.onrender.com/api/health",
+            {
+              method: "GET",
+              mode: "cors",
+            },
+          );
+          if (response.ok) {
+            addResult("✅ Direct backend connection: SUCCESS", "success");
+          } else {
+            addResult(
+              `❌ Direct backend connection failed: ${response.status}`,
+              "error",
+            );
+          }
+        } catch (error) {
+          addResult(
+            `❌ Direct backend connection error: ${error.message}`,
+            "error",
+          );
+        }
+
+        // Test 2: Proxy connection
+        addResult("Testing proxy connection...", "testing");
+        try {
+          const response = await fetch("/api/health", {
+            method: "GET",
+          });
+          if (response.ok) {
+            addResult("✅ Proxy connection: SUCCESS", "success");
+          } else {
+            addResult(
+              `❌ Proxy connection failed: ${response.status}`,
+              "error",
+            );
+          }
+        } catch (error) {
+          addResult(`❌ Proxy connection error: ${error.message}`, "error");
+        }
+
+        // Test 3: Google OAuth endpoint
+        addResult("Testing Google OAuth endpoint...", "testing");
+        try {
+          const response = await fetch("/api/auth/google", {
+            method: "HEAD",
+            redirect: "manual",
+          });
+          if (response.status === 302 || response.status === 200) {
+            addResult(
+              "✅ Google OAuth endpoint: SUCCESS (redirects properly)",
+              "success",
+            );
+          } else {
+            addResult(
+              `❌ Google OAuth endpoint failed: ${response.status}`,
+              "error",
+            );
+          }
+        } catch (error) {
+          addResult(
+            `❌ Google OAuth endpoint error: ${error.message}`,
+            "error",
+          );
+        }
+      }
+
+      testBackend();
+    </script>
+  </body>
+</html>
