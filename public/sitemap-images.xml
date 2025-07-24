@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
+  
+  <!-- Homepage Images -->
+  <url>
+    <loc>https://pdfpage.in/</loc>
+    <image:image>
+      <image:loc>https://pdfpage.in/images/pdf-tools-hero.jpg</image:loc>
+      <image:caption>Free PDF tools for converting, merging, splitting and editing PDFs</image:caption>
+      <image:title>PDFPage - Free PDF Toolkit</image:title>
+    </image:image>
+    <image:image>
+      <image:loc>https://pdfpage.in/images/merge-pdf-tool.jpg</image:loc>
+      <image:caption>Merge PDF files online tool interface</image:caption>
+      <image:title>Merge PDF Tool</image:title>
+    </image:image>
+    <image:image>
+      <image:loc>https://pdfpage.in/images/compress-pdf-tool.jpg</image:loc>
+      <image:caption>Compress PDF files while maintaining quality</image:caption>
+      <image:title>PDF Compressor Tool</image:title>
+    </image:image>
+  </url>
+
+  <!-- Image Tools Page -->
+  <url>
+    <loc>https://pdfpage.in/img</loc>
+    <image:image>
+      <image:loc>https://pdfpage.in/images/image-tools-collection.jpg</image:loc>
+      <image:caption>Collection of free online image processing tools</image:caption>
+      <image:title>Free Image Tools</image:title>
+    </image:image>
+    <image:image>
+      <image:loc>https://pdfpage.in/images/image-compressor-preview.jpg</image:loc>
+      <image:caption>Image compression tool with before and after preview</image:caption>
+      <image:title>Image Compressor Preview</image:title>
+    </image:image>
+  </url>
+
+  <!-- Image Compression Tool -->
+  <url>
+    <loc>https://pdfpage.in/img/compress</loc>
+    <image:image>
+      <image:loc>https://pdfpage.in/images/compress-image-interface.jpg</image:loc>
+      <image:caption>Image compression tool interface with quality controls</image:caption>
+      <image:title>Compress Image Tool Interface</image:title>
+    </image:image>
+    <image:image>
+      <image:loc>https://pdfpage.in/images/before-after-compression.jpg</image:loc>
+      <image:caption>Before and after image compression comparison</image:caption>
+      <image:title>Image Compression Before and After</image:title>
+    </image:image>
+  </url>
+
+  <!-- PDF to Word Converter -->
+  <url>
+    <loc>https://pdfpage.in/pdf-to-word</loc>
+    <image:image>
+      <image:loc>https://pdfpage.in/images/pdf-to-word-converter.jpg</image:loc>
+      <image:caption>PDF to Word converter tool interface</image:caption>
+      <image:title>PDF to Word Converter</image:title>
+    </image:image>
+  </url>
+
+  <!-- Favicon Generator -->
+  <url>
+    <loc>https://pdfpage.in/favicon</loc>
+    <image:image>
+      <image:loc>https://pdfpage.in/images/favicon-generator-tools.jpg</image:loc>
+      <image:caption>Favicon generator tools for creating website icons</image:caption>
+      <image:title>Favicon Generator Tools</image:title>
+    </image:image>
+  </url>
+
+</urlset>
