@@ -1,6 +1,8 @@
 // Fix FullStory namespace conflict
 if (typeof window !== "undefined") {
-  window["_fs_namespace"] = "FS";
+  window["_fs_namespace"] = "FS_PDF";
+  // Disable FullStory completely to prevent conflicts
+  window["FS_DISABLE"] = true;
 }
 
 import { createRoot } from "react-dom/client";

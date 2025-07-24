@@ -62,6 +62,7 @@ import Login from "./pages/Login";
 import ModernLogin from "./pages/ModernLogin";
 import Blog from "./pages/Blog";
 import SEOTest from "./pages/SEOTest";
+import SEOAudit from "./pages/SEOAudit";
 import Register from "./pages/Register";
 import ForgotPassword from "./pages/ForgotPassword";
 import Merge from "./pages/Merge";
@@ -170,6 +171,7 @@ import Press from "./pages/Press";
 import Help from "./pages/Help";
 import Enterprise from "./pages/Enterprise";
 import Download from "./pages/Download";
+import BlogPostPage from "./pages/BlogPost";
 
 const queryClient = new QueryClient();
 
@@ -416,7 +418,9 @@ const App = () => {
                       {/* Company Pages */}
                       <Route path="/about" element={<About />} />
                       <Route path="/blog" element={<Blog />} />
+                      <Route path="/blog/:slug" element={<BlogPostPage />} />
                       <Route path="/seo-test" element={<SEOTest />} />
+                      <Route path="/seo-audit" element={<SEOAudit />} />
                       <Route path="/careers" element={<Careers />} />
                       <Route path="/contact" element={<Contact />} />
                       <Route path="/affiliate" element={<Affiliate />} />

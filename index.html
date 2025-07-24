@@ -38,25 +38,27 @@
     <meta name="msapplication-tap-highlight" content="no" />
 
     <title>
-      PdfPage - The Ultimate PDF Toolkit | Merge, Split, Compress & More
+      PDFPage.in – All-in-One Free PDF Tools Online | No Registration Required
     </title>
     <meta
       name="description"
-      content="PdfPage is the ultimate PDF toolkit. Merge, split, compress, convert, and edit PDF files online. Free and premium tools for all your PDF needs."
+      content="Convert, compress, merge, split, and edit PDF files securely and for free. 25+ professional PDF tools. Fast processing. No login required. Try PDFPage.in now!"
     />
     <meta
       name="keywords"
-      content="PDF tools, merge PDF, split PDF, compress PDF, PDF converter, PDF editor, PdfPage"
+      content="PDF tools, merge PDF, split PDF, compress PDF, PDF converter, PDF editor, free PDF tools online, no registration, PDFPage"
     />
+    <link rel="canonical" href="https://pdfpage.in/" />
 
-    <!-- Enhanced Open Graph Meta Tags -->
-    <meta property="og:title" content="PDFPage - Free PDF & Image Tools Online | 25+ Professional Tools" />
+    <!-- Enhanced Open Graph Meta Tags for Rich Results -->
+    <meta property="og:title" content="PDFPage.in – All-in-One Free PDF Tools Online | No Registration Required" />
     <meta
       property="og:description"
-      content="Professional PDF and image processing tools. Convert PDF to Word, merge PDFs, compress images, remove backgrounds. 25+ free tools, no registration required. Trusted by 2M+ users worldwide."
+      content="Convert, compress, merge, split, and edit PDF files securely and for free. 25+ professional PDF tools. Fast processing. No login required. Try PDFPage.in now!"
     />
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://pdfpage.in" />
+    <meta property="og:site_name" content="PDFPage" />
     <meta
       property="og:image"
       content="https://cdn.builder.io/api/v1/image/assets%2Ffcbdb28308084edfa1fffc265e57f46e%2F5791d498f9994470ae52d766d30e56ee?format=webp&width=1200&height=1200"
@@ -83,10 +85,10 @@
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:site" content="@pdfpage" />
     <meta name="twitter:creator" content="@pdfpage" />
-    <meta name="twitter:title" content="PDFPage - Free PDF & Image Tools Online | 25+ Professional Tools" />
+    <meta name="twitter:title" content="PDFPage.in – All-in-One Free PDF Tools Online | No Registration Required" />
     <meta
       name="twitter:description"
-      content="🚀 Professional PDF and image processing tools. Convert PDF to Word, merge PDFs, compress images, remove backgrounds. 25+ free tools, no registration required. Trusted by 2M+ users worldwide."
+      content="🚀 Convert, compress, merge, split, and edit PDF files securely and for free. 25+ professional PDF tools. Fast processing. No login required!"
     />
     <meta
       name="twitter:image"
@@ -111,20 +113,13 @@
     <!-- PWA Manifest and Icons -->
     <link rel="manifest" href="/manifest.json" />
 
-    <!-- Standard Favicon -->
+    <!-- Standard Favicon for Google Search Results -->
     <link rel="icon" href="/favicon.ico" type="image/x-icon" />
-    <link
-      rel="icon"
-      type="image/png"
-      sizes="16x16"
-      href="/favicon-16x16.png"
-    />
-    <link
-      rel="icon"
-      type="image/png"
-      sizes="32x32"
-      href="/favicon-32x32.png"
-    />
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
+    <link rel="icon" type="image/png" sizes="48x48" href="/favicon-48x48.png" />
+    <!-- Primary favicon for search engines -->
+    <link rel="shortcut icon" href="/favicon.ico" type="image/x-icon" />
     <!-- Google Search Console Favicons -->
     <link
       rel="shortcut icon"
@@ -182,26 +177,32 @@
     <!-- Preload Critical Resources -->
     <link rel="preload" href="/src/main.tsx" as="script" />
     <link rel="preload" href="/src/index.css" as="style" />
+    <link rel="preload" href="/fonts/inter-var.woff2" as="font" type="font/woff2" crossorigin="anonymous" />
+    <link rel="preload" href="/logo.svg" as="image" />
 
     <!-- DNS Prefetch for External Resources -->
     <link rel="dns-prefetch" href="//fonts.googleapis.com" />
     <link rel="dns-prefetch" href="//fonts.gstatic.com" />
     <link rel="dns-prefetch" href="//www.googletagmanager.com" />
+    <link rel="dns-prefetch" href="//translate.google.com" />
 
     <!-- Enhanced Schema.org Structured Data for Rich Google Results -->
     <script type="application/ld+json">
     {
       "@context": "https://schema.org",
       "@type": "Organization",
+      "@id": "https://pdfpage.in/#organization",
       "name": "PDFPage",
-      "alternateName": ["PDF Page", "PDFPage Tools", "PDFPage.in"],
+      "alternateName": ["PDF Page", "PDFPage Tools", "PDFPage.in", "PDF Page Tools"],
       "url": "https://pdfpage.in",
       "logo": {
         "@type": "ImageObject",
-        "url": "https://cdn.builder.io/api/v1/image/assets%2Ffcbdb28308084edfa1fffc265e57f46e%2F5791d498f9994470ae52d766d30e56ee?format=webp&width=800&height=800",
-        "width": 800,
-        "height": 800,
-        "caption": "PDFPage Logo"
+        "url": "https://pdfpage.in/logo.png",
+        "contentUrl": "https://pdfpage.in/logo.png",
+        "width": 512,
+        "height": 512,
+        "caption": "PDFPage - Free PDF Tools Online",
+        "inLanguage": "en-US"
       },
       "image": "https://cdn.builder.io/api/v1/image/assets%2Ffcbdb28308084edfa1fffc265e57f46e%2F5791d498f9994470ae52d766d30e56ee?format=webp&width=1200&height=1200",
       "description": "The ultimate PDF toolkit with 25+ free online tools for converting, merging, splitting, compressing, and editing PDF files. Trusted by millions worldwide.",
@@ -272,7 +273,11 @@
         "https://twitter.com/pdfpage",
         "https://www.facebook.com/pdfpage",
         "https://www.linkedin.com/company/pdfpage",
-        "https://www.instagram.com/pdfpage"
+        "https://www.instagram.com/pdfpage",
+        "https://github.com/pdfpage",
+        "https://www.youtube.com/@pdfpage",
+        "https://medium.com/@pdfpage",
+        "https://dev.to/pdfpage"
       ],
       "hasOfferCatalog": {
         "@type": "OfferCatalog",
@@ -422,29 +427,66 @@
     }
     </script>
 
-    <!-- WebSite Schema for Enhanced Search Results -->
+    <!-- WebSite Schema for Enhanced Search Results and Site Links -->
     <script type="application/ld+json">
     {
       "@context": "https://schema.org",
       "@type": "WebSite",
-      "name": "PDFPage - Free PDF & Image Tools",
-      "alternateName": "PDFPage.in",
+      "@id": "https://pdfpage.in/#website",
+      "name": "PDFPage - Free PDF & Image Tools Online",
+      "alternateName": ["PDFPage.in", "PDF Page", "Free PDF Tools"],
       "url": "https://pdfpage.in",
-      "description": "Professional PDF and image processing tools with 25+ free online utilities",
+      "description": "All-in-one free PDF toolkit with 25+ professional tools. Convert, compress, merge, split PDF files online. No registration required. Trusted by millions.",
       "inLanguage": "en-US",
-      "copyrightYear": "2024",
+      "copyrightYear": "2025",
       "copyrightHolder": {
         "@type": "Organization",
+        "@id": "https://pdfpage.in/#organization",
         "name": "PDFPage"
+      },
+      "publisher": {
+        "@id": "https://pdfpage.in/#organization"
       },
       "potentialAction": [
         {
           "@type": "SearchAction",
           "target": {
             "@type": "EntryPoint",
-            "urlTemplate": "https://pdfpage.in/search?q={search_term_string}"
+            "urlTemplate": "https://pdfpage.in/blog?search={search_term_string}"
           },
           "query-input": "required name=search_term_string"
+        }
+      ],
+      "mainEntity": [
+        {
+          "@type": "SiteNavigationElement",
+          "name": "Merge PDF",
+          "url": "https://pdfpage.in/merge-pdf",
+          "description": "Combine multiple PDF files into one document"
+        },
+        {
+          "@type": "SiteNavigationElement",
+          "name": "Split PDF",
+          "url": "https://pdfpage.in/split-pdf",
+          "description": "Extract pages from PDF documents"
+        },
+        {
+          "@type": "SiteNavigationElement",
+          "name": "Compress PDF",
+          "url": "https://pdfpage.in/compress-pdf",
+          "description": "Reduce PDF file size while maintaining quality"
+        },
+        {
+          "@type": "SiteNavigationElement",
+          "name": "PDF to Word",
+          "url": "https://pdfpage.in/pdf-to-word",
+          "description": "Convert PDF documents to editable Word files"
+        },
+        {
+          "@type": "SiteNavigationElement",
+          "name": "Blog",
+          "url": "https://pdfpage.in/blog",
+          "description": "Expert PDF tips, guides, and tutorials"
         }
       ],
       "mainEntity": {

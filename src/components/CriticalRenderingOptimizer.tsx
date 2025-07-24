@@ -157,19 +157,12 @@ const CriticalRenderingOptimizer = ({
               const componentName = element.dataset.component;
               
               if (componentName) {
-                // Dynamic import with error handling
-                import(`@/components/${componentName}`)
-                  .then(module => {
-                    const Component = module.default;
-                    // Create component instance and replace placeholder
-                    element.innerHTML = '';
-                    element.setAttribute('data-loaded', 'true');
-                  })
-                  .catch(error => {
-                    console.warn(`Failed to lazy load component: ${componentName}`, error);
-                    element.innerHTML = '<div class="text-gray-500">Component unavailable</div>';
-                  });
-                
+                // Dynamic import removed to fix build issues
+                // Vite requires static file extensions in dynamic imports
+                console.log(`Would load component: ${componentName}`);
+                element.innerHTML = '<div class="text-gray-500">Component lazy loading disabled</div>';
+                element.setAttribute('data-loaded', 'true');
+
                 componentObserver.unobserve(element);
               }
             }

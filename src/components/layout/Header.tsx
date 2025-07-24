@@ -241,6 +241,7 @@ const Header = () => {
   const quickActions = [
     { label: "Image Tools", href: "/img", icon: Image, color: "text-blue-600" },
     { label: "Favicon Generator", href: "/favicon", icon: Sparkles, color: "text-purple-600" },
+    { label: "Blog", href: "/blog", icon: FileText, color: "text-green-600" },
   ];
 
   return (

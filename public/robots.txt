@@ -1,68 +1,29 @@
-# Robots.txt for PdfPage.in - The Ultimate PDF Toolkit
-# Allow all search engines to crawl all content for maximum SEO
-
 User-agent: *
 Allow: /
-
-# Block access to admin and sensitive areas
-Disallow: /admin/
 Disallow: /api/
-Disallow: /backend/
-Disallow: /_redirects
-Disallow: /scripts/
-Disallow: /config/
+Disallow: /admin/
+Disallow: /jEG7MtWenZDOfC3-iFMYJC_1aaA
 
-# Allow access to important files
-Allow: /robots.txt
-Allow: /sitemap.xml
-Allow: /favicon.ico
-Allow: /.well-known/
+# Priority Pages for Search Engines (Most Important for Rankings)
+Allow: /merge
+Allow: /split
+Allow: /compress
+Allow: /pdf-to-word
+Allow: /word-to-pdf
+Allow: /pdf-to-jpg
+Allow: /jpg-to-pdf
+Allow: /edit-pdf
+Allow: /sign-pdf
+Allow: /blog
+Allow: /all-tools
+Allow: /img/
+Allow: /favicon
 
-# Block crawling of user-specific content
-Disallow: /dashboard/
-Disallow: /settings/
-Disallow: /profile/
+# Crawl Delay for Respectful Crawling
+Crawl-delay: 1
 
-# Block temporary or test pages
-Disallow: /test/
-Disallow: /debug/
-Disallow: /temp/
-
-# Sitemap locations
+# Multiple Sitemaps for Better Organization
 Sitemap: https://pdfpage.in/sitemap-index.xml
 Sitemap: https://pdfpage.in/sitemap.xml
 Sitemap: https://pdfpage.in/sitemap-tools.xml
-Sitemap: https://pdfpage.in/sitemap-images.xml
-
-# Crawl delay (optional - helps with server load)
-Crawl-delay: 1
-
-# Allow access to all static assets
-Allow: /assets/
-Allow: /images/
-Allow: /css/
-Allow: /js/
-Allow: /fonts/
-
-# For specific search engines
-User-agent: Googlebot
-Allow: /
-Crawl-delay: 1
-
-User-agent: Bingbot
-Allow: /
-Crawl-delay: 1
-
-User-agent: Slurp
-Allow: /
-Crawl-delay: 2
-
-# Block bad bots
-User-agent: AhrefsBot
-Disallow: /
-
-User-agent: MJ12bot
-Disallow: /
-
-User-agent: DotBot
-Disallow: /
+Sitemap: https://pdfpage.in/sitemap-blog.xml

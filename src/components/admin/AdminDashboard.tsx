@@ -179,6 +179,33 @@ const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
         fetch(`${apiUrl}/schema-test/real-time-status`),
       ]);
 
+      // Helper function to safely parse JSON responses
+      const safeJsonParse = async (response: Response, fallback: any = {}) => {
+        if (!response.ok) {
+          console.warn(`API response not ok: ${response.status} ${response.statusText}`);
+          return fallback;
+        }
+
+        try {
+          const text = await response.text();
+          if (!text || text.trim() === '') {
+            console.warn('Empty response body');
+            return fallback;
+          }
+
+          // Check if response is HTML (error page)
+          if (text.trim().startsWith('<!')) {
+            console.warn('Received HTML instead of JSON:', text.substring(0, 100));
+            return fallback;
+          }
+
+          return JSON.parse(text);
+        } catch (error) {
+          console.error('Failed to parse JSON:', error);
+          return fallback;
+        }
+      };
+
       // Process user stats
       let userStats = {
         totalUsers: 0,
@@ -186,29 +213,24 @@ const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
         totalUploads: 0,
         totalFileSize: 0,
       };
-      if (usageStatsResponse.ok) {
-        const usageData = await usageStatsResponse.json();
-        if (usageData.success) {
-          userStats = usageData.stats;
-        }
+
+      const usageData = await safeJsonParse(usageStatsResponse, {});
+      if (usageData && usageData.success && usageData.stats) {
+        userStats = usageData.stats;
       }
 
       // Process popular tools
       let popularTools = [];
-      if (popularToolsResponse.ok) {
-        const toolsData = await popularToolsResponse.json();
-        if (toolsData.success) {
-          popularTools = toolsData.tools || [];
-        }
+      const toolsData = await safeJsonParse(popularToolsResponse, {});
+      if (toolsData && toolsData.success) {
+        popularTools = toolsData.tools || [];
       }
 
       // Process recent users
       let recentSignups = [];
-      if (recentUsersResponse.ok) {
-        const usersData = await recentUsersResponse.json();
-        if (usersData.success) {
-          recentSignups = usersData.users || [];
-        }
+      const usersData = await safeJsonParse(recentUsersResponse, {});
+      if (usersData && usersData.success) {
+        recentSignups = usersData.users || [];
       }
 
       // Process conversion stats
@@ -219,39 +241,33 @@ const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
         conversionRate: 0,
         softLimitRate: 0,
       };
-      if (conversionStatsResponse.ok) {
-        const conversionData = await conversionStatsResponse.json();
-        if (conversionData.success && conversionData.data.overview) {
-          const rawStats = conversionData.data.overview;
-          conversionStats = {
-            totalIPs: Number(rawStats.totalIPs) || 0,
-            ipsHitSoftLimit: Number(rawStats.ipsHitSoftLimit) || 0,
-            ipsConverted: Number(rawStats.ipsConverted) || 0,
-            conversionRate: Number(rawStats.conversionRate) || 0,
-            softLimitRate: Number(rawStats.softLimitRate) || 0,
-          };
-        }
+      const conversionDataResponse = await safeJsonParse(conversionStatsResponse, {});
+      if (conversionDataResponse && conversionDataResponse.success && conversionDataResponse.data && conversionDataResponse.data.overview) {
+        const rawStats = conversionDataResponse.data.overview;
+        conversionStats = {
+          totalIPs: Number(rawStats.totalIPs) || 0,
+          ipsHitSoftLimit: Number(rawStats.ipsHitSoftLimit) || 0,
+          ipsConverted: Number(rawStats.ipsConverted) || 0,
+          conversionRate: Number(rawStats.conversionRate) || 0,
+          softLimitRate: Number(rawStats.softLimitRate) || 0,
+        };
       }
 
       // Process device stats
       let deviceStats = [];
-      if (deviceStatsResponse.ok) {
-        const deviceData = await deviceStatsResponse.json();
-        if (deviceData.success) {
-          deviceStats = (deviceData.stats || []).map((device: any) => ({
-            deviceType: device.deviceType || "Unknown",
-            count: Number(device.count) || 0,
-            percentage: Number(device.percentage) || 0,
-          }));
-        }
+      const deviceData = await safeJsonParse(deviceStatsResponse, {});
+      if (deviceData && deviceData.success) {
+        deviceStats = (deviceData.stats || []).map((device: any) => ({
+          deviceType: device.deviceType || "Unknown",
+          count: Number(device.count) || 0,
+          percentage: Number(device.percentage) || 0,
+        }));
       }
 
       // Process real-time status
-      if (realTimeStatusResponse.ok) {
-        const statusData = await realTimeStatusResponse.json();
-        if (statusData.success) {
-          setRealTimeStatus(statusData.status);
-        }
+      const statusData = await safeJsonParse(realTimeStatusResponse, {});
+      if (statusData && statusData.success) {
+        setRealTimeStatus(statusData.status);
       }
 
       // Update stats with real data

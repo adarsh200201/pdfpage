@@ -66,10 +66,10 @@ const PerformanceOptimizer = ({
               if (entry.isIntersecting) {
                 const element = entry.target as HTMLElement;
                 if (element.dataset.component) {
-                  // Load component dynamically
-                  import(`@/components/${element.dataset.component}`).then(module => {
-                    // Component loading logic here
-                  });
+                  // Load component dynamically (removed to fix build issues)
+                  // Dynamic imports require static file extensions for Vite
+                  console.log(`Would load component: ${element.dataset.component}`);
+                  // TODO: Implement static component mapping if needed
                   componentObserver.unobserve(element);
                 }
               }

@@ -8,9 +8,10 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import AdSense from "@/components/ads/AdSense";
 import { PromoBanner } from "@/components/ui/promo-banner";
-import SEO from "@/components/SEO";
+import AdvancedSEO from "@/components/AdvancedSEO";
 import { useRealTimeStats } from "@/hooks/useRealTimeStats";
 import { useMixpanel } from "@/hooks/useMixpanel";
+import { getSEOData } from "@/data/seo-routes";
 import {
   Combine,
   Scissors,
@@ -530,47 +531,13 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-white">
-      <SEO
-        title="PDFPage - Free PDF Tools Online | Convert PDF to Word, Merge, Compress"
-        description="PDFPage offers 25+ free PDF tools online. Convert PDF to Word, merge, split, compress PDFs instantly. No registration required. Works on mobile & desktop. Trusted by 2M+ users worldwide. Try now!"
-        keywords="pdfpage, pdf page, pdf-page, pd page, pdpage, pdfpage.in, pdf tools, free pdf tools, online pdf tools, pdf converter, convert pdf to word, merge pdf, split pdf, compress pdf, edit pdf, sign pdf, pdf to word, pdf to jpg, jpg to pdf, word to pdf, excel to pdf, powerpoint to pdf, free pdf converter, online pdf converter, pdf editor online, pdf merger online, pdf splitter online, pdf compressor online, best pdf tools, pdf toolkit, document converter, file converter online, secure pdf tools, fast pdf converter, professional pdf tools, pdf processing, pdf tools without registration, pdf tools no login, mobile pdf tools, pdf tools chrome, pdf tools mobile friendly"
-        canonical="/"
-        ogImage="/og-image-home-1200x630.png"
-        schemaData={{
-          "@type": "WebApplication",
-          "name": "PDFPage - Free PDF & Image Tools",
-          "alternateName": ["PDF Page", "PDFPage Tools", "PDFPage.in"],
-          "description": "Professional PDF and image processing tools with 25+ free online utilities",
-          "applicationCategory": "UtilityApplication",
-          "operatingSystem": "Web Browser",
-          "url": "https://pdfpage.in",
-          "screenshot": "https://pdfpage.in/screenshots/homepage.png",
-          "aggregateRating": {
-            "@type": "AggregateRating",
-            "ratingValue": 4.9,
-            "reviewCount": 50000,
-            "bestRating": 5,
-            "worstRating": 1
-          },
-          "offers": {
-            "@type": "Offer",
-            "price": "0.00",
-            "priceCurrency": "USD",
-            "availability": "https://schema.org/InStock"
-          },
-          "featureList": [
-            "PDF to Word Converter",
-            "PDF Merger & Splitter",
-            "Image Compressor",
-            "Background Remover",
-            "Favicon Generator",
-            "25+ Free Tools"
-          ],
-          "creator": {
-            "@type": "Organization",
-            "name": "PDFPage"
-          }
-        }}
+      <AdvancedSEO
+        {...getSEOData("/")}
+        contentType="landing"
+        enablePreconnect={true}
+        enablePrefetch={true}
+        criticalCSS={true}
+        lastModified="2025-01-24T12:00:00Z"
       />
       <Header />
 
