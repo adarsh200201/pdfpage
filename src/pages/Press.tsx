@@ -1,162 +1,199 @@
+import { Link } from "react-router-dom";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { Link } from "react-router-dom";
+import SEO from "@/components/SEO";
 import {
-  Calendar,
   Download,
   ExternalLink,
-  Award,
   Users,
   TrendingUp,
+  Award,
   Globe,
+  Calendar,
   FileText,
   Image,
   Video,
+  Zap,
+  Star,
+  Building,
+  Mail,
+  Phone,
 } from "lucide-react";
 
 const Press = () => {
-  const pressReleases = [
-    {
-      title: "PdfPage Reaches 10 Million PDF Processing Milestone",
-      date: "December 15, 2024",
-      excerpt:
-        "Leading PDF toolkit platform celebrates major user growth and announces new enterprise features.",
-      category: "Company News",
-      href: "/press/10-million-milestone",
-    },
-    {
-      title: "PdfPage Introduces Advanced AI-Powered PDF Analysis",
-      date: "November 28, 2024",
-      excerpt:
-        "New machine learning capabilities enable intelligent document classification and content extraction.",
-      category: "Product Launch",
-      href: "/press/ai-powered-analysis",
-    },
-    {
-      title: "PdfPage Partners with Microsoft for Enterprise Integration",
-      date: "October 15, 2024",
-      excerpt:
-        "Strategic partnership brings seamless PDF processing to Microsoft 365 ecosystem.",
-      category: "Partnership",
-      href: "/press/microsoft-partnership",
-    },
-    {
-      title: "PdfPage Raises $25M Series B for Global Expansion",
-      date: "September 10, 2024",
-      excerpt:
-        "Funding round led by Accel Partners will accelerate international growth and product development.",
-      category: "Funding",
-      href: "/press/series-b-funding",
-    },
+  const pressStats = [
+    { icon: Users, number: "2.5M+", label: "Active Users", color: "text-blue-600" },
+    { icon: Globe, number: "150+", label: "Countries", color: "text-green-600" },
+    { icon: FileText, number: "25+", label: "PDF Tools", color: "text-purple-600" },
+    { icon: TrendingUp, number: "500M+", label: "Files Processed", color: "text-orange-600" },
   ];
 
-  const mediaKit = [
+  const milestones = [
     {
-      title: "Company Logo Pack",
-      description: "High-resolution logos in various formats (PNG, SVG, EPS)",
-      type: "Images",
-      icon: Image,
-      size: "2.3 MB",
-      href: "/media/logo-pack.zip",
+      date: "2024 Q4",
+      title: "AI-Powered PDF Tools Launch",
+      description: "Introduced AI-powered PDF conversion and editing capabilities",
+      type: "Product",
     },
     {
-      title: "Product Screenshots",
-      description: "Marketing-ready screenshots of all PDF tools and features",
-      type: "Images",
-      icon: Image,
-      size: "15.7 MB",
-      href: "/media/screenshots.zip",
+      date: "2024 Q3",
+      title: "2 Million User Milestone",
+      description: "Reached 2 million active users worldwide",
+      type: "Growth",
     },
     {
-      title: "Company Fact Sheet",
-      description: "Key statistics, milestones, and company information",
-      type: "Document",
-      icon: FileText,
-      size: "245 KB",
-      href: "/media/fact-sheet.pdf",
+      date: "2024 Q2",
+      title: "Mobile App Launch",
+      description: "Released native mobile applications for iOS and Android",
+      type: "Product",
     },
     {
-      title: "Executive Photos",
-      description: "Professional headshots of leadership team",
-      type: "Images",
-      icon: Image,
-      size: "8.2 MB",
-      href: "/media/executive-photos.zip",
+      date: "2024 Q1",
+      title: "Enterprise Edition",
+      description: "Launched enterprise solutions with advanced security features",
+      type: "Business",
     },
     {
-      title: "Product Demo Video",
-      description: "2-minute overview of PdfPage platform and features",
-      type: "Video",
-      icon: Video,
-      size: "45 MB",
-      href: "/media/product-demo.mp4",
+      date: "2023",
+      title: "Company Founded",
+      description: "PdfPage was founded to make PDF processing accessible to everyone",
+      type: "Milestone",
     },
   ];
 
   const awards = [
     {
-      title: "Best PDF Software 2024",
-      organization: "Software Review",
+      title: "Best Free PDF Tool 2024",
+      organization: "TechRadar",
       date: "2024",
-      description:
-        "Recognized for innovation in document processing technology",
+      description: "Recognized for comprehensive features and user experience",
     },
     {
-      title: "Top 50 SaaS Startups",
-      organization: "TechCrunch",
+      title: "Editor's Choice Award",
+      organization: "PCMag",
       date: "2024",
-      description:
-        "Featured among the most promising software-as-a-service companies",
+      description: "Outstanding performance in PDF processing and conversion",
     },
     {
-      title: "Customer Choice Award",
-      organization: "G2 Crowd",
-      date: "2023",
-      description: "Highest user satisfaction rating in PDF tools category",
-    },
-    {
-      title: "Innovation Excellence Award",
-      organization: "Digital Document World",
-      date: "2023",
-      description: "Outstanding contribution to digital document management",
+      title: "Innovation Award",
+      organization: "Web Summit",
+      date: "2024",
+      description: "AI-powered document processing innovation",
     },
   ];
 
-  const stats = [
-    { number: "10M+", label: "PDFs Processed Monthly", icon: FileText },
-    { number: "500K+", label: "Active Users", icon: Users },
-    { number: "190+", label: "Countries Served", icon: Globe },
-    { number: "99.9%", label: "Platform Uptime", icon: TrendingUp },
+  const mediaKit = [
+    {
+      type: "Logos",
+      title: "Company Logos",
+      description: "High-resolution logos in various formats",
+      items: [
+        { name: "Primary Logo (PNG)", size: "2MB", format: "PNG" },
+        { name: "Logo Variations (ZIP)", size: "5MB", format: "ZIP" },
+        { name: "Brand Guidelines (PDF)", size: "1.5MB", format: "PDF" },
+      ],
+    },
+    {
+      type: "Screenshots",
+      title: "Product Screenshots",
+      description: "Marketing-ready screenshots of all PDF tools and features",
+      items: [
+        { name: "Tool Interface Screenshots", size: "15MB", format: "ZIP" },
+        { name: "Mobile App Screenshots", size: "8MB", format: "ZIP" },
+        { name: "Dashboard Screenshots", size: "3MB", format: "ZIP" },
+      ],
+    },
+    {
+      type: "Assets",
+      title: "Marketing Assets",
+      description: "Ready-to-use marketing materials and graphics",
+      items: [
+        { name: "Social Media Kit", size: "12MB", format: "ZIP" },
+        { name: "Banner Images", size: "6MB", format: "ZIP" },
+        { name: "Icon Pack", size: "2MB", format: "ZIP" },
+      ],
+    },
   ];
+
+  const pressReleases = [
+    {
+      date: "2024-12-15",
+      title: "PdfPage Launches Revolutionary AI-Powered PDF Editor",
+      excerpt: "New AI technology enables intelligent document editing and automatic formatting corrections.",
+      category: "Product Launch",
+    },
+    {
+      date: "2024-11-20",
+      title: "PdfPage Reaches 2 Million Active Users Milestone",
+      excerpt: "Platform growth accelerates as demand for online PDF tools continues to surge.",
+      category: "Company News",
+    },
+    {
+      date: "2024-10-10",
+      title: "PdfPage Introduces Enterprise Security Features",
+      excerpt: "New enterprise-grade security features meet corporate compliance requirements.",
+      category: "Product Update",
+    },
+    {
+      date: "2024-09-05",
+      title: "PdfPage Partners with Major Cloud Storage Providers",
+      excerpt: "Seamless integration with Google Drive, Dropbox, and OneDrive now available.",
+      category: "Partnership",
+    },
+  ];
+
+  const teamInfo = {
+    ceo: {
+      name: "Adarsh Kumar",
+      title: "CEO & Founder",
+      bio: "Passionate about making document processing accessible to everyone. 10+ years in tech innovation.",
+      image: "https://cdn.builder.io/api/v1/image/assets%2Ffcbdb28308084edfa1fffc265e57f46e%2F5791d498f9994470ae52d766d30e56ee?format=webp&width=200",
+    },
+    company: {
+      name: "PdfPage Technologies LLC",
+      founded: "2023",
+      headquarters: "Patna, Bihar, India",
+      employees: "10-50",
+      mission: "To democratize access to professional PDF processing tools through innovative web technology.",
+    },
+  };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-white">
+      <SEO
+        title="Press Kit & Media Resources | PdfPage"
+        description="Press kit, media resources, company information, and brand assets for PdfPage - The Ultimate PDF Toolkit. Download logos, screenshots, and press materials."
+        keywords="press kit, media resources, company information, brand assets, PdfPage news, press releases"
+        canonical="/press"
+        ogImage="/images/press-kit.jpg"
+      />
       <Header />
 
       {/* Hero Section */}
-      <section className="py-20 bg-gradient-to-br from-brand-red/5 to-red-50">
+      <section className="pt-20 pb-16 bg-gradient-to-r from-blue-600 to-purple-700 text-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center max-w-4xl mx-auto">
-            <h1 className="text-4xl lg:text-6xl font-bold text-text-dark mb-6">
-              Press & <span className="text-brand-red">Media</span>
+          <div className="text-center">
+            <Badge className="mb-6 bg-white/20 text-white border-white/30">
+              📰 Press & Media
+            </Badge>
+            <h1 className="text-5xl lg:text-6xl font-bold mb-6">
+              Press Kit & Media Resources
             </h1>
-            <p className="text-xl text-text-medium mb-8">
-              Latest news, announcements, and media resources about PdfPage
+            <p className="text-xl lg:text-2xl mb-8 max-w-4xl mx-auto leading-relaxed opacity-90">
+              Get the latest news, company information, and marketing assets for PdfPage - 
+              the world's most trusted PDF processing platform.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Button
-                asChild
-                size="lg"
-                className="bg-brand-red hover:bg-red-700"
-              >
-                <Link to="/contact">Media Inquiries</Link>
-              </Button>
-              <Button variant="outline" size="lg">
-                <Download className="mr-2 h-4 w-4" />
+              <Button size="lg" variant="secondary" className="bg-white text-blue-600 hover:bg-gray-100">
+                <Download className="mr-2 h-5 w-5" />
                 Download Media Kit
+              </Button>
+              <Button size="lg" variant="outline" className="border-white text-white hover:bg-white/10">
+                <Mail className="mr-2 h-5 w-5" />
+                Contact Press Team
               </Button>
             </div>
           </div>
@@ -166,172 +203,238 @@ const Press = () => {
       {/* Company Stats */}
       <section className="py-16 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl font-bold text-text-dark mb-4">
-              By the Numbers
-            </h2>
-            <p className="text-lg text-text-medium">
-              Key metrics that define our impact
-            </p>
-          </div>
+          <h2 className="text-3xl font-bold text-center mb-12">PdfPage by the Numbers</h2>
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-8">
-            {stats.map((stat, index) => (
-              <div key={index} className="text-center">
-                <div className="mx-auto w-16 h-16 bg-brand-red/10 rounded-lg flex items-center justify-center mb-4">
-                  <stat.icon className="h-8 w-8 text-brand-red" />
+            {pressStats.map((stat, index) => (
+              <div key={index} className="text-center group">
+                <div className={`w-16 h-16 ${stat.color} bg-opacity-10 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform duration-300`}>
+                  <stat.icon className={`w-8 h-8 ${stat.color}`} />
                 </div>
-                <div className="text-3xl font-bold text-text-dark mb-2">
-                  {stat.number}
-                </div>
-                <div className="text-text-medium">{stat.label}</div>
+                <div className="text-4xl font-bold text-gray-900 mb-2">{stat.number}</div>
+                <div className="text-gray-600 font-medium">{stat.label}</div>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div className="grid lg:grid-cols-3 gap-8">
-          {/* Press Releases */}
-          <div className="lg:col-span-2">
-            <h2 className="text-2xl font-bold text-text-dark mb-6">
-              Latest Press Releases
-            </h2>
-            <div className="space-y-6">
-              {pressReleases.map((release, index) => (
-                <Card key={index} className="hover:shadow-lg transition-shadow">
-                  <CardContent className="p-6">
-                    <div className="flex items-start justify-between mb-3">
-                      <Badge className="bg-brand-red/10 text-brand-red border-brand-red/20">
-                        {release.category}
-                      </Badge>
-                      <div className="flex items-center text-sm text-text-light">
-                        <Calendar className="h-4 w-4 mr-1" />
-                        {release.date}
+      {/* Press Releases */}
+      <section className="py-16 bg-gray-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between mb-12">
+            <h2 className="text-3xl font-bold">Latest Press Releases</h2>
+            <Button variant="outline">
+              <FileText className="mr-2 h-4 w-4" />
+              View All Releases
+            </Button>
+          </div>
+          <div className="grid gap-6">
+            {pressReleases.map((release, index) => (
+              <Card key={index} className="hover:shadow-lg transition-shadow duration-300">
+                <CardContent className="p-6">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-3 mb-3">
+                        <Badge variant="secondary">{release.category}</Badge>
+                        <span className="text-sm text-gray-500">{release.date}</span>
+                      </div>
+                      <h3 className="text-xl font-semibold text-gray-900 mb-3 hover:text-blue-600 transition-colors">
+                        {release.title}
+                      </h3>
+                      <p className="text-gray-600 mb-4">{release.excerpt}</p>
+                      <div className="flex gap-3">
+                        <Button variant="outline" size="sm">
+                          <FileText className="mr-2 h-4 w-4" />
+                          Read Full Release
+                        </Button>
+                        <Button variant="ghost" size="sm">
+                          <Download className="mr-2 h-4 w-4" />
+                          Download PDF
+                        </Button>
                       </div>
                     </div>
-                    <h3 className="text-xl font-semibold text-text-dark mb-3">
-                      {release.title}
-                    </h3>
-                    <p className="text-text-medium mb-4">{release.excerpt}</p>
-                    <Button variant="outline" size="sm" asChild>
-                      <Link to={release.href}>
-                        Read Full Release{" "}
-                        <ExternalLink className="ml-2 h-3 w-3" />
-                      </Link>
-                    </Button>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          </div>
-
-          {/* Sidebar */}
-          <div className="space-y-8">
-            {/* Media Kit */}
-            <div>
-              <h3 className="text-xl font-bold text-text-dark mb-4">
-                Media Kit
-              </h3>
-              <div className="space-y-3">
-                {mediaKit.map((item, index) => (
-                  <Card
-                    key={index}
-                    className="hover:shadow-md transition-shadow"
-                  >
-                    <CardContent className="p-4">
-                      <div className="flex items-start gap-3">
-                        <div className="w-10 h-10 bg-brand-red/10 rounded-lg flex items-center justify-center flex-shrink-0">
-                          <item.icon className="h-5 w-5 text-brand-red" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <h4 className="font-medium text-text-dark text-sm mb-1">
-                            {item.title}
-                          </h4>
-                          <p className="text-xs text-text-medium mb-2">
-                            {item.description}
-                          </p>
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs text-text-light">
-                              {item.size}
-                            </span>
-                            <Button size="sm" variant="outline" asChild>
-                              <Link to={item.href}>
-                                <Download className="h-3 w-3" />
-                              </Link>
-                            </Button>
-                          </div>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            </div>
-
-            {/* Awards */}
-            <div>
-              <h3 className="text-xl font-bold text-text-dark mb-4">
-                Awards & Recognition
-              </h3>
-              <div className="space-y-4">
-                {awards.map((award, index) => (
-                  <Card key={index} className="border-l-4 border-l-brand-red">
-                    <CardContent className="p-4">
-                      <div className="flex items-start gap-3">
-                        <Award className="h-5 w-5 text-brand-red flex-shrink-0 mt-0.5" />
-                        <div>
-                          <h4 className="font-medium text-text-dark text-sm mb-1">
-                            {award.title}
-                          </h4>
-                          <p className="text-xs text-brand-red mb-1">
-                            {award.organization} • {award.date}
-                          </p>
-                          <p className="text-xs text-text-medium">
-                            {award.description}
-                          </p>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
           </div>
         </div>
-      </div>
+      </section>
 
-      {/* Contact Section */}
+      {/* Media Kit Downloads */}
+      <section className="py-16 bg-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <h2 className="text-3xl font-bold text-center mb-12">Media Kit & Brand Assets</h2>
+          <div className="grid lg:grid-cols-3 gap-8">
+            {mediaKit.map((kit, index) => (
+              <Card key={index} className="hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
+                <CardHeader className="text-center">
+                  <div className="w-16 h-16 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                    {kit.type === "Logos" && <Image className="w-8 h-8 text-white" />}
+                    {kit.type === "Screenshots" && <Video className="w-8 h-8 text-white" />}
+                    {kit.type === "Assets" && <Zap className="w-8 h-8 text-white" />}
+                  </div>
+                  <CardTitle className="text-xl">{kit.title}</CardTitle>
+                  <p className="text-gray-600">{kit.description}</p>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {kit.items.map((item, itemIndex) => (
+                    <div key={itemIndex} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+                      <div>
+                        <div className="font-medium text-gray-900">{item.name}</div>
+                        <div className="text-sm text-gray-500">{item.size} • {item.format}</div>
+                      </div>
+                      <Button size="sm" variant="ghost">
+                        <Download className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ))}
+                  <Button className="w-full mt-4">
+                    <Download className="mr-2 h-4 w-4" />
+                    Download All {kit.type}
+                  </Button>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Company Timeline */}
       <section className="py-16 bg-gray-50">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h2 className="text-3xl font-bold text-text-dark mb-4">
-            Media Inquiries
-          </h2>
-          <p className="text-lg text-text-medium mb-8">
-            For interviews, press releases, or media assets, please contact our
-            press team.
-          </p>
-          <div className="bg-white rounded-lg p-6 shadow-sm">
-            <div className="text-left max-w-md mx-auto space-y-2">
-              <div>
-                <span className="font-medium text-text-dark">
-                  Press Contact:
-                </span>
-                <span className="text-text-medium ml-2">
-                  Sarah Chen, VP Marketing
-                </span>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <h2 className="text-3xl font-bold text-center mb-12">Company Milestones</h2>
+          <div className="max-w-4xl mx-auto">
+            {milestones.map((milestone, index) => (
+              <div key={index} className="flex items-start mb-8 last:mb-0">
+                <div className="flex-shrink-0 w-24 text-right pr-6">
+                  <div className="text-sm font-semibold text-blue-600">{milestone.date}</div>
+                </div>
+                <div className="flex-shrink-0 w-4 h-4 bg-blue-600 rounded-full mt-1 relative">
+                  {index !== milestones.length - 1 && (
+                    <div className="absolute top-4 left-1/2 transform -translate-x-1/2 w-0.5 h-16 bg-blue-200"></div>
+                  )}
+                </div>
+                <div className="flex-1 pl-6">
+                  <div className="flex items-center gap-3 mb-2">
+                    <h3 className="text-lg font-semibold text-gray-900">{milestone.title}</h3>
+                    <Badge variant="outline">{milestone.type}</Badge>
+                  </div>
+                  <p className="text-gray-600">{milestone.description}</p>
+                </div>
               </div>
-              <div>
-                <span className="font-medium text-text-dark">Email:</span>
-                <span className="text-brand-red ml-2">Hipdfpage@gmail.com</span>
-              </div>
-              <div>
-                <span className="font-medium text-text-dark">
-                  Response Time:
-                </span>
-                <span className="text-text-medium ml-2">Within 24 hours</span>
-              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Awards & Recognition */}
+      <section className="py-16 bg-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <h2 className="text-3xl font-bold text-center mb-12">Awards & Recognition</h2>
+          <div className="grid lg:grid-cols-3 gap-8">
+            {awards.map((award, index) => (
+              <Card key={index} className="text-center hover:shadow-lg transition-shadow duration-300">
+                <CardContent className="p-6">
+                  <div className="w-16 h-16 bg-gradient-to-r from-yellow-400 to-orange-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <Award className="w-8 h-8 text-white" />
+                  </div>
+                  <h3 className="text-xl font-semibold text-gray-900 mb-2">{award.title}</h3>
+                  <p className="text-blue-600 font-medium mb-2">{award.organization}</p>
+                  <p className="text-gray-500 text-sm mb-3">{award.date}</p>
+                  <p className="text-gray-600">{award.description}</p>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Company Information */}
+      <section className="py-16 bg-gray-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <h2 className="text-3xl font-bold text-center mb-12">Company Information</h2>
+          <div className="grid lg:grid-cols-2 gap-12">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-3">
+                  <Building className="w-6 h-6 text-blue-600" />
+                  About PdfPage
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <div className="text-sm text-gray-500">Founded</div>
+                    <div className="font-semibold">{teamInfo.company.founded}</div>
+                  </div>
+                  <div>
+                    <div className="text-sm text-gray-500">Employees</div>
+                    <div className="font-semibold">{teamInfo.company.employees}</div>
+                  </div>
+                  <div>
+                    <div className="text-sm text-gray-500">Headquarters</div>
+                    <div className="font-semibold">{teamInfo.company.headquarters}</div>
+                  </div>
+                  <div>
+                    <div className="text-sm text-gray-500">Legal Name</div>
+                    <div className="font-semibold">{teamInfo.company.name}</div>
+                  </div>
+                </div>
+                <div>
+                  <div className="text-sm text-gray-500 mb-2">Mission</div>
+                  <p className="text-gray-700">{teamInfo.company.mission}</p>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-3">
+                  <User className="w-6 h-6 text-blue-600" />
+                  Leadership Team
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-start gap-4">
+                  <img
+                    src={teamInfo.ceo.image}
+                    alt={teamInfo.ceo.name}
+                    className="w-16 h-16 rounded-full object-cover"
+                  />
+                  <div className="flex-1">
+                    <h3 className="font-semibold text-gray-900">{teamInfo.ceo.name}</h3>
+                    <p className="text-blue-600 text-sm mb-2">{teamInfo.ceo.title}</p>
+                    <p className="text-gray-600 text-sm">{teamInfo.ceo.bio}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </section>
+
+      {/* Contact Information */}
+      <section className="py-16 bg-blue-600 text-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+          <h2 className="text-3xl font-bold mb-8">Press Contact</h2>
+          <div className="max-w-2xl mx-auto">
+            <p className="text-xl mb-8 opacity-90">
+              For press inquiries, interviews, or additional information, please contact our media team.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              <Button size="lg" variant="secondary" className="bg-white text-blue-600 hover:bg-gray-100">
+                <Mail className="mr-2 h-5 w-5" />
+                press@pdfpage.in
+              </Button>
+              <Button size="lg" variant="outline" className="border-white text-white hover:bg-white/10">
+                <Phone className="mr-2 h-5 w-5" />
+                +1 (800) PDF-PAGE
+              </Button>
             </div>
+            <p className="mt-6 text-sm opacity-75">
+              Response time: 24-48 hours for media inquiries
+            </p>
           </div>
         </div>
       </section>

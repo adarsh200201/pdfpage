@@ -165,6 +165,12 @@ import AccountTest from "./pages/AccountTest";
 import AdminRoute from "./components/admin/AdminRoute";
 import LibreOfficeTools from "./pages/LibreOfficeTools";
 
+// Import new enterprise and support pages
+import Press from "./pages/Press";
+import Help from "./pages/Help";
+import Enterprise from "./pages/Enterprise";
+import Download from "./pages/Download";
+
 const queryClient = new QueryClient();
 
 // Component to control scroll behavior for tools
@@ -414,6 +420,10 @@ const App = () => {
                       <Route path="/careers" element={<Careers />} />
                       <Route path="/contact" element={<Contact />} />
                       <Route path="/affiliate" element={<Affiliate />} />
+                      <Route path="/press" element={<Press />} />
+                      <Route path="/help" element={<Help />} />
+                      <Route path="/enterprise" element={<Enterprise />} />
+                      <Route path="/download" element={<Download />} />
                       <Route
                         path="/feature-requests"
                         element={<FeatureRequests />}

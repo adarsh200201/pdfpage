@@ -1,10 +1,50 @@
-# PDFPage Robots.txt
-# Professional PDF and Image Tools - Optimized for Search Engines
+# Robots.txt for PdfPage.in - The Ultimate PDF Toolkit
+# Allow all search engines to crawl all content for maximum SEO
 
 User-agent: *
 Allow: /
 
-# Allow all major search engines
+# Block access to admin and sensitive areas
+Disallow: /admin/
+Disallow: /api/
+Disallow: /backend/
+Disallow: /_redirects
+Disallow: /scripts/
+Disallow: /config/
+
+# Allow access to important files
+Allow: /robots.txt
+Allow: /sitemap.xml
+Allow: /favicon.ico
+Allow: /.well-known/
+
+# Block crawling of user-specific content
+Disallow: /dashboard/
+Disallow: /settings/
+Disallow: /profile/
+
+# Block temporary or test pages
+Disallow: /test/
+Disallow: /debug/
+Disallow: /temp/
+
+# Sitemap locations
+Sitemap: https://pdfpage.in/sitemap-index.xml
+Sitemap: https://pdfpage.in/sitemap.xml
+Sitemap: https://pdfpage.in/sitemap-tools.xml
+Sitemap: https://pdfpage.in/sitemap-images.xml
+
+# Crawl delay (optional - helps with server load)
+Crawl-delay: 1
+
+# Allow access to all static assets
+Allow: /assets/
+Allow: /images/
+Allow: /css/
+Allow: /js/
+Allow: /fonts/
+
+# For specific search engines
 User-agent: Googlebot
 Allow: /
 Crawl-delay: 1
@@ -15,112 +55,14 @@ Crawl-delay: 1
 
 User-agent: Slurp
 Allow: /
-Crawl-delay: 1
-
-User-agent: DuckDuckBot
-Allow: /
-Crawl-delay: 1
-
-User-agent: Baiduspider
-Allow: /
 Crawl-delay: 2
 
-User-agent: YandexBot
-Allow: /
-Crawl-delay: 2
+# Block bad bots
+User-agent: AhrefsBot
+Disallow: /
 
-User-agent: facebookexternalhit
-Allow: /
+User-agent: MJ12bot
+Disallow: /
 
-User-agent: Twitterbot
-Allow: /
-
-User-agent: LinkedInBot
-Allow: /
-
-User-agent: WhatsApp
-Allow: /
-
-User-agent: TelegramBot
-Allow: /
-
-# Block specific paths that shouldn't be indexed
-Disallow: /admin/
-Disallow: /dashboard/
-Disallow: /api/
-Disallow: /uploads/
-Disallow: /temp/
-Disallow: /cache/
-Disallow: /_/
-Disallow: /node_modules/
-Disallow: /src/
-Disallow: /logs/
-Disallow: /.git/
-Disallow: /.env
-Disallow: /package.json
-Disallow: /package-lock.json
-Disallow: /yarn.lock
-Disallow: /Dockerfile
-Disallow: /.docker/
-Disallow: /scripts/
-Disallow: /webpack.config.js
-Disallow: /vite.config.js
-Disallow: /tsconfig.json
-Disallow: /*.log$
-Disallow: /*?auth=*
-Disallow: /*?token=*
-Disallow: /*?session=*
-Disallow: /login?*
-Disallow: /register?*
-Disallow: /auth/
-Disallow: /test/
-Disallow: /*.tmp$
-Disallow: /*.temp$
-
-# Block common junk URLs
-Disallow: /*?utm_*
-Disallow: /*?ref=*
-Disallow: /*?gclid=*
-Disallow: /*?fbclid=*
-Disallow: /*?source=*
-Disallow: /*?medium=*
-Disallow: /*?campaign=*
-
-# Allow important assets and tools
-Allow: /img/
-Allow: /favicon/
-Allow: /merge
-Allow: /split
-Allow: /compress
-Allow: /pdf-to-word
-Allow: /word-to-pdf
-Allow: /pdf-to-jpg
-Allow: /jpg-to-pdf
-Allow: /*.css$
-Allow: /*.js$
-Allow: /*.png$
-Allow: /*.jpg$
-Allow: /*.jpeg$
-Allow: /*.gif$
-Allow: /*.webp$
-Allow: /*.svg$
-Allow: /*.ico$
-Allow: /*.woff$
-Allow: /*.woff2$
-Allow: /*.ttf$
-Allow: /*.eot$
-
-# Sitemap locations
-Sitemap: https://pdfpage.in/sitemap.xml
-
-# Additional crawl directives
-# Cache: 1 day for static assets
-# Allow aggressive crawling of main tools
-# Prioritize high-value pages
-
-# SEO Notes:
-# - Main tools are prioritized for crawling
-# - Authentication and admin areas are blocked
-# - Asset files are explicitly allowed
-# - Social media bots have full access
-# - Crawl delays are set conservatively to avoid overloading servers
+User-agent: DotBot
+Disallow: /
