@@ -11,36 +11,11 @@ const passport = require("../config/passport");
 const { markConversionFromSoftLimit } = require("../utils/ipUsageUtils");
 const { getRealIPAddress } = require("../utils/ipUtils");
 const logger = require("../utils/logger");
+const corsMiddleware = require("../middleware/corsMiddleware");
 const router = express.Router();
 
-// CORS middleware specifically for auth routes
-router.use((req, res, next) => {
-  const origin = req.headers.origin;
-
-  // Set CORS headers for auth routes
-  if (origin && (
-    origin === 'https://pdfpage.in' ||
-    origin === 'https://pdfpagee.netlify.app' ||
-    origin.includes('localhost')
-  )) {
-    res.header("Access-Control-Allow-Origin", origin);
-  } else {
-    res.header("Access-Control-Allow-Origin", "https://pdfpage.in");
-  }
-
-  res.header("Access-Control-Allow-Credentials", "true");
-  res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
-  res.header("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With, Accept, Origin");
-  res.header("Access-Control-Expose-Headers", "Authorization");
-
-  // Handle OPTIONS preflight for auth routes
-  if (req.method === 'OPTIONS') {
-    res.header("Access-Control-Max-Age", "86400");
-    return res.sendStatus(200);
-  }
-
-  next();
-});
+// Apply CORS middleware to all auth routes
+router.use(corsMiddleware);
 
 // Helper function to generate JWT token
 const generateToken = (userId) => {

@@ -1,8 +1,12 @@
 const express = require("express");
+const corsMiddleware = require("../middleware/corsMiddleware");
 const router = express.Router();
 const Usage = require("../models/Usage");
 const User = require("../models/User");
 const IpUsageLog = require("../models/IpUsageLog");
+
+// Apply CORS middleware to all stats routes
+router.use(corsMiddleware);
 
 // @route   GET /api/stats/dashboard
 // @desc    Get real-time dashboard statistics

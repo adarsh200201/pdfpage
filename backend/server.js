@@ -32,6 +32,28 @@ app.use(passport.initialize());
 const keepAliveMiddleware = require('./middleware/keepAlive');
 app.use(keepAliveMiddleware);
 
+// Global CORS middleware - runs before everything else
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+
+  // Set CORS headers for all requests
+  if (origin && (
+    origin === 'https://pdfpage.in' ||
+    origin === 'https://pdfpagee.netlify.app' ||
+    origin.includes('localhost')
+  )) {
+    res.header("Access-Control-Allow-Origin", origin);
+  } else {
+    res.header("Access-Control-Allow-Origin", "https://pdfpage.in");
+  }
+
+  res.header("Access-Control-Allow-Credentials", "true");
+  res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS, HEAD");
+  res.header("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With, Accept, Origin");
+
+  next();
+});
+
 // Security middleware
 // Security middleware with disabled CSP for frontend compatibility
 app.use(
@@ -118,12 +140,14 @@ if (process.env.NODE_ENV === "development") {
   });
 }
 
-// Enhanced CORS preflight handler for all OPTIONS requests
+// Enhanced CORS preflight handler - CRITICAL FOR FRONTEND
 app.options("*", (req, res) => {
   const origin = req.headers.origin;
-  console.log(`🔧 OPTIONS preflight from: ${origin}`);
+  console.log(`🔧 [CRITICAL] OPTIONS preflight from: ${origin}`);
+  console.log(`🔧 [CRITICAL] Request path: ${req.path}`);
+  console.log(`🔧 [CRITICAL] Request headers: ${JSON.stringify(req.headers)}`);
 
-  // Validate origin against allowed origins
+  // Always allow pdfpage.in in production
   const allowedOrigins = [
     "https://pdfpage.in",
     "https://pdfpagee.netlify.app",
@@ -134,32 +158,25 @@ app.options("*", (req, res) => {
 
   const isAllowedOrigin = allowedOrigins.includes(origin) || /^http:\/\/localhost:\d+$/.test(origin);
 
-  if (isAllowedOrigin) {
-    res.header("Access-Control-Allow-Origin", origin);
+  // Set CORS headers - be more permissive for debugging
+  if (isAllowedOrigin || !origin) {
+    res.header("Access-Control-Allow-Origin", origin || "https://pdfpage.in");
   } else {
     res.header("Access-Control-Allow-Origin", "https://pdfpage.in");
   }
 
   res.header("Access-Control-Allow-Credentials", "true");
-  res.header(
-    "Access-Control-Allow-Methods",
-    "GET, POST, PUT, DELETE, OPTIONS, HEAD, PATCH",
-  );
-  res.header(
-    "Access-Control-Allow-Headers",
-    "Content-Type, Authorization, X-Requested-With, Accept, Origin, Cache-Control, Pragma, X-CSRF-Token",
-  );
-  res.header(
-    "Access-Control-Expose-Headers",
-    "X-Compression-Ratio, X-Original-Size, X-Compressed-Size, X-Size-Saved, X-Compression-Level",
-  );
-  res.header("Access-Control-Max-Age", "86400"); // 24 hours
+  res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS, HEAD, PATCH");
+  res.header("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With, Accept, Origin, Cache-Control, Pragma, X-CSRF-Token, X-API-Key");
+  res.header("Access-Control-Expose-Headers", "X-Compression-Ratio, X-Original-Size, X-Compressed-Size, X-Size-Saved, X-Compression-Level, Authorization");
+  res.header("Access-Control-Max-Age", "86400");
 
   // Ensure no caching of preflight
   res.header("Cache-Control", "no-cache, no-store, must-revalidate");
   res.header("Pragma", "no-cache");
   res.header("Expires", "0");
 
+  console.log(`✅ [CRITICAL] CORS headers set for ${origin}`);
   res.sendStatus(200);
 });
 
