@@ -210,18 +210,7 @@ if (
   });
 }
 
-// Root endpoint for health checks and basic info
-app.get("/", (req, res) => {
-  res.status(200).json({
-    status: "OK",
-    message: "PdfPage API Server is running",
-    api: "/api",
-    health: "/api/health",
-    timestamp: new Date().toISOString(),
-    uptime: process.uptime(),
-    version: "1.0.0"
-  });
-});
+// This root endpoint will be moved to before the catch-all route
 
 // Health check endpoint
 app.get("/api/health", (req, res) => {
@@ -272,6 +261,32 @@ app.get("/api/test-device", (req, res) => {
   });
 });
 
+// Global 404 handler for unmatched routes (should be last)
+app.use("*", (req, res, next) => {
+  // Skip if this request was already handled by other routes
+  if (res.headersSent) {
+    return next();
+  }
+
+  if (req.path.startsWith("/api/")) {
+    res.status(404).json({
+      message: "API route not found",
+      path: req.path,
+      method: req.method
+    });
+  } else {
+    res.status(404).json({
+      message: "Route not found",
+      availableEndpoints: {
+        root: "/",
+        api: "/api/*",
+        health: "/api/health"
+      },
+      frontend: "https://pdfpage.in"
+    });
+  }
+});
+
 // Error handling middleware
 app.use((err, req, res, next) => {
   logger.error(`Error ${err.status || 500}: ${err.message}`, {
@@ -288,6 +303,20 @@ app.use((err, req, res, next) => {
         ? "Something went wrong!"
         : err.message,
     error: process.env.NODE_ENV === "development" ? err.message : undefined,
+  });
+});
+
+// Root endpoint for health checks and basic info (must be before catch-all)
+app.get("/", (req, res) => {
+  res.status(200).json({
+    status: "OK",
+    message: "PdfPage API Server is running",
+    api: "/api",
+    health: "/api/health",
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+    version: "1.0.0",
+    environment: process.env.NODE_ENV
   });
 });
 
@@ -349,13 +378,6 @@ if (process.env.NODE_ENV === "production") {
         message: "API route not found",
       });
     }
-  });
-} else {
-  // Development 404 handler
-  app.use("*", (req, res) => {
-    res.status(404).json({
-      message: "Route not found",
-    });
   });
 }
 
