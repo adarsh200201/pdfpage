@@ -3,6 +3,17 @@ const User = require("../models/User");
 
 // Middleware to verify JWT token
 const auth = async (req, res, next) => {
+  // Preserve CORS headers from previous middleware
+  const origin = req.headers.origin;
+  if (origin && (
+    origin === 'https://pdfpage.in' ||
+    origin === 'https://pdfpagee.netlify.app' ||
+    origin.includes('localhost')
+  )) {
+    res.header("Access-Control-Allow-Origin", origin);
+    res.header("Access-Control-Allow-Credentials", "true");
+  }
+
   try {
     let token;
 

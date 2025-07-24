@@ -13,6 +13,35 @@ const { getRealIPAddress } = require("../utils/ipUtils");
 const logger = require("../utils/logger");
 const router = express.Router();
 
+// CORS middleware specifically for auth routes
+router.use((req, res, next) => {
+  const origin = req.headers.origin;
+
+  // Set CORS headers for auth routes
+  if (origin && (
+    origin === 'https://pdfpage.in' ||
+    origin === 'https://pdfpagee.netlify.app' ||
+    origin.includes('localhost')
+  )) {
+    res.header("Access-Control-Allow-Origin", origin);
+  } else {
+    res.header("Access-Control-Allow-Origin", "https://pdfpage.in");
+  }
+
+  res.header("Access-Control-Allow-Credentials", "true");
+  res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+  res.header("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With, Accept, Origin");
+  res.header("Access-Control-Expose-Headers", "Authorization");
+
+  // Handle OPTIONS preflight for auth routes
+  if (req.method === 'OPTIONS') {
+    res.header("Access-Control-Max-Age", "86400");
+    return res.sendStatus(200);
+  }
+
+  next();
+});
+
 // Helper function to generate JWT token
 const generateToken = (userId) => {
   return jwt.sign({ userId }, process.env.JWT_SECRET, {
@@ -274,11 +303,41 @@ router.post(
   },
 );
 
+// @route   GET /api/auth/test-cors
+// @desc    Test CORS configuration for auth routes
+// @access  Public
+router.get("/test-cors", (req, res) => {
+  const origin = req.headers.origin;
+  console.log(`🧪 CORS Test - Origin: ${origin}`);
+
+  res.json({
+    success: true,
+    message: "CORS test successful",
+    origin: origin,
+    headers: {
+      'access-control-allow-origin': res.getHeader('Access-Control-Allow-Origin'),
+      'access-control-allow-credentials': res.getHeader('Access-Control-Allow-Credentials'),
+    },
+    timestamp: new Date().toISOString()
+  });
+});
+
 // @route   GET /api/auth/me
 // @desc    Get current logged in user
 // @access  Private
 router.get("/me", auth, async (req, res) => {
   try {
+    // Ensure CORS headers are set for this specific endpoint
+    const origin = req.headers.origin;
+    if (origin && (
+      origin === 'https://pdfpage.in' ||
+      origin === 'https://pdfpagee.netlify.app' ||
+      origin.includes('localhost')
+    )) {
+      res.header("Access-Control-Allow-Origin", origin);
+      res.header("Access-Control-Allow-Credentials", "true");
+    }
+
     const user = await User.findById(req.userId);
 
     const userData = {
