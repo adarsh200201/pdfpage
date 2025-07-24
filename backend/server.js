@@ -28,6 +28,10 @@ if (process.env.NODE_ENV === "development") {
 // Initialize Passport
 app.use(passport.initialize());
 
+// Keep-alive middleware for connection stability
+const keepAliveMiddleware = require('./middleware/keepAlive');
+app.use(keepAliveMiddleware);
+
 // Security middleware
 app.use(
   helmet({
@@ -205,6 +209,19 @@ if (
     res.sendFile(__dirname + "/test-schema.html");
   });
 }
+
+// Root endpoint for health checks and basic info
+app.get("/", (req, res) => {
+  res.status(200).json({
+    status: "OK",
+    message: "PdfPage API Server is running",
+    api: "/api",
+    health: "/api/health",
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+    version: "1.0.0"
+  });
+});
 
 // Health check endpoint
 app.get("/api/health", (req, res) => {
@@ -384,11 +401,24 @@ const PORT = process.env.PORT || 5000;
 
 // Handle port conflicts gracefully
 function startServer(port) {
-  const server = app.listen(port, () => {
+  const server = app.listen(port, '0.0.0.0', () => {
     logger.info(`Server running on port ${port}`, {
       port: port,
       environment: process.env.NODE_ENV,
       frontendUrl: process.env.FRONTEND_URL,
+    });
+    console.log(`🚀 PdfPage API Server is running on port ${port}`);
+  });
+
+  // Configure server timeouts for better stability
+  server.keepAliveTimeout = 61 * 1000; // 61 seconds (longer than ALB idle timeout)
+  server.headersTimeout = 65 * 1000; // 65 seconds (longer than keepAliveTimeout)
+
+  // Handle server shutdown gracefully
+  process.on('SIGTERM', () => {
+    console.log('🛑 SIGTERM received, shutting down gracefully');
+    server.close(() => {
+      console.log('💀 Process terminated');
     });
   });
 

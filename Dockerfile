@@ -74,9 +74,9 @@ ENV PUPPETEER_ARGS="--no-sandbox,--disable-setuid-sandbox,--disable-dev-shm-usag
 # Expose backend port (Render expects this)
 EXPOSE 5000
 
-# Health check
+# Health check - Updated to use root endpoint
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
-    CMD curl -f http://localhost:5000/api/health || exit 1
+    CMD curl -f http://localhost:5000/ || curl -f http://localhost:5000/api/health || exit 1
 
 # Start backend server
 WORKDIR /app/backend
