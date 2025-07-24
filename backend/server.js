@@ -209,6 +209,23 @@ app.use("/api/health", require("./routes/health"));
 // CORS debugging route (for troubleshooting) - temporarily enabled for production
 app.use("/api/cors-debug", require("./routes/cors-debug"));
 
+// Simple CORS test endpoint
+app.get("/api/test-cors", (req, res) => {
+  const origin = req.headers.origin;
+  console.log(`🧪 Direct CORS test from: ${origin}`);
+
+  res.header("Access-Control-Allow-Origin", origin || "https://pdfpage.in");
+  res.header("Access-Control-Allow-Credentials", "true");
+
+  res.json({
+    success: true,
+    message: "Direct CORS test successful",
+    origin: origin,
+    headers: req.headers,
+    timestamp: new Date().toISOString()
+  });
+});
+
 // Routes
 app.use("/api/auth", require("./routes/auth"));
 app.use("/api/users", require("./routes/users"));
@@ -336,22 +353,22 @@ app.use((err, req, res, next) => {
   });
 });
 
-// Root endpoint for health checks and basic info (must be before catch-all)
-app.get("/", (req, res) => {
-  res.status(200).json({
-    status: "OK",
-    message: "PdfPage API Server is running",
-    api: "/api",
-    health: "/api/health",
-    timestamp: new Date().toISOString(),
-    uptime: process.uptime(),
-    version: "1.0.0",
-    environment: process.env.NODE_ENV
-  });
-});
-
 // Handle non-API routes in production
 if (process.env.NODE_ENV === "production") {
+
+  // Root endpoint for health checks - MUST be before catch-all
+  app.get("/", (req, res) => {
+    res.status(200).json({
+      status: "OK",
+      message: "PdfPage API Server is running",
+      api: "/api",
+      health: "/api/health",
+      timestamp: new Date().toISOString(),
+      uptime: process.uptime(),
+      version: "1.0.0",
+      environment: process.env.NODE_ENV
+    });
+  });
   // For frontend routes accessed on backend domain, provide helpful redirect
   const frontendRoutes = [
     "/word-to-pdf",
@@ -408,6 +425,20 @@ if (process.env.NODE_ENV === "production") {
         message: "API route not found",
       });
     }
+  });
+} else {
+  // Development root endpoint
+  app.get("/", (req, res) => {
+    res.status(200).json({
+      status: "OK",
+      message: "PdfPage API Server is running (Development)",
+      api: "/api",
+      health: "/api/health",
+      timestamp: new Date().toISOString(),
+      uptime: process.uptime(),
+      version: "1.0.0",
+      environment: process.env.NODE_ENV || "development"
+    });
   });
 }
 
