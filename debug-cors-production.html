@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Production CORS Debug - PdfPage</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 1200px; margin: 0 auto; padding: 20px; }
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
+        .result { margin: 10px 0; padding: 10px; border-radius: 3px; }
+        .success { background-color: #d4edda; color: #155724; }
+        .error { background-color: #f8d7da; color: #721c24; }
+        button { margin: 5px; padding: 10px 15px; background: #007bff; color: white; border: none; border-radius: 3px; cursor: pointer; }
+        button:hover { background: #0056b3; }
+        pre { background: #f8f9fa; padding: 10px; border-radius: 3px; overflow-x: auto; }
+        .loading { background-color: #fff3cd; color: #856404; }
+    </style>
+</head>
+<body>
+    <h1>🔧 Production CORS Debugging Tool</h1>
+    <p>Testing CORS configuration for PdfPage backend deployment.</p>
+
+    <div class="test-section">
+        <h3>1. Root Endpoint Test</h3>
+        <button onclick="testRoot()">Test Root Endpoint</button>
+        <div id="root-result"></div>
+    </div>
+
+    <div class="test-section">
+        <h3>2. CORS Test Endpoint</h3>
+        <button onclick="testCorsEndpoint()">Test /api/test-cors</button>
+        <div id="cors-result"></div>
+    </div>
+
+    <div class="test-section">
+        <h3>3. Auth Endpoint Test (No Token)</h3>
+        <button onclick="testAuthEndpoint()">Test /api/auth/me (Should get 401 with CORS)</button>
+        <div id="auth-result"></div>
+    </div>
+
+    <div class="test-section">
+        <h3>4. Stats Endpoint Test</h3>
+        <button onclick="testStatsEndpoint()">Test /api/stats/dashboard</button>
+        <div id="stats-result"></div>
+    </div>
+
+    <div class="test-section">
+        <h3>5. Preflight Test</h3>
+        <button onclick="testPreflight()">Test OPTIONS Preflight</button>
+        <div id="preflight-result"></div>
+    </div>
+
+    <script>
+        const API_BASE = 'https://pdfpage-app.onrender.com';
+
+        function log(elementId, message, type = 'loading') {
+            const element = document.getElementById(elementId);
+            const div = document.createElement('div');
+            div.className = `result ${type}`;
+            div.innerHTML = message;
+            element.appendChild(div);
+        }
+
+        function clearResults(elementId) {
+            document.getElementById(elementId).innerHTML = '';
+        }
+
+        async function testRoot() {
+            clearResults('root-result');
+            log('root-result', '🔍 Testing root endpoint...');
+            
+            try {
+                const response = await fetch(`${API_BASE}/`, {
+                    method: 'GET',
+                    credentials: 'include'
+                });
+                
+                const data = await response.json();
+                log('root-result', `✅ Root endpoint: ${response.status}`, 'success');
+                log('root-result', `<pre>${JSON.stringify(data, null, 2)}</pre>`, 'success');
+            } catch (error) {
+                log('root-result', `❌ Root endpoint failed: ${error.message}`, 'error');
+            }
+        }
+
+        async function testCorsEndpoint() {
+            clearResults('cors-result');
+            log('cors-result', '🔍 Testing CORS endpoint...');
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/test-cors`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    credentials: 'include'
+                });
+                
+                const data = await response.json();
+                log('cors-result', `✅ CORS Test: ${response.status}`, 'success');
+                log('cors-result', `<pre>${JSON.stringify(data, null, 2)}</pre>`, 'success');
+            } catch (error) {
+                log('cors-result', `❌ CORS Test failed: ${error.message}`, 'error');
+            }
+        }
+
+        async function testAuthEndpoint() {
+            clearResults('auth-result');
+            log('auth-result', '🔍 Testing auth endpoint (expecting 401 with CORS)...');
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/auth/me`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    credentials: 'include'
+                });
+                
+                const data = await response.json();
+                log('auth-result', `✅ Auth endpoint accessible: ${response.status}`, response.status === 401 ? 'success' : 'error');
+                log('auth-result', `<pre>${JSON.stringify(data, null, 2)}</pre>`, response.status === 401 ? 'success' : 'error');
+            } catch (error) {
+                log('auth-result', `❌ Auth endpoint CORS blocked: ${error.message}`, 'error');
+            }
+        }
+
+        async function testStatsEndpoint() {
+            clearResults('stats-result');
+            log('stats-result', '🔍 Testing stats endpoint...');
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/stats/dashboard`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    credentials: 'include'
+                });
+                
+                const data = await response.json();
+                log('stats-result', `✅ Stats endpoint: ${response.status}`, 'success');
+                log('stats-result', `<pre>${JSON.stringify(data, null, 2)}</pre>`, 'success');
+            } catch (error) {
+                log('stats-result', `❌ Stats endpoint failed: ${error.message}`, 'error');
+            }
+        }
+
+        async function testPreflight() {
+            clearResults('preflight-result');
+            log('preflight-result', '🔍 Testing OPTIONS preflight...');
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/auth/me`, {
+                    method: 'OPTIONS',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Access-Control-Request-Method': 'GET',
+                        'Access-Control-Request-Headers': 'Content-Type, Authorization'
+                    }
+                });
+                
+                log('preflight-result', `✅ Preflight: ${response.status}`, 'success');
+                log('preflight-result', `Headers: ${JSON.stringify(Object.fromEntries(response.headers.entries()), null, 2)}`, 'success');
+            } catch (error) {
+                log('preflight-result', `❌ Preflight failed: ${error.message}`, 'error');
+            }
+        }
+
+        // Auto-run basic tests
+        window.onload = () => {
+            testRoot();
+            setTimeout(testCorsEndpoint, 1000);
+        };
+    </script>
+</body>
+</html>

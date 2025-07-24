@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CORS Test - Local</title>
+</head>
+<body>
+    <h1>CORS Test - PdfPage Authentication</h1>
+    <div id="results"></div>
+    <button onclick="testCORS()">Test CORS</button>
+    <button onclick="testAuth()">Test Auth Endpoint</button>
+
+    <script>
+        const API_BASE = 'https://pdfpage-app.onrender.com/api';
+        
+        async function testCORS() {
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = '<p>Testing CORS...</p>';
+            
+            try {
+                // Test basic OPTIONS request
+                const response = await fetch(`${API_BASE}/cors-debug/health`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    credentials: 'include'
+                });
+                
+                const data = await response.json();
+                resultsDiv.innerHTML += `
+                    <h3>✅ CORS Test: ${response.status}</h3>
+                    <pre>${JSON.stringify(data, null, 2)}</pre>
+                `;
+            } catch (error) {
+                resultsDiv.innerHTML += `
+                    <h3>❌ CORS Test Failed</h3>
+                    <pre>Error: ${error.message}</pre>
+                `;
+            }
+        }
+        
+        async function testAuth() {
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML += '<p>Testing Auth CORS...</p>';
+            
+            try {
+                // Test auth endpoint without token (should get 401 but with CORS headers)
+                const response = await fetch(`${API_BASE}/auth/test-cors`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    credentials: 'include'
+                });
+                
+                const data = await response.json();
+                resultsDiv.innerHTML += `
+                    <h3>✅ Auth CORS Test: ${response.status}</h3>
+                    <pre>${JSON.stringify(data, null, 2)}</pre>
+                `;
+            } catch (error) {
+                resultsDiv.innerHTML += `
+                    <h3>❌ Auth CORS Test Failed</h3>
+                    <pre>Error: ${error.message}</pre>
+                `;
+            }
+        }
+        
+        // Auto-test on load
+        window.onload = () => {
+            testCORS();
+            setTimeout(testAuth, 1000);
+        };
+    </script>
+</body>
+</html>
