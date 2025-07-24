@@ -109,18 +109,23 @@ const ImgHeader = () => {
     <header className="bg-white shadow-sm border-b border-gray-100 sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
-          {/* Logo */}
+          {/* Logo with Mobile Brand Name */}
           <div className="flex items-center">
             <Link to="/img" className="flex items-center space-x-2">
               <img
                 src="https://cdn.builder.io/api/v1/image/assets%2Ffcbdb28308084edfa1fffc265e57f46e%2F5791d498f9994470ae52d766d30e56ee?format=webp&width=800"
                 alt="PdfPage Logo"
-                className="h-10 w-auto hover:scale-105 transition-transform opacity-90 mix-blend-multiply"
+                className="h-8 sm:h-10 w-auto hover:scale-105 transition-transform opacity-90 mix-blend-multiply"
               />
+              {/* Mobile Text Logo */}
+              <span className="block sm:hidden text-lg font-bold bg-gradient-to-r from-primary to-blue-600 bg-clip-text text-transparent">
+                PdfPage
+              </span>
+              {/* Desktop Image Logo */}
               <img
                 src="https://cdn.builder.io/api/v1/image/assets%2Ffcbdb28308084edfa1fffc265e57f46e%2F61ee37d28c9648a8ac684ced4eab1117?format=webp&width=800"
                 alt="Pdf Page"
-                className="h-6 w-auto opacity-90 mix-blend-multiply"
+                className="hidden sm:block h-6 w-auto opacity-90 mix-blend-multiply"
               />
             </Link>
           </div>

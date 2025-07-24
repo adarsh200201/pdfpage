@@ -253,19 +253,28 @@ const Header = () => {
             : "bg-white/95 backdrop-blur-sm shadow-sm border-b border-gray-100"
         }`}
       >
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-20">
-            {/* Enhanced Logo */}
+        <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-8">
+          <div className="flex justify-between items-center h-16 sm:h-20">
+            {/* Enhanced Logo with Mobile-Friendly Brand */}
             <div className="flex items-center group">
               <Link to="/" className="flex items-center space-x-3 transition-all duration-300 hover:scale-105">
                 <div className="relative">
                   <img
                     src="https://cdn.builder.io/api/v1/image/assets%2Ffcbdb28308084edfa1fffc265e57f46e%2F5791d498f9994470ae52d766d30e56ee?format=webp&width=800"
                     alt="PdfPage Logo"
-                    className="h-12 w-auto transition-all duration-300 group-hover:drop-shadow-lg"
+                    className="h-10 sm:h-12 w-auto transition-all duration-300 group-hover:drop-shadow-lg"
                   />
                   <div className="absolute -inset-1 bg-gradient-to-r from-primary/20 to-blue-600/20 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300 blur-sm -z-10"></div>
                 </div>
+
+                {/* Mobile Text Logo */}
+                <div className="block sm:hidden">
+                  <span className="text-xl font-bold bg-gradient-to-r from-primary to-blue-600 bg-clip-text text-transparent">
+                    PdfPage
+                  </span>
+                </div>
+
+                {/* Desktop Image Logo */}
                 <div className="hidden sm:block">
                   <img
                     src="https://cdn.builder.io/api/v1/image/assets%2Ffcbdb28308084edfa1fffc265e57f46e%2F61ee37d28c9648a8ac684ced4eab1117?format=webp&width=800"
@@ -332,7 +341,7 @@ const Header = () => {
               {/* Modern Language Selector */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <button className="hidden md:flex items-center space-x-2 px-3 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-50/80 rounded-lg transition-all duration-300 group">
+                  <button className="hidden sm:flex items-center space-x-2 px-2 sm:px-3 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-50/80 rounded-lg transition-all duration-300 group">
                     <Globe className="w-4 h-4 group-hover:text-primary transition-colors duration-300" />
                     <span className="text-xs font-bold">{currentLanguage.code.toUpperCase()}</span>
                   </button>
@@ -428,13 +437,14 @@ const Header = () => {
               {/* Enhanced Mobile Menu Button */}
               <button
                 onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                className="lg:hidden relative p-3 rounded-xl text-gray-700 hover:text-gray-900 hover:bg-gray-50/80 transition-all duration-300 group"
+                className="lg:hidden relative p-2 sm:p-3 rounded-xl text-gray-700 hover:text-gray-900 hover:bg-gray-50/80 transition-all duration-300 group"
+                aria-label="Open mobile menu"
               >
                 <div className="relative">
                   {mobileMenuOpen ? (
-                    <X className="w-6 h-6 transition-transform duration-300 rotate-90" />
+                    <X className="w-5 h-5 sm:w-6 sm:h-6 transition-transform duration-300 rotate-90" />
                   ) : (
-                    <Menu className="w-6 h-6 transition-transform duration-300 group-hover:scale-110" />
+                    <Menu className="w-5 h-5 sm:w-6 sm:h-6 transition-transform duration-300 group-hover:scale-110" />
                   )}
                 </div>
               </button>
@@ -623,8 +633,24 @@ const Header = () => {
 
         {/* Enhanced Mobile Menu */}
         {mobileMenuOpen && (
-          <div className="lg:hidden fixed top-20 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-white/20 shadow-2xl z-50 max-h-[calc(100vh-5rem)] overflow-y-auto">
+          <div className="lg:hidden fixed top-16 sm:top-20 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-white/20 shadow-2xl z-50 max-h-[calc(100vh-4rem)] sm:max-h-[calc(100vh-5rem)] overflow-y-auto">
             <div className="px-4 pt-4 pb-6 space-y-3">
+              {/* Mobile Brand Header */}
+              <div className="flex items-center space-x-3 px-4 py-3 bg-gradient-to-r from-primary/5 to-blue-600/5 rounded-xl border border-primary/10 mb-4">
+                <div className="w-10 h-10 bg-gradient-to-r from-primary to-blue-600 rounded-xl flex items-center justify-center">
+                  <img
+                    src="https://cdn.builder.io/api/v1/image/assets%2Ffcbdb28308084edfa1fffc265e57f46e%2F5791d498f9994470ae52d766d30e56ee?format=webp&width=800"
+                    alt="PdfPage"
+                    className="h-6 w-6 brightness-0 invert"
+                  />
+                </div>
+                <div>
+                  <h2 className="text-lg font-bold bg-gradient-to-r from-primary to-blue-600 bg-clip-text text-transparent">
+                    PdfPage
+                  </h2>
+                  <p className="text-xs text-gray-500">The Ultimate PDF Toolkit</p>
+                </div>
+              </div>
               {/* Main PDF Tools */}
               <div className="space-y-2">
                 <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider px-4">PDF Tools</h3>
@@ -740,7 +766,7 @@ const Header = () => {
       </header>
       
       {/* Spacer to prevent content from hiding under fixed header */}
-      <div className="h-20"></div>
+      <div className="h-16 sm:h-20"></div>
     </>
   );
 };
