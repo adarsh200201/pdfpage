@@ -299,7 +299,7 @@ const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
   // Live mode updates
   useEffect(() => {
     if (isLiveMode) {
-      intervalRef.current = setInterval(fetchRealData, 5000); // Update every 5 seconds
+      intervalRef.current = setInterval(fetchRealData, 30000); // Update every 30 seconds (reduced from 5 seconds)
     } else {
       if (intervalRef.current) {
         clearInterval(intervalRef.current);

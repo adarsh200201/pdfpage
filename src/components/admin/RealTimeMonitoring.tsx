@@ -123,7 +123,7 @@ const RealTimeMonitoring: React.FC = () => {
   useEffect(() => {
     if (isRunning) {
       fetchRealTimeData();
-      intervalRef.current = setInterval(fetchRealTimeData, 5000); // Update every 5 seconds
+      intervalRef.current = setInterval(fetchRealTimeData, 60000); // Update every 60 seconds (reduced from 5 seconds)
     } else {
       if (intervalRef.current) {
         clearInterval(intervalRef.current);

@@ -36,7 +36,10 @@ app.use(keepAliveMiddleware);
 app.use((req, res, next) => {
   const origin = req.headers.origin;
 
-  console.log(`🌐 [GLOBAL-CORS] Request from origin: ${origin}`);
+  // Only log in development to reduce server load in production
+  if (process.env.NODE_ENV === "development") {
+    console.log(`🌐 [GLOBAL-CORS] Request from origin: ${origin}`);
+  }
 
   // Set CORS headers for all requests
   if (origin && (
@@ -159,9 +162,13 @@ if (process.env.NODE_ENV === "development") {
 // Enhanced CORS preflight handler - CRITICAL FOR FRONTEND
 app.options("*", (req, res) => {
   const origin = req.headers.origin;
-  console.log(`🔧 [CRITICAL] OPTIONS preflight from: ${origin}`);
-  console.log(`🔧 [CRITICAL] Request path: ${req.path}`);
-  console.log(`🔧 [CRITICAL] Request headers: ${JSON.stringify(req.headers)}`);
+
+  // Only log in development to reduce server load in production
+  if (process.env.NODE_ENV === "development") {
+    console.log(`🔧 [CRITICAL] OPTIONS preflight from: ${origin}`);
+    console.log(`🔧 [CRITICAL] Request path: ${req.path}`);
+    console.log(`🔧 [CRITICAL] Request headers: ${JSON.stringify(req.headers)}`);
+  }
 
   // Always allow pdfpage.in in production
   const allowedOrigins = [
@@ -192,7 +199,9 @@ app.options("*", (req, res) => {
   res.header("Pragma", "no-cache");
   res.header("Expires", "0");
 
-  console.log(`✅ [CRITICAL] CORS headers set for ${origin}`);
+  if (process.env.NODE_ENV === "development") {
+    console.log(`✅ [CRITICAL] CORS headers set for ${origin}`);
+  }
   res.sendStatus(200);
 });
 

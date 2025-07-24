@@ -133,19 +133,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       }
     };
 
-    // Add periodic authentication check (every 5 minutes)
+    // Add periodic authentication check (reduced frequency to reduce server load)
     const periodicCheck = setInterval(() => {
       const token = Cookies.get("token");
       if (token && user) {
         const lastAuth = localStorage.getItem("pdfpage_auth_timestamp");
         const now = Date.now();
-        // Check if last auth was more than 30 minutes ago
-        if (lastAuth && now - parseInt(lastAuth) > 30 * 60 * 1000) {
+        // Check if last auth was more than 2 hours ago (increased interval)
+        if (lastAuth && now - parseInt(lastAuth) > 2 * 60 * 60 * 1000) {
           console.log("🔄 [AUTH] Periodic authentication check");
           fetchUserData(token);
         }
       }
-    }, 5 * 60 * 1000); // Every 5 minutes
+    }, 30 * 60 * 1000); // Every 30 minutes (reduced from 5 minutes)
 
     window.addEventListener("online", handleOnline);
     document.addEventListener("visibilitychange", handleVisibilityChange);

@@ -153,8 +153,8 @@ export const useRealTimeStats = (
 
     if (!autoRefresh) return;
 
-    // Set up auto-refresh every 5 minutes
-    const interval = setInterval(fetchStats, 5 * 60 * 1000);
+    // Set up auto-refresh every 15 minutes (reduced frequency to reduce server load)
+    const interval = setInterval(fetchStats, 15 * 60 * 1000);
 
     return () => {
       clearInterval(interval);
