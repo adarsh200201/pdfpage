@@ -33,48 +33,14 @@ const keepAliveMiddleware = require('./middleware/keepAlive');
 app.use(keepAliveMiddleware);
 
 // Security middleware
+// Security middleware with disabled CSP for frontend compatibility
 app.use(
   helmet({
     crossOriginResourcePolicy: { policy: "cross-origin" },
-    contentSecurityPolicy: {
-      directives: {
-        defaultSrc: ["'self'"],
-        scriptSrc: [
-          "'self'",
-          "'unsafe-inline'",
-          "'unsafe-eval'",
-          "https://www.google-analytics.com",
-          "https://www.googletagmanager.com",
-          "https://checkout.razorpay.com",
-          "https://pagead2.googlesyndication.com",
-          "https://translate.google.com",
-          "https://translate.googleapis.com",
-        ],
-        connectSrc: [
-          "'self'",
-          "https://api.razorpay.com",
-          "https://lumberjack.razorpay.com",
-          "https://translate.googleapis.com",
-          "https://translate.google.com",
-        ],
-        frameSrc: [
-          "'self'",
-          "https://checkout.razorpay.com",
-          "https://api.razorpay.com",
-          "https://translate.google.com",
-          "https://translate.googleapis.com",
-        ],
-        styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
-        fontSrc: ["'self'", "https://fonts.gstatic.com"],
-        imgSrc: [
-          "'self'",
-          "data:",
-          "https://www.google-analytics.com",
-          "https://www.googletagmanager.com",
-          "https://checkout.razorpay.com",
-        ],
-      },
-    },
+    crossOriginOpenerPolicy: { policy: "unsafe-none" },
+    crossOriginEmbedderPolicy: false,
+    // Temporarily disable CSP to fix frontend blocking issues
+    contentSecurityPolicy: false,
   }),
 );
 
@@ -152,22 +118,48 @@ if (process.env.NODE_ENV === "development") {
   });
 }
 
-// Explicit preflight handler for all OPTIONS requests
+// Enhanced CORS preflight handler for all OPTIONS requests
 app.options("*", (req, res) => {
   const origin = req.headers.origin;
   console.log(`🔧 OPTIONS preflight from: ${origin}`);
 
-  res.header("Access-Control-Allow-Origin", origin || "*");
+  // Validate origin against allowed origins
+  const allowedOrigins = [
+    "https://pdfpage.in",
+    "https://pdfpagee.netlify.app",
+    "http://localhost:3000",
+    "http://localhost:5173",
+    "http://localhost:8080"
+  ];
+
+  const isAllowedOrigin = allowedOrigins.includes(origin) || /^http:\/\/localhost:\d+$/.test(origin);
+
+  if (isAllowedOrigin) {
+    res.header("Access-Control-Allow-Origin", origin);
+  } else {
+    res.header("Access-Control-Allow-Origin", "https://pdfpage.in");
+  }
+
   res.header("Access-Control-Allow-Credentials", "true");
   res.header(
     "Access-Control-Allow-Methods",
-    "GET,POST,PUT,DELETE,OPTIONS,HEAD",
+    "GET, POST, PUT, DELETE, OPTIONS, HEAD, PATCH",
   );
   res.header(
     "Access-Control-Allow-Headers",
-    "Content-Type,Authorization,X-Requested-With,Accept,Origin,Cache-Control,Pragma",
+    "Content-Type, Authorization, X-Requested-With, Accept, Origin, Cache-Control, Pragma, X-CSRF-Token",
+  );
+  res.header(
+    "Access-Control-Expose-Headers",
+    "X-Compression-Ratio, X-Original-Size, X-Compressed-Size, X-Size-Saved, X-Compression-Level",
   );
   res.header("Access-Control-Max-Age", "86400"); // 24 hours
+
+  // Ensure no caching of preflight
+  res.header("Cache-Control", "no-cache, no-store, must-revalidate");
+  res.header("Pragma", "no-cache");
+  res.header("Expires", "0");
+
   res.sendStatus(200);
 });
 
@@ -175,6 +167,24 @@ app.options("*", (req, res) => {
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ extended: true, limit: "50mb" }));
 app.use(cookieParser());
+
+// Additional CORS middleware for API routes
+app.use("/api/*", (req, res, next) => {
+  const origin = req.headers.origin;
+
+  // Set CORS headers for all API routes
+  if (origin && (origin.includes('pdfpage.in') || origin.includes('netlify.app') || origin.includes('localhost'))) {
+    res.header("Access-Control-Allow-Origin", origin);
+  } else {
+    res.header("Access-Control-Allow-Origin", "https://pdfpage.in");
+  }
+
+  res.header("Access-Control-Allow-Credentials", "true");
+  res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS, HEAD");
+  res.header("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With, Accept, Origin");
+
+  next();
+});
 
 // Health check routes (should be first, no rate limiting)
 app.use("/api/health", require("./routes/health"));
