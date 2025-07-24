@@ -112,22 +112,30 @@
     <link rel="manifest" href="/manifest.json" />
 
     <!-- Standard Favicon -->
-    <link
-      rel="icon"
-      type="image/x-icon"
-      href="https://cdn.builder.io/api/v1/image/assets%2Ffcbdb28308084edfa1fffc265e57f46e%2F5791d498f9994470ae52d766d30e56ee?format=webp&width=32"
-    />
+    <link rel="icon" href="/favicon.ico" type="image/x-icon" />
     <link
       rel="icon"
       type="image/png"
       sizes="16x16"
-      href="https://cdn.builder.io/api/v1/image/assets%2Ffcbdb28308084edfa1fffc265e57f46e%2F5791d498f9994470ae52d766d30e56ee?format=webp&width=16"
+      href="/favicon-16x16.png"
     />
     <link
       rel="icon"
       type="image/png"
       sizes="32x32"
-      href="https://cdn.builder.io/api/v1/image/assets%2Ffcbdb28308084edfa1fffc265e57f46e%2F5791d498f9994470ae52d766d30e56ee?format=webp&width=32"
+      href="/favicon-32x32.png"
+    />
+    <!-- Google Search Console Favicons -->
+    <link
+      rel="shortcut icon"
+      href="https://cdn.builder.io/api/v1/image/assets%2Ffcbdb28308084edfa1fffc265e57f46e%2F5791d498f9994470ae52d766d30e56ee?format=png&width=16"
+      type="image/png"
+    />
+    <link
+      rel="icon"
+      href="https://cdn.builder.io/api/v1/image/assets%2Ffcbdb28308084edfa1fffc265e57f46e%2F5791d498f9994470ae52d766d30e56ee?format=png&width=32"
+      sizes="32x32"
+      type="image/png"
     />
 
     <!-- Apple Touch Icons -->
@@ -591,6 +599,7 @@
     <meta name="referrer" content="origin-when-cross-origin" />
     <meta http-equiv="X-Content-Type-Options" content="nosniff" />
     <meta http-equiv="X-XSS-Protection" content="1; mode=block" />
+    <!-- Note: X-Frame-Options must be set via HTTP header, not meta tag -->
 
     <!-- Prefetch Service Worker -->
     <link rel="prefetch" href="/sw.js" />

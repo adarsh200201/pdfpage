@@ -445,7 +445,11 @@ const Header = () => {
         {/* Enhanced Mega Menu with Hover and Scroll */}
         {showMegaMenu && (
           <div
-            className="absolute top-full left-0 w-full bg-white/95 backdrop-blur-md shadow-2xl border-t border-white/20 z-40 animate-in slide-in-from-top-2 duration-300 max-h-[80vh] overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100"
+            className="absolute top-full left-0 w-full bg-white/95 backdrop-blur-md shadow-2xl border-t border-white/20 z-40 animate-in slide-in-from-top-2 duration-300 max-h-[80vh] overflow-y-auto"
+            style={{
+              scrollbarWidth: 'thin',
+              scrollbarColor: '#d1d5db #f3f4f6',
+            }}
             onMouseEnter={() => setShowMegaMenu(true)}
             onMouseLeave={() => setShowMegaMenu(false)}
           >
@@ -619,21 +623,27 @@ const Header = () => {
 
         {/* Enhanced Mobile Menu */}
         {mobileMenuOpen && (
-          <div className="lg:hidden bg-white/95 backdrop-blur-md border-t border-white/20 animate-in slide-in-from-top-2 duration-300">
+          <div className="lg:hidden fixed top-20 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-white/20 shadow-2xl z-50 max-h-[calc(100vh-5rem)] overflow-y-auto">
             <div className="px-4 pt-4 pb-6 space-y-3">
-              {mainNavItems.map((item) => (
-                <Link
-                  key={item.href}
-                  to={item.href}
-                  className="flex items-center space-x-3 px-4 py-3 text-base font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-50/80 rounded-xl transition-all duration-300"
-                  onClick={() => setMobileMenuOpen(false)}
-                >
-                  <item.icon className="w-5 h-5" />
-                  <span>{item.label}</span>
-                </Link>
-              ))}
-              
-              <div className="pt-3 border-t border-gray-200/80">
+              {/* Main PDF Tools */}
+              <div className="space-y-2">
+                <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider px-4">PDF Tools</h3>
+                {mainNavItems.map((item) => (
+                  <Link
+                    key={item.href}
+                    to={item.href}
+                    className="flex items-center space-x-3 px-4 py-3 text-base font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-50/80 rounded-xl transition-all duration-300"
+                    onClick={() => setMobileMenuOpen(false)}
+                  >
+                    <item.icon className="w-5 h-5" />
+                    <span>{item.label}</span>
+                  </Link>
+                ))}
+              </div>
+
+              {/* Quick Actions */}
+              <div className="pt-3 border-t border-gray-200/80 space-y-2">
+                <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider px-4">Quick Tools</h3>
                 {quickActions.map((action) => (
                   <Link
                     key={action.href}
@@ -645,24 +655,83 @@ const Header = () => {
                     <span>{action.label}</span>
                   </Link>
                 ))}
+
+                {/* All Tools Link */}
+                <Link
+                  to="/all-tools"
+                  className="flex items-center space-x-3 px-4 py-3 text-base font-medium text-primary hover:bg-primary/5 rounded-xl transition-all duration-300"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  <Zap className="w-5 h-5" />
+                  <span>All PDF Tools</span>
+                </Link>
               </div>
 
+              {/* Authentication */}
               {!isAuthenticated && (
                 <div className="pt-3 border-t border-gray-200/80 space-y-3">
                   <Link
                     to="/login"
-                    className="block w-full px-4 py-3 text-center text-base font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-50/80 rounded-xl transition-all duration-300"
+                    className="flex items-center justify-center space-x-2 w-full px-4 py-3 text-base font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-50/80 rounded-xl transition-all duration-300 border border-gray-200"
                     onClick={() => setMobileMenuOpen(false)}
                   >
-                    Sign In
+                    <User className="w-4 h-4" />
+                    <span>Sign In</span>
                   </Link>
                   <Link
                     to="/register"
-                    className="block w-full px-4 py-3 text-center text-base font-semibold text-white bg-gradient-to-r from-primary to-blue-600 hover:from-primary/90 hover:to-blue-600/90 rounded-xl transition-all duration-300 shadow-lg"
+                    className="flex items-center justify-center space-x-2 w-full px-4 py-3 text-base font-semibold text-white bg-gradient-to-r from-primary to-blue-600 hover:from-primary/90 hover:to-blue-600/90 rounded-xl transition-all duration-300 shadow-lg"
                     onClick={() => setMobileMenuOpen(false)}
                   >
-                    Get Started
+                    <Crown className="w-4 h-4" />
+                    <span>Get Started</span>
                   </Link>
+                </div>
+              )}
+
+              {/* User Menu for Authenticated Users */}
+              {isAuthenticated && user && (
+                <div className="pt-3 border-t border-gray-200/80 space-y-3">
+                  <div className="flex items-center space-x-3 px-4 py-3">
+                    <div className="w-10 h-10 bg-gradient-to-r from-primary to-blue-600 rounded-full flex items-center justify-center">
+                      <span className="text-white text-sm font-bold">
+                        {user.name.charAt(0).toUpperCase()}
+                      </span>
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-gray-900">{user.name}</p>
+                      <p className="text-xs text-gray-500">{user.email}</p>
+                    </div>
+                  </div>
+
+                  <Link
+                    to="/dashboard"
+                    className="flex items-center space-x-3 px-4 py-3 text-base font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-50/80 rounded-xl transition-all duration-300"
+                    onClick={() => setMobileMenuOpen(false)}
+                  >
+                    <User className="w-5 h-5" />
+                    <span>Dashboard</span>
+                  </Link>
+
+                  <Link
+                    to="/settings"
+                    className="flex items-center space-x-3 px-4 py-3 text-base font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-50/80 rounded-xl transition-all duration-300"
+                    onClick={() => setMobileMenuOpen(false)}
+                  >
+                    <Settings className="w-5 h-5" />
+                    <span>Settings</span>
+                  </Link>
+
+                  <button
+                    onClick={() => {
+                      logout();
+                      setMobileMenuOpen(false);
+                    }}
+                    className="flex items-center space-x-3 w-full px-4 py-3 text-base font-medium text-red-600 hover:bg-red-50 rounded-xl transition-all duration-300"
+                  >
+                    <LogOut className="w-5 h-5" />
+                    <span>Sign Out</span>
+                  </button>
                 </div>
               )}
             </div>
