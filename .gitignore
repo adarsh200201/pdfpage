@@ -163,8 +163,15 @@ dist
 # Gatsby files
 .cache/
 public
-# Allow all files in public directory to be tracked
-!/public/
+# But allow important SEO files
+!public/sitemap*.xml
+!public/robots.txt
+!public/manifest.json
+!public/*.ico
+!public/*.png
+
+# Test files
+test-cors.html
 
 # vuepress build output
 .vuepress/dist
