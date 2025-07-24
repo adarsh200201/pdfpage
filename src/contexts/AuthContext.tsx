@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect } from "react";
 import Cookies from "js-cookie";
 import authService from "@/services/authService";
 import mixpanelService from "@/services/mixpanelService";
+import { getFullApiUrl } from "@/lib/api-config";
 
 interface User {
   id: string;
@@ -117,7 +118,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       if (!document.hidden) {
         const token = Cookies.get("token");
         if (token && !user) {
-          console.log("🔄 [AUTH] App became visible - checking authentication");
+          console.log("�� [AUTH] App became visible - checking authentication");
           fetchUserData(token);
         }
       }
@@ -160,11 +161,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const fetchUserData = async (token: string) => {
     try {
-      const apiUrl =
-        window.location.hostname === "localhost"
-          ? "http://localhost:5000"
-          : "https://pdfpage-app.onrender.com";
-      const response = await fetch(`${apiUrl}/api/auth/me`, {
+      const apiUrl = getFullApiUrl('/api/auth/me');
+      const response = await fetch(apiUrl, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -206,11 +204,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     try {
       console.log("🔵 [FRONTEND] Attempting to login user:", { email });
 
-      const apiUrl =
-        window.location.hostname === "localhost"
-          ? "http://localhost:5000"
-          : "https://pdfpage-app.onrender.com";
-      const response = await fetch(`${apiUrl}/api/auth/login`, {
+      const apiUrl = getFullApiUrl('/api/auth/login');
+      const response = await fetch(apiUrl, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -264,11 +259,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         options,
       });
 
-      const apiUrl =
-        window.location.hostname === "localhost"
-          ? "http://localhost:5000"
-          : "https://pdfpage-app.onrender.com";
-      const response = await fetch(`${apiUrl}/api/auth/register`, {
+      const apiUrl = getFullApiUrl('/api/auth/register');
+      const response = await fetch(apiUrl, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

@@ -36,6 +36,8 @@ app.use(keepAliveMiddleware);
 app.use((req, res, next) => {
   const origin = req.headers.origin;
 
+  console.log(`🌐 [GLOBAL-CORS] Request from origin: ${origin}`);
+
   // Set CORS headers for all requests
   if (origin && (
     origin === 'https://pdfpage.in' ||
@@ -49,7 +51,7 @@ app.use((req, res, next) => {
 
   res.header("Access-Control-Allow-Credentials", "true");
   res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS, HEAD");
-  res.header("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With, Accept, Origin");
+  res.header("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With, Accept, Origin, Cache-Control");
 
   next();
 });
@@ -94,17 +96,31 @@ if (process.env.NODE_ENV === "development") {
 // CORS configuration
 app.use(
   cors({
-    origin: [
-      process.env.FRONTEND_URL,
-      "http://localhost:3000",
-      "http://localhost:5173",
-      "http://localhost:8080", // Frontend dev server
-      /^http:\/\/localhost:\d+$/, // Allow any localhost port for development
-      "https://pdfpage.in", // Primary production domain
-      "https://pdfpagee.netlify.app", // Secondary production frontend
-      "https://pdfpage-app.onrender.com", // Production backend
-      "https://accounts.google.com", // Google OAuth
-    ],
+    origin: function(origin, callback) {
+      console.log(`🌐 [CORS-CHECK] Origin: ${origin}`);
+
+      const allowedOrigins = [
+        "https://pdfpage.in", // Primary production domain
+        "https://pdfpagee.netlify.app", // Secondary production frontend
+        "http://localhost:3000",
+        "http://localhost:5173",
+        "http://localhost:8080", // Frontend dev server
+        process.env.FRONTEND_URL,
+      ];
+
+      // Allow requests with no origin (like mobile apps or curl requests)
+      if (!origin) return callback(null, true);
+
+      // Allow localhost in development
+      if (origin.includes('localhost')) return callback(null, true);
+
+      if (allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+
+      console.log(`❌ [CORS-REJECTED] Origin not allowed: ${origin}`);
+      return callback(new Error('Not allowed by CORS'));
+    },
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD"],
     allowedHeaders: [

@@ -17,10 +17,10 @@ export const authService = {
    * User never sees or interacts with backend domain
    */
   loginWithGoogle: () => {
-    // Server-side proxy URL - backend domain never exposed to client
+    // Use proxy URL - Netlify handles the backend forwarding
     const googleOAuthUrl = import.meta.env.DEV
       ? "http://localhost:5000/api/auth/google"
-      : "https://pdfpage-app.onrender.com/api/auth/google";
+      : "/api/auth/google";
 
     // Store the current location to redirect back after auth
     sessionStorage.setItem("authRedirectUrl", window.location.pathname);
@@ -36,10 +36,10 @@ export const authService = {
   handleAuthCallback: async (
     token: string,
   ): Promise<GoogleAuthResponse["user"]> => {
-    // Server-side proxy URL - backend domain never exposed to client
+    // Use proxy URL - Netlify handles the backend forwarding
     const apiUrl = import.meta.env.DEV
       ? "http://localhost:5000/api/auth/me"
-      : "https://pdfpage-app.onrender.com/api/auth/me";
+      : "/api/auth/me";
 
     const response = await fetch(apiUrl, {
       headers: {

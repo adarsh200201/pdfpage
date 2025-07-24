@@ -1,4 +1,5 @@
 import { useAuth } from "@/contexts/AuthContext";
+import { getFullApiUrl } from "@/lib/api-config";
 
 declare global {
   interface Window {
@@ -31,19 +32,13 @@ export const createPayment = async (
     .find((row) => row.startsWith("token="))
     ?.split("=")[1];
 
-  // Use environment variable for API URL
-  const baseApiUrl =
-    window.location.hostname === "localhost"
-      ? "http://localhost:5000/api"
-      : "https://pdfpage-app.onrender.com/api";
-  const fullUrl = baseApiUrl.startsWith("http")
-    ? `${baseApiUrl}/payments/create-order`
-    : `https://pdfpage-app.onrender.com${baseApiUrl}/payments/create-order`;
+  // Use API config utility for consistent URL handling
+  const apiUrl = getFullApiUrl('/api/payments/create-order');
 
-  console.log("Creating payment with:", { options, apiUrl: fullUrl });
+  console.log("Creating payment with:", { options, apiUrl });
 
   try {
-    const response = await fetch(fullUrl, {
+    const response = await fetch(apiUrl, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -142,13 +137,7 @@ export const processPayment = async (
             .find((row) => row.startsWith("token="))
             ?.split("=")[1];
 
-          const baseApiUrl =
-            window.location.hostname === "localhost"
-              ? "http://localhost:5000/api"
-              : "https://pdfpage-app.onrender.com/api";
-          const verifyUrl = baseApiUrl.startsWith("http")
-            ? `${baseApiUrl}/payments/verify`
-            : `https://pdfpage-app.onrender.com${baseApiUrl}/payments/verify`;
+          const verifyUrl = getFullApiUrl('/api/payments/verify');
           const verifyResponse = await fetch(verifyUrl, {
             method: "POST",
             headers: {

@@ -1,4 +1,5 @@
 import { errorTracker } from "@/utils/error-tracker";
+import { getApiBaseUrl } from "@/lib/api-config";
 
 interface StatsData {
   pdfsProcessed: number;
@@ -18,10 +19,7 @@ class StatsService {
   private cache: StatsData | null = null;
   private lastFetch: number = 0;
   private readonly CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
-  private readonly API_BASE =
-    window.location.hostname === "localhost"
-      ? "http://localhost:5000"
-      : "https://pdfpage-app.onrender.com";
+  private readonly API_BASE = getApiBaseUrl();
   private currentController: AbortController | null = null;
 
   async getStats(): Promise<StatsData> {
