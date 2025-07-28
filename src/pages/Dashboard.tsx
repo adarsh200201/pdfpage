@@ -43,7 +43,7 @@ const Dashboard = () => {
         .find((row) => row.startsWith("token="))
         ?.split("=")[1];
       const response = await fetch(
-        "https://pdfpage-app.onrender.com/api/auth/me",
+        "https://pdf-backend-935131444417.asia-south1.run.app/api/auth/me",
         {
           headers: {
             Authorization: `Bearer ${token}`,

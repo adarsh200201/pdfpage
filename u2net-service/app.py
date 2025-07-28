@@ -428,7 +428,11 @@ if __name__ == '__main__':
     logger.info("🚀 Starting U²-Net AI Background Removal Service")
     logger.info(f"🖥️  Device: {device}")
     logger.info(f"🧠 Models available: {list(MODEL_CONFIG.keys())}")
-    
+
+    # Get port from environment variable (for Google Cloud Run compatibility)
+    port = int(os.environ.get('PORT', 8080))
+    logger.info(f"🌐 Starting server on port {port}")
+
     # Preload the general model on startup
     try:
         logger.info("🔄 Preloading general model...")
@@ -437,5 +441,5 @@ if __name__ == '__main__':
     except Exception as e:
         logger.warning(f"⚠️  Failed to preload general model: {e}")
         logger.info("📝 Models will be loaded on first request")
-    
-    app.run(host='0.0.0.0', port=5000, debug=False)
+
+    app.run(host='0.0.0.0', port=port, debug=False)

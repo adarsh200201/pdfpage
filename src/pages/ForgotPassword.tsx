@@ -58,7 +58,7 @@ const ForgotPassword: React.FC = () => {
 
     try {
       const response = await fetch(
-        `${window.location.hostname === "localhost" ? "http://localhost:5000" : "https://pdfpage-app.onrender.com"}/api/auth/forgot-password`,
+        `${window.location.hostname === "localhost" ? "http://localhost:5000" : "https://pdf-backend-935131444417.asia-south1.run.app"}/api/auth/forgot-password`,
         {
           method: "POST",
           headers: {
@@ -107,7 +107,7 @@ const ForgotPassword: React.FC = () => {
 
     try {
       const response = await fetch(
-        `${window.location.hostname === "localhost" ? "http://localhost:5000" : "https://pdfpage-app.onrender.com"}/api/auth/verify-otp`,
+        `${window.location.hostname === "localhost" ? "http://localhost:5000" : "https://pdf-backend-935131444417.asia-south1.run.app"}/api/auth/verify-otp`,
         {
           method: "POST",
           headers: {
@@ -174,7 +174,7 @@ const ForgotPassword: React.FC = () => {
 
     try {
       const response = await fetch(
-        `${window.location.hostname === "localhost" ? "http://localhost:5000" : "https://pdfpage-app.onrender.com"}/api/auth/reset-password`,
+        `${window.location.hostname === "localhost" ? "http://localhost:5000" : "https://pdf-backend-935131444417.asia-south1.run.app"}/api/auth/reset-password`,
         {
           method: "POST",
           headers: {

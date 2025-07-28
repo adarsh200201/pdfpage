@@ -42,17 +42,17 @@ RUN wget -O saved_models/u2net.pth \
 # RUN wget -O saved_models/u2net_human_seg.pth \
 #     https://github.com/xuebinqin/U-2-Net/releases/download/v1.0/u2net_human_seg.pth
 
-# Expose port
-EXPOSE 5000
+# Expose port for Google Cloud Run (required)
+EXPOSE 8080
 
-# Health check
+# Health check - updated for Cloud Run port
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:5000/health || exit 1
+    CMD curl -f http://localhost:$PORT/health || exit 1
 
 # Set environment variables
 ENV FLASK_APP=app.py
 ENV FLASK_ENV=production
 ENV PYTHONUNBUFFERED=1
 
-# Run the application
-CMD ["gunicorn", "--bind", "0.0.0.0:5000", "--workers", "1", "--threads", "2", "--timeout", "120", "app:app"]
+# Run the application with Google Cloud Run port binding
+CMD ["gunicorn", "--bind", "0.0.0.0:$PORT", "--workers", "1", "--threads", "2", "--timeout", "120", "app:app"]

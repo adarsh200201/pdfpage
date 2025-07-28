@@ -36,7 +36,7 @@ export class HtmlToPdfService {
   private static API_URL =
     window.location.hostname === "localhost"
       ? "http://localhost:5000"
-      : "https://pdfpage-app.onrender.com";
+      : "https://pdf-backend-935131444417.asia-south1.run.app";
 
   /**
    * Test if the backend route is accessible by making a minimal POST request

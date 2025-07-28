@@ -87,10 +87,10 @@ const EnhancedSecurityHeaders = ({
       "https://www.googletagmanager.com",
       "https://region1.google-analytics.com",
       "https://api.pdfpage.in",
-      "https://pdfpage-app.onrender.com",
+      "https://pdf-backend-935131444417.asia-south1.run.app",
       "https://translate.googleapis.com",
       "wss://ws.pdfpage.in",
-      "wss://pdfpage-app.onrender.com"
+      "wss://pdf-backend-935131444417.asia-south1.run.app"
     ].join(' '),
     
     // Base URI restriction

@@ -288,10 +288,22 @@ const Footer = () => {
           {/* Bottom Bar */}
           <div className="border-t border-gray-700 bg-slate-900/50">
             <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-              <div className="text-center lg:text-left">
+              <div className="flex flex-col lg:flex-row justify-between items-center space-y-3 lg:space-y-0">
                 {/* Copyright */}
                 <div className="text-gray-400 text-sm">
                   © 2025 G Initiations eServices Pvt. Ltd. All Rights Reserved.
+                </div>
+
+                {/* Powered by Cloud AI Badge */}
+                <div className="flex items-center space-x-2 text-sm">
+                  <div className="flex items-center space-x-1 bg-gradient-to-r from-blue-600/20 to-purple-600/20 px-3 py-1.5 rounded-full border border-blue-500/30">
+                    <Zap className="h-3.5 w-3.5 text-blue-400" />
+                    <span className="text-blue-300 font-medium">Powered by Cloud AI</span>
+                  </div>
+                  <div className="flex items-center space-x-1 bg-green-900/30 px-2 py-1 rounded-full border border-green-500/30">
+                    <CheckCircle className="h-3 w-3 text-green-400" />
+                    <span className="text-green-300 text-xs">Connected</span>
+                  </div>
                 </div>
               </div>
             </div>

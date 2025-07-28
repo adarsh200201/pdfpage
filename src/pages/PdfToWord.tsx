@@ -105,7 +105,7 @@ const PdfToWord = () => {
     const checkBackendStatus = async () => {
       try {
         const response = await fetch(
-          "https://pdfpage-app.onrender.com/api/health",
+          "https://pdf-backend-935131444417.asia-south1.run.app/api/health",
           { timeout: 5000 },
         );
         if (response.ok) {
@@ -281,12 +281,12 @@ const PdfToWord = () => {
           formatPreservation: true,
         });
         console.log(
-          "🌐 Enhanced API: https://pdfpage-app.onrender.com/api/pdf/to-word",
+          "🌐 Enhanced API: https://pdf-backend-935131444417.asia-south1.run.app/api/pdf/to-word",
         );
         console.log(`🔗 Full API endpoint being called:`, {
-          baseUrl: "https://pdfpage-app.onrender.com/api",
+          baseUrl: "https://pdf-backend-935131444417.asia-south1.run.app/api",
           endpoint: "/pdf/to-word",
-          fullUrl: "https://pdfpage-app.onrender.com/api/pdf/to-word",
+          fullUrl: "https://pdf-backend-935131444417.asia-south1.run.app/api/pdf/to-word",
         });
 
         // Convert using backend API with REAL conversion (not demo)
@@ -1210,7 +1210,7 @@ const PdfToWord = () => {
                     <div className="text-sm space-y-1 bg-gray-50 p-3 rounded">
                       <p>
                         <strong>API URL:</strong>{" "}
-                        {"https://pdfpage-app.onrender.com/api"}
+                        {"https://pdf-backend-935131444417.asia-south1.run.app/api"}
                       </p>
                       <p>
                         <strong>Environment:</strong> {import.meta.env.MODE}
@@ -1306,7 +1306,7 @@ const PdfToWord = () => {
                         addDebugLog("Testing backend connectivity...");
                         try {
                           const response = await fetch(
-                            "https://pdfpage-app.onrender.com/api/health",
+                            "https://pdf-backend-935131444417.asia-south1.run.app/api/health",
                           );
                           if (response.ok) {
                             const data = await response.json();

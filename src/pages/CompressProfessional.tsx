@@ -210,7 +210,7 @@ const CompressProfessional = () => {
       const apiUrl =
         window.location.hostname === "localhost"
           ? "http://localhost:5000"
-          : "https://pdfpage-app.onrender.com";
+          : "https://pdf-backend-935131444417.asia-south1.run.app";
       const response = await fetch(`${apiUrl}/api/pdf/compress-pro`, {
         method: "POST",
         body: formData,

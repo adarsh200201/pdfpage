@@ -39,7 +39,7 @@ export class UsageService {
       const apiUrl =
         window.location.hostname === "localhost"
           ? "http://localhost:5000/api/usage/track"
-          : "https://pdfpage-app.onrender.com/api/usage/track";
+          : "https://pdf-backend-935131444417.asia-south1.run.app/api/usage/track";
 
       const response = await fetch(apiUrl, {
         method: "POST",

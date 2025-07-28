@@ -54,7 +54,7 @@ export function OAuthDebug() {
     try {
       addResult("Testing direct backend...");
       const response = await fetch(
-        "https://pdfpage-app.onrender.com/api/health",
+        "https://pdf-backend-935131444417.asia-south1.run.app/api/health",
         {
           method: "GET",
           mode: "cors",

@@ -8,14 +8,14 @@ export const getApiUrl = (path: string = ''): string => {
   if (import.meta.env.DEV) {
     return `http://localhost:5000${path}`;
   }
-  
-  // In production, use Netlify proxy (no domain needed)
-  // Netlify will handle proxying /api/* to backend
-  return path.startsWith('/') ? path : `/${path}`;
+
+  // In production, use Google Cloud Run backend directly
+  const baseUrl = 'https://pdf-backend-935131444417.asia-south1.run.app';
+  return `${baseUrl}${path.startsWith('/') ? path : `/${path}`}`;
 };
 
 export const getApiBaseUrl = (): string => {
-  return import.meta.env.DEV ? 'http://localhost:5000' : '';
+  return import.meta.env.DEV ? 'http://localhost:5000' : 'https://pdf-backend-935131444417.asia-south1.run.app';
 };
 
 export const getFullApiUrl = (endpoint: string): string => {

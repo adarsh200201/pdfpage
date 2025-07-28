@@ -134,7 +134,7 @@ const OcrPdfEnhanced = () => {
   useEffect(() => {
     const loadSupportedLanguages = async () => {
       try {
-        const apiUrl = "https://pdfpage-app.onrender.com/api";
+        const apiUrl = "https://pdf-backend-935131444417.asia-south1.run.app/api";
         const response = await fetch(`${apiUrl}/ocr/languages`);
         const data = await response.json();
         if (data.success) {
@@ -221,7 +221,7 @@ const OcrPdfEnhanced = () => {
       setProcessingStatus("Uploading document...");
 
       // Call backend OCR API
-      const apiUrl = "https://pdfpage-app.onrender.com/api";
+      const apiUrl = "https://pdf-backend-935131444417.asia-south1.run.app/api";
       const response = await fetch(`${apiUrl}/ocr/process`, {
         method: "POST",
         body: formData,

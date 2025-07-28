@@ -43,12 +43,12 @@ ENV FLASK_ENV=production
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONDONTWRITEBYTECODE=1
 
-# Expose port
-EXPOSE 5000
+# Expose port for Google Cloud Run (required)
+EXPOSE 8080
 
-# Health check
+# Health check - updated for Cloud Run port
 HEALTHCHECK --interval=30s --timeout=30s --start-period=60s --retries=3 \
-    CMD curl -f http://localhost:5000/health || exit 1
+    CMD curl -f http://localhost:$PORT/health || exit 1
 
-# Run the application with proper production settings
-CMD ["gunicorn", "--bind", "0.0.0.0:5000", "--workers", "1", "--threads", "2", "--timeout", "300", "--worker-class", "sync", "app:app"]
+# Run the application with proper production settings for Google Cloud Run
+CMD ["gunicorn", "--bind", "0.0.0.0:$PORT", "--workers", "1", "--threads", "2", "--timeout", "300", "--worker-class", "sync", "app:app"]

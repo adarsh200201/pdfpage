@@ -15,7 +15,7 @@ export class ImageService {
   private getBaseURL(): string {
     return window.location.hostname === "localhost"
       ? "http://localhost:5000"
-      : "https://pdfpage-app.onrender.com";
+      : "https://pdf-backend-935131444417.asia-south1.run.app";
   }
 
   // Compress multiple images using backend API
@@ -995,7 +995,7 @@ export class ImageService {
           { type: `image/${options.outputFormat || "png"}` },
         );
 
-        console.log("✅ Internal U²-Net service succeeded");
+        console.log("�� Internal U²-Net service succeeded");
         return {
           file: resultFile,
           blob,

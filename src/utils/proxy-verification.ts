@@ -17,7 +17,7 @@ export class ProxyVerification {
   static async verifyGoogleOAuthProxy(): Promise<ProxyVerificationResult> {
     const oauthUrl = import.meta.env.DEV
       ? "http://localhost:5000/api/auth/google"
-      : "https://pdfpage-app.onrender.com/api/auth/google";
+      : "https://pdf-backend-935131444417.asia-south1.run.app/api/auth/google";
 
     try {
       // Test the proxy URL without actually triggering OAuth

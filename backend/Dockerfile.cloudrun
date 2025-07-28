@@ -1,0 +1,46 @@
+# Multi-stage build for Node.js backend on Google Cloud Run
+FROM node:18-slim
+
+# Set working directory
+WORKDIR /app
+
+# Install system dependencies required for native modules
+RUN apt-get update && apt-get install -y \
+    python3 \
+    make \
+    g++ \
+    libc6-dev \
+    curl \
+    ghostscript \
+    tesseract-ocr \
+    tesseract-ocr-eng \
+    poppler-utils \
+    imagemagick \
+    libreoffice \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy package files
+COPY package*.json ./
+
+# Install dependencies
+RUN npm ci --only=production && npm cache clean --force
+
+# Copy application code
+COPY . .
+
+# Create necessary directories
+RUN mkdir -p uploads temp logs
+
+# Set environment variables
+ENV NODE_ENV=production
+ENV PORT=8080
+
+# Expose port for Google Cloud Run
+EXPOSE 8080
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:$PORT/api/health || exit 1
+
+# Start the application
+CMD ["node", "server.js"]
