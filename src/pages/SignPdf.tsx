@@ -8,6 +8,9 @@ import AuthModal from "@/components/auth/AuthModal";
 import { useAuth } from "@/contexts/AuthContext";
 import { PDFService } from "@/services/pdfService";
 import { useToast } from "@/hooks/use-toast";
+import { AdvancedSignatureCreator } from "@/components/pdf-editor/AdvancedSignatureCreator";
+import { TemplateLibrary } from "@/components/pdf-editor/TemplateLibrary";
+import { SignaturePropertiesPanel } from "@/components/pdf-editor/SignaturePropertiesPanel";
 import {
   ArrowLeft,
   Download,
@@ -44,6 +47,20 @@ import {
   AlignCenter,
   AlignLeft,
   AlignRight,
+  Sparkles,
+  Wand2,
+  Zap,
+  Monitor,
+  Smartphone,
+  Tablet,
+  Layout,
+  Maximize,
+  MoreHorizontal,
+  ChevronDown,
+  BookOpen,
+  Target,
+  Shield,
+  Rocket,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -84,7 +101,7 @@ const SignPdf = () => {
   const [file, setFile] = useState<File | null>(null);
   const [pdfPages, setPdfPages] = useState<number>(1);
   const [currentPage, setCurrentPage] = useState(1);
-  const [zoom, setZoom] = useState(1);
+  const [zoom, setZoom] = useState(1.44);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isComplete, setIsComplete] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
@@ -118,9 +135,8 @@ const SignPdf = () => {
   // UI states
   const [showPropertiesPanel, setShowPropertiesPanel] = useState(true);
   const [showTemplateLibrary, setShowTemplateLibrary] = useState(false);
-  const [activeTab, setActiveTab] = useState<"sign" | "fill" | "protect">(
-    "sign",
-  );
+  const [sidebarTab, setSidebarTab] = useState<"signatures" | "templates" | "settings">("signatures");
+  const [viewMode, setViewMode] = useState<"desktop" | "tablet" | "mobile">("desktop");
 
   const { isAuthenticated, user } = useAuth();
   const { toast } = useToast();
@@ -153,7 +169,7 @@ const SignPdf = () => {
         setSignedFile(null);
         setSignatures([]);
         setCurrentPage(1);
-        setZoom(1);
+        setZoom(1.44);
 
         try {
           // Load PDF to get page count
@@ -213,7 +229,7 @@ const SignPdf = () => {
       setSignatureMode(null);
 
       toast({
-        title: "Signature created",
+        title: "✨ Signature created",
         description: "Click on the PDF to position your signature",
       });
     },
@@ -295,7 +311,7 @@ const SignPdf = () => {
     setSelectedSignatureId(updatedSignature.id);
 
     toast({
-      title: "Signature placed",
+      title: "🎯 Signature placed",
       description: "Signature added to page " + currentPage,
     });
   };
@@ -384,7 +400,7 @@ const SignPdf = () => {
       setSelectedSignatureId(newSignature.id);
 
       toast({
-        title: "Signature duplicated",
+        title: "📋 Signature duplicated",
         description: "Created a copy of the signature",
       });
     },
@@ -397,7 +413,7 @@ const SignPdf = () => {
       setSignatures((prev) => prev.filter((sig) => sig.id !== id));
       setSelectedSignatureId(null);
       toast({
-        title: "Signature removed",
+        title: "🗑️ Signature removed",
         description: "Signature has been removed from the document",
       });
     },
@@ -433,7 +449,7 @@ const SignPdf = () => {
   // Zoom controls
   const handleZoomIn = () => setZoom((prev) => Math.min(prev * 1.2, 3));
   const handleZoomOut = () => setZoom((prev) => Math.max(prev / 1.2, 0.25));
-  const handleZoomReset = () => setZoom(1);
+  const handleZoomReset = () => setZoom(1.44);
 
   // Page navigation
   const handlePageChange = (page: number) => {
@@ -658,7 +674,7 @@ const SignPdf = () => {
     setIsComplete(false);
     setPdfPages(1);
     setCurrentPage(1);
-    setZoom(1);
+    setZoom(1.44);
     setSignatures([]);
     setSelectedSignatureId(null);
     setPlacingSignature(null);
@@ -675,75 +691,115 @@ const SignPdf = () => {
     (s) => s.id === selectedSignatureId,
   );
 
-  // Success screen
-  if (isComplete) {
+  // Success screen with celebration design
+  if (isComplete && signedFile) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
+      <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-blue-50 to-purple-50">
         <Header />
 
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <PromoBanner className="mb-8" />
 
           <div className="flex items-center space-x-2 mb-8">
             <Link
               to="/"
-              className="text-body-medium text-text-light hover:text-brand-red transition-colors"
+              className="flex items-center text-gray-600 hover:text-emerald-600 transition-colors font-medium"
             >
-              <ArrowLeft className="w-4 h-4 mr-1 inline" />
+              <ArrowLeft className="w-4 h-4 mr-1" />
               Back to Home
             </Link>
           </div>
 
-          <div className="bg-white rounded-2xl p-8 shadow-xl border border-gray-200">
-            <div className="text-center mb-6">
-              <div className="w-20 h-20 bg-gradient-to-br from-green-500 to-emerald-600 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg">
-                <Check className="w-10 h-10 text-white" />
-              </div>
-              <h3 className="text-2xl font-bold text-gray-900 mb-2">
-                PDF Signed Successfully!
-              </h3>
-              <p className="text-gray-600 text-lg">
-                Added {signatures.filter((s) => s.visible).length} signature(s)
-                to your document
-              </p>
-            </div>
-
-            {signedFile && (
-              <div className="flex items-center justify-between p-6 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl mb-6 border border-blue-200">
-                <div className="flex items-center space-x-4">
-                  <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                    <FileText className="w-6 h-6 text-blue-600" />
+          {/* Celebration Card */}
+          <div className="relative overflow-hidden bg-white rounded-3xl shadow-2xl border border-gray-100">
+            {/* Background Pattern */}
+            <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 via-blue-500/5 to-purple-500/5"></div>
+            <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-bl from-emerald-200/20 to-transparent rounded-full transform translate-x-32 -translate-y-32"></div>
+            <div className="absolute bottom-0 left-0 w-96 h-96 bg-gradient-to-tr from-blue-200/20 to-transparent rounded-full transform -translate-x-48 translate-y-48"></div>
+            
+            <div className="relative p-8 lg:p-12">
+              <div className="text-center mb-8">
+                <div className="relative mx-auto mb-6">
+                  <div className="w-24 h-24 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-full flex items-center justify-center mx-auto shadow-lg">
+                    <Check className="w-12 h-12 text-white" />
                   </div>
-                  <div>
-                    <p className="font-semibold text-gray-900 text-lg">
-                      {signedFile.name}
-                    </p>
-                    <p className="text-sm text-gray-600">
-                      {(signedFile.size / 1024 / 1024).toFixed(2)} MB •
-                      Digitally Signed with{" "}
-                      {signatures.filter((s) => s.visible).length} signature(s)
-                    </p>
+                  <div className="absolute -top-2 -right-2 w-8 h-8 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-full flex items-center justify-center animate-pulse">
+                    <Sparkles className="w-4 h-4 text-white" />
+                  </div>
+                </div>
+                <h3 className="text-3xl lg:text-4xl font-bold bg-gradient-to-r from-gray-900 via-emerald-700 to-blue-700 bg-clip-text text-transparent mb-3">
+                  🎉 PDF Signed Successfully!
+                </h3>
+                <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+                  Your document has been digitally signed with {signatures.filter((s) => s.visible).length} professional signature{signatures.filter((s) => s.visible).length !== 1 ? 's' : ''}
+                </p>
+              </div>
+
+              {/* File Info Card */}
+              <div className="bg-gradient-to-r from-blue-50 via-indigo-50 to-purple-50 border border-blue-200/50 rounded-2xl p-6 mb-8">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-4">
+                    <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg">
+                      <FileText className="w-8 h-8 text-white" />
+                    </div>
+                    <div>
+                      <h4 className="text-xl font-bold text-gray-900 mb-1">
+                        {signedFile.name}
+                      </h4>
+                      <div className="flex items-center space-x-4 text-sm text-gray-600">
+                        <span className="flex items-center">
+                          <Target className="w-4 h-4 mr-1" />
+                          {(signedFile.size / 1024 / 1024).toFixed(2)} MB
+                        </span>
+                        <span className="flex items-center">
+                          <Shield className="w-4 h-4 mr-1" />
+                          Digitally Secured
+                        </span>
+                        <span className="flex items-center">
+                          <Star className="w-4 h-4 mr-1" />
+                          {signatures.filter((s) => s.visible).length} Signatures
+                        </span>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
-            )}
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <Button
-                onClick={handleDownload}
-                className="h-12 text-lg bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800"
-              >
-                <Download className="w-5 h-5 mr-2" />
-                Download Signed PDF
-              </Button>
-              <Button
-                variant="outline"
-                onClick={reset}
-                className="h-12 text-lg"
-              >
-                <RotateCcw className="w-5 h-5 mr-2" />
-                Sign Another PDF
-              </Button>
+              {/* Action Buttons */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Button
+                  onClick={handleDownload}
+                  className="h-14 text-lg font-semibold bg-gradient-to-r from-emerald-600 via-emerald-700 to-green-700 hover:from-emerald-700 hover:via-emerald-800 hover:to-green-800 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-0.5"
+                >
+                  <Download className="w-5 h-5 mr-3" />
+                  Download Signed PDF
+                  <Sparkles className="w-4 h-4 ml-2" />
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={reset}
+                  className="h-14 text-lg font-semibold border-2 hover:bg-gray-50 transition-all duration-300"
+                >
+                  <RotateCcw className="w-5 h-5 mr-3" />
+                  Sign Another PDF
+                </Button>
+              </div>
+
+              {/* Success Stats */}
+              <div className="mt-8 grid grid-cols-3 gap-4">
+                <div className="text-center p-4 bg-white/50 rounded-xl border border-gray-100">
+                  <div className="text-2xl font-bold text-emerald-600">{signatures.filter((s) => s.visible).length}</div>
+                  <div className="text-sm text-gray-600">Signatures Added</div>
+                </div>
+                <div className="text-center p-4 bg-white/50 rounded-xl border border-gray-100">
+                  <div className="text-2xl font-bold text-blue-600">{pdfPages}</div>
+                  <div className="text-sm text-gray-600">Pages Processed</div>
+                </div>
+                <div className="text-center p-4 bg-white/50 rounded-xl border border-gray-100">
+                  <div className="text-2xl font-bold text-purple-600">100%</div>
+                  <div className="text-sm text-gray-600">Security Level</div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -758,140 +814,77 @@ const SignPdf = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/50">
       <Header />
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      <div className="max-w-[1800px] mx-auto px-4 sm:px-6 lg:px-8 py-6">
         <PromoBanner className="mb-6" />
 
-        <div className="flex items-center justify-between mb-6">
-          <Link
-            to="/"
-            className="flex items-center text-gray-600 hover:text-brand-red transition-colors"
-          >
-            <ArrowLeft className="w-4 h-4 mr-1" />
-            Back to Home
-          </Link>
-
-          {file && (
-            <div className="flex items-center space-x-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setShowGrid(!showGrid)}
-                className={cn(showGrid && "bg-blue-50 border-blue-300")}
-              >
-                <Grid className="w-4 h-4 mr-1" />
-                Grid
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setSnapToGrid(!snapToGrid)}
-                className={cn(snapToGrid && "bg-blue-50 border-blue-300")}
-              >
-                <MousePointer className="w-4 h-4 mr-1" />
-                Snap
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setShowPropertiesPanel(!showPropertiesPanel)}
-              >
-                <Settings className="w-4 h-4 mr-1" />
-                Properties
-              </Button>
-            </div>
-          )}
-        </div>
-
-        {/* Header */}
+        {/* Hero Section - only show when no file is uploaded */}
         {!file && (
-          <div className="text-center mb-12">
-            <div className="w-20 h-20 bg-gradient-to-br from-blue-600 to-indigo-700 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-xl">
-              <PenTool className="w-10 h-10 text-white" />
+          <div className="text-center mb-16">
+            <div className="relative mb-8">
+              <div className="w-28 h-28 bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-700 rounded-3xl flex items-center justify-center mx-auto shadow-2xl">
+                <PenTool className="w-14 h-14 text-white" />
+                <div className="absolute -top-3 -right-3 w-12 h-12 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-full flex items-center justify-center animate-bounce">
+                  <Sparkles className="w-6 h-6 text-white" />
+                </div>
+              </div>
             </div>
-            <h1 className="text-4xl font-bold text-gray-900 mb-4">
-              Advanced PDF Signing
+            <h1 className="text-5xl lg:text-6xl font-black bg-gradient-to-r from-gray-900 via-blue-800 to-indigo-900 bg-clip-text text-transparent mb-6">
+              Professional PDF Signing
             </h1>
-            <p className="text-xl text-gray-600 max-w-3xl mx-auto mb-8">
-              Professional PDF signing with advanced features. Create, position,
-              and manage digital signatures with precision and style.
+            <p className="text-xl lg:text-2xl text-gray-600 max-w-4xl mx-auto mb-12 leading-relaxed">
+              Create, place, and manage digital signatures with precision. 
+              <span className="font-semibold text-blue-700"> Professional tools</span> for 
+              <span className="font-semibold text-indigo-700"> modern workflows</span>.
             </p>
-            <div className="flex flex-wrap justify-center gap-4">
-              <div className="inline-flex items-center px-6 py-3 rounded-full text-sm bg-blue-100 text-blue-800 font-medium">
-                <span className="mr-2">✍️</span>
+            
+            {/* Feature Pills */}
+            <div className="flex flex-wrap justify-center gap-4 mb-16">
+              <div className="inline-flex items-center px-6 py-3 rounded-full text-sm bg-gradient-to-r from-blue-100 to-blue-200 text-blue-800 font-semibold shadow-md">
+                <PenTool className="w-4 h-4 mr-2" />
                 Draw & Upload Signatures
               </div>
-              <div className="inline-flex items-center px-6 py-3 rounded-full text-sm bg-green-100 text-green-800 font-medium">
-                <span className="mr-2">🎨</span>
+              <div className="inline-flex items-center px-6 py-3 rounded-full text-sm bg-gradient-to-r from-emerald-100 to-emerald-200 text-emerald-800 font-semibold shadow-md">
+                <Wand2 className="w-4 h-4 mr-2" />
                 Advanced Styling
               </div>
-              <div className="inline-flex items-center px-6 py-3 rounded-full text-sm bg-purple-100 text-purple-800 font-medium">
-                <span className="mr-2">📱</span>
+              <div className="inline-flex items-center px-6 py-3 rounded-full text-sm bg-gradient-to-r from-purple-100 to-purple-200 text-purple-800 font-semibold shadow-md">
+                <Move className="w-4 h-4 mr-2" />
                 Drag & Resize
               </div>
-              <div className="inline-flex items-center px-6 py-3 rounded-full text-sm bg-orange-100 text-orange-800 font-medium">
-                <span className="mr-2">💾</span>
+              <div className="inline-flex items-center px-6 py-3 rounded-full text-sm bg-gradient-to-r from-orange-100 to-orange-200 text-orange-800 font-semibold shadow-md">
+                <Star className="w-4 h-4 mr-2" />
                 Template Library
               </div>
+            </div>
+
+            {/* Upload Section */}
+            <div className="max-w-4xl mx-auto">
+              <div className="relative overflow-hidden bg-white rounded-3xl shadow-2xl border border-gray-100">
+                <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 via-indigo-500/5 to-purple-500/5"></div>
+                <div className="relative p-8 lg:p-12">
+                  <FileUpload
+                    onFilesSelect={handleFileUpload}
+                    accept=".pdf"
+                    multiple={false}
+                    maxSize={50}
+                    allowedTypes={["pdf"]}
+                    uploadText="Drop your PDF here or click to browse"
+                    supportText="Support for PDF files up to 50MB • Your files are processed securely"
+                  />
+                </div>
+              </div>
+
+
             </div>
           </div>
         )}
 
-        {/* Main Content */}
-        {!file ? (
-          <div className="max-w-3xl mx-auto">
-            <div className="bg-white rounded-2xl p-8 shadow-xl border border-gray-200">
-              <FileUpload
-                onFilesSelect={handleFileUpload}
-                accept=".pdf"
-                multiple={false}
-                maxSize={50}
-                allowedTypes={["pdf"]}
-                uploadText="Select PDF file to sign"
-                supportText="Supports PDF format • Max 50MB"
-              />
-            </div>
-
-            {/* Feature showcase */}
-            <div className="mt-12 grid grid-cols-1 md:grid-cols-3 gap-8">
-              <div className="text-center p-6 bg-white rounded-xl shadow-lg border border-gray-200">
-                <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center mx-auto mb-4">
-                  <PenTool className="w-6 h-6 text-blue-600" />
-                </div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                  Multiple Signature Types
-                </h3>
-                <p className="text-gray-600 text-sm">
-                  Draw, type, upload images, add dates, and insert custom text
-                </p>
-              </div>
-              <div className="text-center p-6 bg-white rounded-xl shadow-lg border border-gray-200">
-                <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center mx-auto mb-4">
-                  <Move className="w-6 h-6 text-green-600" />
-                </div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                  Drag & Drop Editing
-                </h3>
-                <p className="text-gray-600 text-sm">
-                  Move, resize, rotate, and style signatures after placement
-                </p>
-              </div>
-              <div className="text-center p-6 bg-white rounded-xl shadow-lg border border-gray-200">
-                <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center mx-auto mb-4">
-                  <Star className="w-6 h-6 text-purple-600" />
-                </div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                  Template Library
-                </h3>
-                <p className="text-gray-600 text-sm">
-                  Save and reuse your signatures across different documents
-                </p>
-              </div>
-            </div>
-          </div>
-        ) : showSignatureCreator ? (
+        {/* Conditional Content */}
+        {showSignatureCreator ? (
+          // Signature Creator Modal
           <AdvancedSignatureCreator
             type={signatureMode!}
             onComplete={handleSignatureComplete}
@@ -901,6 +894,7 @@ const SignPdf = () => {
             }}
           />
         ) : showTemplateLibrary ? (
+          // Template Library Modal
           <TemplateLibrary
             templates={signatureTemplates}
             onSelect={handleTemplateSelect}
@@ -910,366 +904,524 @@ const SignPdf = () => {
             onClose={() => setShowTemplateLibrary(false)}
           />
         ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-            {/* Advanced Toolbar */}
-            <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-4 h-fit">
-              <div className="space-y-4">
-                {/* Tabs */}
-                <div className="flex space-x-1 bg-gray-100 rounded-lg p-1">
-                  <button
-                    onClick={() => setActiveTab("sign")}
-                    className={cn(
-                      "flex-1 py-2 px-3 rounded-md text-sm font-medium transition-colors",
-                      activeTab === "sign"
-                        ? "bg-white text-blue-600 shadow-sm"
-                        : "text-gray-600 hover:text-gray-900",
-                    )}
-                  >
-                    Sign
-                  </button>
-                  <button
-                    onClick={() => setActiveTab("fill")}
-                    className={cn(
-                      "flex-1 py-2 px-3 rounded-md text-sm font-medium transition-colors",
-                      activeTab === "fill"
-                        ? "bg-white text-blue-600 shadow-sm"
-                        : "text-gray-600 hover:text-gray-900",
-                    )}
-                  >
-                    Fill
-                  </button>
-                  <button
-                    onClick={() => setActiveTab("protect")}
-                    className={cn(
-                      "flex-1 py-2 px-3 rounded-md text-sm font-medium transition-colors",
-                      activeTab === "protect"
-                        ? "bg-white text-blue-600 shadow-sm"
-                        : "text-gray-600 hover:text-gray-900",
-                    )}
-                  >
-                    Protect
-                  </button>
+          // Main Editor Interface
+          <div className="flex flex-col lg:flex-row gap-6">
+            {/* Left Sidebar */}
+            <div className="lg:w-80 space-y-6">
+              {/* Navigation */}
+              <div className="flex items-center justify-between">
+                <Link
+                  to="/"
+                  className="flex items-center text-gray-600 hover:text-blue-600 transition-colors font-medium"
+                >
+                  <ArrowLeft className="w-4 h-4 mr-2" />
+                  Back to Home
+                </Link>
+              </div>
+
+              {/* Signature Tools Card */}
+              <div className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
+                <div className="p-6 bg-gradient-to-r from-blue-600 to-indigo-700 text-white">
+                  <h3 className="text-xl font-bold flex items-center">
+                    <Wand2 className="w-5 h-5 mr-2" />
+                    Signature Tools
+                  </h3>
+                  <p className="text-blue-100 text-sm mt-1">Create and manage your signatures</p>
                 </div>
 
-                {/* Sign Tab */}
-                {activeTab === "sign" && (
-                  <div className="space-y-3">
-                    <h3 className="font-semibold text-gray-900">
-                      Add Signature
-                    </h3>
-                    <div className="grid grid-cols-2 gap-2">
-                      <Button
-                        onClick={() => handleCreateSignature("draw")}
-                        variant="outline"
-                        size="sm"
-                        className="h-12 flex-col"
-                      >
-                        <PenTool className="w-4 h-4 mb-1" />
-                        <span className="text-xs">Draw</span>
-                      </Button>
-                      <Button
-                        onClick={() => handleCreateSignature("type")}
-                        variant="outline"
-                        size="sm"
-                        className="h-12 flex-col"
-                      >
-                        <Type className="w-4 h-4 mb-1" />
-                        <span className="text-xs">Type</span>
-                      </Button>
-                      <Button
-                        onClick={() => handleCreateSignature("upload")}
-                        variant="outline"
-                        size="sm"
-                        className="h-12 flex-col"
-                      >
-                        <ImageIcon className="w-4 h-4 mb-1" />
-                        <span className="text-xs">Upload</span>
-                      </Button>
-                      <Button
-                        onClick={() => setShowTemplateLibrary(true)}
-                        variant="outline"
-                        size="sm"
-                        className="h-12 flex-col"
-                      >
-                        <Star className="w-4 h-4 mb-1" />
-                        <span className="text-xs">Templates</span>
-                      </Button>
-                    </div>
+                <div className="p-6 space-y-6">
+                  {/* Tab Navigation */}
+                  <div className="flex space-x-1 bg-gray-100 rounded-xl p-1">
+                    <button
+                      onClick={() => setSidebarTab("signatures")}
+                      className={cn(
+                        "flex-1 py-3 px-4 rounded-lg text-sm font-medium transition-all duration-200",
+                        sidebarTab === "signatures"
+                          ? "bg-white text-blue-600 shadow-sm"
+                          : "text-gray-600 hover:text-gray-900",
+                      )}
+                    >
+                      <PenTool className="w-4 h-4 mx-auto mb-1" />
+                      Create
+                    </button>
+                    <button
+                      onClick={() => setSidebarTab("templates")}
+                      className={cn(
+                        "flex-1 py-3 px-4 rounded-lg text-sm font-medium transition-all duration-200",
+                        sidebarTab === "templates"
+                          ? "bg-white text-blue-600 shadow-sm"
+                          : "text-gray-600 hover:text-gray-900",
+                      )}
+                    >
+                      <BookOpen className="w-4 h-4 mx-auto mb-1" />
+                      Library
+                    </button>
+                    <button
+                      onClick={() => setSidebarTab("settings")}
+                      className={cn(
+                        "flex-1 py-3 px-4 rounded-lg text-sm font-medium transition-all duration-200",
+                        sidebarTab === "settings"
+                          ? "bg-white text-blue-600 shadow-sm"
+                          : "text-gray-600 hover:text-gray-900",
+                      )}
+                    >
+                      <Settings className="w-4 h-4 mx-auto mb-1" />
+                      Settings
+                    </button>
+                  </div>
 
-                    <div className="border-t pt-3">
-                      <h4 className="font-medium text-gray-900 mb-2">
-                        Add Elements
-                      </h4>
-                      <div className="grid grid-cols-2 gap-2">
+                  {/* Create Signatures Tab */}
+                  {sidebarTab === "signatures" && (
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-2 gap-3">
                         <Button
-                          onClick={() => handleCreateSignature("date")}
+                          onClick={() => handleCreateSignature("draw")}
                           variant="outline"
-                          size="sm"
-                          className="h-10 text-xs"
+                          className="h-20 flex-col space-y-2 hover:bg-blue-50 hover:border-blue-300 transition-all duration-200"
                         >
-                          <Calendar className="w-3 h-3 mr-1" />
-                          Date
+                          <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
+                            <PenTool className="w-4 h-4 text-blue-600" />
+                          </div>
+                          <span className="text-xs font-medium">Draw</span>
                         </Button>
                         <Button
-                          onClick={() => handleCreateSignature("text")}
+                          onClick={() => handleCreateSignature("type")}
                           variant="outline"
-                          size="sm"
-                          className="h-10 text-xs"
+                          className="h-20 flex-col space-y-2 hover:bg-green-50 hover:border-green-300 transition-all duration-200"
                         >
-                          <Type className="w-3 h-3 mr-1" />
-                          Text
+                          <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
+                            <Type className="w-4 h-4 text-green-600" />
+                          </div>
+                          <span className="text-xs font-medium">Type</span>
+                        </Button>
+                        <Button
+                          onClick={() => handleCreateSignature("upload")}
+                          variant="outline"
+                          className="h-20 flex-col space-y-2 hover:bg-purple-50 hover:border-purple-300 transition-all duration-200"
+                        >
+                          <div className="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center">
+                            <ImageIcon className="w-4 h-4 text-purple-600" />
+                          </div>
+                          <span className="text-xs font-medium">Upload</span>
+                        </Button>
+                        <Button
+                          onClick={() => setShowTemplateLibrary(true)}
+                          variant="outline"
+                          className="h-20 flex-col space-y-2 hover:bg-orange-50 hover:border-orange-300 transition-all duration-200"
+                        >
+                          <div className="w-8 h-8 bg-orange-100 rounded-lg flex items-center justify-center">
+                            <Star className="w-4 h-4 text-orange-600" />
+                          </div>
+                          <span className="text-xs font-medium">Templates</span>
                         </Button>
                       </div>
-                    </div>
 
-                    {/* Signatures list */}
-                    {currentPageSignatures.length > 0 && (
-                      <div className="border-t pt-3">
-                        <h4 className="font-medium text-gray-900 mb-2">
-                          Page {currentPage} Signatures (
-                          {currentPageSignatures.length})
-                        </h4>
-                        <div className="space-y-1 max-h-40 overflow-y-auto">
-                          {currentPageSignatures.map((sig, index) => (
-                            <div
-                              key={sig.id}
-                              className={cn(
-                                "flex items-center justify-between p-2 rounded-md text-xs border transition-colors cursor-pointer",
-                                selectedSignatureId === sig.id
-                                  ? "bg-blue-50 border-blue-300"
-                                  : "bg-gray-50 border-gray-200 hover:bg-gray-100",
-                              )}
-                              onClick={() => handleSignatureSelect(sig.id)}
-                            >
-                              <div className="flex items-center min-w-0">
-                                {sig.type === "draw" && (
-                                  <PenTool className="w-3 h-3 mr-1 text-blue-500" />
-                                )}
-                                {sig.type === "type" && (
-                                  <Type className="w-3 h-3 mr-1 text-green-500" />
-                                )}
-                                {sig.type === "upload" && (
-                                  <ImageIcon className="w-3 h-3 mr-1 text-purple-500" />
-                                )}
-                                {sig.type === "date" && (
-                                  <Calendar className="w-3 h-3 mr-1 text-orange-500" />
-                                )}
-                                {sig.type === "text" && (
-                                  <FileText className="w-3 h-3 mr-1 text-indigo-500" />
-                                )}
-                                <span className="truncate">
-                                  {sig.text || `${sig.type} signature`}
-                                </span>
-                              </div>
-                              <div className="flex items-center space-x-1">
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    updateSignature(sig.id, {
-                                      visible: !sig.visible,
-                                    });
-                                  }}
-                                  className="p-1 hover:bg-gray-200 rounded"
-                                >
-                                  {sig.visible ? (
-                                    <Eye className="w-3 h-3" />
-                                  ) : (
-                                    <EyeOff className="w-3 h-3" />
-                                  )}
-                                </button>
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    removeSignature(sig.id);
-                                  }}
-                                  className="p-1 hover:bg-red-100 rounded text-red-500"
-                                >
-                                  <X className="w-3 h-3" />
-                                </button>
-                              </div>
-                            </div>
-                          ))}
+                      {/* Quick Actions */}
+                      <div className="space-y-2">
+                        <h4 className="font-semibold text-gray-900 text-sm">Quick Add</h4>
+                        <div className="grid grid-cols-2 gap-2">
+                          <Button
+                            onClick={() => handleCreateSignature("date")}
+                            variant="outline"
+                            size="sm"
+                            className="justify-start hover:bg-yellow-50"
+                          >
+                            <Calendar className="w-3 h-3 mr-2 text-yellow-600" />
+                            Date
+                          </Button>
+                          <Button
+                            onClick={() => handleCreateSignature("text")}
+                            variant="outline"
+                            size="sm"
+                            className="justify-start hover:bg-indigo-50"
+                          >
+                            <Type className="w-3 h-3 mr-2 text-indigo-600" />
+                            Text
+                          </Button>
                         </div>
                       </div>
-                    )}
 
-                    {/* Action buttons */}
-                    <div className="border-t pt-3 space-y-2">
-                      {signatures.filter((s) => s.visible).length > 0 && (
-                        <Button
-                          onClick={handleSavePdf}
-                          className="w-full bg-gradient-to-r from-blue-600 to-blue-700"
-                        >
-                          <Download className="w-4 h-4 mr-2" />
-                          Save Signed PDF
-                        </Button>
+                      {/* Current Page Signatures */}
+                      {currentPageSignatures.length > 0 && (
+                        <div className="space-y-3">
+                          <div className="flex items-center justify-between">
+                            <h4 className="font-semibold text-gray-900 text-sm">
+                              Page {currentPage} Signatures
+                            </h4>
+                            <span className="bg-blue-100 text-blue-800 text-xs font-medium px-2 py-1 rounded-full">
+                              {currentPageSignatures.length}
+                            </span>
+                          </div>
+                          <div className="space-y-2 max-h-40 overflow-y-auto">
+                            {currentPageSignatures.map((sig) => (
+                              <div
+                                key={sig.id}
+                                className={cn(
+                                  "flex items-center justify-between p-3 rounded-xl border transition-all cursor-pointer",
+                                  selectedSignatureId === sig.id
+                                    ? "bg-blue-50 border-blue-300 shadow-sm"
+                                    : "bg-gray-50 border-gray-200 hover:bg-gray-100",
+                                )}
+                                onClick={() => handleSignatureSelect(sig.id)}
+                              >
+                                <div className="flex items-center min-w-0 space-x-2">
+                                  {sig.type === "draw" && (
+                                    <div className="w-6 h-6 bg-blue-100 rounded-lg flex items-center justify-center">
+                                      <PenTool className="w-3 h-3 text-blue-600" />
+                                    </div>
+                                  )}
+                                  {sig.type === "type" && (
+                                    <div className="w-6 h-6 bg-green-100 rounded-lg flex items-center justify-center">
+                                      <Type className="w-3 h-3 text-green-600" />
+                                    </div>
+                                  )}
+                                  {sig.type === "upload" && (
+                                    <div className="w-6 h-6 bg-purple-100 rounded-lg flex items-center justify-center">
+                                      <ImageIcon className="w-3 h-3 text-purple-600" />
+                                    </div>
+                                  )}
+                                  {sig.type === "date" && (
+                                    <div className="w-6 h-6 bg-yellow-100 rounded-lg flex items-center justify-center">
+                                      <Calendar className="w-3 h-3 text-yellow-600" />
+                                    </div>
+                                  )}
+                                  {sig.type === "text" && (
+                                    <div className="w-6 h-6 bg-indigo-100 rounded-lg flex items-center justify-center">
+                                      <FileText className="w-3 h-3 text-indigo-600" />
+                                    </div>
+                                  )}
+                                  <span className="truncate text-sm font-medium">
+                                    {sig.text || `${sig.type} signature`}
+                                  </span>
+                                </div>
+                                <div className="flex items-center space-x-1">
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      updateSignature(sig.id, {
+                                        visible: !sig.visible,
+                                      });
+                                    }}
+                                    className="p-1 hover:bg-white rounded-lg transition-colors"
+                                  >
+                                    {sig.visible ? (
+                                      <Eye className="w-3 h-3 text-gray-500" />
+                                    ) : (
+                                      <EyeOff className="w-3 h-3 text-gray-400" />
+                                    )}
+                                  </button>
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      removeSignature(sig.id);
+                                    }}
+                                    className="p-1 hover:bg-red-50 rounded-lg text-red-500 transition-colors"
+                                  >
+                                    <X className="w-3 h-3" />
+                                  </button>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
                       )}
+
+                      {/* Action Buttons */}
+                      <div className="space-y-3 pt-4 border-t border-gray-100">
+                        {signatures.filter((s) => s.visible).length > 0 && (
+                          <Button
+                            onClick={handleSavePdf}
+                            disabled={isProcessing}
+                            className="w-full h-12 bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-700 hover:to-indigo-800 shadow-lg font-semibold"
+                          >
+                            {isProcessing ? (
+                              <div className="flex items-center">
+                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-3"></div>
+                                Processing...
+                              </div>
+                            ) : (
+                              <>
+                                <Download className="w-4 h-4 mr-3" />
+                                Sign & Download PDF
+                                <Rocket className="w-4 h-4 ml-2" />
+                              </>
+                            )}
+                          </Button>
+                        )}
+                        <Button
+                          variant="outline"
+                          onClick={reset}
+                          className="w-full"
+                        >
+                          <RotateCcw className="w-4 h-4 mr-2" />
+                          Start Over
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Templates Tab */}
+                  {sidebarTab === "templates" && (
+                    <div className="space-y-4">
+                      <p className="text-sm text-gray-600">
+                        Manage your saved signature templates
+                      </p>
                       <Button
-                        variant="outline"
-                        onClick={reset}
+                        onClick={() => setShowTemplateLibrary(true)}
                         className="w-full"
                       >
-                        <RotateCcw className="w-4 h-4 mr-2" />
-                        Start Over
+                        <BookOpen className="w-4 h-4 mr-2" />
+                        Open Template Library
                       </Button>
                     </div>
-                  </div>
-                )}
+                  )}
 
-                {/* Fill Tab */}
-                {activeTab === "fill" && (
-                  <div className="space-y-3">
-                    <h3 className="font-semibold text-gray-900">Form Fields</h3>
-                    <p className="text-sm text-gray-600">
-                      Auto-detect and fill form fields (Coming soon)
-                    </p>
-                    <div className="grid grid-cols-2 gap-2 opacity-50">
-                      <Button variant="outline" size="sm" disabled>
-                        <Square className="w-4 h-4 mb-1" />
-                        Text Field
-                      </Button>
-                      <Button variant="outline" size="sm" disabled>
-                        <Circle className="w-4 h-4 mb-1" />
-                        Checkbox
-                      </Button>
-                    </div>
-                  </div>
-                )}
+                  {/* Settings Tab */}
+                  {sidebarTab === "settings" && (
+                    <div className="space-y-4">
+                      <div className="space-y-3">
+                        <h4 className="font-semibold text-gray-900 text-sm">View Options</h4>
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm text-gray-700">Show Grid</span>
+                            <button
+                              onClick={() => setShowGrid(!showGrid)}
+                              className={cn(
+                                "relative inline-flex h-6 w-11 items-center rounded-full transition-colors",
+                                showGrid ? "bg-blue-600" : "bg-gray-200"
+                              )}
+                            >
+                              <span
+                                className={cn(
+                                  "inline-block h-4 w-4 transform rounded-full bg-white transition-transform",
+                                  showGrid ? "translate-x-6" : "translate-x-1"
+                                )}
+                              />
+                            </button>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm text-gray-700">Snap to Grid</span>
+                            <button
+                              onClick={() => setSnapToGrid(!snapToGrid)}
+                              className={cn(
+                                "relative inline-flex h-6 w-11 items-center rounded-full transition-colors",
+                                snapToGrid ? "bg-blue-600" : "bg-gray-200"
+                              )}
+                            >
+                              <span
+                                className={cn(
+                                  "inline-block h-4 w-4 transform rounded-full bg-white transition-transform",
+                                  snapToGrid ? "translate-x-6" : "translate-x-1"
+                                )}
+                              />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
 
-                {/* Protect Tab */}
-                {activeTab === "protect" && (
-                  <div className="space-y-3">
-                    <h3 className="font-semibold text-gray-900">Security</h3>
-                    <p className="text-sm text-gray-600">
-                      Add password protection and encryption (Coming soon)
-                    </p>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      disabled
-                      className="w-full"
-                    >
-                      <Lock className="w-4 h-4 mr-2" />
-                      Add Password
-                    </Button>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* PDF Viewer */}
-            <div className="lg:col-span-3 bg-white rounded-xl shadow-lg border border-gray-200">
-              {/* Viewer header */}
-              <div className="flex items-center justify-between p-4 border-b border-gray-200">
-                <div className="flex items-center space-x-4">
-                  <h3 className="font-semibold text-gray-900">PDF Preview</h3>
-                  {placingSignature && (
-                    <div className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm">
-                      📍 Click to place signature
+                      <div className="space-y-3">
+                        <h4 className="font-semibold text-gray-900 text-sm">Preview Mode</h4>
+                        <div className="grid grid-cols-3 gap-2">
+                          <button
+                            onClick={() => setViewMode("desktop")}
+                            className={cn(
+                              "p-3 rounded-lg border text-center transition-all",
+                              viewMode === "desktop"
+                                ? "bg-blue-50 border-blue-300 text-blue-700"
+                                : "border-gray-200 hover:bg-gray-50"
+                            )}
+                          >
+                            <Monitor className="w-4 h-4 mx-auto mb-1" />
+                            <span className="text-xs font-medium">Desktop</span>
+                          </button>
+                          <button
+                            onClick={() => setViewMode("tablet")}
+                            className={cn(
+                              "p-3 rounded-lg border text-center transition-all",
+                              viewMode === "tablet"
+                                ? "bg-blue-50 border-blue-300 text-blue-700"
+                                : "border-gray-200 hover:bg-gray-50"
+                            )}
+                          >
+                            <Tablet className="w-4 h-4 mx-auto mb-1" />
+                            <span className="text-xs font-medium">Tablet</span>
+                          </button>
+                          <button
+                            onClick={() => setViewMode("mobile")}
+                            className={cn(
+                              "p-3 rounded-lg border text-center transition-all",
+                              viewMode === "mobile"
+                                ? "bg-blue-50 border-blue-300 text-blue-700"
+                                : "border-gray-200 hover:bg-gray-50"
+                            )}
+                          >
+                            <Smartphone className="w-4 h-4 mx-auto mb-1" />
+                            <span className="text-xs font-medium">Mobile</span>
+                          </button>
+                        </div>
+                      </div>
                     </div>
                   )}
                 </div>
-
-                <div className="flex items-center space-x-2">
-                  {/* Zoom controls */}
-                  <div className="flex items-center space-x-1 border rounded-lg">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={handleZoomOut}
-                      disabled={zoom <= 0.25}
-                    >
-                      <ZoomOut className="w-4 h-4" />
-                    </Button>
-                    <span className="px-2 text-sm font-medium">
-                      {Math.round(zoom * 100)}%
-                    </span>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={handleZoomIn}
-                      disabled={zoom >= 3}
-                    >
-                      <ZoomIn className="w-4 h-4" />
-                    </Button>
-                  </div>
-
-                  {/* Page navigation */}
-                  <div className="flex items-center space-x-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handlePageChange(currentPage - 1)}
-                      disabled={currentPage === 1}
-                    >
-                      ←
-                    </Button>
-                    <span className="text-sm text-gray-600">
-                      {currentPage} / {pdfPages}
-                    </span>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handlePageChange(currentPage + 1)}
-                      disabled={currentPage === pdfPages}
-                    >
-                      →
-                    </Button>
-                  </div>
-                </div>
               </div>
+            </div>
 
-              {/* PDF Canvas */}
-              <div
-                className="relative overflow-auto"
-                style={{ height: "calc(100vh - 300px)" }}
-              >
-                <AdvancedPDFViewer
-                  file={file}
-                  pageNumber={currentPage}
-                  zoom={zoom}
-                  signatures={currentPageSignatures}
-                  selectedSignatureId={selectedSignatureId}
-                  placingSignature={placingSignature}
-                  showGrid={showGrid}
-                  onCanvasClick={handleCanvasClick}
-                  onSignatureSelect={handleSignatureSelect}
-                  onDragStart={handleDragStart}
-                  onDrag={handleDrag}
-                  onDragEnd={handleDragEnd}
-                />
+            {/* Main Content Area */}
+            <div className="flex-1 min-h-0">
+              {/* PDF Viewer Card */}
+              <div className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden h-full">
+                {/* Viewer Header */}
+                <div className="flex items-center justify-between p-4 bg-gradient-to-r from-gray-50 to-gray-100 border-b border-gray-200">
+                  <div className="flex items-center space-x-4">
+                    <h3 className="font-bold text-gray-900 flex items-center">
+                      <Layout className="w-5 h-5 mr-2 text-blue-600" />
+                      PDF Workspace
+                    </h3>
+                    {placingSignature && (
+                      <div className="flex items-center px-4 py-2 bg-gradient-to-r from-blue-100 to-indigo-100 text-blue-800 rounded-xl text-sm font-medium animate-pulse">
+                        <Target className="w-4 h-4 mr-2" />
+                        Click to place signature
+                      </div>
+                    )}
+                  </div>
 
-                {/* Processing overlay */}
-                {isProcessing && (
-                  <div className="absolute inset-0 bg-white bg-opacity-95 flex items-center justify-center z-50">
-                    <div className="text-center">
-                      <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-blue-600 mx-auto mb-4"></div>
-                      <span className="text-xl font-medium text-gray-900">
-                        Signing PDF...
+                  <div className="flex items-center space-x-3">
+                    {/* Zoom Controls */}
+                    <div className="flex items-center space-x-1 bg-white border border-gray-200 rounded-lg shadow-sm">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={handleZoomOut}
+                        disabled={zoom <= 0.25}
+                        className="h-8 w-8"
+                      >
+                        <ZoomOut className="w-4 h-4" />
+                      </Button>
+                      <span className="px-3 py-1 text-sm font-medium text-gray-700 min-w-[3rem] text-center">
+                        {Math.round(zoom * 100)}%
                       </span>
-                      <p className="text-sm text-gray-600 mt-2">
-                        Adding your signatures with advanced formatting
-                      </p>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={handleZoomIn}
+                        disabled={zoom >= 3}
+                        className="h-8 w-8"
+                      >
+                        <ZoomIn className="w-4 h-4" />
+                      </Button>
+                    </div>
+
+                    {/* Page Navigation */}
+                    <div className="flex items-center space-x-2 bg-white border border-gray-200 rounded-lg shadow-sm px-3 py-1">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handlePageChange(currentPage - 1)}
+                        disabled={currentPage === 1}
+                        className="h-8 w-8"
+                      >
+                        ←
+                      </Button>
+                      <span className="text-sm font-medium text-gray-700 min-w-[3rem] text-center">
+                        {currentPage} / {pdfPages}
+                      </span>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handlePageChange(currentPage + 1)}
+                        disabled={currentPage === pdfPages}
+                        className="h-8 w-8"
+                      >
+                        →
+                      </Button>
+                    </div>
+
+                    {/* View Options */}
+                    <div className="flex items-center space-x-1">
+                      <Button
+                        variant={showGrid ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => setShowGrid(!showGrid)}
+                        className="h-8"
+                      >
+                        <Grid className="w-4 h-4" />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setShowPropertiesPanel(!showPropertiesPanel)}
+                        className="h-8"
+                      >
+                        <MoreHorizontal className="w-4 h-4" />
+                      </Button>
                     </div>
                   </div>
-                )}
+                </div>
+
+                {/* PDF Canvas */}
+                <div className="relative flex-1 overflow-auto bg-gray-50" style={{ height: "calc(100vh - 200px)" }}>
+                  <div className="flex items-center justify-center min-h-full p-8">
+                    <AdvancedPDFViewer
+                      file={file}
+                      pageNumber={currentPage}
+                      zoom={zoom}
+                      signatures={currentPageSignatures}
+                      selectedSignatureId={selectedSignatureId}
+                      placingSignature={placingSignature}
+                      showGrid={showGrid}
+                      onCanvasClick={handleCanvasClick}
+                      onSignatureSelect={handleSignatureSelect}
+                      onDragStart={handleDragStart}
+                      onDrag={handleDrag}
+                      onDragEnd={handleDragEnd}
+                    />
+                  </div>
+
+                  {/* Processing overlay */}
+                  {isProcessing && (
+                    <div className="absolute inset-0 bg-white/95 backdrop-blur-sm flex items-center justify-center z-50">
+                      <div className="text-center p-8">
+                        <div className="w-20 h-20 bg-gradient-to-br from-blue-600 to-indigo-700 rounded-full flex items-center justify-center mx-auto mb-6 shadow-xl">
+                          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
+                        </div>
+                        <h3 className="text-2xl font-bold text-gray-900 mb-2">
+                          Signing Your PDF
+                        </h3>
+                        <p className="text-gray-600">
+                          Adding your signatures with precision and security...
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
 
             {/* Properties Panel */}
             {showPropertiesPanel && selectedSignature && (
-              <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-4 h-fit">
-                <SignaturePropertiesPanel
-                  signature={selectedSignature}
-                  onUpdate={(updates) =>
-                    updateSignature(selectedSignature.id, updates)
-                  }
-                  onDuplicate={() => duplicateSignature(selectedSignature.id)}
-                  onDelete={() => removeSignature(selectedSignature.id)}
-                  onMoveLayer={(direction) =>
-                    moveSignatureLayer(selectedSignature.id, direction)
-                  }
-                />
+              <div className="lg:w-80">
+                <div className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
+                  <div className="p-4 bg-gradient-to-r from-purple-600 to-indigo-700 text-white">
+                    <h3 className="font-bold flex items-center">
+                      <Settings className="w-5 h-5 mr-2" />
+                      Signature Properties
+                    </h3>
+                    <p className="text-purple-100 text-sm mt-1">Customize your signature</p>
+                  </div>
+                  <div className="p-4">
+                    <SignaturePropertiesPanel
+                      signature={selectedSignature}
+                      onUpdate={(updates) =>
+                        updateSignature(selectedSignature.id, updates)
+                      }
+                      onDuplicate={() => duplicateSignature(selectedSignature.id)}
+                      onDelete={() => removeSignature(selectedSignature.id)}
+                      onMoveLayer={(direction) =>
+                        moveSignatureLayer(selectedSignature.id, direction)
+                      }
+                    />
+                  </div>
+                </div>
               </div>
             )}
           </div>
@@ -1278,43 +1430,52 @@ const SignPdf = () => {
         {/* Premium upgrade prompt */}
         {!user?.isPremium && signatures.length > 3 && (
           <div className="mt-8 max-w-4xl mx-auto">
-            <div className="bg-gradient-to-r from-yellow-50 to-orange-50 border border-yellow-200 rounded-xl p-6">
-              <div className="flex items-center mb-4">
-                <Crown className="w-6 h-6 text-yellow-600 mr-2" />
-                <h3 className="text-lg font-semibold text-orange-800">
-                  Unlock Premium Features
-                </h3>
+            <div className="relative overflow-hidden bg-gradient-to-br from-yellow-50 via-orange-50 to-amber-50 border-2 border-yellow-200 rounded-3xl p-8 shadow-xl">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-bl from-yellow-300/20 to-transparent rounded-full transform translate-x-16 -translate-y-16"></div>
+              <div className="relative">
+                <div className="flex items-center mb-6">
+                  <div className="w-12 h-12 bg-gradient-to-br from-yellow-500 to-orange-600 rounded-2xl flex items-center justify-center mr-4 shadow-lg">
+                    <Crown className="w-6 h-6 text-white" />
+                  </div>
+                  <div>
+                    <h3 className="text-2xl font-bold text-amber-900">
+                      Unlock Premium Power
+                    </h3>
+                    <p className="text-amber-700">Take your PDF signing to the next level</p>
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                  <div className="flex items-center bg-white/60 rounded-xl p-3">
+                    <Star className="w-5 h-5 mr-3 text-yellow-600" />
+                    <span className="text-amber-800 font-medium">
+                      Unlimited signatures per document
+                    </span>
+                  </div>
+                  <div className="flex items-center bg-white/60 rounded-xl p-3">
+                    <Zap className="w-5 h-5 mr-3 text-yellow-600" />
+                    <span className="text-amber-800 font-medium">
+                      Advanced signature templates
+                    </span>
+                  </div>
+                  <div className="flex items-center bg-white/60 rounded-xl p-3">
+                    <Rocket className="w-5 h-5 mr-3 text-yellow-600" />
+                    <span className="text-amber-800 font-medium">
+                      Batch document signing
+                    </span>
+                  </div>
+                  <div className="flex items-center bg-white/60 rounded-xl p-3">
+                    <Shield className="w-5 h-5 mr-3 text-yellow-600" />
+                    <span className="text-amber-800 font-medium">
+                      Priority support & updates
+                    </span>
+                  </div>
+                </div>
+                <Button className="bg-gradient-to-r from-yellow-600 via-orange-600 to-amber-600 text-white hover:from-yellow-700 hover:via-orange-700 hover:to-amber-700 shadow-lg font-semibold text-lg h-12 px-8">
+                  <Crown className="w-5 h-5 mr-3" />
+                  Upgrade to Premium
+                  <Sparkles className="w-4 h-4 ml-2" />
+                </Button>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                <div className="flex items-center">
-                  <Star className="w-4 h-4 mr-2 text-yellow-600" />
-                  <span className="text-sm text-orange-700">
-                    Unlimited signatures per document
-                  </span>
-                </div>
-                <div className="flex items-center">
-                  <Star className="w-4 h-4 mr-2 text-yellow-600" />
-                  <span className="text-sm text-orange-700">
-                    Advanced signature templates
-                  </span>
-                </div>
-                <div className="flex items-center">
-                  <Star className="w-4 h-4 mr-2 text-yellow-600" />
-                  <span className="text-sm text-orange-700">
-                    Batch document signing
-                  </span>
-                </div>
-                <div className="flex items-center">
-                  <Star className="w-4 h-4 mr-2 text-yellow-600" />
-                  <span className="text-sm text-orange-700">
-                    Priority support & updates
-                  </span>
-                </div>
-              </div>
-              <Button className="bg-gradient-to-r from-yellow-600 to-orange-600 text-white hover:from-yellow-700 hover:to-orange-700">
-                <Crown className="w-4 h-4 mr-2" />
-                Upgrade to Premium
-              </Button>
             </div>
           </div>
         )}
@@ -1461,14 +1622,14 @@ const AdvancedPDFViewer: React.FC<AdvancedPDFViewerProps> = ({
   };
 
   return (
-    <div className="relative inline-block">
+    <div className="relative inline-block shadow-2xl rounded-xl overflow-hidden">
       <canvas
         ref={canvasRef}
         onClick={onCanvasClick}
         onMouseMove={onDrag}
         onMouseUp={onDragEnd}
         className={cn(
-          "border border-gray-300 shadow-lg",
+          "border-2 border-gray-300 shadow-lg rounded-xl",
           placingSignature && "cursor-crosshair",
         )}
         style={{ display: "block" }}
@@ -1480,11 +1641,13 @@ const AdvancedPDFViewer: React.FC<AdvancedPDFViewerProps> = ({
         className="absolute inset-0 pointer-events-none"
         style={{ width: canvasSize.width, height: canvasSize.height }}
       >
-        {signatures.map((signature) => (
+        {signatures.filter((sig, index, arr) =>
+          arr.findIndex(s => s.id === sig.id) === index // Remove duplicates
+        ).map((signature) => (
           <div
-            key={signature.id}
+            key={`signature-${signature.id}-${signature.pageNumber}`}
             style={getSignatureStyle(signature)}
-            className="pointer-events-auto"
+            className="pointer-events-auto group"
             onClick={(e) => {
               e.stopPropagation();
               onSignatureSelect(signature.id);
@@ -1505,7 +1668,7 @@ const AdvancedPDFViewer: React.FC<AdvancedPDFViewerProps> = ({
               <img
                 src={signature.data}
                 alt="Signature"
-                className="w-full h-full object-contain"
+                className="w-full h-full object-contain rounded-lg"
                 draggable={false}
               />
             )}
@@ -1513,10 +1676,10 @@ const AdvancedPDFViewer: React.FC<AdvancedPDFViewerProps> = ({
             {/* Selection handles */}
             {selectedSignatureId === signature.id && !signature.locked && (
               <>
-                <div className="absolute -top-1 -left-1 w-2 h-2 bg-blue-500 border border-white rounded-full"></div>
-                <div className="absolute -top-1 -right-1 w-2 h-2 bg-blue-500 border border-white rounded-full"></div>
-                <div className="absolute -bottom-1 -left-1 w-2 h-2 bg-blue-500 border border-white rounded-full"></div>
-                <div className="absolute -bottom-1 -right-1 w-2 h-2 bg-blue-500 border border-white rounded-full"></div>
+                <div className="absolute -top-1 -left-1 w-3 h-3 bg-blue-500 border-2 border-white rounded-full shadow-lg"></div>
+                <div className="absolute -top-1 -right-1 w-3 h-3 bg-blue-500 border-2 border-white rounded-full shadow-lg"></div>
+                <div className="absolute -bottom-1 -left-1 w-3 h-3 bg-blue-500 border-2 border-white rounded-full shadow-lg"></div>
+                <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-blue-500 border-2 border-white rounded-full shadow-lg"></div>
               </>
             )}
           </div>
@@ -1525,679 +1688,16 @@ const AdvancedPDFViewer: React.FC<AdvancedPDFViewerProps> = ({
         {/* Placing signature preview */}
         {placingSignature && (
           <div
-            className="absolute opacity-60 border-2 border-dashed border-blue-500 pointer-events-none"
+            className="absolute opacity-60 border-2 border-dashed border-blue-500 bg-blue-50 pointer-events-none rounded-lg"
             style={{
               width: placingSignature.width * zoom,
               height: placingSignature.height * zoom,
             }}
           >
-            <div className="w-full h-full flex items-center justify-center text-blue-600 text-sm">
+            <div className="w-full h-full flex items-center justify-center text-blue-600 text-sm font-medium">
+              <Target className="w-4 h-4 mr-2" />
               Click to place
             </div>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-};
-
-// Advanced Signature Creator Component
-interface AdvancedSignatureCreatorProps {
-  type: "draw" | "type" | "upload" | "date" | "text";
-  onComplete: (data: string, text?: string, saveAsTemplate?: boolean) => void;
-  onCancel: () => void;
-}
-
-const AdvancedSignatureCreator: React.FC<AdvancedSignatureCreatorProps> = ({
-  type,
-  onComplete,
-  onCancel,
-}) => {
-  const [signatureText, setSignatureText] = useState("");
-  const [uploadedImage, setUploadedImage] = useState<string | null>(null);
-  const [saveAsTemplate, setSaveAsTemplate] = useState(false);
-  const [selectedFont, setSelectedFont] = useState("serif");
-  const [selectedStyle, setSelectedStyle] = useState("normal");
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [isDrawing, setIsDrawing] = useState(false);
-  const [strokeColor, setStrokeColor] = useState("#000000");
-  const [strokeWidth, setStrokeWidth] = useState(3);
-
-  const fonts = [
-    { value: "serif", label: "Serif", family: "serif" },
-    { value: "sans-serif", label: "Sans Serif", family: "sans-serif" },
-    { value: "cursive", label: "Cursive", family: "cursive" },
-    { value: "monospace", label: "Monospace", family: "monospace" },
-  ];
-
-  const styles = [
-    { value: "normal", label: "Normal" },
-    { value: "italic", label: "Italic" },
-    { value: "bold", label: "Bold" },
-    { value: "bold-italic", label: "Bold Italic" },
-  ];
-
-  const startDrawing = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    setIsDrawing(true);
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    const rect = canvas.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-
-    const ctx = canvas.getContext("2d");
-    if (ctx) {
-      ctx.beginPath();
-      ctx.moveTo(x, y);
-    }
-  };
-
-  const draw = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    if (!isDrawing) return;
-
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    const rect = canvas.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-
-    const ctx = canvas.getContext("2d");
-    if (ctx) {
-      ctx.lineWidth = strokeWidth;
-      ctx.lineCap = "round";
-      ctx.strokeStyle = strokeColor;
-      ctx.lineTo(x, y);
-      ctx.stroke();
-    }
-  };
-
-  const stopDrawing = () => {
-    setIsDrawing(false);
-  };
-
-  const clearCanvas = () => {
-    const canvas = canvasRef.current;
-    if (canvas) {
-      const ctx = canvas.getContext("2d");
-      if (ctx) {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-      }
-    }
-  };
-
-  const handleImageUpload = (files: File[]) => {
-    if (files.length > 0) {
-      const file = files[0];
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        setUploadedImage(e.target?.result as string);
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
-  const handleComplete = () => {
-    if (type === "draw") {
-      const canvas = canvasRef.current;
-      if (canvas) {
-        const dataURL = canvas.toDataURL();
-        onComplete(dataURL, "", saveAsTemplate);
-      }
-    } else if (type === "type" && signatureText.trim()) {
-      onComplete("", signatureText.trim(), saveAsTemplate);
-    } else if (type === "upload" && uploadedImage) {
-      onComplete(uploadedImage, "", saveAsTemplate);
-    }
-  };
-
-  const canComplete = () => {
-    if (type === "draw") {
-      const canvas = canvasRef.current;
-      if (!canvas) return false;
-      const ctx = canvas.getContext("2d");
-      if (!ctx) return false;
-      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-      return imageData.data.some((channel) => channel !== 0);
-    } else if (type === "type") {
-      return signatureText.trim().length > 0;
-    } else if (type === "upload") {
-      return uploadedImage !== null;
-    }
-    return false;
-  };
-
-  return (
-    <div className="max-w-5xl mx-auto">
-      <div className="bg-white rounded-2xl p-8 shadow-xl border border-gray-200">
-        <div className="text-center mb-8">
-          <h2 className="text-3xl font-bold text-gray-900 mb-2">
-            {type === "draw" && "Draw Your Signature"}
-            {type === "type" && "Create Typed Signature"}
-            {type === "upload" && "Upload Signature Image"}
-          </h2>
-          <p className="text-gray-600 text-lg">
-            {type === "draw" &&
-              "Use your mouse or touch to draw your signature"}
-            {type === "type" &&
-              "Enter your name to create a professional typed signature"}
-            {type === "upload" && "Upload an image file of your signature"}
-          </p>
-        </div>
-
-        <div className="max-w-4xl mx-auto mb-8">
-          {type === "draw" && (
-            <div className="space-y-6">
-              {/* Drawing controls */}
-              <div className="flex items-center justify-center space-x-6 p-4 bg-gray-50 rounded-xl">
-                <div className="flex items-center space-x-2">
-                  <label className="text-sm font-medium text-gray-700">
-                    Color:
-                  </label>
-                  <input
-                    type="color"
-                    value={strokeColor}
-                    onChange={(e) => setStrokeColor(e.target.value)}
-                    className="w-8 h-8 rounded border border-gray-300"
-                  />
-                </div>
-                <div className="flex items-center space-x-2">
-                  <label className="text-sm font-medium text-gray-700">
-                    Thickness:
-                  </label>
-                  <input
-                    type="range"
-                    min="1"
-                    max="10"
-                    value={strokeWidth}
-                    onChange={(e) => setStrokeWidth(parseInt(e.target.value))}
-                    className="w-20"
-                  />
-                  <span className="text-sm text-gray-600">{strokeWidth}px</span>
-                </div>
-                <Button variant="outline" onClick={clearCanvas}>
-                  <RotateCcw className="w-4 h-4 mr-1" />
-                  Clear
-                </Button>
-              </div>
-
-              {/* Drawing canvas */}
-              <div className="border-2 border-dashed border-gray-300 rounded-xl p-6 bg-gray-50">
-                <canvas
-                  ref={canvasRef}
-                  width={700}
-                  height={250}
-                  className="w-full border-2 border-gray-400 rounded-lg bg-white cursor-crosshair shadow-inner"
-                  onMouseDown={startDrawing}
-                  onMouseMove={draw}
-                  onMouseUp={stopDrawing}
-                  onMouseLeave={stopDrawing}
-                />
-                <p className="text-center text-sm text-gray-600 mt-3">
-                  Draw your signature in the box above
-                </p>
-              </div>
-            </div>
-          )}
-
-          {type === "type" && (
-            <div className="space-y-6">
-              {/* Typography controls */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-gray-50 rounded-xl">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Font Family
-                  </label>
-                  <select
-                    value={selectedFont}
-                    onChange={(e) => setSelectedFont(e.target.value)}
-                    className="w-full p-2 border border-gray-300 rounded-lg"
-                  >
-                    {fonts.map((font) => (
-                      <option key={font.value} value={font.value}>
-                        {font.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Style
-                  </label>
-                  <select
-                    value={selectedStyle}
-                    onChange={(e) => setSelectedStyle(e.target.value)}
-                    className="w-full p-2 border border-gray-300 rounded-lg"
-                  >
-                    {styles.map((style) => (
-                      <option key={style.value} value={style.value}>
-                        {style.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              {/* Text input */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Your Full Name
-                </label>
-                <input
-                  type="text"
-                  value={signatureText}
-                  onChange={(e) => setSignatureText(e.target.value)}
-                  placeholder="Enter your full name"
-                  className="w-full px-4 py-4 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-2xl"
-                />
-              </div>
-
-              {/* Preview */}
-              {signatureText && (
-                <div className="bg-gray-50 p-8 rounded-xl border-2 border-dashed border-gray-300">
-                  <p className="text-sm text-gray-600 mb-4 text-center">
-                    Preview:
-                  </p>
-                  <div
-                    className="text-center"
-                    style={{
-                      fontFamily: fonts.find((f) => f.value === selectedFont)
-                        ?.family,
-                      fontSize: "3rem",
-                      fontWeight: selectedStyle.includes("bold")
-                        ? "bold"
-                        : "normal",
-                      fontStyle: selectedStyle.includes("italic")
-                        ? "italic"
-                        : "normal",
-                      color: "#1f2937",
-                    }}
-                  >
-                    {signatureText}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
-          {type === "upload" && (
-            <div className="space-y-6">
-              <FileUpload
-                onFilesSelect={handleImageUpload}
-                accept="image/*"
-                multiple={false}
-                maxSize={5}
-                allowedTypes={["image"]}
-                uploadText="Upload signature image"
-                supportText="PNG, JPG, SVG supported • Max 5MB • Transparent backgrounds work best"
-              />
-              {uploadedImage && (
-                <div className="bg-gray-50 p-8 rounded-xl border-2 border-dashed border-gray-300">
-                  <p className="text-sm text-gray-600 mb-4 text-center">
-                    Preview:
-                  </p>
-                  <img
-                    src={uploadedImage}
-                    alt="Signature preview"
-                    className="max-w-full h-auto max-h-48 mx-auto shadow-lg rounded-lg"
-                  />
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* Save as template option */}
-        <div className="flex items-center justify-center mb-6">
-          <label className="flex items-center space-x-2 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={saveAsTemplate}
-              onChange={(e) => setSaveAsTemplate(e.target.checked)}
-              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-            />
-            <span className="text-sm text-gray-700">
-              Save as template for future use
-            </span>
-          </label>
-        </div>
-
-        {/* Action buttons */}
-        <div className="flex justify-center space-x-4">
-          <Button variant="outline" onClick={onCancel} className="px-8 py-3">
-            Cancel
-          </Button>
-          <Button
-            onClick={handleComplete}
-            disabled={!canComplete()}
-            className="px-8 py-3 bg-gradient-to-r from-blue-600 to-blue-700"
-          >
-            {saveAsTemplate ? "Save & Use Signature" : "Use This Signature"}
-          </Button>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-// Signature Properties Panel Component
-interface SignaturePropertiesPanelProps {
-  signature: SignatureData;
-  onUpdate: (updates: Partial<SignatureData>) => void;
-  onDuplicate: () => void;
-  onDelete: () => void;
-  onMoveLayer: (direction: "up" | "down") => void;
-}
-
-const SignaturePropertiesPanel: React.FC<SignaturePropertiesPanelProps> = ({
-  signature,
-  onUpdate,
-  onDuplicate,
-  onDelete,
-  onMoveLayer,
-}) => {
-  return (
-    <div className="space-y-4">
-      <h3 className="font-semibold text-gray-900">Properties</h3>
-
-      {/* Position and size */}
-      <div className="space-y-3">
-        <div className="grid grid-cols-2 gap-2">
-          <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">
-              X Position
-            </label>
-            <input
-              type="number"
-              value={Math.round(signature.x)}
-              onChange={(e) => onUpdate({ x: parseInt(e.target.value) || 0 })}
-              className="w-full px-2 py-1 text-sm border border-gray-300 rounded"
-            />
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">
-              Y Position
-            </label>
-            <input
-              type="number"
-              value={Math.round(signature.y)}
-              onChange={(e) => onUpdate({ y: parseInt(e.target.value) || 0 })}
-              className="w-full px-2 py-1 text-sm border border-gray-300 rounded"
-            />
-          </div>
-        </div>
-
-        <div className="grid grid-cols-2 gap-2">
-          <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">
-              Width
-            </label>
-            <input
-              type="number"
-              value={Math.round(signature.width)}
-              onChange={(e) =>
-                onUpdate({ width: parseInt(e.target.value) || 50 })
-              }
-              className="w-full px-2 py-1 text-sm border border-gray-300 rounded"
-            />
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">
-              Height
-            </label>
-            <input
-              type="number"
-              value={Math.round(signature.height)}
-              onChange={(e) =>
-                onUpdate({ height: parseInt(e.target.value) || 20 })
-              }
-              className="w-full px-2 py-1 text-sm border border-gray-300 rounded"
-            />
-          </div>
-        </div>
-      </div>
-
-      {/* Rotation and opacity */}
-      <div className="space-y-3">
-        <div>
-          <label className="block text-xs font-medium text-gray-700 mb-1">
-            Rotation (degrees)
-          </label>
-          <input
-            type="range"
-            min="-180"
-            max="180"
-            value={signature.rotation}
-            onChange={(e) => onUpdate({ rotation: parseInt(e.target.value) })}
-            className="w-full"
-          />
-          <div className="text-xs text-gray-600 text-center">
-            {signature.rotation}°
-          </div>
-        </div>
-
-        <div>
-          <label className="block text-xs font-medium text-gray-700 mb-1">
-            Opacity
-          </label>
-          <input
-            type="range"
-            min="0.1"
-            max="1"
-            step="0.1"
-            value={signature.opacity}
-            onChange={(e) => onUpdate({ opacity: parseFloat(e.target.value) })}
-            className="w-full"
-          />
-          <div className="text-xs text-gray-600 text-center">
-            {Math.round(signature.opacity * 100)}%
-          </div>
-        </div>
-      </div>
-
-      {/* Color and styling */}
-      {(signature.type === "type" ||
-        signature.type === "text" ||
-        signature.type === "date") && (
-        <div className="space-y-3">
-          <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">
-              Text Color
-            </label>
-            <input
-              type="color"
-              value={signature.color}
-              onChange={(e) => onUpdate({ color: e.target.value })}
-              className="w-full h-8 rounded border border-gray-300"
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">
-              Font Size
-            </label>
-            <input
-              type="number"
-              value={signature.fontSize || 18}
-              onChange={(e) =>
-                onUpdate({ fontSize: parseInt(e.target.value) || 18 })
-              }
-              className="w-full px-2 py-1 text-sm border border-gray-300 rounded"
-            />
-          </div>
-        </div>
-      )}
-
-      {/* Layer controls */}
-      <div className="border-t pt-3">
-        <label className="block text-xs font-medium text-gray-700 mb-2">
-          Layer Order
-        </label>
-        <div className="flex space-x-1">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => onMoveLayer("up")}
-            className="flex-1"
-          >
-            <Plus className="w-3 h-3" />
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => onMoveLayer("down")}
-            className="flex-1"
-          >
-            <Minus className="w-3 h-3" />
-          </Button>
-        </div>
-      </div>
-
-      {/* Actions */}
-      <div className="border-t pt-3 space-y-2">
-        <div className="flex items-center space-x-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => onUpdate({ locked: !signature.locked })}
-            className={cn(
-              "flex-1",
-              signature.locked && "bg-red-50 border-red-300 text-red-700",
-            )}
-          >
-            <Lock className="w-3 h-3 mr-1" />
-            {signature.locked ? "Unlock" : "Lock"}
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => onUpdate({ visible: !signature.visible })}
-            className="flex-1"
-          >
-            {signature.visible ? (
-              <Eye className="w-3 h-3 mr-1" />
-            ) : (
-              <EyeOff className="w-3 h-3 mr-1" />
-            )}
-            {signature.visible ? "Hide" : "Show"}
-          </Button>
-        </div>
-
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={onDuplicate}
-          className="w-full"
-        >
-          <Copy className="w-3 h-3 mr-1" />
-          Duplicate
-        </Button>
-
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={onDelete}
-          className="w-full text-red-600 hover:text-red-700 hover:bg-red-50"
-        >
-          <Trash2 className="w-3 h-3 mr-1" />
-          Delete
-        </Button>
-      </div>
-    </div>
-  );
-};
-
-// Template Library Component
-interface TemplateLibraryProps {
-  templates: SignatureTemplate[];
-  onSelect: (template: SignatureTemplate) => void;
-  onDelete: (id: string) => void;
-  onClose: () => void;
-}
-
-const TemplateLibrary: React.FC<TemplateLibraryProps> = ({
-  templates,
-  onSelect,
-  onDelete,
-  onClose,
-}) => {
-  return (
-    <div className="max-w-4xl mx-auto">
-      <div className="bg-white rounded-2xl p-8 shadow-xl border border-gray-200">
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-2xl font-bold text-gray-900">
-            Signature Templates
-          </h2>
-          <Button variant="outline" onClick={onClose}>
-            <X className="w-4 h-4 mr-1" />
-            Close
-          </Button>
-        </div>
-
-        {templates.length === 0 ? (
-          <div className="text-center py-12">
-            <Star className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">
-              No templates yet
-            </h3>
-            <p className="text-gray-600">
-              Create signatures and save them as templates for quick reuse
-            </p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {templates.map((template) => (
-              <div
-                key={template.id}
-                className="border border-gray-200 rounded-lg p-4 hover:border-blue-300 hover:bg-blue-50 cursor-pointer transition-colors"
-                onClick={() => onSelect(template)}
-              >
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="font-medium text-gray-900 truncate">
-                    {template.name}
-                  </h3>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onDelete(template.id);
-                    }}
-                    className="text-red-500 hover:text-red-700"
-                  >
-                    <Trash2 className="w-3 h-3" />
-                  </Button>
-                </div>
-
-                <div className="bg-gray-100 rounded-md p-3 h-20 flex items-center justify-center">
-                  {template.type === "type" || template.type === "text" ? (
-                    <span className="text-lg font-serif text-gray-700">
-                      {template.text}
-                    </span>
-                  ) : (
-                    <img
-                      src={template.preview}
-                      alt={template.name}
-                      className="max-h-full max-w-full object-contain"
-                    />
-                  )}
-                </div>
-
-                <div className="mt-2 flex items-center text-xs text-gray-500">
-                  {template.type === "draw" && (
-                    <PenTool className="w-3 h-3 mr-1" />
-                  )}
-                  {template.type === "type" && (
-                    <Type className="w-3 h-3 mr-1" />
-                  )}
-                  {template.type === "upload" && (
-                    <ImageIcon className="w-3 h-3 mr-1" />
-                  )}
-                  <span className="capitalize">{template.type} signature</span>
-                </div>
-              </div>
-            ))}
           </div>
         )}
       </div>
