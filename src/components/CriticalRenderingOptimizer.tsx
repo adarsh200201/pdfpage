@@ -182,7 +182,7 @@ const CriticalRenderingOptimizer = ({
         // High priority resources
         const criticalResources = [
           { href: '/fonts/inter-var.woff2', as: 'font', type: 'font/woff2' },
-          { href: '/logo.svg', as: 'image' },
+          { href: '/favicon.ico', as: 'image' },
           { href: '/icons/apple-touch-icon.png', as: 'image' }
         ];
 

@@ -29,6 +29,7 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useTranslation } from "@/hooks/useTranslation";
+import PdfPageLogo from "@/components/ui/PdfPageLogo";
 
 const Header = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -256,33 +257,10 @@ const Header = () => {
       >
         <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-8">
           <div className="flex justify-between items-center h-16 sm:h-20">
-            {/* Enhanced Logo with Mobile-Friendly Brand */}
-            <div className="flex items-center group">
-              <Link to="/" className="flex items-center space-x-3 transition-all duration-300 hover:scale-105">
-                <div className="relative">
-                  <img
-                    src="https://cdn.builder.io/api/v1/image/assets%2Ffcbdb28308084edfa1fffc265e57f46e%2F5791d498f9994470ae52d766d30e56ee?format=webp&width=800"
-                    alt="PdfPage Logo"
-                    className="h-10 sm:h-12 w-auto transition-all duration-300 group-hover:drop-shadow-lg"
-                  />
-                  <div className="absolute -inset-1 bg-gradient-to-r from-primary/20 to-blue-600/20 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300 blur-sm -z-10"></div>
-                </div>
-
-                {/* Mobile Text Logo */}
-                <div className="block sm:hidden">
-                  <span className="text-xl font-bold bg-gradient-to-r from-primary to-blue-600 bg-clip-text text-transparent">
-                    PdfPage
-                  </span>
-                </div>
-
-                {/* Desktop Image Logo */}
-                <div className="hidden sm:block">
-                  <img
-                    src="https://cdn.builder.io/api/v1/image/assets%2Ffcbdb28308084edfa1fffc265e57f46e%2F61ee37d28c9648a8ac684ced4eab1117?format=webp&width=800"
-                    alt="Pdf Page"
-                    className="h-7 w-auto transition-all duration-300"
-                  />
-                </div>
+            {/* Enhanced Logo with Modern Design */}
+            <div className="flex items-center">
+              <Link to="/" className="transition-all duration-300 hover:scale-105">
+                <PdfPageLogo size="lg" showHover={true} />
               </Link>
             </div>
 

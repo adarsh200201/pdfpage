@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PromoBanner } from "@/components/ui/promo-banner";
 import AuthModal from "@/components/auth/AuthModal";
+
 import { useAuth } from "@/contexts/AuthContext";
 import { PDFService } from "@/services/pdfService";
 import { useToast } from "@/hooks/use-toast";
@@ -970,6 +971,8 @@ const JpgToPdf = () => {
         onClose={() => setShowAuthModal(false)}
         defaultTab="register"
       />
+
+
     </div>
   );
 };

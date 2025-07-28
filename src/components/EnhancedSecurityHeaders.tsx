@@ -30,9 +30,12 @@ const EnhancedSecurityHeaders = ({
     strictMode 
       ? "script-src 'self' 'nonce-{nonce}'"
       : [
-          "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+          "script-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob: 'wasm-unsafe-eval'",
+          "https://translate.google.com",
+          "https://translate.googleapis.com",
+          "https://translate-pa.googleapis.com",
           "https://www.googletagmanager.com",
-          "https://www.google-analytics.com", 
+          "https://www.google-analytics.com",
           "https://pagead2.googlesyndication.com",
           "https://partner.googleadservices.com",
           "https://www.gstatic.com",
@@ -89,6 +92,7 @@ const EnhancedSecurityHeaders = ({
       "https://api.pdfpage.in",
       "https://pdf-backend-935131444417.asia-south1.run.app",
       "https://translate.googleapis.com",
+      "https://translate-pa.googleapis.com",
       "wss://ws.pdfpage.in",
       "wss://pdf-backend-935131444417.asia-south1.run.app"
     ].join(' '),
@@ -171,8 +175,8 @@ const EnhancedSecurityHeaders = ({
       {/* X-Content-Type-Options */}
       <meta httpEquiv="X-Content-Type-Options" content="nosniff" />
       
-      {/* X-Frame-Options */}
-      <meta httpEquiv="X-Frame-Options" content="DENY" />
+      {/* X-Frame-Options - Allow same origin for Google Translate */}
+      <meta httpEquiv="X-Frame-Options" content="SAMEORIGIN" />
       
       {/* X-XSS-Protection */}
       <meta httpEquiv="X-XSS-Protection" content="1; mode=block" />
@@ -185,14 +189,14 @@ const EnhancedSecurityHeaders = ({
         <meta httpEquiv="Permissions-Policy" content={permissionsPolicy} />
       )}
       
-      {/* Cross-Origin Embedder Policy */}
-      {enableCOEP && (
+      {/* Cross-Origin Embedder Policy - Disabled to allow Google Translate */}
+      {/* {enableCOEP && (
         <meta httpEquiv="Cross-Origin-Embedder-Policy" content="require-corp" />
-      )}
-      
+      )} */}
+
       {/* Cross-Origin Opener Policy */}
       {enableCOOP && (
-        <meta httpEquiv="Cross-Origin-Opener-Policy" content="same-origin" />
+        <meta httpEquiv="Cross-Origin-Opener-Policy" content="same-origin-allow-popups" />
       )}
       
       {/* Cross-Origin Resource Policy */}

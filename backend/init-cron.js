@@ -11,7 +11,7 @@ function initializeCronJobs() {
     logger.info("✅ Keep-alive cron job initialized successfully", {
       schedule: "Every 14 minutes",
       serverUrl:
-        process.env.RENDER_SERVER_URL || "https://pdfpage-app.onrender.com",
+        process.env.RENDER_SERVER_URL || "https://pdf-backend-935131444417.asia-south1.run.app",
       cronitorEnabled: true,
     });
 

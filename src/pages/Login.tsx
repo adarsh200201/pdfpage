@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { useAuth } from "@/contexts/AuthContext";
+import PdfPageLogo from "@/components/ui/PdfPageLogo";
 import { useToast } from "@/hooks/use-toast";
 import {
   Loader2,
@@ -107,17 +108,8 @@ const Login = () => {
       {/* Header */}
       <div className="p-4 sm:p-6">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <Link to="/" className="flex items-center space-x-2 group">
-            <img
-              src="https://cdn.builder.io/api/v1/image/assets%2Ffcbdb28308084edfa1fffc265e57f46e%2F5791d498f9994470ae52d766d30e56ee?format=webp&width=800"
-              alt="PdfPage Logo"
-              className="h-12 w-auto group-hover:scale-105 transition-transform opacity-90 mix-blend-multiply"
-            />
-            <img
-              src="https://cdn.builder.io/api/v1/image/assets%2Ffcbdb28308084edfa1fffc265e57f46e%2F61ee37d28c9648a8ac684ced4eab1117?format=webp&width=800"
-              alt="Pdf Page"
-              className="h-8 w-auto opacity-90 mix-blend-multiply"
-            />
+          <Link to="/" className="group">
+            <PdfPageLogo size="xl" showHover={true} />
           </Link>
 
           <Link

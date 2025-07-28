@@ -91,33 +91,52 @@ export const AdvancedSEO: React.FC<AdvancedSEOProps> = ({
   securityFeatures = [],
   performanceMetrics,
 }) => {
+  // Input validation - ensure keywords is always a string
+  if (typeof keywords !== 'string' && keywords !== undefined) {
+    console.warn('AdvancedSEO: keywords prop is not a string:', typeof keywords, keywords);
+  }
+
   const siteUrl = "https://pdfpage.in";
   const fullTitle = `${title} | PDFPage - Free PDF & Image Tools`;
   const fullUrl = canonical ? `${siteUrl}${canonical}` : siteUrl;
-  const fullOgImage = ogImage.startsWith('http') ? ogImage : `${siteUrl}${ogImage}`;
-  const fullTwitterImage = twitterImage ? (twitterImage.startsWith('http') ? twitterImage : `${siteUrl}${twitterImage}`) : fullOgImage;
+  const fullOgImage = (ogImage && typeof ogImage === 'string' && ogImage.startsWith('http')) ? ogImage : `${siteUrl}${ogImage || '/og-images/default.jpg'}`;
+  const fullTwitterImage = twitterImage ? ((typeof twitterImage === 'string' && twitterImage.startsWith('http')) ? twitterImage : `${siteUrl}${twitterImage}`) : fullOgImage;
 
   // Generate enhanced keywords
   const generateEnhancedKeywords = () => {
-    const baseKeywords = keywords.split(',').map(k => k.trim()).filter(Boolean);
-    const toolKeywords = toolName ? [
-      `${toolName} online`,
-      `free ${toolName}`,
-      `${toolName} converter`,
-      `${toolName} tool`,
-      `online ${toolName}`,
-      `${toolName} without registration`
-    ] : [];
-    const categoryKeywords = [
-      "PDF tools",
-      "image tools", 
-      "document converter",
-      "online converter",
-      "free tools",
-      "no registration required"
-    ];
-    
-    return [...baseKeywords, ...toolKeywords, ...categoryKeywords].join(', ');
+    try {
+      // Ensure keywords is always a string
+      const safeKeywords = keywords || "";
+
+      // Validate that it's actually a string
+      if (typeof safeKeywords !== 'string') {
+        console.warn('Keywords is not a string:', typeof safeKeywords, safeKeywords);
+        return "PDF tools, document processing, file conversion, online tools";
+      }
+
+      const baseKeywords = safeKeywords.split(',').map(k => k.trim()).filter(Boolean);
+      const toolKeywords = toolName ? [
+        `${toolName} online`,
+        `free ${toolName}`,
+        `${toolName} converter`,
+        `${toolName} tool`,
+        `online ${toolName}`,
+        `${toolName} without registration`
+      ] : [];
+      const categoryKeywords = [
+        "PDF tools",
+        "image tools",
+        "document converter",
+        "online converter",
+        "free tools",
+        "no registration required"
+      ];
+
+      return [...baseKeywords, ...toolKeywords, ...categoryKeywords].join(', ');
+    } catch (error) {
+      console.error('Error generating keywords:', error);
+      return "PDF tools, document processing, file conversion, online tools";
+    }
   };
 
   // Generate tool-specific schema
@@ -135,8 +154,8 @@ export const AdvancedSEO: React.FC<AdvancedSEOProps> = ({
       permissions: "No registration required",
       aggregateRating: {
         "@type": "AggregateRating",
-        ratingValue: rating.toString(),
-        reviewCount: reviewCount.toString(),
+        ratingValue: (rating || 4.9).toString(),
+        reviewCount: (reviewCount || 10000).toString(),
         bestRating: "5",
         worstRating: "1"
       },
@@ -157,7 +176,7 @@ export const AdvancedSEO: React.FC<AdvancedSEOProps> = ({
       supportingData: {
         "@type": "DataCatalog",
         name: "User Statistics",
-        description: `Used by ${monthlyUsers.toLocaleString()}+ users monthly`
+        description: `Used by ${(monthlyUsers || 1000000).toLocaleString()}+ users monthly`
       }
     };
   };
@@ -380,22 +399,22 @@ export const AdvancedSEO: React.FC<AdvancedSEOProps> = ({
       mentions: [{
         "@type": "QuantitativeValue",
         name: "Page Load Time",
-        value: performanceMetrics.loadTime,
+        value: performanceMetrics?.loadTime || "2.5s",
         unitText: "seconds"
       }, {
         "@type": "QuantitativeValue",
         name: "Largest Contentful Paint",
-        value: performanceMetrics.coreWebVitals.LCP,
+        value: performanceMetrics?.coreWebVitals?.LCP || 2.5,
         unitText: "seconds"
       }, {
         "@type": "QuantitativeValue",
         name: "First Input Delay",
-        value: performanceMetrics.coreWebVitals.FID,
+        value: performanceMetrics?.coreWebVitals?.FID || 100,
         unitText: "milliseconds"
       }, {
         "@type": "QuantitativeValue",
         name: "Cumulative Layout Shift",
-        value: performanceMetrics.coreWebVitals.CLS,
+        value: performanceMetrics?.coreWebVitals?.CLS || 0.1,
         unitText: "score"
       }]
     };
@@ -461,9 +480,9 @@ export const AdvancedSEO: React.FC<AdvancedSEOProps> = ({
       <meta name="twitter:domain" content="pdfpage.in" />
       <meta name="twitter:url" content={fullUrl} />
       <meta name="twitter:label1" content="Users" />
-      <meta name="twitter:data1" content={`${(monthlyUsers / 1000000).toFixed(1)}M+ monthly`} />
+      <meta name="twitter:data1" content={`${((monthlyUsers || 1000000) / 1000000).toFixed(1)}M+ monthly`} />
       <meta name="twitter:label2" content="Rating" />
-      <meta name="twitter:data2" content={`${rating}/5 stars`} />
+      <meta name="twitter:data2" content={`${rating || 4.9}/5 stars`} />
       
       {/* Enhanced Mobile & PWA */}
       <meta name="mobile-web-app-capable" content="yes" />
@@ -596,9 +615,9 @@ export const AdvancedSEO: React.FC<AdvancedSEOProps> = ({
       {performanceMetrics && (
         <>
           <meta name="performance:load_time" content={performanceMetrics.loadTime} />
-          <meta name="performance:lcp" content={performanceMetrics.coreWebVitals.LCP.toString()} />
-          <meta name="performance:fid" content={performanceMetrics.coreWebVitals.FID.toString()} />
-          <meta name="performance:cls" content={performanceMetrics.coreWebVitals.CLS.toString()} />
+          <meta name="performance:lcp" content={(performanceMetrics.coreWebVitals?.LCP || 0).toString()} />
+          <meta name="performance:fid" content={(performanceMetrics.coreWebVitals?.FID || 0).toString()} />
+          <meta name="performance:cls" content={(performanceMetrics.coreWebVitals?.CLS || 0).toString()} />
         </>
       )}
 

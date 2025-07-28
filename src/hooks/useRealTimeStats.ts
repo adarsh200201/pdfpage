@@ -89,16 +89,16 @@ export const useRealTimeStats = (
         errorMessage.includes("Failed to fetch") ||
         errorMessage.includes("Unable to connect")
       ) {
-        setError("Backend server unavailable - showing offline data");
+        setError(null); // Don't show error to users in production - fallback stats are fine
         if (import.meta.env?.DEV) {
           console.debug(
-            "Development hint: Ensure backend is running with 'npm run dev:full'",
+            "Development hint: Stats service using fallback data. Run 'npm run dev:full' to use local backend.",
           );
         }
       } else if (errorMessage.includes("timeout")) {
-        setError("Request timed out - showing cached data");
+        setError(null); // Don't show timeout errors - fallback is sufficient
       } else {
-        setError("Failed to load real-time statistics");
+        setError(null); // Generally don't show stats errors to users
       }
 
       // In development, try to auto-recover by clearing any bad cache

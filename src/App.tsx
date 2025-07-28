@@ -13,7 +13,7 @@ import CoreWebVitals from "@/components/CoreWebVitals";
 import SecurityHeaders from "@/components/SecurityHeaders";
 import CriticalRenderingOptimizer from "@/components/CriticalRenderingOptimizer";
 import SearchConsoleVerification from "@/components/SearchConsoleVerification";
-import EnhancedSecurityHeaders from "@/components/EnhancedSecurityHeaders";
+
 import AccessibilityEnhancer from "@/components/AccessibilityEnhancer";
 import LocalBusinessSchema from "@/components/LocalBusinessSchema";
 import GoogleSearchOptimizer from "@/components/GoogleSearchOptimizer";
@@ -61,7 +61,7 @@ import LogoToFavicon from "./pages/LogoToFavicon";
 import Login from "./pages/Login";
 import ModernLogin from "./pages/ModernLogin";
 import Blog from "./pages/Blog";
-import SEOTest from "./pages/SEOTest";
+
 import SEOAudit from "./pages/SEOAudit";
 import Register from "./pages/Register";
 import ForgotPassword from "./pages/ForgotPassword";
@@ -162,7 +162,7 @@ import ToolRedirect from "./pages/ToolRedirect";
 import ToolAvailable from "./pages/ToolAvailable";
 import AvailableTools from "./pages/AvailableTools";
 import AuthCallback from "./pages/AuthCallback";
-import AccountTest from "./pages/AccountTest";
+
 import AdminRoute from "./components/admin/AdminRoute";
 import LibreOfficeTools from "./pages/LibreOfficeTools";
 
@@ -245,7 +245,7 @@ const App = () => {
                   <GlobalToolTrackingProvider>
                     <PerformanceOptimizer />
                     <CriticalRenderingOptimizer />
-                    <CoreWebVitals debug={false} />
+                    <CoreWebVitals />
                     <SecurityHeaders />
                     <SearchConsoleVerification />
                     <AccessibilityEnhancer />
@@ -419,7 +419,7 @@ const App = () => {
                       <Route path="/about" element={<About />} />
                       <Route path="/blog" element={<Blog />} />
                       <Route path="/blog/:slug" element={<BlogPostPage />} />
-                      <Route path="/seo-test" element={<SEOTest />} />
+
                       <Route path="/seo-audit" element={<SEOAudit />} />
                       <Route path="/careers" element={<Careers />} />
                       <Route path="/contact" element={<Contact />} />
@@ -454,7 +454,7 @@ const App = () => {
                         path="/available-tools"
                         element={<AvailableTools />}
                       />
-                      <Route path="/account-test" element={<AccountTest />} />
+
 
                       {/* Tool Redirect Pages (legacy compatibility - these show working tools now) */}
                       <Route

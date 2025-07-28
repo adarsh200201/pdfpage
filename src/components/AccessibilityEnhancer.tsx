@@ -519,10 +519,7 @@ const AccessibilityEnhancer = ({
       <meta name="keyboard-only-navigation" content="supported" />
       <meta name="voice-control" content="supported" />
       
-      {/* Accessibility testing indicators */}
-      <meta name="a11y-tested" content="true" />
-      <meta name="wcag-compliance" content="AA" />
-      <meta name="accessibility-audit-date" content={new Date().toISOString().split('T')[0]} />
+
     </Helmet>
   );
 };

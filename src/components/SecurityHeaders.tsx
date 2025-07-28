@@ -91,12 +91,11 @@ const SecurityHeaders = ({
         <meta httpEquiv="Permissions-Policy" content={permissionsPolicy} />
       )}
       
-      {/* Cross-Origin Policies */}
+      {/* Cross-Origin Policies - Relaxed for Google Translate compatibility */}
       {enableCORS && (
         <>
-          <meta httpEquiv="Cross-Origin-Opener-Policy" content="same-origin" />
-          <meta httpEquiv="Cross-Origin-Embedder-Policy" content="require-corp" />
-          <meta httpEquiv="Cross-Origin-Resource-Policy" content="same-site" />
+          <meta httpEquiv="Cross-Origin-Opener-Policy" content="same-origin-allow-popups" />
+          <meta httpEquiv="Cross-Origin-Resource-Policy" content="cross-origin" />
         </>
       )}
       
@@ -113,8 +112,7 @@ const SecurityHeaders = ({
       {/* Prevent MIME Type Sniffing */}
       <meta httpEquiv="X-Content-Type-Options" content="nosniff" />
       
-      {/* Prevent Clickjacking */}
-      <meta httpEquiv="X-Frame-Options" content="SAMEORIGIN" />
+      {/* X-Frame-Options already set above, no duplicate needed */}
       
       {/* Prevent Information Disclosure */}
       <meta name="robots" content="noarchive, nosnippet" />

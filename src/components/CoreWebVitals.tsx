@@ -10,11 +10,10 @@ interface WebVitalsData {
 }
 
 interface CoreWebVitalsProps {
-  debug?: boolean;
   onReport?: (metric: Metric) => void;
 }
 
-const CoreWebVitals = ({ debug = false, onReport }: CoreWebVitalsProps) => {
+const CoreWebVitals = ({ onReport }: CoreWebVitalsProps) => {
   const [vitals, setVitals] = useState<WebVitalsData>({
     LCP: null,
     INP: null,
@@ -47,15 +46,7 @@ const CoreWebVitals = ({ debug = false, onReport }: CoreWebVitalsProps) => {
         });
       }
 
-      // Log for debugging
-      if (debug) {
-        console.log(`[Core Web Vitals] ${metric.name}:`, {
-          value: metric.value,
-          id: metric.id,
-          delta: metric.delta,
-          rating: getMetricRating(metric.name, metric.value)
-        });
-      }
+
     };
 
     // Collect all Core Web Vitals
@@ -71,9 +62,7 @@ const CoreWebVitals = ({ debug = false, onReport }: CoreWebVitalsProps) => {
       const clsObserver = new PerformanceObserver((list) => {
         for (const entry of list.getEntries()) {
           if (entry.entryType === 'layout-shift' && !entry.hadRecentInput) {
-            if (debug) {
-              console.log('[Layout Shift]', entry);
-            }
+            // Layout shift detected
           }
         }
       });
@@ -88,13 +77,7 @@ const CoreWebVitals = ({ debug = false, onReport }: CoreWebVitalsProps) => {
       const longTaskObserver = new PerformanceObserver((list) => {
         for (const entry of list.getEntries()) {
           if (entry.duration > 50) { // Tasks longer than 50ms
-            if (debug) {
-              console.log('[Long Task]', {
-                duration: entry.duration,
-                startTime: entry.startTime,
-                name: entry.name
-              });
-            }
+            // Long task detected
           }
         }
       });
@@ -110,7 +93,7 @@ const CoreWebVitals = ({ debug = false, onReport }: CoreWebVitalsProps) => {
         longTaskObserver.disconnect();
       };
     }
-  }, [debug, onReport]);
+  }, [onReport]);
 
   // Performance optimization helpers
   useEffect(() => {
@@ -196,9 +179,8 @@ const CoreWebVitals = ({ debug = false, onReport }: CoreWebVitalsProps) => {
     addResourceHints();
   }, []);
 
-  if (!debug) {
-    return null;
-  }
+  // Core Web Vitals monitoring is always active in production
+  return null;
 
   return (
     <div className="fixed bottom-4 right-4 bg-black/80 text-white p-4 rounded-lg text-xs z-50 max-w-xs">

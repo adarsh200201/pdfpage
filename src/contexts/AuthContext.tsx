@@ -162,14 +162,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const fetchUserData = async (token: string) => {
     try {
       const apiUrl = getFullApiUrl('/api/auth/me');
+      console.log('🔵 [AUTH] Fetching user data from:', apiUrl);
+      console.log('🔵 [AUTH] Token length:', token?.length);
+
       const response = await fetch(apiUrl, {
         headers: {
           Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
         },
+        credentials: 'include', // Include cookies for CORS
       });
+
+      console.log('🔵 [AUTH] Response status:', response.status);
+      console.log('🔵 [AUTH] Response headers:', Object.fromEntries(response.headers.entries()));
 
       if (response.ok) {
         const data = await response.json();
+        console.log('✅ [AUTH] User data received:', data);
         setUser(data.user);
         // Store user data in localStorage for extra persistence
         localStorage.setItem("pdfpage_user", JSON.stringify(data.user));
@@ -178,11 +187,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           "✅ [AUTH] User data fetched successfully - persistent login active",
         );
       } else {
+        const errorData = await response.text();
         console.log(
-          "🔴 [AUTH] Token invalid or expired, removing from storage",
+          "🔴 [AUTH] Token invalid or expired:",
+          response.status,
+          response.statusText,
+          errorData
         );
         Cookies.remove("token");
         localStorage.removeItem("pdfpage_user");
+        localStorage.removeItem("pdfpage_auth_timestamp");
         setUser(null);
       }
     } catch (error) {
@@ -193,6 +207,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       } else {
         Cookies.remove("token");
         localStorage.removeItem("pdfpage_user");
+        localStorage.removeItem("pdfpage_auth_timestamp");
         setUser(null);
       }
     } finally {

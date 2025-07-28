@@ -12,7 +12,7 @@ import { fileURLToPath } from "url";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const BACKEND_URL_PATTERN = /https:\/\/pdfpage-app\.onrender\.com/gi;
+const BACKEND_URL_PATTERN = /https:\/\/pdf-backend-935131444417\.asia-south1\.run\.app/gi;
 const DIST_DIR = path.join(__dirname, "../dist");
 
 function scanDirectory(dir) {

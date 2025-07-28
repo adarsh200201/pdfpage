@@ -27,7 +27,7 @@ const securityMiddleware = (app) => {
             ],
             connectSrc: [
               "'self'",
-              "https://pdfpage-app.onrender.com",
+              "https://pdf-backend-935131444417.asia-south1.run.app",
               "https://www.google-analytics.com",
               "https://analytics.google.com",
               "https://api.razorpay.com",

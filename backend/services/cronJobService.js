@@ -7,7 +7,7 @@ const CRONITOR_API_KEY =
   process.env.CRONITOR_API_KEY || "b612058cd75c4f23a6f7674fb9e8c09c";
 const MONITOR_KEY = process.env.CRONITOR_MONITOR_KEY || "render-keep-alive"; // You'll get this from Cronitor dashboard
 const SERVER_URL =
-  process.env.RENDER_SERVER_URL || "https://pdfpage-app.onrender.com";
+  process.env.RENDER_SERVER_URL || "https://pdf-backend-935131444417.asia-south1.run.app";
 
 // Cronitor ping URLs
 const CRONITOR_BASE_URL = `https://cronitor.link/${MONITOR_KEY}`;

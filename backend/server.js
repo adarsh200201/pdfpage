@@ -436,7 +436,7 @@ if (process.env.NODE_ENV === "production") {
           redirect: frontendUrl,
           info: "The frontend is deployed separately at pdfpage.in",
           backend:
-            "This server (pdfpage-app.onrender.com) handles API requests only",
+            "This server (pdf-backend-935131444417.asia-south1.run.app) handles API requests only",
         });
       } else {
         res.status(404).json({

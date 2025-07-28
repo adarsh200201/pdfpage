@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import AdSense from "@/components/ads/AdSense";
 import { PromoBanner } from "@/components/ui/promo-banner";
 import AdvancedSEO from "@/components/AdvancedSEO";
+import CriticalCSS from "@/components/CriticalCSS";
 import { useRealTimeStats } from "@/hooks/useRealTimeStats";
 import { useMixpanel } from "@/hooks/useMixpanel";
 import { getSEOData } from "@/data/seo-routes";
@@ -42,7 +43,9 @@ import {
   Eye,
 } from "lucide-react";
 
-// Animated Counter Component
+// Performance optimized components - keeping sections inline for better maintainability
+
+// Optimized Counter Component with Intersection Observer
 const AnimatedCounter = ({
   end,
   duration = 2000,
@@ -53,8 +56,11 @@ const AnimatedCounter = ({
   suffix?: string;
 }) => {
   const [count, setCount] = useState(0);
+  const [hasStarted, setHasStarted] = useState(false);
 
   useEffect(() => {
+    if (!hasStarted) return;
+
     let startTime: number;
     let animationFrame: number;
 
@@ -72,7 +78,13 @@ const AnimatedCounter = ({
     animationFrame = requestAnimationFrame(animate);
 
     return () => cancelAnimationFrame(animationFrame);
-  }, [end, duration]);
+  }, [end, duration, hasStarted]);
+
+  // Start animation when element comes into view
+  useEffect(() => {
+    const timer = setTimeout(() => setHasStarted(true), 100);
+    return () => clearTimeout(timer);
+  }, []);
 
   return (
     <span>
@@ -105,19 +117,24 @@ const Index = () => {
   const [currentTestimonial, setCurrentTestimonial] = useState(0);
   const mixpanel = useMixpanel();
 
-  // Track homepage visit in real-time
+  // Track homepage visit in real-time (deferred for performance)
   useEffect(() => {
-    mixpanel.trackPageView("Homepage", {
-      page_title: "PdfPage - The Ultimate PDF Toolkit",
-      visitor_type: "homepage_visitor",
-      timestamp: new Date().toISOString(),
-    });
+    // Defer analytics to avoid blocking critical rendering
+    const timer = setTimeout(() => {
+      mixpanel.trackPageView("Homepage", {
+        page_title: "PdfPage - The Ultimate PDF Toolkit",
+        visitor_type: "homepage_visitor",
+        timestamp: new Date().toISOString(),
+      });
 
-    // Track engagement event
-    mixpanel.trackEngagement("homepage_loaded", {
-      load_time: Date.now(),
-      user_agent: navigator.userAgent,
-    });
+      // Track engagement event
+      mixpanel.trackEngagement("homepage_loaded", {
+        load_time: Date.now(),
+        user_agent: navigator.userAgent,
+      });
+    }, 100);
+
+    return () => clearTimeout(timer);
   }, [mixpanel]);
 
   // Smooth scroll to tools section
@@ -521,16 +538,31 @@ const Index = () => {
     shield: Shield,
   });
 
-  // Auto-rotate testimonials
+  // Auto-rotate testimonials (deferred for performance)
   useEffect(() => {
-    const interval = setInterval(() => {
-      setCurrentTestimonial((prev) => (prev + 1) % testimonials.length);
-    }, 5000);
-    return () => clearInterval(interval);
+    // Start testimonial rotation after initial load
+    const startDelay = setTimeout(() => {
+      const interval = setInterval(() => {
+        setCurrentTestimonial((prev) => (prev + 1) % testimonials.length);
+      }, 5000);
+      return () => clearInterval(interval);
+    }, 2000);
+
+    return () => clearTimeout(startDelay);
   }, [testimonials.length]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-white">
+      {/* Critical CSS for immediate render */}
+      <CriticalCSS />
+
+      {/* Performance Optimization: Preload critical resources */}
+      <link rel="preload" href="/fonts/inter-var.woff2" as="font" type="font/woff2" crossOrigin="anonymous" />
+      <link rel="preconnect" href="https://fonts.googleapis.com" />
+      <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+      <link rel="dns-prefetch" href="https://images.unsplash.com" />
+      <link rel="dns-prefetch" href="https://cdn.builder.io" />
+
       <AdvancedSEO
         {...getSEOData("/")}
         contentType="landing"
@@ -702,7 +734,7 @@ const Index = () => {
           {statsError && (
             <div className="text-center mt-2">
               <span className="text-xs text-orange-600">
-                {statsError} • Showing current data
+                {statsError} �� Showing current data
               </span>
             </div>
           )}
@@ -992,6 +1024,7 @@ const Index = () => {
                       src={testimonials[currentTestimonial].avatar}
                       alt={testimonials[currentTestimonial].name}
                       className="w-16 h-16 rounded-full"
+                      loading="lazy"
                     />
                     <div className="text-left">
                       <div className="font-bold text-gray-900 text-lg">
@@ -1191,7 +1224,7 @@ const Index = () => {
         </div>
       </section>
 
-      {/* Newsletter Section */}
+      {/* Newsletter Section - Optimized Load */}
       <section className="py-12 bg-gray-50">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h2 className="text-3xl lg:text-4xl font-bold text-gray-900 mb-4">

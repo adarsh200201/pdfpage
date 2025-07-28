@@ -1,5 +1,5 @@
 import { errorTracker } from "@/utils/error-tracker";
-import { getApiBaseUrl } from "@/lib/api-config";
+import { getApiBaseUrl, getDevInfo } from "@/lib/api-config";
 
 interface StatsData {
   pdfsProcessed: number;
@@ -190,9 +190,13 @@ class StatsService {
         `Backend unavailable at ${this.API_BASE || "proxy"}/api/stats/dashboard - using fallback stats`,
       );
       if (import.meta.env.DEV) {
-        console.debug(
-          "Development hint: Check if backend is running on port 5000",
-        );
+        const devInfo = getDevInfo();
+        console.group("🔧 Development Debug Info");
+        console.log("API Base URL:", this.API_BASE);
+        console.log("Recommendation:", devInfo?.recommendation);
+        console.log("💡 To use local backend: Set VITE_USE_LOCAL_BACKEND=true in .env");
+        console.log("💡 To start full stack: Run 'npm run dev:full'");
+        console.groupEnd();
       }
     } else {
       console.warn(
