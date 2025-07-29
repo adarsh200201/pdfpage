@@ -225,7 +225,7 @@ backend/services/
 ✅ **Responsive design**  
 ✅ **Error handling**
 
-### Backend (pdfpage.onrender.com):
+### Backend (pdf-backend-935131444417.asia-south1.run.app):
 
 ✅ **AI endpoints active**  
 ✅ **OCR service running**  

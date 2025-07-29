@@ -50,7 +50,7 @@ The backend server needs to be restarted to apply the changes:
 After deployment, test with:
 
 ```bash
-curl -X POST https://pdfpage-app.onrender.com/api/pdf/word-to-pdf-libreoffice \
+curl -X POST https://pdf-backend-935131444417.asia-south1.run.app/api/pdf/word-to-pdf-libreoffice \
   -F "file=@test.docx" \
   -H "Authorization: Bearer YOUR_TOKEN"
 ```

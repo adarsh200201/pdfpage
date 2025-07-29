@@ -56,7 +56,7 @@ The LibreOffice service provides the following conversion endpoints:
 
 ```bash
 curl -X POST \
-  https://your-app.onrender.com/api/libreoffice/docx-to-pdf \
+  https://pdf-backend-935131444417.asia-south1.run.app/api/libreoffice/docx-to-pdf \
   -F "file=@document.docx" \
   -F "quality=premium" \
   -F "preserveFormatting=true" \
@@ -67,7 +67,7 @@ curl -X POST \
 
 ```bash
 curl -X POST \
-  https://your-app.onrender.com/api/libreoffice/pdf-to-docx \
+  https://pdf-backend-935131444417.asia-south1.run.app/api/libreoffice/pdf-to-docx \
   -F "file=@document.pdf" \
   -F "preserveLayout=true" \
   --output converted.docx
@@ -76,7 +76,7 @@ curl -X POST \
 ### Check LibreOffice Status
 
 ```bash
-curl https://your-app.onrender.com/api/libreoffice/status
+curl https://pdf-backend-935131444417.asia-south1.run.app/api/libreoffice/status
 ```
 
 ## 🛠 Technical Implementation

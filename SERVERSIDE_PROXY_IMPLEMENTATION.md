@@ -20,7 +20,7 @@ PDFPage.in now implements a **true server-side proxy** for Google OAuth authenti
 # OAuth flow: /api/auth/google -> proxied to backend -> user never sees render.com
 [[redirects]]
   from = "/api/*"
-  to = "https://pdfpage-app.onrender.com/api/:splat"
+  to = "https://pdf-backend-935131444417.asia-south1.run.app/api/:splat"
   status = 200
   force = true
   headers = { X-Proxy-Origin = "pdfpage.in" }
@@ -53,7 +53,7 @@ export const authService = {
 
 2. **Netlify Server-Side Proxy**
 
-   - Request is transparently forwarded to: `https://pdfpage-app.onrender.com/api/auth/google`
+   - Request is transparently forwarded to: `https://pdf-backend-935131444417.asia-south1.run.app/api/auth/google`
    - User's browser never sees the backend URL
 
 3. **Backend OAuth Handling**
@@ -114,7 +114,7 @@ npm run build         # Includes automatic verification
 
 | Aspect              | Before                                             | After                                |
 | ------------------- | -------------------------------------------------- | ------------------------------------ |
-| **Login URL**       | `https://pdfpage-app.onrender.com/api/auth/google` | `https://pdfpage.in/api/auth/google` |
+| **Login URL**       | `https://pdf-backend-935131444417.asia-south1.run.app/api/auth/google` | `https://pdfpage.in/api/auth/google` |
 | **User Experience** | Domain switching visible                           | Seamless, stays on pdfpage.in        |
 | **Security**        | Backend URLs exposed                               | Zero backend exposure                |
 | **OAuth Flow**      | Client-side redirects                              | Server-side proxy                    |

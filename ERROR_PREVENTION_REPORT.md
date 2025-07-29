@@ -59,7 +59,7 @@ import.meta.env.DEV;
 ```toml
 [[redirects]]
   from = "/api/*"
-  to = "https://pdfpage-app.onrender.com/api/:splat"
+  to = "https://pdf-backend-935131444417.asia-south1.run.app/api/:splat"
   status = 200
   force = true
   headers = { X-Proxy-Origin = "pdfpage.in" }

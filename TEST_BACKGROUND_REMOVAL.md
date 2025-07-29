@@ -29,7 +29,7 @@
 ## 🧪 How to Test
 
 ### Step 1: Check Service Health
-Visit: `https://pdfpage-app.onrender.com/api/image/bg-removal-health`
+Visit: `https://pdf-backend-935131444417.asia-south1.run.app/api/image/bg-removal-health`
 
 Expected response:
 ```json
