@@ -21,6 +21,14 @@ export default defineConfig({
   },
   optimizeDeps: {
     force: true,
-    include: ["react", "react-dom"],
+    include: [
+      "react",
+      "react-dom",
+      "react-dom/client",
+      "react-router-dom",
+      "react-helmet-async",
+      "@tanstack/react-query"
+    ],
+    exclude: [],
   },
 });

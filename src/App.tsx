@@ -38,6 +38,7 @@ import { FloatingPopupProvider } from "@/contexts/FloatingPopupContext";
 import { MixpanelProvider } from "@/contexts/MixpanelContext";
 import { GlobalToolTrackingProvider } from "@/contexts/GlobalToolTrackingContext";
 import Index from "./pages/Index";
+import IndexTest from "./pages/IndexTest";
 import ImgPage from "./pages/ImgPage";
 import ImgCompress from "./pages/ImgCompress";
 import ImgResize from "./pages/ImgResize";
@@ -257,6 +258,7 @@ const App = () => {
                     <ScrollRestoration />
                     <Routes>
                       <Route path="/" element={<Index />} />
+                      <Route path="/test" element={<IndexTest />} />
 
                       {/* Image Tools */}
                       <Route path="/img" element={<ImgPage />} />

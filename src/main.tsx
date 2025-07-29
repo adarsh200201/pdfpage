@@ -7,6 +7,8 @@ if (typeof window !== "undefined") {
 
 import { createRoot } from "react-dom/client";
 import App from "./App.tsx";
+import AppMinimal from "./AppMinimal.tsx";
+import ErrorBoundarySimple from "./ErrorBoundarySimple.tsx";
 import "./index.css";
 // import "./lib/pdf-config"; // Configure PDF.js before any components load - TEMPORARILY DISABLED
 import { initializePWA } from "./utils/pwa"; // PWA initialization
@@ -30,4 +32,12 @@ import { initializePWA } from "./utils/pwa"; // PWA initialization
 // Initialize PWA features
 initializePWA();
 
-createRoot(document.getElementById("root")!).render(<App />);
+// App switcher for debugging
+const useMinimalApp = window.location.search.includes('minimal=true');
+const AppComponent = useMinimalApp ? AppMinimal : App;
+
+createRoot(document.getElementById("root")!).render(
+  <ErrorBoundarySimple>
+    <AppComponent />
+  </ErrorBoundarySimple>
+);
