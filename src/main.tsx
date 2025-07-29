@@ -8,24 +8,24 @@ if (typeof window !== "undefined") {
 import { createRoot } from "react-dom/client";
 import App from "./App.tsx";
 import "./index.css";
-import "./lib/pdf-config"; // Configure PDF.js before any components load
+// import "./lib/pdf-config"; // Configure PDF.js before any components load - TEMPORARILY DISABLED
 import { initializePWA } from "./utils/pwa"; // PWA initialization
 
-// Import debug utilities in development
-if (import.meta.env.DEV) {
-  import("./utils/debug-stats");
-  import("./utils/proxy-verification").then(({ ProxyVerification }) => {
-    // Verify server-side proxy setup in development
-    ProxyVerification.generateSecurityReport().then((report) => {
-      console.log("🔐 Server-Side Proxy Security Report:", report);
-      if (report.securityScore === 100) {
-        console.log("✅ Perfect: No backend URLs exposed to client");
-      } else {
-        console.warn("⚠️ Security recommendations:", report.recommendations);
-      }
-    });
-  });
-}
+// Import debug utilities in development - DISABLED for MIME type debugging
+// if (import.meta.env.DEV) {
+//   import("./utils/debug-stats");
+//   import("./utils/proxy-verification").then(({ ProxyVerification }) => {
+//     // Verify server-side proxy setup in development
+//     ProxyVerification.generateSecurityReport().then((report) => {
+//       console.log("🔐 Server-Side Proxy Security Report:", report);
+//       if (report.securityScore === 100) {
+//         console.log("✅ Perfect: No backend URLs exposed to client");
+//       } else {
+//         console.warn("⚠️ Security recommendations:", report.recommendations);
+//       }
+//     });
+//   });
+// }
 
 // Initialize PWA features
 initializePWA();
