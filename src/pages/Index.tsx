@@ -42,6 +42,7 @@ import {
   Layers,
   Eye,
 } from "lucide-react";
+// import GoogleOAuthTest from "@/components/GoogleOAuthTest";
 
 // Performance optimized components - keeping sections inline for better maintainability
 
@@ -1252,6 +1253,7 @@ const Index = () => {
       </section>
 
       <Footer />
+      {/* {import.meta.env.DEV && <GoogleOAuthTest />} */}
     </div>
   );
 };

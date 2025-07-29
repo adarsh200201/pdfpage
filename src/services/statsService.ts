@@ -63,16 +63,24 @@ class StatsService {
         .catch((error) => {
           clearTimeout(timeoutId);
           if (!isResolved) {
-            // Only track/log real errors, not intentional aborts or cancellations
+            // Only track/log real errors, not intentional aborts, cancellations, or network failures
             if (
               error.name !== "AbortError" &&
               error.name !== "RequestCancelledError" &&
+              error.name !== "NetworkError" &&
               error.message !== "Request was cancelled" &&
+              error.message !== "Network connection failed" &&
               !error.message.includes("aborted") &&
-              !error.message.includes("signal is aborted")
+              !error.message.includes("signal is aborted") &&
+              !error.message.includes("Failed to fetch")
             ) {
               errorTracker.trackError(error, "statsService.getStats");
               this.logError(error);
+            } else {
+              // Log silently for development debugging
+              if (import.meta.env.DEV) {
+                console.debug("Stats service using fallback data:", error.message);
+              }
             }
             resolveOnce(this.getFallbackStats());
           }
@@ -112,6 +120,14 @@ class StatsService {
         headers: {
           "Content-Type": "application/json",
         },
+      }).catch((fetchError) => {
+        // Handle network errors gracefully
+        if (fetchError.name === 'TypeError' && fetchError.message.includes('Failed to fetch')) {
+          const networkError = new Error('Network connection failed');
+          networkError.name = 'NetworkError';
+          throw networkError;
+        }
+        throw fetchError;
       });
 
       clearTimeout(abortTimeoutId);
@@ -150,6 +166,15 @@ class StatsService {
         throw cancelError;
       }
 
+      // Handle network errors gracefully
+      if (
+        error instanceof Error &&
+        (error.name === "NetworkError" ||
+          error.message.includes("Network connection failed"))
+      ) {
+        throw error; // Re-throw to be handled by the outer catch
+      }
+
       throw error;
     } finally {
       // Clear the controller reference
@@ -185,11 +210,12 @@ class StatsService {
     // Provide more specific error logging with debugging info
     if (error.name === "AbortError") {
       console.warn("Stats API request was aborted - using fallback stats");
-    } else if (errorMessage.includes("Failed to fetch")) {
-      console.warn(
-        `Backend unavailable at ${this.API_BASE || "proxy"}/api/stats/dashboard - using fallback stats`,
-      );
+    } else if (errorMessage.includes("Failed to fetch") || errorMessage.includes("Network connection failed")) {
+      // Silently handle network failures in production, show details in development
       if (import.meta.env.DEV) {
+        console.warn(
+          `Backend unavailable at ${this.API_BASE || "proxy"}/api/stats/dashboard - using fallback stats`,
+        );
         const devInfo = getDevInfo();
         console.group("🔧 Development Debug Info");
         console.log("API Base URL:", this.API_BASE);

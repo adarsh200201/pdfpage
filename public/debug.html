@@ -1,216 +1,127 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>PdfPage Debug</title>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug Test</title>
     <style>
-      body {
-        font-family: Arial, sans-serif;
-        padding: 20px;
-      }
-      .test {
-        margin: 10px 0;
-        padding: 10px;
-        border-radius: 5px;
-      }
-      .success {
-        background: #d4edda;
-        color: #155724;
-        border: 1px solid #c3e6cb;
-      }
-      .error {
-        background: #f8d7da;
-        color: #721c24;
-        border: 1px solid #f5c6cb;
-      }
-      .warning {
-        background: #fff3cd;
-        color: #856404;
-        border: 1px solid #ffeaa7;
-      }
-      .info {
-        background: #d1ecf1;
-        color: #0c5460;
-        border: 1px solid #bee5eb;
-      }
-      button {
-        margin: 5px;
-        padding: 10px 15px;
-        border: none;
-        border-radius: 3px;
-        cursor: pointer;
-        background: #007bff;
-        color: white;
-      }
-      button:hover {
-        background: #0056b3;
-      }
-      #results {
-        margin-top: 20px;
-      }
-      .timestamp {
-        font-size: 0.8em;
-        color: #666;
-      }
+        body { font-family: Arial, sans-serif; margin: 40px; }
+        .test { padding: 10px; margin: 10px 0; border: 1px solid #ccc; border-radius: 5px; }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+        .info { background: #d1ecf1; color: #0c5460; }
     </style>
-  </head>
-  <body>
-    <h1>🔧 PdfPage Debug Panel</h1>
-
-    <div>
-      <button onclick="testAll()">🚀 Run All Tests</button>
-      <button onclick="testProxy()">🔄 Test Proxy</button>
-      <button onclick="testBackend()">🌐 Test Backend</button>
-      <button onclick="testOAuth()">🔐 Test OAuth</button>
-      <button onclick="clearResults()">🗑️ Clear Results</button>
+</head>
+<body>
+    <h1>Debug & Test Page</h1>
+    
+    <div class="info test">
+        <h3>Current Status</h3>
+        <p><strong>URL:</strong> <span id="current-url"></span></p>
+        <p><strong>Time:</strong> <span id="current-time"></span></p>
+        <p><strong>User Agent:</strong> <span id="user-agent"></span></p>
     </div>
 
-    <div id="results"></div>
+    <div class="test">
+        <h3>React App Tests</h3>
+        <button onclick="testReactApp()">Test React App Loading</button>
+        <div id="react-test-results"></div>
+    </div>
+
+    <div class="test">
+        <h3>API Tests</h3>
+        <button onclick="testLocalAPI()">Test Local API (5000)</button>
+        <button onclick="testProxyAPI()">Test Proxy API</button>
+        <div id="api-test-results"></div>
+    </div>
+
+    <div class="test">
+        <h3>OAuth Tests</h3>
+        <button onclick="testOAuth()">Test OAuth Flow</button>
+        <div id="oauth-test-results"></div>
+    </div>
+
+    <div class="test">
+        <h3>Environment Check</h3>
+        <pre id="env-info">Loading...</pre>
+    </div>
 
     <script>
-      function addResult(message, type = "info") {
-        const results = document.getElementById("results");
-        const div = document.createElement("div");
-        div.className = `test ${type}`;
-
-        const timestamp = new Date().toLocaleTimeString();
-        div.innerHTML = `
-                <span class="timestamp">[${timestamp}]</span> ${message}
-            `;
-
-        results.appendChild(div);
-        results.scrollTop = results.scrollHeight;
-      }
-
-      function clearResults() {
-        document.getElementById("results").innerHTML = "";
-      }
-
-      async function testProxy() {
-        addResult("🔄 Testing proxy configuration...", "info");
-
-        try {
-          const response = await fetch("/api/health", {
-            method: "GET",
-            headers: { "Cache-Control": "no-cache" },
-          });
-
-          if (response.ok) {
-            const data = await response.text();
-            addResult(
-              `✅ Proxy working! Status: ${response.status}`,
-              "success",
-            );
-            addResult(`📄 Response: ${data.substring(0, 100)}...`, "info");
-          } else {
-            addResult(
-              `❌ Proxy failed: ${response.status} ${response.statusText}`,
-              "error",
-            );
-          }
-        } catch (error) {
-          addResult(`❌ Proxy error: ${error.message}`, "error");
-        }
-      }
-
-      async function testBackend() {
-        addResult("🌐 Testing direct backend connection...", "info");
-
-        try {
-          const response = await fetch(
-            "https://pdfpage-app.onrender.com/api/health",
-            {
-              method: "GET",
-              mode: "cors",
-            },
-          );
-
-          if (response.ok) {
-            const data = await response.text();
-            addResult(
-              `✅ Backend working! Status: ${response.status}`,
-              "success",
-            );
-            addResult(`📄 Response: ${data.substring(0, 100)}...`, "info");
-          } else {
-            addResult(
-              `❌ Backend failed: ${response.status} ${response.statusText}`,
-              "error",
-            );
-          }
-        } catch (error) {
-          addResult(`❌ Backend error: ${error.message}`, "error");
-        }
-      }
-
-      async function testOAuth() {
-        addResult("🔐 Testing OAuth endpoint...", "info");
-
-        try {
-          const response = await fetch("/api/auth/google", {
-            method: "HEAD",
-            redirect: "manual",
-            headers: { "Cache-Control": "no-cache" },
-          });
-
-          if (response.status === 302) {
-            addResult(
-              `✅ OAuth endpoint working! Redirects properly.`,
-              "success",
-            );
-            const location = response.headers.get("location");
-            if (location) {
-              addResult(
-                `🔗 Redirects to: ${location.substring(0, 80)}...`,
-                "info",
-              );
-            }
-          } else if (response.status === 404) {
-            addResult(
-              `❌ OAuth endpoint returns 404 - proxy not working`,
-              "error",
-            );
-          } else {
-            addResult(
-              `⚠️ OAuth endpoint status: ${response.status}`,
-              "warning",
-            );
-          }
-        } catch (error) {
-          addResult(`❌ OAuth test error: ${error.message}`, "error");
-        }
-      }
-
-      async function testAll() {
-        clearResults();
-        addResult("🚀 Starting comprehensive test suite...", "info");
+        // Set basic info
+        document.getElementById('current-url').textContent = location.href;
+        document.getElementById('current-time').textContent = new Date().toLocaleString();
+        document.getElementById('user-agent').textContent = navigator.userAgent;
 
         // Environment info
-        addResult(`🌍 Current URL: ${window.location.href}`, "info");
-        addResult(`🌍 Origin: ${window.location.origin}`, "info");
-        addResult(
-          `🌍 User Agent: ${navigator.userAgent.substring(0, 60)}...`,
-          "info",
-        );
+        const envInfo = {
+            hostname: location.hostname,
+            port: location.port,
+            protocol: location.protocol,
+            isDevelopment: location.hostname === 'localhost',
+            currentPort: location.port,
+            expectedDevPort: '48752',
+            expectedProdDomain: 'pdfpage.in'
+        };
+        document.getElementById('env-info').textContent = JSON.stringify(envInfo, null, 2);
 
-        // Test sequence
-        await testBackend();
-        await new Promise((resolve) => setTimeout(resolve, 500));
-        await testProxy();
-        await new Promise((resolve) => setTimeout(resolve, 500));
-        await testOAuth();
+        async function testReactApp() {
+            const resultsDiv = document.getElementById('react-test-results');
+            resultsDiv.innerHTML = '<div class="info">Testing React app...</div>';
+            
+            try {
+                // Check if main page loads
+                const response = await fetch('/');
+                const html = await response.text();
+                
+                if (html.includes('root')) {
+                    resultsDiv.innerHTML = '<div class="success">✅ React app HTML structure present</div>';
+                } else {
+                    resultsDiv.innerHTML = '<div class="error">❌ React app HTML structure missing</div>';
+                }
+            } catch (error) {
+                resultsDiv.innerHTML = '<div class="error">❌ Failed to test React app: ' + error.message + '</div>';
+            }
+        }
 
-        addResult("✅ Test suite completed!", "success");
-      }
+        async function testLocalAPI() {
+            const resultsDiv = document.getElementById('api-test-results');
+            resultsDiv.innerHTML = '<div class="info">Testing local API...</div>';
+            
+            try {
+                const response = await fetch('http://localhost:5000/api/health');
+                const data = await response.json();
+                resultsDiv.innerHTML = '<div class="success">✅ Local API working: ' + JSON.stringify(data) + '</div>';
+            } catch (error) {
+                resultsDiv.innerHTML = '<div class="error">❌ Local API failed: ' + error.message + '</div>';
+            }
+        }
 
-      // Auto-run basic test on load
-      window.onload = () => {
-        addResult(
-          '🎯 Debug panel loaded. Click "Run All Tests" to start.',
-          "info",
-        );
-      };
+        async function testProxyAPI() {
+            const resultsDiv = document.getElementById('api-test-results');
+            resultsDiv.innerHTML = '<div class="info">Testing proxy API...</div>';
+            
+            try {
+                const response = await fetch('/api/health');
+                const data = await response.json();
+                resultsDiv.innerHTML = '<div class="success">✅ Proxy API working: ' + JSON.stringify(data) + '</div>';
+            } catch (error) {
+                resultsDiv.innerHTML = '<div class="error">❌ Proxy API failed: ' + error.message + '</div>';
+            }
+        }
+
+        function testOAuth() {
+            const resultsDiv = document.getElementById('oauth-test-results');
+            const oauthUrl = location.hostname === 'localhost' 
+                ? 'http://localhost:5000/api/auth/google'
+                : '/api/auth/google';
+            
+            resultsDiv.innerHTML = '<div class="info">OAuth URL: ' + oauthUrl + '<br>Click to test: <a href="' + oauthUrl + '" target="_blank">Test OAuth</a></div>';
+        }
+
+        // Auto-test basic functionality
+        setTimeout(() => {
+            testReactApp();
+        }, 1000);
     </script>
-  </body>
+</body>
 </html>

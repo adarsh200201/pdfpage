@@ -73,69 +73,28 @@ export const useRealTimeStats = (
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "Unknown error";
 
-      // Don't log or show errors for cancelled requests
+      // Don't log or show errors for cancelled requests or network failures
       if (
         errorMessage.includes("cancelled") ||
-        errorMessage.includes("aborted")
+        errorMessage.includes("aborted") ||
+        errorMessage.includes("Network connection failed")
       ) {
-        console.debug("Stats request was cancelled (normal during navigation)");
+        if (import.meta.env.DEV) {
+          console.debug("Stats request handled gracefully:", errorMessage);
+        }
         return; // Don't update state if request was cancelled
       }
 
-      console.error("Failed to fetch real-time stats:", err);
+      // Silently handle all stats errors since we have fallback data
+      setError(null);
 
-      // Set appropriate error message with development hints
-      if (
-        errorMessage.includes("Failed to fetch") ||
-        errorMessage.includes("Unable to connect")
-      ) {
-        setError(null); // Don't show error to users in production - fallback stats are fine
-        if (import.meta.env?.DEV) {
-          console.debug(
-            "Development hint: Stats service using fallback data. Run 'npm run dev:full' to use local backend.",
-          );
-        }
-      } else if (errorMessage.includes("timeout")) {
-        setError(null); // Don't show timeout errors - fallback is sufficient
-      } else {
-        setError(null); // Generally don't show stats errors to users
+      // Log only in development for debugging
+      if (import.meta.env.DEV) {
+        console.debug("Stats service using fallback data:", errorMessage);
       }
 
-      // In development, try to auto-recover by clearing any bad cache
-      if (import.meta.env?.DEV) {
-        setTimeout(() => {
-          statsService.clearCache();
-          console.debug("Cache cleared, will retry on next auto-refresh");
-        }, 1000);
-      }
-
-      // Fallback to minimal real stats (not dummy data)
-      setStats([
-        {
-          number: 0,
-          suffix: "+",
-          label: "PDFs Processed",
-          icon: icons.fileText,
-        },
-        {
-          number: 0,
-          suffix: "+",
-          label: "Happy Users",
-          icon: icons.users,
-        },
-        {
-          number: 1,
-          suffix: "+",
-          label: "Countries",
-          icon: icons.globe,
-        },
-        {
-          number: 99.9,
-          suffix: "%",
-          label: "Uptime",
-          icon: icons.shield,
-        },
-      ]);
+      // The statsService already provides fallback data, so we don't need to set it here
+      // This catch block should rarely be reached due to improved error handling in statsService
     } finally {
       setIsLoading(false);
     }
@@ -148,6 +107,40 @@ export const useRealTimeStats = (
   };
 
   useEffect(() => {
+    // Check if stats are disabled in development
+    if (import.meta.env.VITE_DISABLE_STATS === 'true') {
+      // Set fallback stats immediately and skip API calls
+      setStats([
+        {
+          number: 45,
+          suffix: "K+",
+          label: "PDFs Processed",
+          icon: icons.fileText,
+        },
+        {
+          number: 12,
+          suffix: "K+",
+          label: "Happy Users",
+          icon: icons.users,
+        },
+        {
+          number: 167,
+          suffix: "+",
+          label: "Countries",
+          icon: icons.globe,
+        },
+        {
+          number: 99.9,
+          suffix: "%",
+          label: "Uptime",
+          icon: icons.shield,
+        },
+      ]);
+      setIsLoading(false);
+      setLastUpdated(new Date());
+      return;
+    }
+
     // Initial fetch
     fetchStats();
 
