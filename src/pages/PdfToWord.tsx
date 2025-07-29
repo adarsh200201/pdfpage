@@ -104,10 +104,10 @@ const PdfToWord = () => {
   useEffect(() => {
     const checkBackendStatus = async () => {
       try {
-        const response = await fetch(
-          "https://pdf-backend-935131444417.asia-south1.run.app/api/health",
-          { timeout: 5000 },
-        );
+        const healthUrl = import.meta.env.DEV
+          ? "http://localhost:5000/api/health"
+          : "/api/health";
+        const response = await fetch(healthUrl, { timeout: 5000 });
         if (response.ok) {
           setBackendStatus("available");
           addDebugLog("✅ Backend services available");
@@ -280,13 +280,14 @@ const PdfToWord = () => {
           structureAnalysis: true,
           formatPreservation: true,
         });
-        console.log(
-          "🌐 Enhanced API: https://pdf-backend-935131444417.asia-south1.run.app/api/pdf/to-word",
-        );
+        const apiBaseUrl = import.meta.env.DEV
+          ? "http://localhost:5000/api"
+          : "/api";
+        console.log("🌐 Enhanced API:", `${apiBaseUrl}/pdf/to-word`);
         console.log(`🔗 Full API endpoint being called:`, {
-          baseUrl: "https://pdf-backend-935131444417.asia-south1.run.app/api",
+          baseUrl: apiBaseUrl,
           endpoint: "/pdf/to-word",
-          fullUrl: "https://pdf-backend-935131444417.asia-south1.run.app/api/pdf/to-word",
+          fullUrl: `${apiBaseUrl}/pdf/to-word`,
         });
 
         // Convert using backend API with REAL conversion (not demo)
@@ -1210,7 +1211,7 @@ const PdfToWord = () => {
                     <div className="text-sm space-y-1 bg-gray-50 p-3 rounded">
                       <p>
                         <strong>API URL:</strong>{" "}
-                        {"https://pdf-backend-935131444417.asia-south1.run.app/api"}
+                        {import.meta.env.DEV ? "http://localhost:5000/api" : "/api (proxied)"}
                       </p>
                       <p>
                         <strong>Environment:</strong> {import.meta.env.MODE}
@@ -1305,12 +1306,13 @@ const PdfToWord = () => {
                       onClick={async () => {
                         addDebugLog("Testing backend connectivity...");
                         try {
-                          const response = await fetch(
-                            "https://pdf-backend-935131444417.asia-south1.run.app/api/health",
-                          );
+                          const healthUrl = import.meta.env.DEV
+                            ? "http://localhost:5000/api/health"
+                            : "/api/health";
+                          const response = await fetch(healthUrl);
                           if (response.ok) {
                             const data = await response.json();
-                            addDebugLog(`✅ Backend connected: ${data.status}`);
+                            addDebugLog(`��� Backend connected: ${data.status}`);
                           } else {
                             addDebugLog(`❌ Backend error: ${response.status}`);
                           }

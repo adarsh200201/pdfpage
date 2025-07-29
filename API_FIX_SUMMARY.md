@@ -17,7 +17,7 @@ The frontend was making requests to `/api/pdf/compress-pro` with inconsistent ba
 **Before:**
 
 ```javascript
-const apiUrl = "https://pdfpage-app.onrender.com/api";
+const apiUrl = "https://pdf-backend-935131444417.asia-south1.run.app/api";
 const response = await fetch(`${apiUrl}/pdf/compress-pro`, {
 ```
 
@@ -26,7 +26,7 @@ const response = await fetch(`${apiUrl}/pdf/compress-pro`, {
 ```javascript
 const apiUrl = window.location.hostname === "localhost"
   ? "http://localhost:5000"
-  : "https://pdfpage-app.onrender.com";
+  : "https://pdf-backend-935131444417.asia-south1.run.app";
 const response = await fetch(`${apiUrl}/api/pdf/compress-pro`, {
 ```
 
@@ -44,7 +44,7 @@ const response = await fetch(`${apiUrl}/pdf/compress-pro`, {
 ```javascript
 const apiUrl = window.location.hostname === "localhost"
   ? "http://localhost:5000"
-  : "https://pdfpage-app.onrender.com";
+  : "https://pdf-backend-935131444417.asia-south1.run.app";
 const response = await fetch(`${apiUrl}/api/pdf/compress-pro`, {
 ```
 
@@ -66,6 +66,6 @@ const response = await fetch(`${apiUrl}/api/pdf/compress-pro`, {
 All compress-pro API calls now use the unified pattern:
 
 - **Development:** `http://localhost:5000/api/pdf/compress-pro`
-- **Production:** `https://pdfpage-app.onrender.com/api/pdf/compress-pro`
+- **Production:** `https://pdf-backend-935131444417.asia-south1.run.app/api/pdf/compress-pro`
 
 This ensures the frontend correctly calls the backend API regardless of where it's deployed.

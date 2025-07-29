@@ -157,7 +157,9 @@ const ExcelToPdf = () => {
               ),
             );
 
-            const apiUrl = "https://pdf-backend-935131444417.asia-south1.run.app/api";
+            const apiUrl = import.meta.env.DEV
+              ? "http://localhost:5000/api"
+              : "/api";
 
             // Get auth token if available
             const getAuthHeaders = (): Record<string, string> => {

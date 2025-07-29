@@ -3,7 +3,7 @@
 ## Problem Resolved
 
 ✅ **Frontend was trying to connect to local backend (`http://localhost:5000`) but backend wasn't running locally**  
-✅ **Updated frontend to connect to production backend (`https://pdfpage.onrender.com`)**  
+✅ **Updated frontend to connect to production backend (`https://pdf-backend-935131444417.asia-south1.run.app`)**  
 ✅ **Fixed environment configuration for development**
 
 ## Changes Made
@@ -13,19 +13,19 @@
 **`.env`:**
 
 ```
-VITE_API_URL=https://pdfpage.onrender.com/api
+VITE_API_URL=https://pdf-backend-935131444417.asia-south1.run.app/api
 ```
 
 **`.env.development`:**
 
 ```
-VITE_API_URL=https://pdfpage.onrender.com/api
+VITE_API_URL=https://pdf-backend-935131444417.asia-south1.run.app/api
 ```
 
 ### 2. Updated StatsService
 
 - Removed conditional logic that was causing local backend connections
-- Now always connects to production backend: `https://pdfpage.onrender.com`
+- Now always connects to production backend: `https://pdf-backend-935131444417.asia-south1.run.app`
 
 ### 3. Restarted Dev Server
 
@@ -42,7 +42,7 @@ VITE_API_URL=https://pdfpage.onrender.com/api
 ## How It Works Now
 
 1. **Frontend runs locally**: `http://localhost:3000/`
-2. **Backend runs on Render**: `https://pdfpage.onrender.com/`
+2. **Backend runs on Render**: `https://pdf-backend-935131444417.asia-south1.run.app/`
 3. **CORS is configured** to allow local frontend to connect to production backend
 4. **All API calls** automatically go to the production backend
 
@@ -66,7 +66,7 @@ If you prefer to run the backend locally for development:
 ## Current Setup
 
 - **Frontend**: Local development at `http://localhost:3000/`
-- **Backend**: Production on Render at `https://pdfpage.onrender.com/`
+- **Backend**: Production on Render at `https://pdf-backend-935131444417.asia-south1.run.app/`
 - **Database**: Production MongoDB
 - **File Processing**: Production servers with all dependencies
 

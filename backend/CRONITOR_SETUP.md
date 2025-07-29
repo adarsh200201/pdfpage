@@ -63,7 +63,7 @@ CRONITOR_API_KEY=b612058cd75c4f23a6f7674fb9e8c09c
 CRONITOR_MONITOR_KEY=your-monitor-key-here  # Replace with actual key from dashboard
 
 # Server Configuration
-RENDER_SERVER_URL=https://pdfpage-app.onrender.com
+RENDER_SERVER_URL=https://pdf-backend-935131444417.asia-south1.run.app
 NODE_ENV=production
 ```
 
@@ -75,16 +75,16 @@ Once deployed, you can test the system using these endpoints:
 
 ```bash
 # Check cron job status
-curl https://pdfpage-app.onrender.com/api/cron/status
+curl https://pdf-backend-935131444417.asia-south1.run.app/api/cron/status
 
 # Manual ping test
-curl -X POST https://pdfpage-app.onrender.com/api/cron/ping
+curl -X POST https://pdf-backend-935131444417.asia-south1.run.app/api/cron/ping
 
 # Test Cronitor connection
-curl -X POST https://pdfpage-app.onrender.com/api/cron/test-cronitor
+curl -X POST https://pdf-backend-935131444417.asia-south1.run.app/api/cron/test-cronitor
 
 # Check server health
-curl https://pdfpage-app.onrender.com/api/health/ping
+curl https://pdf-backend-935131444417.asia-south1.run.app/api/health/ping
 ```
 
 ### 2. Monitor Dashboard

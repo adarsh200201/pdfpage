@@ -60,7 +60,7 @@ If this doesn't work, rollback to previous working version:
 
 ## Test After Deployment
 
-1. **Check server health**: Visit `https://pdfpage.onrender.com/api/health`
+1. **Check server health**: Visit `https://pdf-backend-935131444417.asia-south1.run.app/api/health`
 2. **Test CORS**: Should see proper headers in response
 3. **Test Word to PDF**: Upload a document from production frontend
 4. **Monitor logs**: Look for "LibreOffice-only mode" in startup logs

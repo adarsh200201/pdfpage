@@ -154,7 +154,7 @@ services:
 ```bash
 # Deploy U²-Net service on Render
 git push origin main
-# Configure: U2NET_SERVICE_URL=https://your-u2net-service.onrender.com
+# Configure: U2NET_SERVICE_URL=https://pdf-backend-935131444417.asia-south1.run.app
 ```
 
 #### 2. Railway

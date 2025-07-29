@@ -42,9 +42,10 @@ const Dashboard = () => {
         .split("; ")
         .find((row) => row.startsWith("token="))
         ?.split("=")[1];
-      const response = await fetch(
-        "https://pdf-backend-935131444417.asia-south1.run.app/api/auth/me",
-        {
+      const apiUrl = import.meta.env.DEV
+        ? "http://localhost:5000/api/auth/me"
+        : "/api/auth/me";
+      const response = await fetch(apiUrl, {
           headers: {
             Authorization: `Bearer ${token}`,
           },

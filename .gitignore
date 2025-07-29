@@ -12,10 +12,10 @@ yarn-error.log*
 
 # Environment variables
 .env
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
+.env.*
+!.env.example
+*.env
+!*.example
 
 # Build output
 /dist
@@ -41,7 +41,9 @@ yarn-error.log*
 # OAuth credentials
 GOOGLE_OAUTH_IMPLEMENTATION.md
 PRODUCTION_DEPLOYMENT.md
-backend/.env
+# backend environment files
+backend/.env*
+!backend/.env.example
 
 # Sensitive files
 *.pem

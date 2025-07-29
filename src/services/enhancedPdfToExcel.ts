@@ -215,9 +215,9 @@ export class EnhancedPdfToExcelService {
     formData.append("sessionId", Math.random().toString(36).substr(2, 9));
 
     const API_URL =
-      window.location.hostname === "localhost"
+      import.meta.env.DEV
         ? "http://localhost:5000"
-        : "https://pdf-backend-935131444417.asia-south1.run.app";
+        : "";
 
     const response = await fetch(`${API_URL}/api/pdf/to-excel`, {
       method: "POST",

@@ -132,7 +132,7 @@ const { isAuthenticated, isLoading, user } = useAuth();
 
 - **Type-safe**: All TypeScript compilation passes
 - **No console errors**: Clean implementation
-- **Real backend**: Uses production API `https://pdfpage-app.onrender.com`
+- **Real backend**: Uses production API `https://pdf-backend-935131444417.asia-south1.run.app`
 - **Google OAuth**: Production-ready authentication flow
 
 ### 🔧 Configuration Required

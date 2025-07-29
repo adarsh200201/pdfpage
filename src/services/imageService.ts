@@ -13,9 +13,9 @@ export class ImageService {
 
   // Get base API URL for image service calls
   private getBaseURL(): string {
-    return window.location.hostname === "localhost"
+    return import.meta.env.DEV
       ? "http://localhost:5000"
-      : "https://pdf-backend-935131444417.asia-south1.run.app";
+      : "";
   }
 
   // Compress multiple images using backend API

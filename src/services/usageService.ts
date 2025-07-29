@@ -37,9 +37,9 @@ export class UsageService {
       }
 
       const apiUrl =
-        window.location.hostname === "localhost"
+        import.meta.env.DEV
           ? "http://localhost:5000/api/usage/track"
-          : "https://pdf-backend-935131444417.asia-south1.run.app/api/usage/track";
+          : "/api/usage/track";
 
       const response = await fetch(apiUrl, {
         method: "POST",

@@ -27,7 +27,7 @@ export class ProxyVerification {
       });
 
       return {
-        isServerSideProxy: !oauthUrl.includes("render.com"),
+        isServerSideProxy: !oauthUrl.includes("asia-south1.run.app"),
         requestUrl: oauthUrl,
         proxyStatus:
           response.status === 302 || response.status === 200

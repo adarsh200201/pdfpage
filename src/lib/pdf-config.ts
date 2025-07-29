@@ -57,16 +57,9 @@ export const configurePDFJSDist = async (
   options: PDFConfigOptions = {},
 ): Promise<boolean> => {
   try {
-    // Dynamic import to avoid bundling issues
-    const pdfjsLib = await import("pdfjs-dist");
-
-    // Set worker source on the direct import
-    if (options.workerSrc !== undefined) {
-      if (pdfjsLib.GlobalWorkerOptions) {
-        pdfjsLib.GlobalWorkerOptions.workerSrc = options.workerSrc;
-      }
-    }
-
+    // Avoid dynamic import that may cause MIME type issues
+    // const pdfjsLib = await import("pdfjs-dist");
+    console.log("PDF.js dist configuration temporarily disabled");
     return true;
   } catch (error) {
     return false;

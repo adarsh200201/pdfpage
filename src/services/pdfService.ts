@@ -40,9 +40,9 @@ export interface UsageLimitInfo {
 
 export class PDFService {
   private static API_URL =
-    window.location.hostname === "localhost"
+    import.meta.env.DEV
       ? "http://localhost:5000"
-      : "https://pdf-backend-935131444417.asia-south1.run.app";
+      : "";
 
   // Track ongoing conversions to prevent concurrent LibreOffice calls
   private static ongoingConversions = new Set<string>();
@@ -1191,7 +1191,7 @@ export class PDFService {
       onProgress?.(30);
 
       console.log(
-        `🌐 Making API request to: ${this.API_URL}/api/pdf/compress-pro with level: ${backendLevel}`,
+        `��� Making API request to: ${this.API_URL}/api/pdf/compress-pro with level: ${backendLevel}`,
       );
 
       const response = await fetch(`${this.API_URL}/api/pdf/compress-pro`, {
