@@ -25,9 +25,9 @@ interface ConversionResult {
 
 export class LibreOfficeService {
   private static API_URL =
-    window.location.hostname === "localhost"
+    import.meta.env.DEV
       ? "http://localhost:5000"
-      : "https://pdf-backend-935131444417.asia-south1.run.app";
+      : "";
 
   /**
    * Make LibreOffice conversion request to specific endpoint

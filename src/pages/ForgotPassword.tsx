@@ -57,8 +57,10 @@ const ForgotPassword: React.FC = () => {
     setIsLoading(true);
 
     try {
-      const response = await fetch(
-        `${window.location.hostname === "localhost" ? "http://localhost:5000" : "https://pdf-backend-935131444417.asia-south1.run.app"}/api/auth/forgot-password`,
+      const apiUrl = import.meta.env.DEV
+        ? "http://localhost:5000/api/auth/forgot-password"
+        : "/api/auth/forgot-password";
+      const response = await fetch(apiUrl,
         {
           method: "POST",
           headers: {
@@ -106,8 +108,10 @@ const ForgotPassword: React.FC = () => {
     setIsLoading(true);
 
     try {
-      const response = await fetch(
-        `${window.location.hostname === "localhost" ? "http://localhost:5000" : "https://pdf-backend-935131444417.asia-south1.run.app"}/api/auth/verify-otp`,
+      const apiUrl = import.meta.env.DEV
+        ? "http://localhost:5000/api/auth/verify-otp"
+        : "/api/auth/verify-otp";
+      const response = await fetch(apiUrl,
         {
           method: "POST",
           headers: {
@@ -173,8 +177,10 @@ const ForgotPassword: React.FC = () => {
     setIsLoading(true);
 
     try {
-      const response = await fetch(
-        `${window.location.hostname === "localhost" ? "http://localhost:5000" : "https://pdf-backend-935131444417.asia-south1.run.app"}/api/auth/reset-password`,
+      const apiUrl = import.meta.env.DEV
+        ? "http://localhost:5000/api/auth/reset-password"
+        : "/api/auth/reset-password";
+      const response = await fetch(apiUrl,
         {
           method: "POST",
           headers: {
