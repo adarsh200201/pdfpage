@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Auth Debug Tool</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
+        .result { margin: 10px 0; padding: 10px; border-radius: 3px; }
+        .success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .loading { background: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
+        button { padding: 10px 20px; margin: 5px; cursor: pointer; }
+        pre { background: #f8f9fa; padding: 10px; border-radius: 3px; overflow-x: auto; }
+    </style>
+</head>
+<body>
+    <h1>🔍 Auth Issue Debug Tool</h1>
+    <p>This tool will help diagnose the "Failed to fetch" error in OAuth flow.</p>
+
+    <div class="test">
+        <h3>Test 1: Basic Backend Connectivity</h3>
+        <button onclick="testBasicConnectivity()">Test Backend Connection</button>
+        <div id="basic-test"></div>
+    </div>
+
+    <div class="test">
+        <h3>Test 2: CORS Headers</h3>
+        <button onclick="testCORS()">Test CORS Configuration</button>
+        <div id="cors-test"></div>
+    </div>
+
+    <div class="test">
+        <h3>Test 3: Auth Endpoint</h3>
+        <button onclick="testAuthEndpoint()">Test /api/auth/me Endpoint</button>
+        <div id="auth-test"></div>
+    </div>
+
+    <div class="test">
+        <h3>Test 4: Simulate OAuth Callback</h3>
+        <button onclick="simulateAuthCallback()">Simulate Auth Callback</button>
+        <div id="callback-test"></div>
+    </div>
+
+    <div class="test">
+        <h3>Test 5: Network Environment</h3>
+        <button onclick="checkNetworkEnvironment()">Check Network Environment</button>
+        <div id="network-test"></div>
+    </div>
+
+    <script>
+        const API_BASE = 'https://pdf-backend-935131444417.asia-south1.run.app';
+
+        function log(elementId, message, type = 'loading') {
+            const element = document.getElementById(elementId);
+            const div = document.createElement('div');
+            div.className = `result ${type}`;
+            div.innerHTML = message;
+            element.appendChild(div);
+        }
+
+        function clearResults(elementId) {
+            document.getElementById(elementId).innerHTML = '';
+        }
+
+        async function testBasicConnectivity() {
+            clearResults('basic-test');
+            log('basic-test', '🔄 Testing basic backend connectivity...');
+
+            try {
+                const response = await fetch(`${API_BASE}/api/auth/test-cors`, {
+                    method: 'GET',
+                    headers: {
+                        'Origin': window.location.origin
+                    }
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    log('basic-test', `✅ Backend is reachable!<br><pre>${JSON.stringify(data, null, 2)}</pre>`, 'success');
+                } else {
+                    log('basic-test', `❌ Backend returned ${response.status}: ${response.statusText}`, 'error');
+                }
+            } catch (error) {
+                log('basic-test', `❌ Connection failed: ${error.message}<br>Error type: ${error.name}`, 'error');
+                console.error('Basic connectivity test error:', error);
+            }
+        }
+
+        async function testCORS() {
+            clearResults('cors-test');
+            log('cors-test', '🔄 Testing CORS configuration...');
+
+            try {
+                const response = await fetch(`${API_BASE}/api/auth/test-cors`, {
+                    method: 'GET',
+                    headers: {
+                        'Origin': 'https://pdfpage.in',
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                const corsHeaders = {
+                    'Access-Control-Allow-Origin': response.headers.get('Access-Control-Allow-Origin'),
+                    'Access-Control-Allow-Credentials': response.headers.get('Access-Control-Allow-Credentials'),
+                    'Access-Control-Allow-Methods': response.headers.get('Access-Control-Allow-Methods'),
+                    'Access-Control-Allow-Headers': response.headers.get('Access-Control-Allow-Headers')
+                };
+
+                if (response.ok) {
+                    log('cors-test', `✅ CORS test passed!<br><pre>${JSON.stringify(corsHeaders, null, 2)}</pre>`, 'success');
+                } else {
+                    log('cors-test', `❌ CORS test failed: ${response.status}`, 'error');
+                }
+            } catch (error) {
+                log('cors-test', `❌ CORS test error: ${error.message}`, 'error');
+                console.error('CORS test error:', error);
+            }
+        }
+
+        async function testAuthEndpoint() {
+            clearResults('auth-test');
+            log('auth-test', '🔄 Testing /api/auth/me endpoint...');
+
+            try {
+                const response = await fetch(`${API_BASE}/api/auth/me`, {
+                    method: 'GET',
+                    headers: {
+                        'Origin': 'https://pdfpage.in',
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer fake_token_for_testing'
+                    }
+                });
+
+                const data = await response.json();
+                
+                if (response.status === 401) {
+                    log('auth-test', `✅ Auth endpoint is working! (Expected 401 for invalid token)<br><pre>${JSON.stringify(data, null, 2)}</pre>`, 'success');
+                } else {
+                    log('auth-test', `⚠️ Unexpected response: ${response.status}<br><pre>${JSON.stringify(data, null, 2)}</pre>`, 'error');
+                }
+            } catch (error) {
+                log('auth-test', `❌ Auth endpoint test failed: ${error.message}<br>This is likely the same error causing OAuth issues!`, 'error');
+                console.error('Auth endpoint test error:', error);
+            }
+        }
+
+        async function simulateAuthCallback() {
+            clearResults('callback-test');
+            log('callback-test', '🔄 Simulating the exact OAuth callback flow...');
+
+            // This simulates what happens in the authService.handleAuthCallback function
+            try {
+                const isDevelopment = window.location.hostname === 'localhost';
+                const baseUrl = isDevelopment
+                    ? "http://localhost:5000"
+                    : "https://pdf-backend-935131444417.asia-south1.run.app";
+                const apiUrl = `${baseUrl}/api/auth/me`;
+
+                log('callback-test', `🔍 Using URL: ${apiUrl}`);
+                log('callback-test', `🔍 Development mode: ${isDevelopment}`);
+
+                const response = await fetch(apiUrl, {
+                    method: 'GET',
+                    credentials: 'include',
+                    headers: {
+                        'Authorization': 'Bearer fake_token_for_testing',
+                        'Content-Type': 'application/json',
+                    },
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    log('callback-test', `✅ Callback simulation working! (Expected error for fake token)<br><pre>${JSON.stringify(errorData, null, 2)}</pre>`, 'success');
+                } else {
+                    const data = await response.json();
+                    log('callback-test', `⚠️ Unexpected success:<br><pre>${JSON.stringify(data, null, 2)}</pre>`, 'error');
+                }
+            } catch (error) {
+                log('callback-test', `❌ Callback simulation failed: ${error.message}<br><strong>This is the exact error causing your OAuth issues!</strong>`, 'error');
+                console.error('Callback simulation error:', error);
+            }
+        }
+
+        async function checkNetworkEnvironment() {
+            clearResults('network-test');
+            log('network-test', '🔄 Checking network environment...');
+
+            const info = {
+                'Current URL': window.location.href,
+                'Origin': window.location.origin,
+                'Hostname': window.location.hostname,
+                'Protocol': window.location.protocol,
+                'User Agent': navigator.userAgent,
+                'Online': navigator.onLine,
+                'Connection': navigator.connection ? {
+                    'Effective Type': navigator.connection.effectiveType,
+                    'Downlink': navigator.connection.downlink,
+                    'RTT': navigator.connection.rtt
+                } : 'Not available'
+            };
+
+            log('network-test', `📊 Network Environment:<br><pre>${JSON.stringify(info, null, 2)}</pre>`, 'success');
+
+            // Test if we can reach Google (to rule out general network issues)
+            try {
+                const googleTest = await fetch('https://www.google.com/favicon.ico', { 
+                    method: 'HEAD',
+                    mode: 'no-cors'
+                });
+                log('network-test', '✅ Can reach external sites (Google)', 'success');
+            } catch (error) {
+                log('network-test', '❌ Cannot reach external sites - network issue detected', 'error');
+            }
+        }
+
+        // Auto-run basic test on page load
+        window.addEventListener('load', () => {
+            setTimeout(testBasicConnectivity, 1000);
+        });
+    </script>
+</body>
+</html>

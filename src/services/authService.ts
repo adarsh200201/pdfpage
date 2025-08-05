@@ -17,17 +17,20 @@ export const authService = {
    * User never sees or interacts with backend domain
    */
   loginWithGoogle: () => {
-    // Use local backend for development, production backend for production
-    const isDevelopment = window.location.hostname === 'localhost';
-    const baseUrl = isDevelopment
-      ? "http://localhost:5000"
-      : "https://pdf-backend-935131444417.asia-south1.run.app";
+    // Use centralized API configuration for consistency
+    const apiUrl = import.meta.env.VITE_API_URL || "/api";
+    const oauthUrl = apiUrl.startsWith('http')
+      ? `${apiUrl}/auth/google`
+      : `${apiUrl}/auth/google`;
+
+    console.log('🔍 [AUTH] Redirecting to OAuth URL:', oauthUrl);
+    console.log('🔍 [AUTH] API URL from env:', import.meta.env.VITE_API_URL);
 
     // Store the current location to redirect back after auth
     sessionStorage.setItem("authRedirectUrl", window.location.pathname);
 
-    // Redirect to backend OAuth endpoint (backend handles Google OAuth flow)
-    window.location.href = `${baseUrl}/api/auth/google`;
+    // Redirect to OAuth endpoint (uses proxy in production)
+    window.location.href = oauthUrl;
   },
 
   /**
@@ -37,14 +40,16 @@ export const authService = {
   handleAuthCallback: async (
     token: string,
   ): Promise<GoogleAuthResponse["user"]> => {
-    // Use local backend for development, production backend for production
-    const isDevelopment = window.location.hostname === 'localhost';
-    const baseUrl = isDevelopment
-      ? "http://localhost:5000"
-      : "https://pdf-backend-935131444417.asia-south1.run.app";
-    const apiUrl = `${baseUrl}/api/auth/me`;
+    // Use centralized API configuration for consistency
+    const apiUrl = import.meta.env.VITE_API_URL || "/api";
+    const fullUrl = apiUrl.startsWith('http')
+      ? `${apiUrl}/auth/me`
+      : `${apiUrl}/auth/me`;
 
-    const response = await fetch(apiUrl, {
+    console.log('🔍 [AUTH] Making request to:', fullUrl);
+    console.log('🔍 [AUTH] API URL from env:', import.meta.env.VITE_API_URL);
+
+    const response = await fetch(fullUrl, {
       method: 'GET',
       credentials: 'include',
       headers: {
@@ -54,6 +59,11 @@ export const authService = {
     });
 
     if (!response.ok) {
+      console.error('🔴 [AUTH] Request failed:', {
+        status: response.status,
+        statusText: response.statusText,
+        url: fullUrl
+      });
       throw new Error("Failed to fetch user data");
     }
 
