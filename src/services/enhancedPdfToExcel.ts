@@ -214,12 +214,13 @@ export class EnhancedPdfToExcelService {
     formData.append("preserveFormatting", String(options.preserveFormatting));
     formData.append("sessionId", Math.random().toString(36).substr(2, 9));
 
-    const API_URL =
-      import.meta.env.DEV
-        ? "http://localhost:5000"
-        : "";
+    // Use centralized API configuration for consistency
+    const baseApiUrl = import.meta.env.VITE_API_URL || "/api";
+    const apiUrl = baseApiUrl.startsWith('http')
+      ? `${baseApiUrl}/pdf/to-excel`
+      : `${baseApiUrl}/pdf/to-excel`;
 
-    const response = await fetch(`${API_URL}/api/pdf/to-excel`, {
+    const response = await fetch(apiUrl, {
       method: "POST",
       body: formData,
       credentials: "include",

@@ -207,11 +207,13 @@ const CompressProfessional = () => {
       setProgress(10);
       setProcessingStatus("Uploading and analyzing document...");
 
-      const apiUrl =
-        window.location.hostname === "localhost"
-          ? "http://localhost:5000"
-          : "https://pdf-backend-935131444417.asia-south1.run.app";
-      const response = await fetch(`${apiUrl}/api/pdf/compress-pro`, {
+      // Use centralized API configuration for consistency
+      const baseApiUrl = import.meta.env.VITE_API_URL || "/api";
+      const apiUrl = baseApiUrl.startsWith('http')
+        ? `${baseApiUrl}/pdf/compress-pro`
+        : `${baseApiUrl}/pdf/compress-pro`;
+
+      const response = await fetch(apiUrl, {
         method: "POST",
         body: formData,
       });

@@ -36,10 +36,11 @@ export class UsageService {
         return true;
       }
 
-      const apiUrl =
-        import.meta.env.DEV
-          ? "http://localhost:5000/api/usage/track"
-          : "/api/usage/track";
+      // Use centralized API configuration for consistency
+      const baseApiUrl = import.meta.env.VITE_API_URL || "/api";
+      const apiUrl = baseApiUrl.startsWith('http')
+        ? `${baseApiUrl}/usage/track`
+        : `${baseApiUrl}/usage/track`;
 
       const response = await fetch(apiUrl, {
         method: "POST",
