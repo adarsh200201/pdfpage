@@ -48,6 +48,7 @@ export const authService = {
 
     console.log('🔍 [AUTH] Making request to:', fullUrl);
     console.log('🔍 [AUTH] API URL from env:', import.meta.env.VITE_API_URL);
+    console.log('🔍 [AUTH] Token length:', token?.length || 0);
 
     const response = await fetch(fullUrl, {
       method: 'GET',
