@@ -1,30 +1,54 @@
 /**
  * API Configuration utility
- * Always uses Google Cloud backend for consistency
+ * Uses centralized configuration for consistent API calls
  */
 
 export const getApiUrl = (path: string = ''): string => {
-  // Always use Google Cloud backend for consistency
-  // Remove local backend option to ensure consistent backend usage
-  const baseUrl = 'https://pdf-backend-935131444417.asia-south1.run.app';
-  return `${baseUrl}${path.startsWith('/') ? path : `/${path}`}`;
+  // Use centralized API configuration for consistency
+  const apiUrl = import.meta.env.VITE_API_URL || "/api";
+
+  // If it's a full URL (development), use it directly
+  if (apiUrl.startsWith('http')) {
+    return `${apiUrl}${path.startsWith('/') ? path : `/${path}`}`;
+  }
+
+  // Otherwise, it's a relative path (production proxy)
+  return `${apiUrl}${path.startsWith('/') ? path : `/${path}`}`;
 };
 
 export const getApiBaseUrl = (): string => {
-  // Always use Google Cloud backend for consistency
-  return 'https://pdf-backend-935131444417.asia-south1.run.app';
+  // Use centralized API configuration for consistency
+  const apiUrl = import.meta.env.VITE_API_URL || "/api";
+
+  // If it's a full URL (development), return it
+  if (apiUrl.startsWith('http')) {
+    return apiUrl;
+  }
+
+  // Otherwise, it's a relative path (production proxy)
+  return apiUrl;
 };
 
 export const getFullApiUrl = (endpoint: string): string => {
   const baseUrl = getApiBaseUrl();
   const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+
+  console.log('🔍 [API-CONFIG] Building URL:', {
+    baseUrl,
+    endpoint,
+    cleanEndpoint,
+    finalUrl: `${baseUrl}${cleanEndpoint}`,
+    envApiUrl: import.meta.env.VITE_API_URL
+  });
+
   return `${baseUrl}${cleanEndpoint}`;
 };
 
 // Utility to check if backend is available
 export const checkBackendHealth = async (): Promise<boolean> => {
   try {
-    const response = await fetch(`${getApiBaseUrl()}/api/health`, {
+    const healthUrl = getFullApiUrl('/api/health');
+    const response = await fetch(healthUrl, {
       method: 'GET',
       signal: AbortSignal.timeout(3000) // 3 second timeout
     });
@@ -40,8 +64,9 @@ export const getDevInfo = () => {
 
   return {
     isDev: true,
-    useLocalBackend: false,
+    apiUrl: import.meta.env.VITE_API_URL,
     apiBaseUrl: getApiBaseUrl(),
-    recommendation: 'Always using Google Cloud backend for consistency. No local backend support.'
+    isProxy: !import.meta.env.VITE_API_URL?.startsWith('http'),
+    recommendation: 'Using centralized API configuration. Proxy in production, direct URL in development.'
   };
 };
