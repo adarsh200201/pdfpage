@@ -71,7 +71,7 @@ const FaviconHeader = () => {
           {/* Modern Logo Design */}
           <div className="flex items-center">
             <Link to="/favicon" className="transition-all duration-300 hover:scale-105">
-              <PdfPageLogo size="md" showHover={true} />
+              <PdfPageLogo size="lg" showHover={true} useImage={true} />
             </Link>
           </div>
 
@@ -96,12 +96,12 @@ const FaviconHeader = () => {
               <ChevronDown className="w-4 h-4 ml-1" />
             </button>
 
-            {/* Back to ImgPage */}
+            {/* Back to PdfPage */}
             <Link
               to="/img"
               className="text-body-medium text-text-medium hover:text-blue-600 transition-colors duration-200 flex items-center"
             >
-              Back to ImgPage
+              Back to PdfPage
             </Link>
 
             {/* Back to PdfPage */}
@@ -254,7 +254,7 @@ const FaviconHeader = () => {
                 className="block px-3 py-2 text-base font-medium text-text-medium hover:text-blue-600 hover:bg-gray-50 rounded-md"
                 onClick={() => setMobileMenuOpen(false)}
               >
-                Back to ImgPage
+                Back to PdfPage
               </Link>
               <Link
                 to="/"

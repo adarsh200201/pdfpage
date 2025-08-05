@@ -26,6 +26,7 @@ import {
   Image,
   Star as Favicon,
 } from "lucide-react";
+import PdfPageLogo from "@/components/ui/PdfPageLogo";
 
 const Footer = () => {
   const [email, setEmail] = useState("");
@@ -132,14 +133,16 @@ const Footer = () => {
                 <div>
                   <Link
                     to="/"
-                    className="inline-flex items-center space-x-2 mb-4 group"
+                    className="inline-flex items-center space-x-3 mb-4 group"
                   >
-                    <div className="w-10 h-10 bg-gradient-to-br from-red-500 via-red-600 to-red-700 rounded-xl flex items-center justify-center transform group-hover:scale-105 transition-all duration-200 shadow-lg ring-2 ring-red-500/30">
-                      <span className="text-white font-bold text-sm tracking-tight">
-                        PP
-                      </span>
-                    </div>
-                    <div className="ml-3">
+                    <PdfPageLogo
+                      size="md"
+                      variant="icon-only"
+                      showHover={true}
+                      useImage={true}
+                      className="transform group-hover:scale-105 transition-all duration-200"
+                    />
+                    <div>
                       <span className="font-bold text-xl text-white">
                         Pdf
                         <span className="bg-gradient-to-r from-red-400 to-red-500 bg-clip-text text-transparent">

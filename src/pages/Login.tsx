@@ -41,13 +41,13 @@ const Login = () => {
   // Brand settings based on context
   const brandSettings = isFromImageContext
     ? {
-        name: "ImgPage",
+        name: "PdfPage",
         subtitle: "Image Tools",
         accent: "blue",
         gradientFrom: "from-blue-600",
         gradientTo: "to-purple-600",
         textAccent: "text-blue-600",
-        backLink: "Back to ImgPage",
+        backLink: "Back to PdfPage",
       }
     : {
         name: "PdfPage",
@@ -128,10 +128,8 @@ const Login = () => {
           {/* Login Card */}
           <Card className="shadow-2xl border-0 bg-white/80 backdrop-blur-sm">
             <CardHeader className="text-center pb-6">
-              <div
-                className={`w-16 h-16 bg-gradient-to-br ${brandSettings.gradientFrom} ${brandSettings.gradientTo} rounded-2xl flex items-center justify-center mx-auto mb-4`}
-              >
-                <Lock className="w-8 h-8 text-white" />
+              <div className="flex justify-center mb-4">
+                <PdfPageLogo size="lg" variant="icon-only" showHover={false} useImage={true} />
               </div>
               <h1 className="text-2xl font-bold text-gray-900 mb-2">
                 Welcome back
@@ -247,7 +245,17 @@ const Login = () => {
                   type="button"
                   variant="outline"
                   className="w-full h-12 border-gray-200 hover:bg-gray-50"
-                  onClick={loginWithGoogle}
+                  onClick={async () => {
+                    try {
+                      await loginWithGoogle();
+                    } catch (error) {
+                      toast({
+                        title: "OAuth Error",
+                        description: "Failed to initiate Google Sign In. Please try again.",
+                        variant: "destructive",
+                      });
+                    }
+                  }}
                   disabled={isLoading}
                 >
                   <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24">
@@ -310,6 +318,8 @@ const Login = () => {
           </div>
         </div>
       </div>
+
+
 
       {/* Footer */}
       <div className="p-4 text-center border-t border-gray-100 bg-white/50">

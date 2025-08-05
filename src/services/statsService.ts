@@ -117,6 +117,7 @@ class StatsService {
       const response = await fetch(`${this.API_BASE}/api/stats/dashboard`, {
         signal: controller.signal,
         method: "GET",
+        credentials: 'include',
         headers: {
           "Content-Type": "application/json",
         },

@@ -277,6 +277,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       const apiUrl = getFullApiUrl('/api/auth/register');
       const response = await fetch(apiUrl, {
         method: "POST",
+        credentials: 'include',
         headers: {
           "Content-Type": "application/json",
         },

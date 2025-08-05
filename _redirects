@@ -1,5 +1,5 @@
 # API proxy rules (these take precedence)
-/api/* https://pdf-backend-935131444417.asia-south1.run.app/api/:splat 200
+/api/* https://asia-south1-pdf-backend.cloudfunctions.net/pdf-backend/api/:splat 200
 
 # SPA fallback for all other routes
 /* /index.html 200

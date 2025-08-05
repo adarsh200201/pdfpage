@@ -220,7 +220,7 @@ const ImgPngToJpg = () => {
             className="flex items-center text-yellow-600 hover:text-yellow-700 mr-4"
           >
             <ArrowLeft className="w-5 h-5 mr-2" />
-            Back to ImgPage
+            Back to PdfPage
           </Link>
         </div>
 

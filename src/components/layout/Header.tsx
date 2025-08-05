@@ -30,6 +30,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useTranslation } from "@/hooks/useTranslation";
 import PdfPageLogo from "@/components/ui/PdfPageLogo";
+import { LOGO_CONFIG } from "@/config/logo-config";
 
 const Header = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -260,7 +261,7 @@ const Header = () => {
             {/* Enhanced Logo with Modern Design */}
             <div className="flex items-center">
               <Link to="/" className="transition-all duration-300 hover:scale-105">
-                <PdfPageLogo size="lg" showHover={true} />
+                <PdfPageLogo size="xl" showHover={true} useImage={true} />
               </Link>
             </div>
 
@@ -618,7 +619,7 @@ const Header = () => {
               <div className="flex items-center space-x-3 px-4 py-3 bg-gradient-to-r from-primary/5 to-blue-600/5 rounded-xl border border-primary/10 mb-4">
                 <div className="w-10 h-10 bg-gradient-to-r from-primary to-blue-600 rounded-xl flex items-center justify-center">
                   <img
-                    src="https://cdn.builder.io/api/v1/image/assets%2Ffcbdb28308084edfa1fffc265e57f46e%2F5791d498f9994470ae52d766d30e56ee?format=webp&width=800"
+                    src={LOGO_CONFIG.getLogoUrl('webp', 256)}
                     alt="PdfPage"
                     className="h-6 w-6 brightness-0 invert"
                   />

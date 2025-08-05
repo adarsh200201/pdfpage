@@ -1,26 +1,17 @@
 /**
  * API Configuration utility
- * Handles API URL resolution for development and production environments
+ * Always uses Google Cloud backend for consistency
  */
 
-// Check if we should use local backend (when VITE_USE_LOCAL_BACKEND is set)
-const useLocalBackend = import.meta.env.VITE_USE_LOCAL_BACKEND === 'true';
-
 export const getApiUrl = (path: string = ''): string => {
-  // In development, check if we should use local backend
-  if (import.meta.env.DEV && useLocalBackend) {
-    return `http://localhost:5000${path}`;
-  }
-
-  // Use production backend (Google Cloud Run)
+  // Always use Google Cloud backend for consistency
+  // Remove local backend option to ensure consistent backend usage
   const baseUrl = 'https://pdf-backend-935131444417.asia-south1.run.app';
   return `${baseUrl}${path.startsWith('/') ? path : `/${path}`}`;
 };
 
 export const getApiBaseUrl = (): string => {
-  if (import.meta.env.DEV && useLocalBackend) {
-    return 'http://localhost:5000';
-  }
+  // Always use Google Cloud backend for consistency
   return 'https://pdf-backend-935131444417.asia-south1.run.app';
 };
 
@@ -46,13 +37,11 @@ export const checkBackendHealth = async (): Promise<boolean> => {
 // Get development info for debugging
 export const getDevInfo = () => {
   if (!import.meta.env.DEV) return null;
-  
+
   return {
     isDev: true,
-    useLocalBackend,
+    useLocalBackend: false,
     apiBaseUrl: getApiBaseUrl(),
-    recommendation: useLocalBackend 
-      ? 'Run "npm run dev:full" to start both frontend and backend'
-      : 'Using production backend. Set VITE_USE_LOCAL_BACKEND=true to use local backend'
+    recommendation: 'Always using Google Cloud backend for consistency. No local backend support.'
   };
 };

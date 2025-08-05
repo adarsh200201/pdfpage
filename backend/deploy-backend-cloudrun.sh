@@ -43,7 +43,7 @@ gcloud run deploy $SERVICE_NAME \
   --concurrency 100 \
   --max-instances 10 \
   --port 8080 \
-  --set-env-vars "NODE_ENV=production,MONGODB_URI=$MONGODB_URI,JWT_SECRET=$JWT_SECRET,FRONTEND_URL=https://pdfpage.in" \
+  --set-env-vars "NODE_ENV=production,MONGODB_URI=$MONGODB_URI,JWT_SECRET=$JWT_SECRET,FRONTEND_URL=https://pdfpage.in,GOOGLE_CLIENT_ID=935131444417-s5i4mpl0droaqh5pu49jm52j8dqrv2km.apps.googleusercontent.com,GOOGLE_CLIENT_SECRET=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,GOOGLE_CALLBACK_URL=https://pdf-backend-935131444417.asia-south1.run.app/api/auth/google/callback" \
   --project=$PROJECT_ID
 
 # Step 4: Get the service URL

@@ -6,6 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { PromoBanner } from "@/components/ui/promo-banner";
+import PdfPageLogo from "@/components/ui/PdfPageLogo";
 import { Loader2, Mail, Lock, User, Eye, EyeOff, X } from "lucide-react";
 
 interface AuthModalProps {
@@ -86,6 +87,9 @@ const AuthModal: React.FC<AuthModalProps> = ({
 
   const ModalHeader = ({ children }: { children: React.ReactNode }) => (
     <div className="text-center mb-6">
+      <div className="flex justify-center mb-4">
+        <PdfPageLogo size="lg" variant="icon-only" showHover={false} useImage={true} />
+      </div>
       <h2 className="text-2xl font-bold">{children}</h2>
     </div>
   );

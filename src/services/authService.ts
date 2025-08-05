@@ -17,16 +17,17 @@ export const authService = {
    * User never sees or interacts with backend domain
    */
   loginWithGoogle: () => {
-    // Use proxy URL - Netlify handles the backend forwarding
-    const googleOAuthUrl = import.meta.env.DEV
-      ? "http://localhost:5000/api/auth/google"
-      : "/api/auth/google";
+    // Use local backend for development, production backend for production
+    const isDevelopment = window.location.hostname === 'localhost';
+    const baseUrl = isDevelopment
+      ? "http://localhost:5000"
+      : "https://pdf-backend-935131444417.asia-south1.run.app";
 
     // Store the current location to redirect back after auth
     sessionStorage.setItem("authRedirectUrl", window.location.pathname);
 
-    // Redirect to server-side proxy (Netlify handles the backend forwarding)
-    window.location.href = googleOAuthUrl;
+    // Redirect to backend OAuth endpoint (backend handles Google OAuth flow)
+    window.location.href = `${baseUrl}/api/auth/google`;
   },
 
   /**
@@ -36,14 +37,19 @@ export const authService = {
   handleAuthCallback: async (
     token: string,
   ): Promise<GoogleAuthResponse["user"]> => {
-    // Use proxy URL - Netlify handles the backend forwarding
-    const apiUrl = import.meta.env.DEV
-      ? "http://localhost:5000/api/auth/me"
-      : "/api/auth/me";
+    // Use local backend for development, production backend for production
+    const isDevelopment = window.location.hostname === 'localhost';
+    const baseUrl = isDevelopment
+      ? "http://localhost:5000"
+      : "https://pdf-backend-935131444417.asia-south1.run.app";
+    const apiUrl = `${baseUrl}/api/auth/me`;
 
     const response = await fetch(apiUrl, {
+      method: 'GET',
+      credentials: 'include',
       headers: {
-        Authorization: `Bearer ${token}`,
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
       },
     });
 

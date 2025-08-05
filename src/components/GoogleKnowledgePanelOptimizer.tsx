@@ -15,7 +15,7 @@ const GoogleKnowledgePanelOptimizer: React.FC<GoogleKnowledgePanelOptimizerProps
   logo,
   breadcrumbs
 }) => {
-  const defaultLogo = "https://cdn.builder.io/api/v1/image/assets%2Ffcbdb28308084edfa1fffc265e57f46e%2F5791d498f9994470ae52d766d30e56ee?format=webp&width=512";
+  const defaultLogo = "https://cdn.builder.io/api/v1/image/assets%2Ffcbdb28308084edfa1fffc265e57f46e%2F5791d498f9994470ae52d766d30e56ee?format=png&width=512";
   
   const organizationSchema = {
     "@context": "https://schema.org",

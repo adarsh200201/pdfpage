@@ -142,22 +142,31 @@ const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
       ] = await Promise.all([
         // User statistics
         fetch(`${apiUrl}/users/stats`, {
+          method: 'GET',
+          credentials: 'include',
           headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
+            'Authorization': `Bearer ${localStorage.getItem("token")}`,
+            'Content-Type': 'application/json',
           },
         }),
 
         // Popular tools - fetch all data without time filtering
         fetch(`${apiUrl}/usage/popular-tools`, {
+          method: 'GET',
+          credentials: 'include',
           headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
+            'Authorization': `Bearer ${localStorage.getItem("token")}`,
+            'Content-Type': 'application/json',
           },
         }),
 
         // Recent users
         fetch(`${apiUrl}/users/recent?limit=10`, {
+          method: 'GET',
+          credentials: 'include',
           headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
+            'Authorization': `Bearer ${localStorage.getItem("token")}`,
+            'Content-Type': 'application/json',
           },
         }),
 

@@ -50,13 +50,13 @@ const Register = () => {
   // Brand settings based on context
   const brandSettings = isFromImageContext
     ? {
-        name: "ImgPage",
+        name: "PdfPage",
         subtitle: "Image Tools",
         accent: "purple",
         gradientFrom: "from-purple-600",
         gradientTo: "to-blue-600",
         textAccent: "text-purple-600",
-        backLink: "Back to ImgPage",
+        backLink: "Back to PdfPage",
       }
     : {
         name: "PdfPage",
@@ -141,8 +141,8 @@ const Register = () => {
           {/* Register Card */}
           <Card className="shadow-2xl border-0 bg-white/80 backdrop-blur-sm">
             <CardHeader className="text-center pb-6">
-              <div className="w-16 h-16 bg-gradient-to-br from-purple-600 to-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                <User className="w-8 h-8 text-white" />
+              <div className="flex justify-center mb-4">
+                <PdfPageLogo size="lg" variant="icon-only" showHover={false} useImage={true} />
               </div>
               <h1 className="text-2xl font-bold text-gray-900 mb-2">
                 Create your account

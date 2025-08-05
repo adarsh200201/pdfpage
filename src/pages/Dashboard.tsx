@@ -46,11 +46,13 @@ const Dashboard = () => {
         ? "http://localhost:5000/api/auth/me"
         : "/api/auth/me";
       const response = await fetch(apiUrl, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
+        method: 'GET',
+        credentials: 'include',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
         },
-      );
+      });
       if (!response.ok) throw new Error("Failed to fetch user profile");
       const data = await response.json();
       // Use stats from the profile response - the auth/me endpoint returns user data directly

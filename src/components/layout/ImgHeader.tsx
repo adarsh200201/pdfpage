@@ -112,11 +112,8 @@ const ImgHeader = () => {
         <div className="flex justify-between items-center h-16">
           {/* Modern Logo Design */}
           <div className="flex items-center">
-            <Link to="/img" className="flex items-center space-x-2 transition-all duration-300 hover:scale-105">
-              <PdfPageLogo size="md" variant="icon-only" showHover={true} />
-              <span className="text-lg font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                ImgPage
-              </span>
+            <Link to="/img" className="transition-all duration-300 hover:scale-105">
+              <PdfPageLogo size="lg" showHover={true} useImage={true} />
             </Link>
           </div>
 

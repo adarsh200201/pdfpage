@@ -1067,7 +1067,7 @@ const Index = () => {
               🎨 NEW: Image Tools Available
             </Badge>
             <h2 className="text-4xl lg:text-5xl font-bold text-gray-900 mb-6">
-              Introducing ImgPage
+              Introducing PdfPage Image Tools
             </h2>
             <p className="text-xl text-gray-600 max-w-3xl mx-auto">
               The same powerful experience you love for PDFs, now available for
@@ -1104,7 +1104,7 @@ const Index = () => {
                   className="bg-blue-600 hover:bg-blue-700 text-white"
                 >
                   <ImageIcon className="w-5 h-5 mr-2" />
-                  Try ImgPage Now
+                  Try Image Tools
                 </Button>
               </Link>
             </div>

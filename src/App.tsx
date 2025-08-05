@@ -163,6 +163,9 @@ import ToolRedirect from "./pages/ToolRedirect";
 import ToolAvailable from "./pages/ToolAvailable";
 import AvailableTools from "./pages/AvailableTools";
 import AuthCallback from "./pages/AuthCallback";
+import OAuthTest from "./pages/OAuthTest";
+import OAuth403Fix from "./pages/OAuth403Fix";
+import WorkingOAuthTest from "./pages/WorkingOAuthTest";
 
 import AdminRoute from "./components/admin/AdminRoute";
 import LibreOfficeTools from "./pages/LibreOfficeTools";
@@ -306,6 +309,9 @@ const App = () => {
                         element={<ForgotPassword />}
                       />
                       <Route path="/auth/callback" element={<AuthCallback />} />
+                      <Route path="/oauth-test" element={<OAuthTest />} />
+                      <Route path="/oauth-403-fix" element={<OAuth403Fix />} />
+                      <Route path="/working-oauth-test" element={<WorkingOAuthTest />} />
 
                       {/* Core PDF Tools - REAL-TIME IMPLEMENTATIONS */}
                       <Route path="/merge" element={<Merge />} />

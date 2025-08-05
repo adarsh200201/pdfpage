@@ -297,6 +297,55 @@ router.get("/test-cors", (req, res) => {
   });
 });
 
+// @route   GET /api/auth/oauth-debug
+// @desc    Debug OAuth configuration and environment
+// @access  Public
+router.get("/oauth-debug", async (req, res) => {
+  try {
+    const User = require("../models/User");
+
+    const debugInfo = {
+      timestamp: new Date().toISOString(),
+      environment: process.env.NODE_ENV,
+      oauth: {
+        googleClientId: process.env.GOOGLE_CLIENT_ID ? 'Set' : 'Missing',
+        googleClientSecret: process.env.GOOGLE_CLIENT_SECRET ? 'Set' : 'Missing',
+        googleCallbackUrl: process.env.GOOGLE_CALLBACK_URL,
+        frontendUrl: process.env.FRONTEND_URL
+      },
+      database: {
+        mongoUri: process.env.MONGODB_URI ? 'Set' : 'Missing',
+        connected: false
+      },
+      jwt: {
+        secret: process.env.JWT_SECRET ? 'Set' : 'Missing'
+      }
+    };
+
+    // Test database connection
+    try {
+      await User.findOne().limit(1);
+      debugInfo.database.connected = true;
+    } catch (dbError) {
+      debugInfo.database.error = dbError.message;
+    }
+
+    res.json({
+      success: true,
+      debug: debugInfo
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      debug: {
+        timestamp: new Date().toISOString(),
+        environment: process.env.NODE_ENV
+      }
+    });
+  }
+});
+
 // @route   GET /api/auth/me
 // @desc    Get current logged in user
 // @access  Private
@@ -754,7 +803,30 @@ router.get(
 // @access  Public
 router.get(
   "/google/callback",
-  passport.authenticate("google", { session: false }),
+  (req, res, next) => {
+    passport.authenticate("google", { session: false }, (err, user, info) => {
+      console.log("🔵 [GOOGLE-CALLBACK] Passport auth result:", {
+        error: err ? err.message : null,
+        user: user ? { id: user._id, email: user.email } : null,
+        info: info
+      });
+
+      if (err) {
+        console.error("🔴 [GOOGLE-CALLBACK] Passport error:", err);
+        const frontendURL = process.env.FRONTEND_URL || "http://localhost:3000";
+        return res.redirect(`${frontendURL}/auth/callback?error=authentication_failed&details=${encodeURIComponent(err.message)}`);
+      }
+
+      if (!user) {
+        console.error("🔴 [GOOGLE-CALLBACK] No user returned from passport");
+        const frontendURL = process.env.FRONTEND_URL || "http://localhost:3000";
+        return res.redirect(`${frontendURL}/auth/callback?error=no_user&info=${encodeURIComponent(info || 'Unknown error')}`);
+      }
+
+      req.user = user;
+      next();
+    })(req, res, next);
+  },
   async (req, res) => {
     try {
       console.log("🔵 [GOOGLE-CALLBACK] User authenticated:", req.user.email);
@@ -773,9 +845,44 @@ router.get(
     } catch (error) {
       console.error("🔴 [GOOGLE-CALLBACK] Error:", error);
       const frontendURL = process.env.FRONTEND_URL || "http://localhost:3000";
-      res.redirect(`${frontendURL}/auth/callback?error=authentication_failed`);
+      res.redirect(`${frontendURL}/auth/callback?error=token_generation_failed&details=${encodeURIComponent(error.message)}`);
     }
   },
 );
+
+// @route   GET /api/auth/callback-test
+// @desc    Temporary endpoint to test OAuth callback without authentication
+// @access  Public
+router.get("/callback-test", (req, res) => {
+  const { code, scope, authuser, hd, prompt, state, error } = req.query;
+
+  const debugInfo = {
+    timestamp: new Date().toISOString(),
+    query: req.query,
+    headers: {
+      origin: req.headers.origin,
+      referer: req.headers.referer,
+      userAgent: req.headers['user-agent']
+    },
+    oauth: {
+      code: code ? 'Present' : 'Missing',
+      scope: scope,
+      domain: hd,
+      error: error
+    },
+    environment: {
+      googleClientId: process.env.GOOGLE_CLIENT_ID ? 'Set' : 'Missing',
+      googleClientSecret: process.env.GOOGLE_CLIENT_SECRET ? 'Set' : 'Missing',
+      callbackUrl: process.env.GOOGLE_CALLBACK_URL,
+      frontendUrl: process.env.FRONTEND_URL
+    }
+  };
+
+  res.json({
+    success: true,
+    message: "OAuth callback test - this endpoint helps debug the flow",
+    debug: debugInfo
+  });
+});
 
 module.exports = router;
