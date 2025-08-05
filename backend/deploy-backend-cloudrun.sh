@@ -1,13 +1,19 @@
 #!/bin/bash
 
 # 🚀 Deploy PdfPage Backend to Google Cloud Run
+#
+# Required environment variables:
+# - MONGODB_URI: MongoDB connection string
+# - JWT_SECRET: JWT secret key
+# - GOOGLE_CLIENT_ID: Google OAuth client ID
+# - GOOGLE_CLIENT_SECRET: Google OAuth client secret
 set -e
 
 echo "🚀 Deploying PdfPage Backend to Google Cloud Run..."
 
 # Configuration
-PROJECT_ID="elite-hangar-467115-g2"
-SERVICE_NAME="pdfpage-backend"
+PROJECT_ID="argon-liberty-467310-m4"
+SERVICE_NAME="pdfpage"
 REGION="asia-south1"
 
 echo "📝 Configuration:"
@@ -43,7 +49,7 @@ gcloud run deploy $SERVICE_NAME \
   --concurrency 100 \
   --max-instances 10 \
   --port 8080 \
-  --set-env-vars "NODE_ENV=production,MONGODB_URI=$MONGODB_URI,JWT_SECRET=$JWT_SECRET,FRONTEND_URL=https://pdfpage.in,GOOGLE_CLIENT_ID=935131444417-s5i4mpl0droaqh5pu49jm52j8dqrv2km.apps.googleusercontent.com,GOOGLE_CLIENT_SECRET=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,GOOGLE_CALLBACK_URL=https://pdf-backend-935131444417.asia-south1.run.app/api/auth/google/callback" \
+  --set-env-vars "NODE_ENV=production,MONGODB_URI=$MONGODB_URI,JWT_SECRET=$JWT_SECRET,FRONTEND_URL=https://pdfpage.in,GOOGLE_CLIENT_ID=$GOOGLE_CLIENT_ID,GOOGLE_CLIENT_SECRET=$GOOGLE_CLIENT_SECRET,GOOGLE_CALLBACK_URL=https://pdf-backend-935131444417.asia-south1.run.app/api/auth/google/callback" \
   --project=$PROJECT_ID
 
 # Step 4: Get the service URL

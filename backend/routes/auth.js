@@ -297,6 +297,27 @@ router.get("/test-cors", (req, res) => {
   });
 });
 
+// @route   GET /api/auth/test-me
+// @desc    Test /me endpoint without authentication (for CORS testing)
+// @access  Public
+router.get("/test-me", (req, res) => {
+  const origin = req.headers.origin;
+  console.log(`🧪 Test /me endpoint - Origin: ${origin}`);
+
+  res.json({
+    success: true,
+    message: "Test /me endpoint successful - CORS working",
+    origin: origin,
+    method: req.method,
+    path: req.path,
+    headers: {
+      'access-control-allow-origin': res.getHeader('Access-Control-Allow-Origin'),
+      'access-control-allow-credentials': res.getHeader('Access-Control-Allow-Credentials'),
+    },
+    timestamp: new Date().toISOString()
+  });
+});
+
 // @route   GET /api/auth/oauth-debug
 // @desc    Debug OAuth configuration and environment
 // @access  Public
@@ -351,16 +372,7 @@ router.get("/oauth-debug", async (req, res) => {
 // @access  Private
 router.get("/me", auth, async (req, res) => {
   try {
-    // Ensure CORS headers are set for this specific endpoint
-    const origin = req.headers.origin;
-    if (origin && (
-      origin === 'https://pdfpage.in' ||
-      origin === 'https://pdfpagee.netlify.app' ||
-      origin.includes('localhost')
-    )) {
-      res.header("Access-Control-Allow-Origin", origin);
-      res.header("Access-Control-Allow-Credentials", "true");
-    }
+    // CORS headers are handled by global middleware
 
     const user = await User.findById(req.userId);
 

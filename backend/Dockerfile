@@ -150,8 +150,8 @@ ENV LIBREOFFICE_AVAILABLE=true
 # Use non-root user
 USER nodejs
 
-# Expose backend port
-EXPOSE 5000
+# Expose backend port for Google Cloud Run
+EXPOSE 8080
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \

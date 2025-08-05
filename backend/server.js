@@ -38,7 +38,7 @@ app.use((req, res, next) => {
 
   // Only log in development to reduce server load in production
   if (process.env.NODE_ENV === "development") {
-    console.log(`🌐 [GLOBAL-CORS] Request from origin: ${origin}`);
+    console.log(`🌐 [GLOBAL-CORS] ${req.method} ${req.path} from origin: ${origin}`);
   }
 
   // Set CORS headers for all requests
@@ -54,7 +54,17 @@ app.use((req, res, next) => {
 
   res.header("Access-Control-Allow-Credentials", "true");
   res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS, HEAD");
-  res.header("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With, Accept, Origin, Cache-Control");
+  res.header("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With, Accept, Origin, Cache-Control, Pragma");
+  res.header("Access-Control-Expose-Headers", "X-Compression-Ratio, X-Original-Size, X-Compressed-Size, X-Size-Saved, X-Compression-Level");
+  res.header("Access-Control-Max-Age", "86400");
+
+  // Handle preflight requests
+  if (req.method === "OPTIONS") {
+    if (process.env.NODE_ENV === "development") {
+      console.log(`✅ [GLOBAL-CORS] Preflight handled for ${origin}`);
+    }
+    return res.sendStatus(200);
+  }
 
   next();
 });
@@ -96,56 +106,7 @@ if (process.env.NODE_ENV === "development") {
   });
 }
 
-// CORS configuration
-app.use(
-  cors({
-    origin: function(origin, callback) {
-      console.log(`🌐 [CORS-CHECK] Origin: ${origin}`);
-
-      const allowedOrigins = [
-        "https://pdfpage.in", // Primary production domain
-        "https://pdfpagee.netlify.app", // Secondary production frontend
-        "http://localhost:3000",
-        "http://localhost:5173",
-        "http://localhost:8080", // Frontend dev server
-        process.env.FRONTEND_URL,
-      ];
-
-      // Allow requests with no origin (like mobile apps or curl requests)
-      if (!origin) return callback(null, true);
-
-      // Allow localhost in development
-      if (origin.includes('localhost')) return callback(null, true);
-
-      if (allowedOrigins.includes(origin)) {
-        return callback(null, true);
-      }
-
-      console.log(`❌ [CORS-REJECTED] Origin not allowed: ${origin}`);
-      return callback(new Error('Not allowed by CORS'));
-    },
-    credentials: true,
-    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD"],
-    allowedHeaders: [
-      "Content-Type",
-      "Authorization",
-      "X-Requested-With",
-      "Accept",
-      "Origin",
-      "Cache-Control",
-      "Pragma",
-    ],
-    exposedHeaders: [
-      "X-Compression-Ratio",
-      "X-Original-Size",
-      "X-Compressed-Size",
-      "X-Size-Saved",
-      "X-Compression-Level",
-    ],
-    optionsSuccessStatus: 200, // For legacy browser support
-    preflightContinue: false,
-  }),
-);
+// CORS configuration - using global middleware above instead of cors package
 
 // CORS debugging middleware (only in development)
 if (process.env.NODE_ENV === "development") {
@@ -210,23 +171,7 @@ app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ extended: true, limit: "50mb" }));
 app.use(cookieParser());
 
-// Additional CORS middleware for API routes
-app.use("/api/*", (req, res, next) => {
-  const origin = req.headers.origin;
-
-  // Set CORS headers for all API routes
-  if (origin && (origin.includes('pdfpage.in') || origin.includes('netlify.app') || origin.includes('localhost'))) {
-    res.header("Access-Control-Allow-Origin", origin);
-  } else {
-    res.header("Access-Control-Allow-Origin", "https://pdfpage.in");
-  }
-
-  res.header("Access-Control-Allow-Credentials", "true");
-  res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS, HEAD");
-  res.header("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With, Accept, Origin");
-
-  next();
-});
+// API routes use global CORS middleware above
 
 // Health check routes (should be first, no rate limiting)
 app.use("/api/health", require("./routes/health"));
