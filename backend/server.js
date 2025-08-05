@@ -36,10 +36,8 @@ app.use(keepAliveMiddleware);
 app.use((req, res, next) => {
   const origin = req.headers.origin;
 
-  // Only log in development to reduce server load in production
-  if (process.env.NODE_ENV === "development") {
-    console.log(`🌐 [GLOBAL-CORS] ${req.method} ${req.path} from origin: ${origin}`);
-  }
+  // Log CORS requests for debugging
+  console.log(`🌐 [GLOBAL-CORS] ${req.method} ${req.path} from origin: ${origin}`);
 
   // Set CORS headers for all requests
   if (origin && (
@@ -60,9 +58,7 @@ app.use((req, res, next) => {
 
   // Handle preflight requests
   if (req.method === "OPTIONS") {
-    if (process.env.NODE_ENV === "development") {
-      console.log(`✅ [GLOBAL-CORS] Preflight handled for ${origin}`);
-    }
+    console.log(`✅ [GLOBAL-CORS] Preflight handled for ${origin}`);
     return res.sendStatus(200);
   }
 
