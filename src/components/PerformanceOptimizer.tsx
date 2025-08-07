@@ -100,20 +100,25 @@ const PerformanceOptimizer = ({
             img.fetchPriority = 'high';
           }
 
-          // Optimize image formats
-          if (img.src && !img.src.includes('.webp') && !img.src.includes('.avif')) {
+          // Optimize image formats (only for same-origin images to avoid CORS issues)
+          if (img.src && !img.src.includes('.webp') && !img.src.includes('.avif') &&
+              (img.src.startsWith(window.location.origin) || img.src.startsWith('/') || img.src.startsWith('./')) &&
+              !img.src.startsWith('data:') && !img.src.startsWith('blob:')) {
             const canvas = document.createElement('canvas');
             const ctx = canvas.getContext('2d');
-            
+
             if (ctx && 'createImageBitmap' in window) {
               fetch(img.src)
-                .then(response => response.blob())
+                .then(response => {
+                  if (!response.ok) throw new Error('Image fetch failed');
+                  return response.blob();
+                })
                 .then(blob => createImageBitmap(blob))
                 .then(bitmap => {
                   canvas.width = bitmap.width;
                   canvas.height = bitmap.height;
                   ctx.drawImage(bitmap, 0, 0);
-                  
+
                   // Convert to WebP if supported
                   if (canvas.toBlob && 'webp' in document.createElement('canvas').getContext('2d')) {
                     canvas.toBlob(webpBlob => {
@@ -124,7 +129,10 @@ const PerformanceOptimizer = ({
                   }
                 })
                 .catch(() => {
-                  // Fallback: continue with original image
+                  // Silently fail - continue with original image
+                  if (import.meta.env.DEV) {
+                    console.debug('Image optimization skipped for:', img.src);
+                  }
                 });
             }
           }

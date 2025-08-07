@@ -23,6 +23,18 @@ class StatsService {
   private currentController: AbortController | null = null;
 
   async getStats(): Promise<StatsData> {
+    // Check if stats API is disabled or if we're in development without backend
+    const isStatsDisabled = import.meta.env.VITE_DISABLE_STATS === 'true';
+    const isLocalDevelopment = !this.API_BASE || this.API_BASE === '/api' || this.API_BASE.includes('localhost');
+
+    // If stats are disabled or we're in local development, return fallback immediately
+    if (isStatsDisabled || isLocalDevelopment) {
+      if (import.meta.env.DEV) {
+        console.debug('Stats API disabled or no backend configured - using fallback stats');
+      }
+      return this.getFallbackStats();
+    }
+
     // Return cached data if it's still fresh
     if (this.cache && Date.now() - this.lastFetch < this.CACHE_DURATION) {
       return this.cache;
@@ -39,15 +51,15 @@ class StatsService {
         }
       };
 
-      // Set timeout to return fallback stats after 3 seconds
+      // Set timeout to return fallback stats after 2 seconds (reduced)
       const timeoutId = setTimeout(() => {
         if (!isResolved) {
-          console.warn(
-            "Stats API request timed out after 3 seconds - using fallback stats",
-          );
+          if (import.meta.env.DEV) {
+            console.debug("Stats API request timed out - using fallback stats");
+          }
           resolveOnce(this.getFallbackStats());
         }
-      }, 3000);
+      }, 2000);
 
       // Attempt to fetch real stats
       this.fetchStatsFromAPI()
@@ -63,24 +75,9 @@ class StatsService {
         .catch((error) => {
           clearTimeout(timeoutId);
           if (!isResolved) {
-            // Only track/log real errors, not intentional aborts, cancellations, or network failures
-            if (
-              error.name !== "AbortError" &&
-              error.name !== "RequestCancelledError" &&
-              error.name !== "NetworkError" &&
-              error.message !== "Request was cancelled" &&
-              error.message !== "Network connection failed" &&
-              !error.message.includes("aborted") &&
-              !error.message.includes("signal is aborted") &&
-              !error.message.includes("Failed to fetch")
-            ) {
-              errorTracker.trackError(error, "statsService.getStats");
-              this.logError(error);
-            } else {
-              // Log silently for development debugging
-              if (import.meta.env.DEV) {
-                console.debug("Stats service using fallback data:", error.message);
-              }
+            // Silently use fallback for all errors to prevent console spam
+            if (import.meta.env.DEV) {
+              console.debug("Stats service using fallback data:", error.message);
             }
             resolveOnce(this.getFallbackStats());
           }
@@ -95,25 +92,28 @@ class StatsService {
         this.currentController.abort();
       } catch (abortError) {
         // Ignore abort errors from previous requests
-        console.debug(
-          "StatsService: Previous request abort ignored:",
-          abortError,
-        );
       }
     }
 
     const controller = new AbortController();
     this.currentController = controller;
 
-    // Abort fetch after 2.5 seconds to ensure we don't exceed the main timeout
+    // Abort fetch after 1.5 seconds to prevent hanging
     const abortTimeoutId = setTimeout(() => {
       if (!controller.signal.aborted && this.currentController === controller) {
-        console.debug("StatsService: Aborting request due to timeout");
         controller.abort();
       }
-    }, 2500);
+    }, 1500);
 
     try {
+      // Check if we have a valid API URL
+      if (!this.API_BASE || this.API_BASE === '/api' || this.API_BASE.includes('localhost')) {
+        // If no valid backend is configured, throw a network error to use fallback
+        const networkError = new Error('No backend API configured');
+        networkError.name = 'NetworkError';
+        throw networkError;
+      }
+
       const response = await fetch(`${this.API_BASE}/api/stats/dashboard`, {
         signal: controller.signal,
         method: "GET",
@@ -122,13 +122,10 @@ class StatsService {
           "Content-Type": "application/json",
         },
       }).catch((fetchError) => {
-        // Handle network errors gracefully
-        if (fetchError.name === 'TypeError' && fetchError.message.includes('Failed to fetch')) {
-          const networkError = new Error('Network connection failed');
-          networkError.name = 'NetworkError';
-          throw networkError;
-        }
-        throw fetchError;
+        // Handle all fetch errors gracefully
+        const networkError = new Error('Network connection failed');
+        networkError.name = 'NetworkError';
+        throw networkError;
       });
 
       clearTimeout(abortTimeoutId);

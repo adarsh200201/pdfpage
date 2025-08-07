@@ -164,6 +164,7 @@ import ToolAvailable from "./pages/ToolAvailable";
 import AvailableTools from "./pages/AvailableTools";
 import AuthCallback from "./pages/AuthCallback";
 import OAuthTest from "./pages/OAuthTest";
+import OAuthDebugTest from "./pages/OAuthDebugTest";
 import OAuth403Fix from "./pages/OAuth403Fix";
 import WorkingOAuthTest from "./pages/WorkingOAuthTest";
 
@@ -310,6 +311,7 @@ const App = () => {
                       />
                       <Route path="/auth/callback" element={<AuthCallback />} />
                       <Route path="/oauth-test" element={<OAuthTest />} />
+                      <Route path="/oauth-debug" element={<OAuthDebugTest />} />
                       <Route path="/oauth-403-fix" element={<OAuth403Fix />} />
                       <Route path="/working-oauth-test" element={<WorkingOAuthTest />} />
 

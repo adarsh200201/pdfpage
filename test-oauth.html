@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>OAuth Test</title>
+</head>
+<body>
+    <h1>OAuth Test</h1>
+    <button onclick="testOAuth()">Test Google OAuth</button>
+    <div id="result"></div>
+
+    <script>
+        function testOAuth() {
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = 'Testing OAuth endpoint...';
+            
+            // Try to fetch the OAuth endpoint
+            fetch('https://pdf-backend-935131444417.asia-south1.run.app/api/auth/google', {
+                method: 'GET',
+                redirect: 'manual'
+            })
+            .then(response => {
+                resultDiv.innerHTML = `
+                    <h3>Response:</h3>
+                    <p>Status: ${response.status}</p>
+                    <p>Status Text: ${response.statusText}</p>
+                    <p>Type: ${response.type}</p>
+                    <p>URL: ${response.url}</p>
+                `;
+                
+                if (response.status === 302) {
+                    resultDiv.innerHTML += '<p>✅ OAuth endpoint is working (redirecting)</p>';
+                } else {
+                    resultDiv.innerHTML += '<p>❌ Unexpected response</p>';
+                }
+            })
+            .catch(error => {
+                resultDiv.innerHTML = `
+                    <h3>Error:</h3>
+                    <p>${error.message}</p>
+                `;
+            });
+        }
+
+        // Test basic connectivity
+        fetch('https://pdf-backend-935131444417.asia-south1.run.app/api/health')
+        .then(response => response.json())
+        .then(data => {
+            document.body.innerHTML += `<p>✅ Backend health check: ${JSON.stringify(data)}</p>`;
+        })
+        .catch(error => {
+            document.body.innerHTML += `<p>❌ Backend health check failed: ${error.message}</p>`;
+        });
+    </script>
+</body>
+</html>
