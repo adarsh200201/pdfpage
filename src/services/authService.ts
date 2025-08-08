@@ -1,4 +1,5 @@
 import Cookies from 'js-cookie';
+import { getApiBaseUrl } from '@/lib/api-config';
 
 // Types
 export interface User {
@@ -23,7 +24,7 @@ class AuthService {
   private redirectUrl: string = '/';
 
   constructor() {
-    this.baseUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+    this.baseUrl = getApiBaseUrl();
   }
 
   /**
