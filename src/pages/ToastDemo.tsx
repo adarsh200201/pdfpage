@@ -5,7 +5,6 @@ import { Badge } from '@/components/ui/badge';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
 import toast from '@/lib/toast-utils';
-import { useToast } from '@/hooks/use-toast';
 import { 
   CheckCircle, 
   AlertTriangle, 
@@ -18,7 +17,6 @@ import {
 } from 'lucide-react';
 
 const ToastDemo = () => {
-  const { toast: radixToast } = useToast();
 
   const testToasts = [
     {

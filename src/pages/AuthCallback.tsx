@@ -93,7 +93,10 @@ const AuthCallback: React.FC = () => {
       }
       } catch (globalError) {
         console.error("❌ [AUTH-CALLBACK] Global error:", globalError);
-        toast.error("Authentication failed. Please try again.");
+        toast.error({
+          title: "Authentication failed",
+          description: "Please try again."
+        });
         navigate("/");
       } finally {
         setIsProcessing(false);

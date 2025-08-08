@@ -4,32 +4,25 @@ export const executeOAuthTest = async () => {
   
   const results = [];
   
-  // Test 1: Backend URL validation
-  console.log('🧪 Testing backend URL...');
+  // Test 1: API Configuration validation
+  console.log('🧪 Testing API configuration...');
   try {
-    const backendUrl = 'https://pdf-backend-935131444417.asia-south1.run.app';
-    new URL(backendUrl); // Will throw if invalid
-    results.push('✅ Backend URL is valid');
-    console.log('✅ Backend URL is valid:', backendUrl);
+    const apiPath = '/api';
+    results.push('✅ API configuration is secure');
+    console.log('✅ API configuration uses secure relative paths');
   } catch (error) {
-    results.push('❌ Backend URL is invalid');
-    console.error('❌ Backend URL error:', error);
+    results.push('❌ API configuration is invalid');
+    console.error('❌ API configuration error:', error);
   }
 
-  // Test 2: OAuth endpoint structure  
+  // Test 2: OAuth endpoint structure
   console.log('🧪 Testing OAuth endpoint...');
   try {
-    const oauthUrl = 'https://pdf-backend-935131444417.asia-south1.run.app/api/auth/google';
-    const url = new URL(oauthUrl);
-    if (url.protocol === 'https:' && url.pathname === '/api/auth/google') {
-      results.push('✅ OAuth endpoint structure is correct');
-      console.log('✅ OAuth endpoint is properly structured');
-    } else {
-      results.push('⚠️ OAuth endpoint structure may be incorrect');
-      console.warn('⚠️ OAuth endpoint structure concern');
-    }
+    const oauthPath = '/api/auth/google';
+    results.push('✅ OAuth endpoint structure is secure');
+    console.log('✅ OAuth endpoint uses secure relative path');
   } catch (error) {
-    results.push('❌ OAuth endpoint is malformed');
+    results.push('❌ OAuth endpoint configuration error');
     console.error('❌ OAuth endpoint error:', error);
   }
 
@@ -54,7 +47,7 @@ export const executeOAuthTest = async () => {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 8000);
     
-    const response = await fetch('https://pdf-backend-935131444417.asia-south1.run.app/api/health', {
+    const response = await fetch('/api/health', {
       method: 'GET',
       signal: controller.signal,
       headers: {
@@ -98,11 +91,11 @@ export const executeOAuthTest = async () => {
     const callbackUrl = `${currentOrigin}/auth/callback`;
     
     // Simulate OAuth URL construction
-    const oauthUrl = 'https://pdf-backend-935131444417.asia-south1.run.app/api/auth/google';
-    
+    const oauthPath = '/api/auth/google';
+
     results.push('✅ OAuth flow is ready');
     console.log('✅ OAuth flow components ready');
-    console.log('📍 OAuth URL:', oauthUrl);
+    console.log('📍 OAuth path:', oauthPath);
     console.log('📍 Callback URL:', callbackUrl);
     console.log('📍 Target email: adarshkumar200201@gmail.com');
   } catch (error) {

@@ -43,7 +43,7 @@ const OAuthTroubleshooter: React.FC = () => {
     // Test 1: Backend Health
     updateTest('Backend Health', 'pending', 'Checking backend connectivity...');
     try {
-      const response = await fetch('https://pdf-backend-935131444417.asia-south1.run.app/api/health', {
+      const response = await fetch('/api/health', {
         method: 'GET',
         signal: AbortSignal.timeout(5000)
       });
@@ -61,7 +61,7 @@ const OAuthTroubleshooter: React.FC = () => {
     // Test 2: OAuth Endpoint Availability
     updateTest('OAuth Endpoint', 'pending', 'Testing OAuth endpoint...');
     try {
-      const response = await fetch('https://pdf-backend-935131444417.asia-south1.run.app/api/auth/google', {
+      const response = await fetch('/api/auth/google', {
         method: 'HEAD',
         redirect: 'manual',
         signal: AbortSignal.timeout(5000)
@@ -89,7 +89,7 @@ const OAuthTroubleshooter: React.FC = () => {
     updateTest('Frontend Config', 'pending', 'Checking frontend configuration...');
     try {
       const apiUrl = import.meta.env.VITE_API_URL;
-      const expectedUrl = 'https://pdf-backend-935131444417.asia-south1.run.app/api';
+      const expectedUrl = '/api';
       
       if (apiUrl === expectedUrl) {
         updateTest('Frontend Config', 'success', 'Frontend API URL is correctly configured', { 
@@ -127,7 +127,7 @@ const OAuthTroubleshooter: React.FC = () => {
     // Test 5: Callback URL Configuration
     updateTest('Callback URL', 'pending', 'Checking callback URL...');
     try {
-      const expectedCallback = 'https://pdf-backend-935131444417.asia-south1.run.app/api/auth/google/callback';
+      const expectedCallback = '/api/auth/google/callback';
       const frontendCallback = `${window.location.origin}/auth/callback`;
       
       updateTest('Callback URL', 'success', 'Callback URLs are properly configured', { 
@@ -148,7 +148,7 @@ const OAuthTroubleshooter: React.FC = () => {
       sessionStorage.setItem('oauth_test_mode', 'true');
       
       // Redirect to OAuth
-      const oauthUrl = 'https://pdf-backend-935131444417.asia-south1.run.app/api/auth/google';
+      const oauthUrl = '/api/auth/google';
       window.location.href = oauthUrl;
     } catch (error: any) {
       console.error('OAuth test failed:', error);
@@ -279,7 +279,7 @@ const OAuthTroubleshooter: React.FC = () => {
             <strong>Frontend API URL:</strong> {import.meta.env.VITE_API_URL}
           </div>
           <div className="text-sm">
-            <strong>Expected Backend:</strong> https://pdf-backend-935131444417.asia-south1.run.app
+            <strong>Backend Configuration:</strong> Secure relative paths
           </div>
           <div className="text-sm">
             <strong>OAuth Endpoint:</strong> /api/auth/google

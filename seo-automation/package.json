@@ -7,8 +7,12 @@
   "scripts": {
     "seo": "node runSEOAutomation.js",
     "seo-analyze": "node geminiSEOAssistant.js",
+    "seo-enhanced": "node runEnhancedSEO.js",
+    "seo-enhanced-apply": "node runEnhancedSEO.js --apply",
+    "seo-enhanced-full": "node runEnhancedSEO.js --apply --push",
+    "seo-interactive": "node runEnhancedSEO.js --interactive",
     "install-deps": "npm install @google/generative-ai simple-git",
-    "setup": "npm run install-deps && echo 'SEO Automation setup complete!'"
+    "setup": "npm run install-deps && echo 'Enhanced SEO Automation setup complete!'"
   },
   "dependencies": {
     "@google/generative-ai": "^0.2.1",

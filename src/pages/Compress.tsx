@@ -8,7 +8,6 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Separator } from "@/components/ui/separator";
-import { useToast } from "@/hooks/use-toast";
 import toast from "@/lib/toast-utils";
 import { useAuth } from "@/contexts/AuthContext";
 import {
@@ -32,6 +31,7 @@ import {
   Crown,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { getApiBaseUrl } from "@/lib/api-config";
 import DownloadModal from "@/components/modals/DownloadModal";
 import { useDownloadModal } from "@/hooks/useDownloadModal";
 import { useActionAuth } from "@/hooks/useActionAuth";
@@ -132,7 +132,6 @@ export default function Compress() {
   const [result, setResult] = useState<CompressionResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const { user } = useAuth();
-  const { toast } = useToast();
   const abortControllerRef = useRef<AbortController | null>(null);
 
   // Download modal
@@ -179,7 +178,10 @@ export default function Compress() {
 
         if (validationError) {
           setError(validationError);
-          toast.error("Upload Error", validationError);
+          toast.error({
+            title: "Upload Error",
+            description: validationError
+          });
           return;
         }
 
@@ -234,11 +236,7 @@ export default function Compress() {
 
       const startTime = Date.now();
 
-      const apiUrl =
-        window.location.hostname === "localhost"
-          ? "http://localhost:5000"
-          : "https://pdf-backend-935131444417.asia-south1.run.app";
-      const response = await fetch(`${apiUrl}/api/pdf/compress-pro`, {
+      const response = await fetch(`${getApiBaseUrl()}/pdf/compress-pro`, {
         method: "POST",
         body: formData,
         signal: abortControllerRef.current.signal,
@@ -301,7 +299,10 @@ export default function Compress() {
     } catch (error: any) {
       if (error.name === "AbortError") {
         setProcessingStage("Compression cancelled");
-        toast.warning("Compression Cancelled", "The compression process was cancelled");
+        toast.warning({
+          title: "Compression Cancelled",
+          description: "The compression process was cancelled"
+        });
       } else {
         const errorMessage = error.message || "Failed to compress PDF";
         setError(errorMessage);
@@ -311,18 +312,15 @@ export default function Compress() {
           errorMessage.includes("GHOSTSCRIPT") ||
           errorMessage.includes("service unavailable")
         ) {
-          toast({
+          toast.error({
             title: "⚙️ Ghostscript Required",
-            description:
-              "PDF compression requires Ghostscript to be installed on the server.",
-            variant: "destructive",
+            description: "PDF compression requires Ghostscript to be installed on the server.",
             duration: 8000,
           });
         } else {
-          toast({
+          toast.error({
             title: "Compression Failed",
             description: errorMessage,
-            variant: "destructive",
           });
         }
       }
@@ -358,7 +356,7 @@ export default function Compress() {
         link.click();
         document.body.removeChild(link);
 
-        toast({
+        toast.success({
           title: "Download Started",
           description: `Downloading ${result.fileName}`,
         });

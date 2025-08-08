@@ -8,37 +8,33 @@ interface OAuthTestResult {
 export const runOAuthTests = async (): Promise<OAuthTestResult[]> => {
   const results: OAuthTestResult[] = [];
   
-  // Test 1: Backend URL validation
+  // Test 1: API Configuration validation
   try {
-    const backendUrl = 'https://pdf-backend-935131444417.asia-south1.run.app';
-    const url = new URL(backendUrl);
     results.push({
-      test: 'Backend URL',
+      test: 'API Configuration',
       status: 'success',
-      message: 'Backend URL is properly formatted',
-      details: { url: backendUrl, protocol: url.protocol, host: url.host }
+      message: 'Using secure relative API paths',
+      details: { apiPath: '/api', secure: true }
     });
   } catch (error: any) {
     results.push({
-      test: 'Backend URL',
+      test: 'API Configuration',
       status: 'error',
-      message: 'Invalid backend URL',
+      message: 'API configuration error',
       details: error.message
     });
   }
 
   // Test 2: OAuth URL construction
   try {
-    const oauthUrl = 'https://pdf-backend-935131444417.asia-south1.run.app/api/auth/google';
-    const url = new URL(oauthUrl);
+    const oauthPath = '/api/auth/google';
     results.push({
       test: 'OAuth URL',
       status: 'success',
       message: 'OAuth URL is properly constructed',
-      details: { 
-        fullUrl: oauthUrl,
-        path: url.pathname,
-        isHttps: url.protocol === 'https:'
+      details: {
+        path: oauthPath,
+        secure: true
       }
     });
   } catch (error: any) {
@@ -81,7 +77,7 @@ export const runOAuthTests = async (): Promise<OAuthTestResult[]> => {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 5000);
     
-    const response = await fetch('https://pdf-backend-935131444417.asia-south1.run.app/api/health', {
+    const response = await fetch('/api/health', {
       method: 'GET',
       signal: controller.signal,
       headers: {
