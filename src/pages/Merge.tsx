@@ -64,7 +64,7 @@ const Merge = () => {
 
   // Download modal
   const downloadModal = useDownloadModal({
-    countdownSeconds: 5,
+    countdownSeconds: 5, // 5 seconds
     adSlot: "merge-download-ad",
     showAd: true,
   });

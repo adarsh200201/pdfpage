@@ -27,6 +27,7 @@ const ModernAuthBanner: React.FC<ModernAuthBannerProps> = ({
   };
   const { toast } = useToast();
   const [isVisible, setIsVisible] = useState(true);
+  const [isAnimating, setIsAnimating] = useState(false);
 
   // Update visibility when user authentication state changes
   useEffect(() => {
@@ -35,6 +36,21 @@ const ModernAuthBanner: React.FC<ModernAuthBannerProps> = ({
       setIsVisible(false);
     }
   }, [isAuthenticated, user]);
+
+  // Auto-dismiss after 15 seconds for better user experience
+  useEffect(() => {
+    if (isVisible && !isAuthenticated) {
+      const autoCloseTimer = setTimeout(() => {
+        setIsAnimating(true);
+        setTimeout(() => {
+          setIsVisible(false);
+          onClose?.();
+        }, 300); // Wait for animation to complete
+      }, 15000); // Show for 15 seconds
+
+      return () => clearTimeout(autoCloseTimer);
+    }
+  }, [isVisible, isAuthenticated, onClose]);
 
   const handleGoogleSignIn = async () => {
     try {
@@ -55,8 +71,11 @@ const ModernAuthBanner: React.FC<ModernAuthBannerProps> = ({
   };
 
   const handleClose = () => {
-    setIsVisible(false);
-    onClose?.();
+    setIsAnimating(true);
+    setTimeout(() => {
+      setIsVisible(false);
+      onClose?.();
+    }, 300); // Wait for animation to complete
   };
 
   if (!isVisible) {
@@ -67,19 +86,26 @@ const ModernAuthBanner: React.FC<ModernAuthBannerProps> = ({
   if (isAuthenticated && user) {
     return (
       <div className={`fixed top-4 right-4 z-50 ${className}`}>
-        <div className="bg-gray-900 text-white rounded-xl shadow-2xl w-[400px] max-w-md relative">
+        <div 
+          className={`bg-white border border-gray-200/50 text-gray-900 rounded-2xl shadow-2xl w-[420px] max-w-md relative backdrop-blur-sm transition-all duration-300 ${
+            isAnimating ? 'opacity-0 scale-95 translate-y-2' : 'opacity-100 scale-100 translate-y-0'
+          }`}
+          style={{
+            boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1), 0 10px 10px -5px rgb(0 0 0 / 0.04), 0 0 0 1px rgb(0 0 0 / 0.05)'
+          }}
+        >
           {/* Close Button */}
           <button
             onClick={handleClose}
-            className="absolute top-3 right-3 text-gray-400 hover:text-white transition-colors z-10"
+            className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-all duration-200 hover:scale-110 z-10 bg-gray-100/80 hover:bg-gray-200/80 rounded-full p-1.5"
           >
-            <X className="w-5 h-5" />
+            <X className="w-4 h-4" />
           </button>
 
           {/* Content */}
-          <div className="px-5 py-4">
+          <div className="px-6 py-5">
             {/* Header with Google Logo */}
-            <div className="flex items-center gap-3 mb-4">
+            <div className="flex items-center gap-3 mb-5">
               <svg className="w-6 h-6" viewBox="0 0 24 24">
                 <path
                   fill="#4285F4"
@@ -98,23 +124,23 @@ const ModernAuthBanner: React.FC<ModernAuthBannerProps> = ({
                   d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
                 />
               </svg>
-              <span className="text-sm font-medium">
-                Sign in to pdfpage.com with google.com
+              <span className="text-sm font-medium text-gray-700">
+                Successfully signed in to PdfPage
               </span>
             </div>
 
             {/* Real User Profile Section */}
-            <div className="flex items-center gap-4 mb-4">
-              <div className="w-12 h-12 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full flex items-center justify-center shadow-lg">
+            <div className="flex items-center gap-4 mb-5">
+              <div className="w-12 h-12 bg-gradient-to-r from-green-500 to-emerald-500 rounded-full flex items-center justify-center shadow-lg">
                 <span className="text-white font-semibold text-lg">
                   {user.name.charAt(0).toUpperCase()}
                 </span>
               </div>
               <div className="flex-1">
-                <div className="font-medium text-white mb-1 text-lg">
-                  {user.name}
+                <div className="font-semibold text-gray-900 mb-1 text-lg">
+                  Welcome, {user.name}!
                 </div>
-                <div className="text-gray-300 text-sm flex items-center gap-1">
+                <div className="text-gray-600 text-sm flex items-center gap-1">
                   <span>📧</span> {user.email}
                 </div>
               </div>
@@ -123,14 +149,14 @@ const ModernAuthBanner: React.FC<ModernAuthBannerProps> = ({
             {/* Continue Button */}
             <Button
               onClick={handleClose}
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 rounded-md mb-4 transition-all duration-200"
+              className="w-full bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white font-medium py-3 rounded-lg mb-4 transition-all duration-200 shadow-lg"
             >
-              🔘 Continue as {user.name.split(" ")[0]}
+              ✅ Continue as {user.name.split(" ")[0]}
             </Button>
 
             {/* Success Text */}
-            <div className="text-xs text-green-300 leading-relaxed text-center">
-              ✅ Signed in successfully! You now have access to all PDF tools.
+            <div className="text-xs text-green-600 leading-relaxed text-center bg-green-50 p-3 rounded-lg">
+              🎉 You're all set! You now have access to all premium PDF tools.
             </div>
           </div>
         </div>
@@ -140,19 +166,36 @@ const ModernAuthBanner: React.FC<ModernAuthBannerProps> = ({
 
   return (
     <div className={`fixed top-4 right-4 z-50 ${className}`}>
-      <div className="bg-gray-900 text-white rounded-xl shadow-2xl w-[400px] max-w-md relative">
+      <div 
+        className={`bg-white border border-gray-200/50 text-gray-900 rounded-2xl shadow-2xl w-[420px] max-w-md relative backdrop-blur-sm transition-all duration-300 ${
+          isAnimating ? 'opacity-0 scale-95 translate-y-2' : 'opacity-100 scale-100 translate-y-0'
+        }`}
+        style={{
+          boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1), 0 10px 10px -5px rgb(0 0 0 / 0.04), 0 0 0 1px rgb(0 0 0 / 0.05)'
+        }}
+      >
+        {/* Auto-dismiss progress bar */}
+        <div className="absolute top-0 left-0 right-0 h-1 bg-gray-100 rounded-t-2xl overflow-hidden">
+          <div 
+            className="h-full bg-gradient-to-r from-blue-500 to-purple-500 rounded-t-2xl"
+            style={{
+              animation: 'progressBar 15s linear forwards'
+            }}
+          />
+        </div>
+
         {/* Close Button */}
         <button
           onClick={handleClose}
-          className="absolute top-3 right-3 text-gray-400 hover:text-white transition-colors z-10"
+          className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-all duration-200 hover:scale-110 z-10 bg-gray-100/80 hover:bg-gray-200/80 rounded-full p-1.5"
         >
-          <X className="w-5 h-5" />
+          <X className="w-4 h-4" />
         </button>
 
         {/* Content */}
-        <div className="px-5 py-4">
+        <div className="px-6 py-5 pt-6">
           {/* Header with Google Logo */}
-          <div className="flex items-center gap-3 mb-4">
+          <div className="flex items-center gap-3 mb-5">
             <svg className="w-6 h-6" viewBox="0 0 24 24">
               <path
                 fill="#4285F4"
@@ -171,28 +214,28 @@ const ModernAuthBanner: React.FC<ModernAuthBannerProps> = ({
                 d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
               />
             </svg>
-            <span className="text-sm font-medium">
-              Sign in to pdfpage.com with google.com
+            <span className="text-sm font-medium text-gray-700">
+              Sign in to PdfPage with Google
             </span>
           </div>
 
           {/* User Profile Section */}
-          <div className="mb-4 text-center">
-            <div className="w-16 h-16 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center mx-auto mb-3 shadow-lg">
+          <div className="mb-5 text-center">
+            <div className="w-16 h-16 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center mx-auto mb-3 shadow-lg border-4 border-white">
               <span className="text-white font-bold text-xl">
                 {displayUser.avatar}
               </span>
             </div>
-            <h3 className="font-medium text-white text-lg mb-2">
+            <h3 className="font-semibold text-gray-900 text-lg mb-2">
               {displayUser.name}
             </h3>
-            <p className="text-gray-300 text-sm">{displayUser.email}</p>
+            <p className="text-gray-600 text-sm">{displayUser.email}</p>
           </div>
 
           {/* Continue Button */}
           <Button
             onClick={handleGoogleSignIn}
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 rounded-md mb-4 transition-all duration-200 shadow-lg"
+            className="w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-medium py-3 rounded-lg mb-4 transition-all duration-200 shadow-lg hover:shadow-xl hover:scale-[1.02]"
           >
             {user
               ? `🔘 Continue as ${user.name.split(" ")[0]}`
@@ -200,20 +243,32 @@ const ModernAuthBanner: React.FC<ModernAuthBannerProps> = ({
           </Button>
 
           {/* Privacy Text */}
-          <div className="text-xs text-gray-400 leading-relaxed">
-            To continue, google.com will share your name, email address, and
-            profile picture with this site. See this site's{" "}
-            <a href="/privacy" className="text-blue-400 hover:underline">
+          <div className="text-xs text-gray-500 leading-relaxed bg-gray-50 p-3 rounded-lg">
+            To continue, Google will share your name, email address, and
+            profile picture with this site. See our{" "}
+            <a href="/privacy" className="text-blue-500 hover:underline font-medium">
               privacy policy
             </a>{" "}
             and{" "}
-            <a href="/terms" className="text-blue-400 hover:underline">
+            <a href="/terms" className="text-blue-500 hover:underline font-medium">
               terms of service
             </a>
             .
           </div>
         </div>
       </div>
+
+      {/* Add CSS animation for progress bar */}
+      <style jsx>{`
+        @keyframes progressBar {
+          from {
+            width: 0%;
+          }
+          to {
+            width: 100%;
+          }
+        }
+      `}</style>
     </div>
   );
 };

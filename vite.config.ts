@@ -37,7 +37,6 @@ export default defineConfig({
     global: "globalThis",
   },
   optimizeDeps: {
-    force: true,
     include: [
       "react",
       "react-dom",

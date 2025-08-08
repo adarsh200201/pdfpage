@@ -312,61 +312,57 @@ const ImgPage = () => {
         </div>
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
-          <div className="text-center mb-1">
-            <h1 className="text-3xl sm:text-4xl lg:text-6xl xl:text-7xl font-bold mb-3 leading-tight">
-              <div className="flex items-start justify-center gap-1">
-                <div className="relative mt-1 sm:mt-2">
-                  <div className="relative bg-gradient-to-r from-blue-600 to-purple-600 p-1 sm:p-1.5 rounded-lg shadow-lg">
-                    <ImageIcon className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
-                  </div>
-                </div>
-                <div>
-                  <span className="bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
-                    {t("img.pageTitle")}
-                  </span>
+          <div className="text-center mb-8">
+            {/* Mobile-First Title Design */}
+            <div className="mb-6">
+              <div className="inline-flex items-center justify-center mb-4">
+                <div className="bg-gradient-to-r from-blue-600 to-purple-600 p-2 rounded-xl shadow-lg">
+                  <ImageIcon className="w-6 h-6 text-white" />
                 </div>
               </div>
-              <span className="block text-2xl sm:text-3xl lg:text-4xl xl:text-5xl text-gray-900 mt-2 sm:mt-3">
-                {t("img.subtitle")}
-              </span>
-            </h1>
 
-            <p className="text-base sm:text-lg lg:text-xl xl:text-2xl text-gray-600 max-w-4xl mx-auto mb-4 leading-relaxed px-4 sm:px-0">
-              {t("img.description")}
-              lightning-fast, and secure processing for all your image needs.
+              <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-6xl xl:text-7xl font-bold mb-4 leading-tight">
+                <span className="bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent block mb-2">
+                  {t("img.pageTitle")}
+                </span>
+                <span className="block text-xl sm:text-2xl md:text-3xl lg:text-4xl xl:text-5xl text-gray-900">
+                  {t("img.subtitle")}
+                </span>
+              </h1>
+            </div>
+
+            <p className="text-sm sm:text-base md:text-lg lg:text-xl text-gray-600 max-w-3xl mx-auto mb-6 leading-relaxed px-2 sm:px-0">
+              {t("img.description")} Lightning-fast, secure processing for all your image needs.
             </p>
 
-            <div className="flex flex-wrap items-center justify-center gap-3 sm:gap-4 lg:gap-6 mb-1 px-4 sm:px-0">
+            <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-3 lg:gap-4 mb-8 px-2 sm:px-0">
               <Badge
                 variant="secondary"
-                className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 lg:px-4 py-1 sm:py-2 text-xs sm:text-sm lg:text-base"
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs sm:text-sm font-medium bg-green-50 text-green-700 border-green-200"
               >
-                <CheckCircle className="w-3 h-3 sm:w-4 sm:h-4 lg:w-5 lg:h-5 text-green-500" />
-                <span className="hidden sm:inline">12+ Image Tools</span>
-                <span className="sm:hidden">12+ Tools</span>
+                <CheckCircle className="w-3 h-3 text-green-600" />
+                <span>12+ Tools</span>
               </Badge>
               <Badge
                 variant="secondary"
-                className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 lg:px-4 py-1 sm:py-2 text-xs sm:text-sm lg:text-base"
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs sm:text-sm font-medium bg-yellow-50 text-yellow-700 border-yellow-200"
               >
-                <Zap className="w-3 h-3 sm:w-4 sm:h-4 lg:w-5 lg:h-5 text-yellow-500" />
-                <span className="hidden sm:inline">Lightning Fast</span>
-                <span className="sm:hidden">Fast</span>
+                <Zap className="w-3 h-3 text-yellow-600" />
+                <span>Fast</span>
               </Badge>
               <Badge
                 variant="secondary"
-                className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 lg:px-4 py-1 sm:py-2 text-xs sm:text-sm lg:text-base"
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs sm:text-sm font-medium bg-blue-50 text-blue-700 border-blue-200"
               >
-                <Shield className="w-3 h-3 sm:w-4 sm:h-4 lg:w-5 lg:h-5 text-blue-500" />
-                Secure
+                <Shield className="w-3 h-3 text-blue-600" />
+                <span>Secure</span>
               </Badge>
               <Badge
                 variant="secondary"
-                className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 lg:px-4 py-1 sm:py-2 text-xs sm:text-sm lg:text-base"
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs sm:text-sm font-medium bg-purple-50 text-purple-700 border-purple-200"
               >
-                <Clock className="w-3 h-3 sm:w-4 sm:h-4 lg:w-5 lg:h-5 text-purple-500" />
-                <span className="hidden sm:inline">No Registration</span>
-                <span className="sm:hidden">No Signup</span>
+                <Clock className="w-3 h-3 text-purple-600" />
+                <span>Free</span>
               </Badge>
             </div>
           </div>

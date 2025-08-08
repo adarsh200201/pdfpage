@@ -136,7 +136,7 @@ export default function Compress() {
 
   // Download modal
   const downloadModal = useDownloadModal({
-    countdownSeconds: 5,
+    countdownSeconds: 5, // 5 seconds
     adSlot: "compress-download-ad",
     showAd: true,
   });

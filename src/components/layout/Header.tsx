@@ -30,6 +30,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useTranslation } from "@/hooks/useTranslation";
 import PdfPageLogo from "@/components/ui/PdfPageLogo";
+import MobileMenuButton from "@/components/ui/mobile-menu-button";
 import { LOGO_CONFIG } from "@/config/logo-config";
 
 const Header = () => {
@@ -261,7 +262,7 @@ const Header = () => {
             {/* Enhanced Logo with Modern Design */}
             <div className="flex items-center">
               <Link to="/" className="transition-all duration-300 hover:scale-105">
-                <PdfPageLogo size="xl" showHover={true} useImage={true} />
+                <PdfPageLogo size="lg" showHover={true} useImage={true} />
               </Link>
             </div>
 
@@ -414,20 +415,10 @@ const Header = () => {
                 </div>
               )}
 
-              {/* Enhanced Mobile Menu Button */}
-              <button
+              {/* Mobile Menu Button */}
+              <MobileMenuButton
                 onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                className="lg:hidden relative p-2 sm:p-3 rounded-xl text-gray-700 hover:text-gray-900 hover:bg-gray-50/80 transition-all duration-300 group"
-                aria-label="Open mobile menu"
-              >
-                <div className="relative">
-                  {mobileMenuOpen ? (
-                    <X className="w-5 h-5 sm:w-6 sm:h-6 transition-transform duration-300 rotate-90" />
-                  ) : (
-                    <Menu className="w-5 h-5 sm:w-6 sm:h-6 transition-transform duration-300 group-hover:scale-110" />
-                  )}
-                </div>
-              </button>
+              />
             </div>
           </div>
         </div>

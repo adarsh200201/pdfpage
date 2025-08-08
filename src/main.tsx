@@ -5,7 +5,8 @@ if (typeof window !== "undefined") {
   window["FS_DISABLE"] = true;
 }
 
-import { createRoot } from "react-dom/client";
+import React from "react";
+import ReactDOM from "react-dom/client";
 import App from "./App.tsx";
 import AppMinimal from "./AppMinimal.tsx";
 import ErrorBoundarySimple from "./ErrorBoundarySimple.tsx";
@@ -36,8 +37,18 @@ initializePWA();
 const useMinimalApp = window.location.search.includes('minimal=true');
 const AppComponent = useMinimalApp ? AppMinimal : App;
 
-createRoot(document.getElementById("root")!).render(
-  <ErrorBoundarySimple>
-    <AppComponent />
-  </ErrorBoundarySimple>
+// Get root element
+const container = document.getElementById("root");
+if (!container) {
+  throw new Error("Root element not found");
+}
+
+// Create React 18 root and render
+const root = ReactDOM.createRoot(container);
+root.render(
+  <React.StrictMode>
+    <ErrorBoundarySimple>
+      <AppComponent />
+    </ErrorBoundarySimple>
+  </React.StrictMode>
 );

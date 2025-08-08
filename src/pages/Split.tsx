@@ -26,6 +26,8 @@ import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { PDFService } from "@/services/pdfService";
+import DownloadModal from "@/components/modals/DownloadModal";
+import { useDownloadModal } from "@/hooks/useDownloadModal";
 
 interface PDFPage {
   index: number;
@@ -49,6 +51,13 @@ const Split: React.FC = () => {
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const downloadQueueRef = useRef<Set<number>>(new Set());
+
+  // Download modal
+  const downloadModal = useDownloadModal({
+    countdownSeconds: 5, // 5 seconds
+    adSlot: "split-download-ad",
+    showAd: true,
+  });
 
   // State management
   const [file, setFile] = useState<File | null>(null);
@@ -484,35 +493,45 @@ const Split: React.FC = () => {
         `📥 Downloading page ${pageIndex + 1}, size: ${page.data.length} bytes`,
       );
 
-      // Create blob and download immediately
+      // Create blob for download
       const blob = new Blob([page.data], { type: "application/pdf" });
       const url = URL.createObjectURL(blob);
+      const fileName = `${file?.name?.replace(".pdf", "") || "document"}-page-${pageIndex + 1}.pdf`;
 
-      // Create and trigger download
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = `${file?.name?.replace(".pdf", "") || "document"}-page-${pageIndex + 1}.pdf`;
-      link.style.display = "none";
+      // Open download modal with ad and countdown
+      downloadModal.openDownloadModal(
+        () => {
+          // Create and trigger download
+          const link = document.createElement("a");
+          link.href = url;
+          link.download = fileName;
+          link.style.display = "none";
 
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
 
-      // Cleanup URL after a short delay
-      setTimeout(() => {
-        URL.revokeObjectURL(url);
-      }, 100);
+          // Cleanup URL after a short delay
+          setTimeout(() => {
+            URL.revokeObjectURL(url);
+          }, 100);
 
-      // Mark as downloaded and show toast only once
-      setDownloadedPages((prev) => new Set([...prev, pageIndex]));
+          // Mark as downloaded and show toast
+          setDownloadedPages((prev) => new Set([...prev, pageIndex]));
 
-      console.log(`✅ Page ${pageIndex + 1} download completed`);
+          console.log(`✅ Page ${pageIndex + 1} download completed`);
 
-      toast({
-        title: "Download Complete",
-        description: `Page ${pageIndex + 1} has been downloaded`,
-        duration: 3000,
-      });
+          toast({
+            title: "Download Complete",
+            description: `Page ${pageIndex + 1} has been downloaded`,
+            duration: 3000,
+          });
+        },
+        {
+          title: "🎉 Your PDF page is ready!",
+          description: `Page ${pageIndex + 1} has been processed and is ready for download.`,
+        }
+      );
     } catch (error) {
       console.error("❌ Download failed:", error);
       toast({
@@ -1376,6 +1395,9 @@ const Split: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* Download Modal with Ad */}
+      <DownloadModal {...downloadModal.modalProps} />
     </div>
   );
 };

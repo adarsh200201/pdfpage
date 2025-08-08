@@ -579,164 +579,279 @@ const Index = () => {
         <PromoBanner />
       </div>
 
-      {/* Enhanced Premium Hero Section */}
-      <section className="relative pt-4 pb-4 bg-gradient-to-br from-slate-50 via-white to-blue-50/30 overflow-hidden">
-        {/* Subtle Background Elements */}
-        <div className="absolute inset-0 opacity-40">
-          <div className="absolute top-1/4 right-1/6 w-64 h-64 bg-gradient-to-br from-brand-red/10 to-red-500/5 rounded-full blur-3xl animate-pulse"></div>
+      {/* Enhanced Modern Hero Section */}
+      <section className="relative pt-6 pb-8 bg-gradient-to-br from-slate-50 via-white to-indigo-50/40 overflow-hidden">
+        {/* Advanced Background Elements */}
+        <div className="absolute inset-0 opacity-50">
+          <div className="absolute top-1/4 right-1/6 w-72 h-72 bg-gradient-to-br from-brand-red/15 to-orange-500/10 rounded-full blur-3xl animate-pulse"></div>
           <div
-            className="absolute bottom-1/4 left-1/6 w-48 h-48 bg-gradient-to-br from-blue-500/10 to-blue-600/5 rounded-full blur-3xl animate-pulse"
+            className="absolute bottom-1/4 left-1/6 w-56 h-56 bg-gradient-to-br from-blue-500/15 to-purple-600/10 rounded-full blur-3xl animate-pulse"
             style={{ animationDelay: "2s" }}
           ></div>
+          <div
+            className="absolute top-1/2 right-1/3 w-32 h-32 bg-gradient-to-br from-green-400/20 to-emerald-500/10 rounded-full blur-2xl animate-pulse"
+            style={{ animationDelay: "4s" }}
+          ></div>
+          {/* Floating geometric shapes */}
+          <div className="absolute top-20 left-20 w-4 h-4 bg-yellow-400/30 rounded-full animate-bounce" style={{ animationDelay: "1s" }}></div>
+          <div className="absolute bottom-32 right-32 w-6 h-6 bg-purple-400/30 rounded-square animate-bounce" style={{ animationDelay: "3s" }}></div>
         </div>
 
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
           <div className="text-center">
-            {/* Enhanced Trust Badge */}
-            <div className="inline-flex items-center gap-2 bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200/60 rounded-full px-5 py-2.5 mb-5 shadow-sm hover:shadow-md transition-all duration-300 group">
-              <Star className="w-4 h-4 text-yellow-500 fill-current animate-pulse" />
-              <span className="text-sm font-semibold text-gray-700 group-hover:text-gray-900 transition-colors">
-                Trusted by 2M+ users worldwide
+            {/* Enhanced Trust Badge with AI mention */}
+            <div className="inline-flex items-center gap-3 bg-gradient-to-r from-emerald-50 to-green-50 border border-emerald-200/60 rounded-full px-6 py-3 mb-8 shadow-lg hover:shadow-xl transition-all duration-300 group">
+              <div className="flex items-center gap-2">
+                <Star className="w-4 h-4 text-yellow-500 fill-current animate-pulse" />
+                <Sparkles className="w-4 h-4 text-emerald-500 animate-pulse" style={{ animationDelay: "0.3s" }} />
+              </div>
+              <span className="text-sm font-bold text-gray-800 group-hover:text-gray-900 transition-colors">
+                🚀 Trusted by 2M+ users • AI-Powered Processing
               </span>
-              <Star
-                className="w-4 h-4 text-yellow-500 fill-current animate-pulse"
-                style={{ animationDelay: "0.5s" }}
-              />
+              <div className="flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-emerald-500 animate-pulse" style={{ animationDelay: "0.6s" }} />
+                <Star className="w-4 h-4 text-yellow-500 fill-current animate-pulse" style={{ animationDelay: "0.9s" }} />
+              </div>
             </div>
 
-            {/* Enhanced Main Headline */}
-            <div className="relative mb-5">
-              <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-extrabold text-gray-900 leading-tight tracking-tight">
-                The Ultimate{" "}
-                <span className="relative inline-block">
-                  <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-red via-red-600 to-red-700 animate-gradient-x">
-                    PDF Toolkit
+            {/* Enhanced Main Headline with Modern Naming */}
+            <div className="relative mb-6">
+              <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl xl:text-8xl font-black text-gray-900 leading-tight tracking-tight">
+                The{" "}
+                <span className="relative inline-block group">
+                  <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-red via-red-600 to-orange-600 animate-gradient-x">
+                    Smart PDF Studio
                   </span>
-                  {/* Animated underline */}
-                  <div className="absolute -bottom-2 left-0 right-0 h-1 bg-gradient-to-r from-brand-red/60 via-red-600 to-red-700/60 rounded-full transform scale-x-0 group-hover:scale-x-100 transition-transform duration-500"></div>
+                  {/* Animated underline with glow */}
+                  <div className="absolute -bottom-3 left-0 right-0 h-1.5 bg-gradient-to-r from-brand-red/70 via-red-600 to-orange-600/70 rounded-full transform scale-x-0 group-hover:scale-x-100 transition-transform duration-700 shadow-lg"></div>
+                  {/* Glow effect */}
+                  <div className="absolute -bottom-3 left-0 right-0 h-1.5 bg-gradient-to-r from-brand-red/40 via-red-600/40 to-orange-600/40 rounded-full blur-sm transform scale-x-0 group-hover:scale-x-100 transition-transform duration-700"></div>
                 </span>
               </h1>
 
-              {/* Floating sparkles */}
+              {/* Enhanced floating elements */}
               <div
-                className="absolute -top-6 left-1/4 opacity-60 animate-bounce"
+                className="absolute -top-8 left-1/4 opacity-70 animate-bounce"
                 style={{ animationDelay: "1s" }}
               >
-                <Sparkles className="w-6 h-6 text-yellow-400" />
+                <div className="relative">
+                  <Sparkles className="w-8 h-8 text-yellow-400" />
+                  <div className="absolute inset-0 bg-yellow-400/30 rounded-full blur-lg animate-pulse"></div>
+                </div>
               </div>
               <div
-                className="absolute -top-4 right-1/4 opacity-60 animate-bounce"
+                className="absolute -top-6 right-1/4 opacity-70 animate-bounce"
                 style={{ animationDelay: "2s" }}
               >
-                <Sparkles className="w-4 h-4 text-blue-400" />
+                <div className="relative">
+                  <Sparkles className="w-6 h-6 text-blue-400" />
+                  <div className="absolute inset-0 bg-blue-400/30 rounded-full blur-lg animate-pulse"></div>
+                </div>
+              </div>
+              <div
+                className="absolute -bottom-4 left-1/3 opacity-60 animate-bounce"
+                style={{ animationDelay: "3s" }}
+              >
+                <div className="relative">
+                  <Zap className="w-5 h-5 text-purple-500" />
+                  <div className="absolute inset-0 bg-purple-500/30 rounded-full blur-md animate-pulse"></div>
+                </div>
               </div>
             </div>
 
-            {/* Enhanced Subtitle */}
-            <p className="text-lg sm:text-xl lg:text-2xl text-gray-600 mb-6 max-w-4xl mx-auto leading-relaxed px-4">
-              Convert, merge, split, compress, and edit PDFs instantly.{" "}
-              <span className="font-bold text-gray-900">
-                No downloads. No registration. 100% free.
-              </span>
-            </p>
-            {/* Green underline moved outside p tag to avoid nesting issue */}
-            <div className="flex justify-center mb-2">
-              <div className="w-80 h-0.5 bg-gradient-to-r from-green-400 to-emerald-500 rounded-full"></div>
+            {/* Enhanced Subtitle with Tech Keywords */}
+            <div className="mb-6">
+              <p className="text-xl sm:text-2xl lg:text-3xl text-gray-700 mb-4 max-w-5xl mx-auto leading-relaxed px-4 font-medium">
+                AI-powered PDF processing with{" "}
+                <span className="font-bold text-transparent bg-clip-text bg-gradient-to-r from-brand-red to-orange-600">
+                  instant conversion
+                </span>
+                ,{" "}
+                <span className="font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600">
+                  smart editing
+                </span>
+                , and{" "}
+                <span className="font-bold text-transparent bg-clip-text bg-gradient-to-r from-green-600 to-emerald-600">
+                  cloud sync
+                </span>
+              </p>
+              <p className="text-lg sm:text-xl text-gray-600 max-w-4xl mx-auto px-4">
+                <span className="inline-flex items-center gap-2 font-bold text-gray-900">
+                  <Shield className="w-5 h-5 text-green-500" />
+                  No downloads
+                </span>
+                {" • "}
+                <span className="inline-flex items-center gap-2 font-bold text-gray-900">
+                  <Zap className="w-5 h-5 text-blue-500" />
+                  No registration
+                </span>
+                {" • "}
+                <span className="inline-flex items-center gap-2 font-bold text-gray-900">
+                  <Heart className="w-5 h-5 text-red-500" />
+                  100% free
+                </span>
+              </p>
+            </div>
+
+            {/* Gradient separator */}
+            <div className="flex justify-center mb-6">
+              <div className="w-96 h-1 bg-gradient-to-r from-transparent via-brand-red/50 to-transparent rounded-full shadow-lg"></div>
             </div>
 
             {/* Enhanced CTA Buttons */}
-            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center items-center mb-4 px-4">
+            <div className="flex flex-col sm:flex-row gap-4 sm:gap-6 justify-center items-center mb-6 px-4">
               <Button
                 size="lg"
-                className="group relative bg-gradient-to-r from-brand-red via-red-600 to-red-700 hover:from-red-600 hover:via-red-700 hover:to-red-800 text-white px-6 sm:px-10 py-3 sm:py-4 text-base sm:text-lg font-bold rounded-xl shadow-xl hover:shadow-2xl transform hover:scale-105 transition-all duration-300 overflow-hidden w-full sm:w-auto"
+                className="group relative bg-gradient-to-r from-brand-red via-red-600 to-orange-600 hover:from-red-600 hover:via-red-700 hover:to-orange-700 text-white px-8 sm:px-12 py-4 sm:py-5 text-lg sm:text-xl font-bold rounded-2xl shadow-2xl hover:shadow-3xl transform hover:scale-105 transition-all duration-300 overflow-hidden w-full sm:w-auto border-2 border-red-500/20"
                 onClick={scrollToTools}
               >
-                {/* Shimmer effect */}
-                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent skew-x-12 -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
+                {/* Enhanced shimmer effect */}
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent skew-x-12 -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
+                {/* Glow effect */}
+                <div className="absolute inset-0 bg-gradient-to-r from-red-600/20 via-orange-600/20 to-red-600/20 rounded-2xl blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 -z-10"></div>
 
-                <Upload className="mr-3 h-5 w-5 group-hover:scale-110 group-hover:rotate-12 transition-all duration-300 relative z-10" />
-                <span className="relative z-10">Start Processing</span>
-                <ArrowRight className="ml-3 h-5 w-5 group-hover:translate-x-1 transition-transform duration-300 relative z-10" />
+                <Upload className="mr-3 h-6 w-6 group-hover:scale-110 group-hover:rotate-12 transition-all duration-300 relative z-10" />
+                <span className="relative z-10">🚀 Start Creating</span>
+                <ArrowRight className="ml-3 h-6 w-6 group-hover:translate-x-1 transition-transform duration-300 relative z-10" />
               </Button>
 
               <Button
                 variant="outline"
                 size="lg"
-                className="group border-2 border-gray-300 hover:border-brand-red hover:bg-gradient-to-r hover:from-brand-red/5 hover:to-red-50 px-6 sm:px-10 py-3 sm:py-4 text-base sm:text-lg font-semibold rounded-xl transition-all duration-300 hover:shadow-lg w-full sm:w-auto"
+                className="group border-2 border-gray-300 hover:border-blue-500 hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 px-8 sm:px-12 py-4 sm:py-5 text-lg sm:text-xl font-bold rounded-2xl transition-all duration-300 hover:shadow-xl w-full sm:w-auto bg-white/80 backdrop-blur-sm"
                 asChild
               >
                 <Link to="/about">
-                  <Play className="mr-3 h-5 w-5 group-hover:scale-110 group-hover:text-brand-red transition-all duration-300" />
-                  <span className="group-hover:text-brand-red transition-colors duration-300">
-                    Watch Demo
+                  <Play className="mr-3 h-6 w-6 group-hover:scale-110 group-hover:text-blue-600 transition-all duration-300" />
+                  <span className="group-hover:text-blue-600 transition-colors duration-300">
+                    ✨ Watch Magic
                   </span>
                 </Link>
               </Button>
             </div>
 
-            {/* Enhanced Feature Icons */}
-            <div className="grid grid-cols-3 gap-4 max-w-md mx-auto">
-              <div className="group flex flex-col items-center p-3 rounded-2xl hover:bg-white/60 hover:shadow-lg transition-all duration-300">
-                <div className="relative w-10 h-10 bg-gradient-to-br from-green-100 to-emerald-100 rounded-2xl flex items-center justify-center mb-2 group-hover:scale-110 group-hover:rotate-3 transition-all duration-300 shadow-md">
-                  <Shield className="h-5 w-5 text-green-600" />
-                  <div className="absolute inset-0 bg-gradient-to-br from-white/40 to-transparent rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+            {/* Enhanced Feature Grid with Modern Icons */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-4xl mx-auto">
+              <div className="group flex flex-col items-center p-4 rounded-3xl hover:bg-white/70 hover:shadow-xl transition-all duration-300 border border-transparent hover:border-green-200/50">
+                <div className="relative w-14 h-14 bg-gradient-to-br from-green-100 to-emerald-200 rounded-3xl flex items-center justify-center mb-3 group-hover:scale-110 group-hover:rotate-3 transition-all duration-300 shadow-lg">
+                  <Shield className="h-7 w-7 text-green-600" />
+                  <div className="absolute inset-0 bg-gradient-to-br from-white/40 to-transparent rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                  <div className="absolute -inset-1 bg-green-400/20 rounded-3xl blur-md opacity-0 group-hover:opacity-100 transition-opacity duration-300 -z-10"></div>
                 </div>
-                <span className="text-xs font-semibold text-gray-700 group-hover:text-green-700 transition-colors duration-300">
-                  100% Secure
+                <span className="text-sm font-bold text-gray-700 group-hover:text-green-700 transition-colors duration-300 text-center">
+                  🔒 Bank-Level Security
                 </span>
               </div>
 
-              <div className="group flex flex-col items-center p-3 rounded-2xl hover:bg-white/60 hover:shadow-lg transition-all duration-300">
-                <div className="relative w-10 h-10 bg-gradient-to-br from-blue-100 to-sky-100 rounded-2xl flex items-center justify-center mb-2 group-hover:scale-110 group-hover:rotate-3 transition-all duration-300 shadow-md">
-                  <Zap className="h-5 w-5 text-blue-600" />
-                  <div className="absolute inset-0 bg-gradient-to-br from-white/40 to-transparent rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+              <div className="group flex flex-col items-center p-4 rounded-3xl hover:bg-white/70 hover:shadow-xl transition-all duration-300 border border-transparent hover:border-blue-200/50">
+                <div className="relative w-14 h-14 bg-gradient-to-br from-blue-100 to-sky-200 rounded-3xl flex items-center justify-center mb-3 group-hover:scale-110 group-hover:rotate-3 transition-all duration-300 shadow-lg">
+                  <Zap className="h-7 w-7 text-blue-600" />
+                  <div className="absolute inset-0 bg-gradient-to-br from-white/40 to-transparent rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                  <div className="absolute -inset-1 bg-blue-400/20 rounded-3xl blur-md opacity-0 group-hover:opacity-100 transition-opacity duration-300 -z-10"></div>
                 </div>
-                <span className="text-xs font-semibold text-gray-700 group-hover:text-blue-700 transition-colors duration-300">
-                  Lightning Fast
+                <span className="text-sm font-bold text-gray-700 group-hover:text-blue-700 transition-colors duration-300 text-center">
+                  ⚡ AI-Fast Processing
                 </span>
               </div>
 
-              <div className="group flex flex-col items-center p-3 rounded-2xl hover:bg-white/60 hover:shadow-lg transition-all duration-300">
-                <div className="relative w-10 h-10 bg-gradient-to-br from-purple-100 to-violet-100 rounded-2xl flex items-center justify-center mb-2 group-hover:scale-110 group-hover:rotate-3 transition-all duration-300 shadow-md">
-                  <Cloud className="h-5 w-5 text-purple-600" />
-                  <div className="absolute inset-0 bg-gradient-to-br from-white/40 to-transparent rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+              <div className="group flex flex-col items-center p-4 rounded-3xl hover:bg-white/70 hover:shadow-xl transition-all duration-300 border border-transparent hover:border-purple-200/50">
+                <div className="relative w-14 h-14 bg-gradient-to-br from-purple-100 to-violet-200 rounded-3xl flex items-center justify-center mb-3 group-hover:scale-110 group-hover:rotate-3 transition-all duration-300 shadow-lg">
+                  <Cloud className="h-7 w-7 text-purple-600" />
+                  <div className="absolute inset-0 bg-gradient-to-br from-white/40 to-transparent rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                  <div className="absolute -inset-1 bg-purple-400/20 rounded-3xl blur-md opacity-0 group-hover:opacity-100 transition-opacity duration-300 -z-10"></div>
                 </div>
-                <span className="text-xs font-semibold text-gray-700 group-hover:text-purple-700 transition-colors duration-300">
-                  Cloud Based
+                <span className="text-sm font-bold text-gray-700 group-hover:text-purple-700 transition-colors duration-300 text-center">
+                  ☁️ Smart Cloud Sync
+                </span>
+              </div>
+
+              <div className="group flex flex-col items-center p-4 rounded-3xl hover:bg-white/70 hover:shadow-xl transition-all duration-300 border border-transparent hover:border-orange-200/50">
+                <div className="relative w-14 h-14 bg-gradient-to-br from-orange-100 to-amber-200 rounded-3xl flex items-center justify-center mb-3 group-hover:scale-110 group-hover:rotate-3 transition-all duration-300 shadow-lg">
+                  <Sparkles className="h-7 w-7 text-orange-600" />
+                  <div className="absolute inset-0 bg-gradient-to-br from-white/40 to-transparent rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                  <div className="absolute -inset-1 bg-orange-400/20 rounded-3xl blur-md opacity-0 group-hover:opacity-100 transition-opacity duration-300 -z-10"></div>
+                </div>
+                <span className="text-sm font-bold text-gray-700 group-hover:text-orange-700 transition-colors duration-300 text-center">
+                  ✨ AI Magic Tools
                 </span>
               </div>
             </div>
           </div>
         </div>
       </section>
-      {/* Enhanced Real-Time Stats Section */}
-      <section className="pt-2 pb-4 bg-white/70 backdrop-blur-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* Enhanced Modern Stats Section */}
+      <section className="pt-4 pb-6 bg-gradient-to-r from-white via-gray-50 to-white relative overflow-hidden">
+        {/* Background decoration */}
+        <div className="absolute inset-0 opacity-30">
+          <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-brand-red/50 to-transparent"></div>
+          <div className="absolute bottom-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-blue-500/50 to-transparent"></div>
+        </div>
+
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+          <div className="text-center mb-6">
+            <div className="inline-flex items-center gap-2 bg-gradient-to-r from-gray-100 to-gray-50 border border-gray-200/60 rounded-full px-4 py-2 shadow-sm">
+              <TrendingUp className="w-4 h-4 text-green-600" />
+              <span className="text-sm font-bold text-gray-700">Live Performance Metrics</span>
+              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
             {stats.map((stat, index) => (
-              <div key={index} className="text-center group">
-                <div className="mx-auto w-12 h-12 bg-gradient-to-br from-brand-red/10 to-brand-red/20 rounded-full flex items-center justify-center mb-2 group-hover:scale-110 transition-transform duration-200">
-                  <stat.icon className="h-6 w-6 text-brand-red" />
-                </div>
-                <div className="text-2xl lg:text-3xl font-extrabold text-gray-900 mb-1">
-                  {statsLoading ? (
-                    <div className="animate-pulse bg-gray-200 h-8 w-16 mx-auto rounded"></div>
-                  ) : (
-                    <AnimatedCounter end={stat.number} suffix={stat.suffix} />
-                  )}
-                </div>
-                <div className="text-sm text-gray-600 font-semibold">
-                  {stat.label}
+              <div key={index} className="text-center group relative">
+                {/* Background card with gradient */}
+                <div className="absolute inset-0 bg-gradient-to-br from-white to-gray-50/50 rounded-3xl shadow-lg opacity-0 group-hover:opacity-100 transition-all duration-300 transform scale-95 group-hover:scale-100"></div>
+
+                <div className="relative p-6 rounded-3xl transition-all duration-300">
+                  {/* Enhanced icon container */}
+                  <div className="mx-auto w-16 h-16 bg-gradient-to-br from-brand-red/10 via-red-500/15 to-orange-500/10 rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 group-hover:rotate-3 transition-all duration-300 shadow-lg relative overflow-hidden">
+                    {/* Icon glow effect */}
+                    <div className="absolute inset-0 bg-gradient-to-br from-brand-red/20 to-orange-500/20 rounded-2xl blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 -z-10"></div>
+                    <stat.icon className="h-8 w-8 text-brand-red relative z-10" />
+                    {/* Shine effect */}
+                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent -skew-x-12 -translate-x-full group-hover:translate-x-full transition-transform duration-1000 rounded-2xl"></div>
+                  </div>
+
+                  {/* Enhanced number display */}
+                  <div className="text-3xl lg:text-4xl font-black text-gray-900 mb-2 group-hover:text-brand-red transition-colors duration-300">
+                    {statsLoading ? (
+                      <div className="animate-pulse bg-gradient-to-r from-gray-200 via-gray-300 to-gray-200 h-10 w-20 mx-auto rounded-lg"></div>
+                    ) : (
+                      <div className="relative">
+                        <AnimatedCounter end={stat.number} suffix={stat.suffix} />
+                        {/* Number glow effect on hover */}
+                        <div className="absolute inset-0 text-brand-red/50 blur-sm opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                          <AnimatedCounter end={stat.number} suffix={stat.suffix} />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Enhanced label */}
+                  <div className="text-sm text-gray-600 font-bold uppercase tracking-wide group-hover:text-gray-800 transition-colors duration-300">
+                    {stat.label}
+                  </div>
+
+                  {/* Progress bar decoration */}
+                  <div className="mt-3 w-full h-1 bg-gray-200 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-gradient-to-r from-brand-red to-orange-500 rounded-full transform scale-x-0 group-hover:scale-x-100 transition-transform duration-500 origin-left"
+                      style={{ transitionDelay: `${index * 100}ms` }}
+                    ></div>
+                  </div>
                 </div>
               </div>
             ))}
           </div>
 
           {statsError && (
-            <div className="text-center mt-2">
-              <span className="text-xs text-orange-600">
-                {statsError} �� Showing current data
-              </span>
+            <div className="text-center mt-4">
+              <div className="inline-flex items-center gap-2 bg-orange-50 border border-orange-200 rounded-lg px-3 py-2">
+                <Eye className="w-4 h-4 text-orange-600" />
+                <span className="text-sm text-orange-700 font-medium">
+                  {statsError} ⚠️ Showing cached data
+                </span>
+              </div>
             </div>
           )}
         </div>

@@ -171,8 +171,64 @@ async function advancedBackgroundRemoval(inputBuffer, options) {
     }
   }
 
-  // Fallback to basic processing if all APIs fail
-  console.log("🔄 All API services failed, using basic fallback...");
+  // Try U²-Net AI Service (Real AI Model)
+  const u2netUrl = process.env.U2NET_SERVICE_URL || process.env.U2NET_FALLBACK_URL;
+  if (u2netUrl) {
+    try {
+      console.log("🧠 Using U²-Net AI service...");
+
+      const formData = new FormData();
+      formData.append("file", inputBuffer, {
+        filename: "input.jpg",
+        contentType: "image/jpeg",
+      });
+      formData.append("model", options.model || "general");
+      formData.append("precision", options.precision || "precise");
+      formData.append("edge_smoothing", options.edgeSmoothing || 3);
+
+      const response = await axios.post(`${u2netUrl}/remove-bg`, formData, {
+        headers: {
+          ...formData.getHeaders(),
+        },
+        responseType: "arraybuffer",
+        timeout: 45000, // Longer timeout for AI processing
+      });
+
+      const processedBuffer = Buffer.from(response.data);
+      const processingTime = Date.now() - startTime;
+
+      // Extract AI metadata from response headers
+      const confidence = parseFloat(response.headers["x-ai-confidence"] || "0.95");
+      const edgeQuality = parseFloat(response.headers["x-edge-quality"] || "0.9");
+      const modelUsed = response.headers["x-model-used"] || options.model;
+
+      console.log("✅ U²-Net AI processing completed");
+      console.log(`   🤖 Model: ${modelUsed}`);
+      console.log(`   🎯 Confidence: ${(confidence * 100).toFixed(1)}%`);
+      console.log(`   ⚡ Time: ${processingTime}ms`);
+
+      return {
+        buffer: processedBuffer,
+        metadata: {
+          model: `U²-Net ${modelUsed}`,
+          confidence,
+          edgeQuality,
+          processingTime,
+          precision: options.precision,
+          originalSize: inputBuffer.length,
+          resultSize: processedBuffer.length,
+          algorithm: "U²-Net Deep Learning",
+          engine: "U²-Net AI",
+          service: "u2net"
+        },
+      };
+    } catch (error) {
+      console.warn("❌ U²-Net AI service failed:", error.message);
+    }
+  }
+
+  // Fallback to basic processing if all services fail
+  console.log("🔄 All AI services failed, using basic fallback...");
 
   try {
     const image = sharp(inputBuffer);
@@ -202,7 +258,7 @@ async function advancedBackgroundRemoval(inputBuffer, options) {
         precision: options.precision,
         originalSize: inputBuffer.length,
         resultSize: processedBuffer.length,
-        algorithm: "Basic Processing (APIs unavailable)",
+        algorithm: "Basic Processing (All AI services unavailable)",
         engine: "Sharp Fallback",
         fallback: true,
       },

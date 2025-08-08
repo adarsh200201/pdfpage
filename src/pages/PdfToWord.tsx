@@ -15,6 +15,8 @@ import { getSEOData } from "@/data/seo-routes";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
+import DownloadModal from "@/components/modals/DownloadModal";
+import { useDownloadModal } from "@/hooks/useDownloadModal";
 import {
   ArrowLeft,
   Download,
@@ -99,6 +101,13 @@ const PdfToWord = () => {
   const { isAuthenticated, user } = useAuth();
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Download modal
+  const downloadModal = useDownloadModal({
+    countdownSeconds: 5, // 5 seconds
+    adSlot: "pdf-to-word-download-ad",
+    showAd: true,
+  });
 
   // Check backend status on mount
   useEffect(() => {
@@ -502,83 +511,83 @@ const PdfToWord = () => {
       return;
     }
 
-    // Set downloading state
-    setDownloadingFiles((prev) => new Set(prev).add(fileStatus.id));
+    // Generate descriptive filename
+    const originalName = fileStatus.file.name.replace(/\.pdf$/i, "");
+    const timestamp = new Date().toISOString().slice(0, 10);
+    const fileName = `${originalName}_converted_${timestamp}.docx`;
 
-    try {
-      // Generate descriptive filename
-      const originalName = fileStatus.file.name.replace(/\.pdf$/i, "");
-      const timestamp = new Date().toISOString().slice(0, 10);
-      const fileName = `${originalName}_converted_${timestamp}.docx`;
+    // Open download modal with ad and countdown
+    downloadModal.openDownloadModal(
+      async () => {
+        // Set downloading state
+        setDownloadingFiles((prev) => new Set(prev).add(fileStatus.id));
 
-      // Show download preview with file info
-      toast({
-        title: "🔄 Preparing Download",
-        description: `Preparing ${fileName} for download...`,
-        duration: 2000,
-      });
-
-      // Add small delay for better UX (show loading state)
-      await new Promise((resolve) => setTimeout(resolve, 800));
-
-      // Create download link
-      const link = document.createElement("a");
-      link.href = fileStatus.downloadUrl;
-      link.download = fileName;
-      link.style.display = "none";
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-
-      // Show success feedback with file details (safer toast handling)
-      try {
-        toast({
-          title: "✅ Download Started",
-          description: `${fileName} - ${fileStatus.pages || 0} pages • ${(fileStatus.textLength || 0).toLocaleString()} chars`,
-          duration: 4000,
-        });
-      } catch (toastError) {
-        console.warn("Toast notification error:", toastError);
-      }
-
-      // Track download analytics
-      console.log("File downloaded:", {
-        originalName: fileStatus.file.name,
-        downloadName: fileName,
-        fileSize: fileStatus.file.size,
-        conversionType: fileStatus.conversionType,
-        pages: fileStatus.pages,
-        textLength: fileStatus.textLength,
-      });
-
-      // Show additional download preview info with error handling
-      setTimeout(() => {
         try {
+          // Show download preview with file info
           toast({
-            title: "📄 File Preview Info",
-            description: `Original: ${fileStatus.file.name} → Converted: ${fileName} (Microsoft Word format) - You can now open this file in Microsoft Word, Google Docs, or any compatible word processor.`,
-            duration: 6000,
+            title: "🔄 Preparing Download",
+            description: `Preparing ${fileName} for download...`,
+            duration: 2000,
           });
-        } catch (toastError) {
-          console.warn("Preview toast notification error:", toastError);
+
+          // Add small delay for better UX (show loading state)
+          await new Promise((resolve) => setTimeout(resolve, 800));
+
+          // Create download link
+          const link = document.createElement("a");
+          link.href = fileStatus.downloadUrl;
+          link.download = fileName;
+          link.style.display = "none";
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+
+          // Show success feedback with file details
+          toast({
+            title: "✅ Download Started",
+            description: `${fileName} - ${fileStatus.pages || 0} pages • ${(fileStatus.textLength || 0).toLocaleString()} chars`,
+            duration: 4000,
+          });
+
+          // Track download analytics
+          console.log("File downloaded:", {
+            originalName: fileStatus.file.name,
+            downloadName: fileName,
+            fileSize: fileStatus.file.size,
+            conversionType: fileStatus.conversionType,
+            pages: fileStatus.pages,
+            textLength: fileStatus.textLength,
+          });
+
+          // Show additional download preview info
+          setTimeout(() => {
+            toast({
+              title: "📄 File Preview Info",
+              description: `Original: ${fileStatus.file.name} → Converted: ${fileName} (Microsoft Word format)`,
+              duration: 6000,
+            });
+          }, 1000);
+        } catch (error) {
+          console.error("Download failed:", error);
+          toast({
+            title: "Download Failed",
+            description: "There was an error downloading the file. Please try again.",
+            variant: "destructive",
+          });
+        } finally {
+          // Remove downloading state
+          setDownloadingFiles((prev) => {
+            const next = new Set(prev);
+            next.delete(fileStatus.id);
+            return next;
+          });
         }
-      }, 1000);
-    } catch (error) {
-      console.error("Download failed:", error);
-      toast({
-        title: "Download Failed",
-        description:
-          "There was an error downloading the file. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      // Remove downloading state
-      setDownloadingFiles((prev) => {
-        const next = new Set(prev);
-        next.delete(fileStatus.id);
-        return next;
-      });
-    }
+      },
+      {
+        title: "🎉 Your Word document is ready!",
+        description: `${fileName} has been converted and is ready for download.`,
+      }
+    );
   };
 
   // Remove file
@@ -1366,6 +1375,9 @@ const PdfToWord = () => {
           onClose={() => setShowAuthModal(false)}
         />
       )}
+
+      {/* Download Modal with Ad */}
+      <DownloadModal {...downloadModal.modalProps} />
     </div>
   );
 };
