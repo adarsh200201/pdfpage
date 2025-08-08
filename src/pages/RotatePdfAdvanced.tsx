@@ -21,7 +21,7 @@ import {
   Play,
   X,
   Eye,
-  Settings,
+  Home,
 } from "lucide-react";
 
 interface PDFPage {
@@ -704,37 +704,38 @@ const RotatePdfAdvanced = () => {
 
       <main className="pt-20 pb-12">
         <div className="container mx-auto px-4 max-w-6xl">
-          {/* Header */}
-          <div className="text-center mb-12">
-            <h1 className="text-4xl font-bold text-gray-900 mb-4">
-              Rotate PDF Pages
-            </h1>
-            <p className="text-lg text-gray-600">
-              Rotate your PDF pages online with precision
-            </p>
+          {/* Back to Home Button */}
+          <div className="mb-8">
+            <Link
+              to="/"
+              className="inline-flex items-center gap-2 text-blue-600 hover:text-blue-700 transition-colors duration-200 group"
+            >
+              <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform duration-200" />
+              <span className="font-medium">Back to Home</span>
+            </Link>
           </div>
 
-          {/* Debug Panel - Remove this in production */}
-          <div className="mb-8">
-            <details className="group">
-              <summary className="cursor-pointer flex items-center gap-2 text-sm text-gray-600 hover:text-gray-800 mb-4">
-                <Settings className="w-4 h-4" />
-                Debug Tools (Test PDF Content Visibility)
-                <span className="ml-auto text-xs bg-orange-100 text-orange-700 px-2 py-1 rounded">
-                  DEV
-                </span>
-              </summary>
-            </details>
+          {/* Enhanced Header */}
+          <div className="text-center mb-12">
+            <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-100 rounded-full mb-6">
+              <RotateCw className="w-8 h-8 text-blue-600" />
+            </div>
+            <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
+              Rotate PDF Pages
+            </h1>
+            <p className="text-lg md:text-xl text-gray-600 max-w-2xl mx-auto">
+              Rotate your PDF pages online with precision. Simple, fast, and secure.
+            </p>
           </div>
 
           {/* Main Content */}
           {!hasFiles ? (
-            /* Upload Area */
-            <div className="flex justify-center">
+            /* Enhanced Upload Area */
+            <div className="flex justify-center px-4">
               <div
                 className={cn(
-                  "relative w-full max-w-2xl transition-all duration-300 cursor-pointer",
-                  dragActive && "scale-105",
+                  "relative w-full max-w-3xl transition-all duration-300 cursor-pointer",
+                  dragActive && "scale-[1.02]",
                 )}
                 onDrop={handleDrop}
                 onDragOver={handleDragOver}
@@ -743,35 +744,54 @@ const RotatePdfAdvanced = () => {
               >
                 <Card
                   className={cn(
-                    "border-2 border-dashed transition-all duration-300",
+                    "border-2 border-dashed transition-all duration-300 shadow-lg hover:shadow-xl",
                     dragActive
-                      ? "border-blue-500 bg-blue-50"
-                      : "border-gray-300 hover:border-blue-400 hover:bg-blue-50/50",
+                      ? "border-blue-500 bg-blue-50 shadow-blue-100"
+                      : "border-gray-300 hover:border-blue-400 hover:bg-blue-50/30",
                   )}
                 >
-                  <CardContent className="p-16 text-center">
+                  <CardContent className="p-8 md:p-16 text-center">
                     <div
                       className={cn(
-                        "w-20 h-20 mx-auto mb-6 rounded-full flex items-center justify-center transition-colors",
+                        "w-16 h-16 md:w-20 md:h-20 mx-auto mb-6 rounded-full flex items-center justify-center transition-all duration-300",
                         dragActive
-                          ? "bg-blue-100 text-blue-600"
-                          : "bg-gray-100 text-gray-400",
+                          ? "bg-blue-100 text-blue-600 scale-110"
+                          : "bg-gray-100 text-gray-400 hover:bg-blue-100 hover:text-blue-500",
                       )}
                     >
-                      <Upload className="w-10 h-10" />
+                      <Upload className="w-8 h-8 md:w-10 md:h-10" />
                     </div>
+
+                    <h3 className="text-xl md:text-2xl font-semibold text-gray-900 mb-4">
+                      Upload Your PDF Files
+                    </h3>
 
                     <Button
                       size="lg"
-                      className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-4 text-lg font-medium rounded-lg shadow-lg hover:shadow-xl transition-all"
+                      className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white px-6 md:px-8 py-3 md:py-4 text-base md:text-lg font-medium rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-0.5"
                     >
-                      <Upload className="w-5 h-5 mr-3" />
+                      <Upload className="w-4 h-4 md:w-5 md:h-5 mr-2 md:mr-3" />
                       Choose PDF Files
                     </Button>
 
-                    <p className="text-gray-500 mt-4">
+                    <p className="text-gray-500 mt-4 text-sm md:text-base">
                       or drag and drop PDF files here
                     </p>
+
+                    <div className="mt-6 flex flex-wrap justify-center gap-4 text-xs md:text-sm text-gray-400">
+                      <span className="flex items-center gap-1">
+                        <CheckCircle className="w-3 h-3 md:w-4 md:h-4 text-green-500" />
+                        Secure & Private
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <CheckCircle className="w-3 h-3 md:w-4 md:h-4 text-green-500" />
+                        No Registration Required
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <CheckCircle className="w-3 h-3 md:w-4 md:h-4 text-green-500" />
+                        Free to Use
+                      </span>
+                    </div>
                   </CardContent>
                 </Card>
 
@@ -790,65 +810,83 @@ const RotatePdfAdvanced = () => {
               </div>
             </div>
           ) : (
-            /* PDF Processing Area */
+            /* Enhanced PDF Processing Area */
             <div className="space-y-6">
-              {/* Navigation */}
-              <div className="flex items-center justify-between">
-                <Link
-                  to="/"
-                  className="flex items-center text-blue-600 hover:text-blue-700 transition-colors group"
-                >
-                  <ArrowLeft className="w-4 h-4 mr-2 group-hover:-translate-x-1 transition-transform" />
-                  Back to Home
-                </Link>
-
-                {selectedPages.size > 0 && (
-                  <div className="flex items-center space-x-2">
+              {/* Enhanced Navigation & Controls */}
+              <div className="bg-white rounded-xl shadow-sm border p-4 md:p-6">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                  <div className="flex items-center gap-4">
+                    <Link
+                      to="/"
+                      className="inline-flex items-center text-blue-600 hover:text-blue-700 transition-colors group"
+                    >
+                      <ArrowLeft className="w-4 h-4 mr-2 group-hover:-translate-x-1 transition-transform" />
+                      <span className="font-medium">Back to Home</span>
+                    </Link>
+                    <div className="h-4 w-px bg-gray-300"></div>
                     <span className="text-sm text-gray-600">
-                      {selectedPages.size} pages selected
+                      {files.length} file{files.length !== 1 ? 's' : ''} • {files.reduce((acc, file) => acc + file.pages.length, 0)} pages
                     </span>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => rotateSelectedPages(-90)}
-                    >
-                      <RotateCcw className="w-4 h-4 mr-1" />
-                      Rotate Left
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => rotateSelectedPages(90)}
-                    >
-                      <RotateCw className="w-4 h-4 mr-1" />
-                      Rotate Right
-                    </Button>
                   </div>
-                )}
+
+                  {selectedPages.size > 0 && (
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+                      <span className="text-sm font-medium text-gray-700">
+                        {selectedPages.size} page{selectedPages.size !== 1 ? 's' : ''} selected
+                      </span>
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => rotateSelectedPages(-90)}
+                          className="hover:bg-blue-50 hover:border-blue-300"
+                        >
+                          <RotateCcw className="w-4 h-4 mr-1" />
+                          <span className="hidden sm:inline">Rotate Left</span>
+                          <span className="sm:hidden">Left</span>
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => rotateSelectedPages(90)}
+                          className="hover:bg-blue-50 hover:border-blue-300"
+                        >
+                          <RotateCw className="w-4 h-4 mr-1" />
+                          <span className="hidden sm:inline">Rotate Right</span>
+                          <span className="sm:hidden">Right</span>
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
 
-              {/* Selection Controls */}
+              {/* Enhanced Selection Controls */}
               {hasFiles && (
-                <Card>
-                  <CardContent className="p-4">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-2">
+                <Card className="bg-gradient-to-r from-gray-50 to-blue-50 border-gray-200">
+                  <CardContent className="p-4 md:p-6">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                      <div className="flex flex-wrap items-center gap-2">
                         <Button
                           size="sm"
                           variant="outline"
                           onClick={selectAllPages}
+                          className="bg-white hover:bg-blue-50 hover:border-blue-300"
                         >
+                          <CheckCircle className="w-4 h-4 mr-1" />
                           Select All
                         </Button>
                         <Button
                           size="sm"
                           variant="outline"
                           onClick={deselectAllPages}
+                          className="bg-white hover:bg-gray-50"
                         >
+                          <X className="w-4 h-4 mr-1" />
                           Clear Selection
                         </Button>
                       </div>
-                      <div className="text-sm text-gray-600">
+                      <div className="text-sm font-medium text-gray-700 bg-white px-3 py-1 rounded-full">
                         {files.length} PDF{files.length !== 1 ? "s" : ""} loaded
                       </div>
                     </div>
@@ -856,32 +894,32 @@ const RotatePdfAdvanced = () => {
                 </Card>
               )}
 
-              {/* Files */}
+              {/* Enhanced Files */}
               {files.map((file) => (
-                <Card key={file.id} className="overflow-hidden">
-                  <CardContent className="p-6">
-                    {/* File Header */}
-                    <div className="flex items-center justify-between mb-6">
-                      <div className="flex items-center space-x-3">
-                        <div className="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center">
-                          <FileText className="w-5 h-5 text-red-600" />
+                <Card key={file.id} className="overflow-hidden shadow-sm hover:shadow-md transition-shadow duration-200">
+                  <CardContent className="p-4 md:p-6">
+                    {/* Enhanced File Header */}
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+                      <div className="flex items-center space-x-3 min-w-0 flex-1">
+                        <div className="w-10 h-10 md:w-12 md:h-12 bg-gradient-to-br from-red-100 to-red-200 rounded-xl flex items-center justify-center flex-shrink-0">
+                          <FileText className="w-5 h-5 md:w-6 md:h-6 text-red-600" />
                         </div>
-                        <div>
-                          <h3 className="font-semibold text-gray-900 truncate">
+                        <div className="min-w-0 flex-1">
+                          <h3 className="font-semibold text-gray-900 truncate text-sm md:text-base">
                             {file.file.name}
                           </h3>
-                          <p className="text-sm text-gray-500">
+                          <p className="text-xs md:text-sm text-gray-500">
                             {formatFileSize(file.file.size)} • {file.totalPages}{" "}
-                            pages
+                            page{file.totalPages !== 1 ? 's' : ''}
                           </p>
                         </div>
                       </div>
 
-                      <div className="flex items-center space-x-2">
+                      <div className="flex flex-col sm:flex-row items-end sm:items-center gap-2">
                         {file.status === "processing" && (
-                          <div className="flex items-center space-x-2">
-                            <Progress value={file.progress} className="w-24" />
-                            <span className="text-sm text-blue-600">
+                          <div className="flex items-center space-x-2 bg-blue-50 px-3 py-2 rounded-lg">
+                            <Progress value={file.progress} className="w-20 md:w-24" />
+                            <span className="text-xs md:text-sm font-medium text-blue-600">
                               {file.progress.toFixed(0)}%
                             </span>
                           </div>
@@ -891,56 +929,63 @@ const RotatePdfAdvanced = () => {
                           <Button
                             size="sm"
                             onClick={() => downloadFile(file)}
-                            className="bg-green-600 hover:bg-green-700 text-white"
+                            className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white shadow-sm"
                           >
-                            <Download className="w-4 h-4 mr-2" />
-                            Download
+                            <Download className="w-4 h-4 mr-1 md:mr-2" />
+                            <span className="hidden sm:inline">Download</span>
+                            <span className="sm:hidden">Get</span>
                           </Button>
                         )}
 
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => rotateAllPages(file.id, -90)}
-                        >
-                          <RotateCcw className="w-4 h-4 mr-1" />
-                          All Left
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => rotateAllPages(file.id, 90)}
-                        >
-                          <RotateCw className="w-4 h-4 mr-1" />
-                          All Right
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => removeFile(file.id)}
-                          className="text-red-500 hover:text-red-700"
-                        >
-                          <X className="w-4 h-4" />
-                        </Button>
+                        <div className="flex items-center gap-1">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => rotateAllPages(file.id, -90)}
+                            className="hover:bg-blue-50 hover:border-blue-300"
+                          >
+                            <RotateCcw className="w-4 h-4 mr-1" />
+                            <span className="hidden md:inline">All Left</span>
+                            <span className="md:hidden">Left</span>
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => rotateAllPages(file.id, 90)}
+                            className="hover:bg-blue-50 hover:border-blue-300"
+                          >
+                            <RotateCw className="w-4 h-4 mr-1" />
+                            <span className="hidden md:inline">All Right</span>
+                            <span className="md:hidden">Right</span>
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => removeFile(file.id)}
+                            className="text-red-500 hover:text-red-700 hover:bg-red-50 hover:border-red-300"
+                          >
+                            <X className="w-4 h-4" />
+                          </Button>
+                        </div>
                       </div>
                     </div>
 
-                    {/* Page Grid */}
-                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                    {/* Enhanced Page Grid */}
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 md:gap-4">
                       {file.pages.map((page) => (
                         <div
                           key={page.id}
                           className={cn(
-                            "relative group cursor-pointer border-2 rounded-lg p-3 transition-all duration-200",
+                            "relative group cursor-pointer border-2 rounded-xl p-2 md:p-3 transition-all duration-200 hover:shadow-md",
                             selectedPages.has(page.id)
-                              ? "border-blue-500 bg-blue-50"
-                              : "border-gray-200 hover:border-gray-300 hover:bg-gray-50",
+                              ? "border-blue-500 bg-gradient-to-br from-blue-50 to-blue-100 shadow-md"
+                              : "border-gray-200 hover:border-blue-300 hover:bg-gradient-to-br hover:from-gray-50 hover:to-blue-50",
                           )}
                           onClick={() => togglePageSelection(page.id)}
                         >
-                          {/* Page Preview */}
+                          {/* Enhanced Page Preview */}
                           <div
-                            className="w-full aspect-[3/4] bg-white border rounded-lg shadow-sm transition-transform duration-300 overflow-hidden relative"
+                            className="w-full aspect-[3/4] bg-white border rounded-lg shadow-sm transition-all duration-300 overflow-hidden relative hover:shadow-md"
                             style={{
                               transform: `rotate(${page.rotation}deg)`,
                             }}
@@ -1213,34 +1258,44 @@ const RotatePdfAdvanced = () => {
                 </Card>
               )}
 
-              {/* Action Buttons */}
-              <div className="flex justify-center space-x-4 pt-6">
-                <Button
-                  variant="outline"
-                  onClick={() => fileInputRef.current?.click()}
-                  className="px-6"
-                >
-                  <Upload className="w-4 h-4 mr-2" />
-                  Add More Files
-                </Button>
+              {/* Enhanced Action Buttons */}
+              <div className="bg-white rounded-xl shadow-sm border p-4 md:p-6 mt-8">
+                <div className="flex flex-col sm:flex-row justify-center items-center gap-4">
+                  <Button
+                    variant="outline"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="px-4 md:px-6 py-2 md:py-3 hover:bg-blue-50 hover:border-blue-300 transition-all duration-200"
+                  >
+                    <Upload className="w-4 h-4 mr-2" />
+                    Add More Files
+                  </Button>
 
-                <Button
-                  onClick={processFiles}
-                  disabled={isProcessing || !hasRotations}
-                  className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 shadow-lg"
-                >
-                  {isProcessing ? (
-                    <>
-                      <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                      Processing...
-                    </>
-                  ) : (
-                    <>
-                      <Play className="w-5 h-5 mr-2" />
-                      Apply Rotations
-                    </>
-                  )}
-                </Button>
+                  <Button
+                    onClick={processFiles}
+                    disabled={isProcessing || !hasRotations}
+                    className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white px-6 md:px-8 py-2 md:py-3 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-0.5 disabled:transform-none disabled:shadow-lg"
+                  >
+                    {isProcessing ? (
+                      <>
+                        <Loader2 className="w-4 h-4 md:w-5 md:h-5 mr-2 animate-spin" />
+                        <span className="hidden sm:inline">Processing...</span>
+                        <span className="sm:hidden">Processing</span>
+                      </>
+                    ) : (
+                      <>
+                        <Play className="w-4 h-4 md:w-5 md:h-5 mr-2" />
+                        <span className="hidden sm:inline">Apply Rotations</span>
+                        <span className="sm:hidden">Apply</span>
+                      </>
+                    )}
+                  </Button>
+                </div>
+
+                {!hasRotations && files.length > 0 && (
+                  <p className="text-center text-sm text-gray-500 mt-3">
+                    Select pages and rotate them to enable processing
+                  </p>
+                )}
               </div>
 
               {/* Hidden file input */}
