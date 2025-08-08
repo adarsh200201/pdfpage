@@ -1,6 +1,7 @@
-# Production: API calls should be handled by environment-specific proxy
-# Development: Remove hardcoded URLs for security
-# NOTE: Proxy configuration should be set up at deployment level
+# Production API Proxy Configuration
+# Route API requests to backend server
+/api/auth/*  https://pdf-backend-935131444417.asia-south1.run.app/api/auth/:splat  200
+/api/*       https://pdf-backend-935131444417.asia-south1.run.app/api/:splat       200
 
 # Serve static assets directly
 /assets/*  /assets/:splat  200
@@ -12,5 +13,5 @@
 /csp-test.html  /csp-test.html  200
 /deployment-test.json  /deployment-test.json  200
 
-# Handle SPA routing - only for non-asset requests
+# Handle SPA routing - must be last
 /*  /index.html  200
