@@ -52,7 +52,7 @@ class AuthService {
    */
   async handleAuthCallback(token: string): Promise<User> {
     try {
-      const response = await fetch(`${this.baseUrl}/auth/verify`, {
+      const response = await fetch(`${this.baseUrl}/auth/me`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -205,7 +205,7 @@ class AuthService {
         return null;
       }
 
-      const response = await fetch(`${this.baseUrl}/auth/verify`, {
+      const response = await fetch(`${this.baseUrl}/auth/me`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,

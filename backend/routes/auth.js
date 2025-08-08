@@ -367,6 +367,42 @@ router.get("/oauth-debug", async (req, res) => {
   }
 });
 
+// @route   GET /api/auth/verify
+// @desc    Verify authentication token (alias for /me)
+// @access  Private
+router.get("/verify", auth, async (req, res) => {
+  try {
+    const user = await User.findById(req.userId);
+
+    const userData = {
+      id: user._id,
+      name: user.name,
+      email: user.email,
+      isPremium: user.isPremiumActive,
+      premiumPlan: user.premiumPlan,
+      premiumExpiryDate: user.premiumExpiryDate,
+      dailyUploads: user.dailyUploads,
+      maxDailyUploads: user.maxDailyUploads,
+      totalUploads: user.totalUploads,
+      totalFileSize: user.totalFileSize,
+      premiumDaysRemaining: user.premiumDaysRemaining,
+      createdAt: user.createdAt,
+      lastLoginAt: user.lastLoginAt,
+    };
+
+    res.json({
+      success: true,
+      user: userData,
+    });
+  } catch (error) {
+    console.error("❌ Error in /verify:", error);
+    res.status(500).json({
+      success: false,
+      message: "Server error during token verification",
+    });
+  }
+});
+
 // @route   GET /api/auth/me
 // @desc    Get current logged in user
 // @access  Private
