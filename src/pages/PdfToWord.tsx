@@ -96,7 +96,7 @@ const PdfToWord = () => {
   const [backendStatus, setBackendStatus] = useState<
     "checking" | "available" | "unavailable"
   >("checking");
-  const [showDebugPanel, setShowDebugPanel] = useState(false);
+
 
   const { isAuthenticated, user } = useAuth();
   const { toast } = useToast();
@@ -659,15 +659,7 @@ const PdfToWord = () => {
               <Clock className="w-3 h-3 mr-1" />
               {isProcessing ? "Converting..." : `${completedFiles} completed`}
             </Badge>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setShowDebugPanel(!showDebugPanel)}
-              className="flex items-center"
-            >
-              <Bug className="w-4 h-4 mr-1" />
-              Debug
-            </Button>
+
             {/* All features are free - no upgrade needed */}
           </div>
         </div>
@@ -1201,8 +1193,8 @@ const PdfToWord = () => {
           </div>
         </div>
 
-        {/* Debug Panel */}
-        {showDebugPanel && (
+        {/* Debug Panel Removed */}
+        {false && (
           <div className="mt-8">
             <Card>
               <CardHeader>

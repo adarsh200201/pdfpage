@@ -197,14 +197,7 @@ const About = () => {
 
       <Header />
 
-      {/* OAuth Debug (Development Only) */}
-      {import.meta.env.DEV && (
-        <div className="p-4 bg-yellow-50 border-b border-yellow-200">
-          <div className="max-w-4xl mx-auto">
-            <OAuthDebug />
-          </div>
-        </div>
-      )}
+
 
       {/* Hero Section */}
       <section className="py-20 bg-gradient-to-br from-brand-red/5 to-red-50">

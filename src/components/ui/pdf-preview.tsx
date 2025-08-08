@@ -314,29 +314,6 @@ export const PDFPreview: React.FC<PDFPreviewProps> = ({
           <Button
             variant="outline"
             size="sm"
-            onClick={() => {
-              console.log("=== SPLIT PAGES DEBUG ===");
-              console.log("Session ID:", sessionId);
-              console.log("Global store page count:", pageCount);
-              if (currentPages) {
-                currentPages.forEach((page, i) => {
-                  console.log(`Page ${i + 1}:`, {
-                    exists: !!page,
-                    size: page?.length || 0,
-                    type: typeof page,
-                    isUint8Array: page instanceof Uint8Array,
-                  });
-                });
-              }
-              console.log("=== END DEBUG ===");
-            }}
-          >
-            🐛 Debug
-          </Button>
-
-          <Button
-            variant="outline"
-            size="sm"
             onClick={() => setShowPreviews(!showPreviews)}
           >
             {showPreviews ? (
