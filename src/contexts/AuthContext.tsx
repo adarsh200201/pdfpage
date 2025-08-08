@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode, useRef } from 'react';
 
 // Types
 export interface User {
@@ -35,6 +35,7 @@ interface AuthProviderProps {
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const isCheckingAuth = useRef(false);
 
   // Check if user is authenticated
   const isAuthenticated = !!user;
@@ -46,6 +47,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   // Check authentication state
   const checkAuthState = async () => {
+    // Prevent multiple simultaneous auth checks
+    if (isCheckingAuth.current) {
+      console.log('⏳ [AUTH-CONTEXT] Auth check already in progress, skipping...');
+      return;
+    }
+
+    isCheckingAuth.current = true;
+
     try {
       setIsLoading(true);
 
@@ -108,6 +117,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       }
     } finally {
       setIsLoading(false);
+      isCheckingAuth.current = false;
       console.log('🏁 [AUTH-CONTEXT] Auth check complete');
     }
   };
@@ -243,7 +253,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   // Refresh auth state (useful after login)
   const refreshAuth = async () => {
-    await checkAuthState();
+    // Only refresh if not already checking
+    if (!isCheckingAuth.current) {
+      await checkAuthState();
+    }
   };
 
   // Context value

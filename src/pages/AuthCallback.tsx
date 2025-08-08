@@ -1,7 +1,6 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
-import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
 import Cookies from "js-cookie";
 import authService from "@/services/authService";
@@ -10,21 +9,22 @@ import toast from "@/lib/toast-utils";
 const AuthCallback: React.FC = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const { toast: radixToast } = useToast();
   const auth = useAuth();
   const [isProcessing, setIsProcessing] = useState(false);
+  const hasProcessed = useRef(false);
 
   useEffect(() => {
     const handleCallback = async () => {
-      // Prevent multiple executions
-      if (isProcessing) return;
+      // Prevent multiple executions using ref
+      if (hasProcessed.current || isProcessing) return;
+      hasProcessed.current = true;
       setIsProcessing(true);
 
       try {
         const token = searchParams.get("token");
         const error = searchParams.get("error");
 
-        console.log('🔍 [AUTH-CALLBACK] Processing callback:', { token: !!token, error });
+        console.log('🔍 [AUTH-CALLBACK] Processing callback (once):', { token: !!token, error });
 
         if (error) {
           console.error('❌ [AUTH-CALLBACK] OAuth error:', error);
@@ -100,11 +100,9 @@ const AuthCallback: React.FC = () => {
       }
     };
 
-    // Only run once when component mounts
-    if (!isProcessing) {
-      handleCallback();
-    }
-  }, [searchParams, navigate, isProcessing]);
+    // Run the callback handler
+    handleCallback();
+  }, []); // Empty dependency array to run only once
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">

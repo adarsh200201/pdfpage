@@ -529,7 +529,7 @@ const Split: React.FC = () => {
     }
   };
 
-  const downloadSelected = async (event?: React.MouseEvent) => {
+  const downloadSelectedAsSinglePDF = async (event?: React.MouseEvent) => {
     if (event) {
       event.preventDefault();
       event.stopPropagation();
@@ -537,14 +537,12 @@ const Split: React.FC = () => {
 
     if (isDownloading) return;
 
-    const selectedPages = pages.filter(
-      (page) => page.selected && !downloadedPages.has(page.index),
-    );
+    const selectedPages = pages.filter((page) => page.selected);
 
     if (selectedPages.length === 0) {
       toast({
-        title: "No New Pages to Download",
-        description: "Please select pages that haven't been downloaded yet",
+        title: "No Pages Selected",
+        description: "Please select pages to download",
         variant: "destructive",
         duration: 3000,
       });
@@ -552,35 +550,76 @@ const Split: React.FC = () => {
     }
 
     setIsDownloading(true);
-    console.log(`📦 Downloading ${selectedPages.length} selected pages`);
+    console.log(`📦 Combining ${selectedPages.length} selected pages into single PDF`);
 
-    let downloadCount = 0;
     try {
-      // Process downloads sequentially to avoid browser limits
+      // Import PDF-lib for combining pages
+      const { PDFDocument } = await import('pdf-lib');
+
+      // Create a new PDF document
+      const combinedPdf = await PDFDocument.create();
+
+      // Add each selected page to the combined PDF
       for (const page of selectedPages) {
-        // Skip if already downloaded
-        if (!downloadedPages.has(page.index)) {
-          await new Promise((resolve) => {
-            downloadPage(page.index);
-            downloadCount++;
-            setTimeout(resolve, 300); // Small delay between downloads
-          });
+        if (page.data) {
+          try {
+            // Load the individual page PDF
+            const pagePdf = await PDFDocument.load(page.data);
+            const [copiedPage] = await combinedPdf.copyPages(pagePdf, [0]);
+            combinedPdf.addPage(copiedPage);
+          } catch (error) {
+            console.error(`Error adding page ${page.index + 1}:`, error);
+          }
         }
       }
 
-      if (downloadCount > 0) {
-        toast({
-          title: "Downloads Complete",
-          description: `Downloaded ${downloadCount} new pages`,
-          duration: 3000,
-        });
-      }
+      // Generate the combined PDF
+      const combinedPdfBytes = await combinedPdf.save();
+
+      // Create blob and download
+      const blob = new Blob([combinedPdfBytes], { type: "application/pdf" });
+      const url = URL.createObjectURL(blob);
+
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `${file?.name?.replace(".pdf", "") || "document"}-selected-pages.pdf`;
+      link.style.display = "none";
+
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      // Cleanup
+      setTimeout(() => {
+        URL.revokeObjectURL(url);
+      }, 100);
+
+      // Mark selected pages as downloaded
+      const newDownloadedPages = new Set(downloadedPages);
+      selectedPages.forEach(page => newDownloadedPages.add(page.index));
+      setDownloadedPages(newDownloadedPages);
+
+      toast({
+        title: "Download Complete",
+        description: `Combined ${selectedPages.length} selected pages into single PDF`,
+        duration: 3000,
+      });
+    } catch (error) {
+      console.error("❌ Selected pages download failed:", error);
+      toast({
+        title: "Download Failed",
+        description: "Could not combine selected pages into single PDF",
+        variant: "destructive",
+        duration: 3000,
+      });
     } finally {
       setIsDownloading(false);
     }
   };
 
-  const downloadAll = async (event?: React.MouseEvent) => {
+  const downloadSelected = downloadSelectedAsSinglePDF;
+
+  const downloadAllAsSinglePDF = async (event?: React.MouseEvent) => {
     if (event) {
       event.preventDefault();
       event.stopPropagation();
@@ -602,30 +641,74 @@ const Split: React.FC = () => {
     }
 
     setIsDownloading(true);
-    console.log(`📦 Downloading ${pendingPages.length} remaining pages`);
+    console.log(`📦 Combining ${pendingPages.length} pages into single PDF`);
 
-    let downloadCount = 0;
     try {
-      // Process downloads sequentially to avoid browser limits
+      // Import PDF-lib for combining pages
+      const { PDFDocument } = await import('pdf-lib');
+
+      // Create a new PDF document
+      const combinedPdf = await PDFDocument.create();
+
+      // Add each page to the combined PDF
       for (const page of pendingPages) {
-        await new Promise((resolve) => {
-          downloadPage(page.index);
-          downloadCount++;
-          setTimeout(resolve, 300); // Small delay between downloads
-        });
+        if (page.data) {
+          try {
+            // Load the individual page PDF
+            const pagePdf = await PDFDocument.load(page.data);
+            const [copiedPage] = await combinedPdf.copyPages(pagePdf, [0]);
+            combinedPdf.addPage(copiedPage);
+          } catch (error) {
+            console.error(`Error adding page ${page.index + 1}:`, error);
+          }
+        }
       }
 
-      if (downloadCount > 0) {
-        toast({
-          title: "Downloads Complete",
-          description: `Downloaded all ${downloadCount} remaining pages`,
-          duration: 3000,
-        });
-      }
+      // Generate the combined PDF
+      const combinedPdfBytes = await combinedPdf.save();
+
+      // Create blob and download
+      const blob = new Blob([combinedPdfBytes], { type: "application/pdf" });
+      const url = URL.createObjectURL(blob);
+
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `${file?.name?.replace(".pdf", "") || "document"}-all-pages.pdf`;
+      link.style.display = "none";
+
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      // Cleanup
+      setTimeout(() => {
+        URL.revokeObjectURL(url);
+      }, 100);
+
+      // Mark all pages as downloaded
+      const newDownloadedPages = new Set(downloadedPages);
+      pendingPages.forEach(page => newDownloadedPages.add(page.index));
+      setDownloadedPages(newDownloadedPages);
+
+      toast({
+        title: "Download Complete",
+        description: `Combined ${pendingPages.length} pages into single PDF`,
+        duration: 3000,
+      });
+    } catch (error) {
+      console.error("❌ Combined download failed:", error);
+      toast({
+        title: "Download Failed",
+        description: "Could not combine pages into single PDF",
+        variant: "destructive",
+        duration: 3000,
+      });
     } finally {
       setIsDownloading(false);
     }
   };
+
+  const downloadAll = downloadAllAsSinglePDF;
 
   const togglePageSelection = (pageIndex: number) => {
     setPages((prev) =>
@@ -677,87 +760,107 @@ const Split: React.FC = () => {
           <div className="absolute bottom-0 left-1/3 w-72 h-72 bg-cyan-400/10 rounded-full blur-3xl"></div>
         </div>
 
-        <div className="relative text-center py-8 sm:py-12 md:py-16 lg:py-24">
+        <div className="relative py-6 sm:py-8 md:py-12 lg:py-16">
           <div className="max-w-4xl mx-auto px-4 sm:px-6 md:px-8">
-            {/* Back to Home Button */}
-            <div className="mb-6">
-              <Link to="/">
+            {/* Enhanced Back to Home Button */}
+            <div className="flex justify-start mb-6 md:mb-8">
+              <Link to="/" className="group">
                 <Button
                   variant="outline"
                   size="sm"
-                  className="inline-flex items-center"
+                  className="inline-flex items-center gap-2 bg-white/80 backdrop-blur-sm hover:bg-white border-gray-200/50 hover:border-blue-300 transition-all duration-200 shadow-sm hover:shadow-md"
                   onClick={(e) => {
                     e.stopPropagation();
                   }}
                   type="button"
                 >
-                  <ArrowLeft className="w-4 h-4 mr-2" />
-                  Back to Home
+                  <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform duration-200" />
+                  <span className="font-medium">Back to Home</span>
                 </Button>
               </Link>
             </div>
 
-            {/* Icon */}
-            <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl mb-8 shadow-lg shadow-blue-500/25">
-              <Scissors className="w-10 h-10 text-white" />
+            {/* Enhanced Header for Mobile */}
+            <div className="text-center">{/* Icon */}
+            <div className="inline-flex items-center justify-center w-16 h-16 md:w-20 md:h-20 bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl mb-6 md:mb-8 shadow-lg shadow-blue-500/25">
+              <Scissors className="w-8 h-8 md:w-10 md:h-10 text-white" />
             </div>
 
-            <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold bg-gradient-to-r from-gray-900 via-blue-900 to-purple-900 bg-clip-text text-transparent mb-6">
+            <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold bg-gradient-to-r from-gray-900 via-blue-900 to-purple-900 bg-clip-text text-transparent mb-4 md:mb-6">
               Split PDF Files
             </h1>
-            <p className="text-xl md:text-2xl text-gray-600 max-w-3xl mx-auto mb-8 leading-relaxed">
+            <p className="text-lg sm:text-xl md:text-2xl text-gray-600 max-w-3xl mx-auto mb-6 md:mb-8 leading-relaxed px-2">
               Transform your PDF documents with precision. Extract individual
               pages or custom ranges with professional-grade tools.
             </p>
 
-            {/* Feature Pills */}
-            <div className="flex flex-wrap justify-center gap-3 mb-8">
-              <div className="inline-flex items-center px-4 py-2 bg-white/80 backdrop-blur-sm rounded-full text-sm font-medium text-gray-700 border border-gray-200/50 shadow-sm">
-                <CheckCircle className="w-4 h-4 mr-2 text-green-500" />
+            {/* Enhanced Feature Pills for Mobile */}
+            <div className="flex flex-wrap justify-center gap-2 md:gap-3 mb-6 md:mb-8 px-2">
+              <div className="inline-flex items-center px-3 py-2 md:px-4 md:py-2 bg-white/80 backdrop-blur-sm rounded-full text-xs md:text-sm font-medium text-gray-700 border border-gray-200/50 shadow-sm">
+                <CheckCircle className="w-3 h-3 md:w-4 md:h-4 mr-1 md:mr-2 text-green-500" />
                 Instant Processing
               </div>
-              <div className="inline-flex items-center px-4 py-2 bg-white/80 backdrop-blur-sm rounded-full text-sm font-medium text-gray-700 border border-gray-200/50 shadow-sm">
-                <CheckCircle className="w-4 h-4 mr-2 text-green-500" />
+              <div className="inline-flex items-center px-3 py-2 md:px-4 md:py-2 bg-white/80 backdrop-blur-sm rounded-full text-xs md:text-sm font-medium text-gray-700 border border-gray-200/50 shadow-sm">
+                <CheckCircle className="w-3 h-3 md:w-4 md:h-4 mr-1 md:mr-2 text-green-500" />
                 No Registration
               </div>
-              <div className="inline-flex items-center px-4 py-2 bg-white/80 backdrop-blur-sm rounded-full text-sm font-medium text-gray-700 border border-gray-200/50 shadow-sm">
-                <CheckCircle className="w-4 h-4 mr-2 text-green-500" />
+              <div className="inline-flex items-center px-3 py-2 md:px-4 md:py-2 bg-white/80 backdrop-blur-sm rounded-full text-xs md:text-sm font-medium text-gray-700 border border-gray-200/50 shadow-sm">
+                <CheckCircle className="w-3 h-3 md:w-4 md:h-4 mr-1 md:mr-2 text-green-500" />
                 100% Secure
               </div>
+            </div>
             </div>
           </div>
         </div>
       </div>
 
       <div className="max-w-6xl mx-auto px-4 md:px-6 py-6 md:py-8">
-        {/* File Upload Section */}
+        {/* Enhanced File Upload Section */}
         {!file && (
-          <Card className="mb-6 md:mb-8">
-            <CardContent className="p-6 md:p-12">
+          <Card className="mb-6 md:mb-8 shadow-lg hover:shadow-xl transition-shadow duration-300">
+            <CardContent className="p-4 sm:p-6 md:p-12">
               <div
                 {...getRootProps()}
                 className={cn(
-                  "border-2 border-dashed rounded-lg p-8 md:p-12 text-center cursor-pointer transition-colors",
+                  "border-2 border-dashed rounded-xl p-6 sm:p-8 md:p-12 text-center cursor-pointer transition-all duration-300",
                   isDragActive
-                    ? "border-primary bg-primary/5"
-                    : "border-gray-300 hover:border-primary",
+                    ? "border-blue-500 bg-blue-50 scale-[1.02]"
+                    : "border-gray-300 hover:border-blue-400 hover:bg-blue-50/30",
                 )}
               >
                 <input {...getInputProps()} />
-                <div className="space-y-4">
-                  <div className="mx-auto w-12 h-12 md:w-16 md:h-16 bg-primary rounded-full flex items-center justify-center">
-                    <Upload className="w-6 h-6 md:w-8 md:h-8 text-white" />
+                <div className="space-y-4 md:space-y-6">
+                  <div className="mx-auto w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 bg-gradient-to-r from-blue-600 to-purple-600 rounded-full flex items-center justify-center shadow-lg">
+                    <Upload className="w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 text-white" />
                   </div>
                   <div>
+                    <h3 className="text-lg sm:text-xl md:text-2xl font-semibold text-gray-900 mb-3 md:mb-4">
+                      Upload Your PDF File
+                    </h3>
                     <Button
                       size="lg"
-                      className="bg-primary hover:bg-primary/90 text-white px-6 md:px-12 py-3 md:py-6 text-base md:text-xl"
+                      className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-6 sm:px-8 md:px-12 py-3 md:py-4 text-sm sm:text-base md:text-lg font-medium rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-0.5"
                     >
-                      Select PDF file
+                      <Upload className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
+                      Choose PDF File
                     </Button>
-                    <p className="text-text-dark mt-4 text-sm md:text-base">
-                      or drop PDF here
+                    <p className="text-gray-500 mt-3 md:mt-4 text-sm md:text-base">
+                      or drag and drop your PDF here
                     </p>
+                    <div className="mt-4 md:mt-6 flex flex-wrap justify-center gap-3 md:gap-4 text-xs md:text-sm text-gray-400">
+                      <span className="flex items-center gap-1">
+                        <CheckCircle className="w-3 h-3 md:w-4 md:h-4 text-green-500" />
+                        Secure & Private
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <CheckCircle className="w-3 h-3 md:w-4 md:h-4 text-green-500" />
+                        No Registration
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <CheckCircle className="w-3 h-3 md:w-4 md:h-4 text-green-500" />
+                        Free to Use
+                      </span>
+                    </div>
                   </div>
                 </div>
               </div>
