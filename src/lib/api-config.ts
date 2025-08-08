@@ -4,10 +4,23 @@
  */
 
 export const getApiUrl = (path: string = ''): string => {
-  // Use centralized API configuration for consistency
-  const apiUrl = import.meta.env.VITE_API_URL || "/api";
+  // Smart environment detection for API URL
+  const isDevelopment = import.meta.env.DEV || import.meta.env.MODE === 'development';
+  const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
 
-  // If it's a full URL (development), use it directly
+  // Use relative path for production deployment (Netlify proxy)
+  // Use full URL only for local development
+  let apiUrl: string;
+
+  if (isDevelopment && isLocalhost) {
+    // Local development - use full backend URL
+    apiUrl = import.meta.env.VITE_API_URL || 'https://pdf-backend-935131444417.asia-south1.run.app/api';
+  } else {
+    // Production deployment - use relative path for Netlify proxy
+    apiUrl = '/api';
+  }
+
+  // If it's a full URL, use it directly
   if (apiUrl.startsWith('http')) {
     return `${apiUrl}${path.startsWith('/') ? path : `/${path}`}`;
   }
@@ -17,28 +30,37 @@ export const getApiUrl = (path: string = ''): string => {
 };
 
 export const getApiBaseUrl = (): string => {
-  // Use centralized API configuration for consistency
-  const apiUrl = import.meta.env.VITE_API_URL || "/api";
+  // Smart environment detection for API base URL
+  const isDevelopment = import.meta.env.DEV || import.meta.env.MODE === 'development';
+  const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
 
-  // If it's a full URL (development), return it
-  if (apiUrl.startsWith('http')) {
-    return apiUrl;
+  // Use relative path for production deployment (Netlify proxy)
+  // Use full URL only for local development
+  if (isDevelopment && isLocalhost) {
+    // Local development - use full backend URL
+    return import.meta.env.VITE_API_URL || 'https://pdf-backend-935131444417.asia-south1.run.app/api';
+  } else {
+    // Production deployment - use relative path for Netlify proxy
+    return '/api';
   }
-
-  // Otherwise, it's a relative path (production proxy)
-  return apiUrl;
 };
 
 export const getFullApiUrl = (endpoint: string): string => {
   const baseUrl = getApiBaseUrl();
   const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+  const isDevelopment = import.meta.env.DEV || import.meta.env.MODE === 'development';
+  const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
 
   console.log('🔍 [API-CONFIG] Building URL:', {
     baseUrl,
     endpoint,
     cleanEndpoint,
     finalUrl: `${baseUrl}${cleanEndpoint}`,
-    envApiUrl: import.meta.env.VITE_API_URL
+    envApiUrl: import.meta.env.VITE_API_URL,
+    isDevelopment,
+    isLocalhost,
+    hostname: window.location.hostname,
+    mode: import.meta.env.MODE
   });
 
   return `${baseUrl}${cleanEndpoint}`;
