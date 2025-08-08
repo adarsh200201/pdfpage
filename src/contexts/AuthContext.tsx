@@ -20,6 +20,7 @@ export interface AuthContextType {
   logout: () => Promise<void>;
   register: (email: string, password: string, name: string) => Promise<void>;
   updateProfile: (data: Partial<User>) => Promise<void>;
+  refreshAuth: () => Promise<void>;
 }
 
 // Create context
@@ -47,13 +48,32 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const checkAuthState = async () => {
     try {
       setIsLoading(true);
-      
+
+      console.log('🔍 [AUTH-CONTEXT] Checking authentication state...');
+
+      // First check for stored user data (for immediate UI update)
+      const storedUser = localStorage.getItem('user');
+      if (storedUser) {
+        try {
+          const userData = JSON.parse(storedUser);
+          console.log('👤 [AUTH-CONTEXT] Found stored user data:', userData);
+          setUser(userData);
+        } catch (error) {
+          console.error('❌ [AUTH-CONTEXT] Error parsing stored user data:', error);
+          localStorage.removeItem('user');
+        }
+      }
+
       // Check for stored auth token
       const token = localStorage.getItem('auth_token');
       if (!token) {
+        console.log('⚠️ [AUTH-CONTEXT] No auth token found');
+        setUser(null);
         setIsLoading(false);
         return;
       }
+
+      console.log('🔑 [AUTH-CONTEXT] Token found, verifying with backend...');
 
       // Verify token with backend
       const response = await fetch('/api/auth/me', {
@@ -64,16 +84,31 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
       if (response.ok) {
         const userData = await response.json();
-        setUser(userData.user);
+        console.log('✅ [AUTH-CONTEXT] Token verified, user data:', userData);
+
+        if (userData.user) {
+          setUser(userData.user);
+          // Update stored user data
+          localStorage.setItem('user', JSON.stringify(userData.user));
+        }
       } else {
+        console.log('❌ [AUTH-CONTEXT] Token verification failed, clearing auth data');
         // Token is invalid, remove it
         localStorage.removeItem('auth_token');
+        localStorage.removeItem('user');
+        setUser(null);
       }
     } catch (error) {
-      console.error('Auth check failed:', error);
-      localStorage.removeItem('auth_token');
+      console.error('❌ [AUTH-CONTEXT] Auth check failed:', error);
+      // Don't clear auth data on network errors, just log the error
+      if (error.name !== 'TypeError' && error.message !== 'Failed to fetch') {
+        localStorage.removeItem('auth_token');
+        localStorage.removeItem('user');
+        setUser(null);
+      }
     } finally {
       setIsLoading(false);
+      console.log('🏁 [AUTH-CONTEXT] Auth check complete');
     }
   };
 
@@ -206,6 +241,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
+  // Refresh auth state (useful after login)
+  const refreshAuth = async () => {
+    await checkAuthState();
+  };
+
   // Context value
   const value: AuthContextType = {
     user,
@@ -216,6 +256,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     logout,
     register,
     updateProfile,
+    refreshAuth,
   };
 
   return (

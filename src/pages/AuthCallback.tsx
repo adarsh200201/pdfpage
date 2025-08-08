@@ -1,80 +1,110 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
 import Cookies from "js-cookie";
 import authService from "@/services/authService";
+import toast from "@/lib/toast-utils";
 
 const AuthCallback: React.FC = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const { toast } = useToast();
-  const { updateUser } = useAuth();
+  const { toast: radixToast } = useToast();
+  const auth = useAuth();
+  const [isProcessing, setIsProcessing] = useState(false);
 
   useEffect(() => {
     const handleCallback = async () => {
-      const token = searchParams.get("token");
-      const error = searchParams.get("error");
+      // Prevent multiple executions
+      if (isProcessing) return;
+      setIsProcessing(true);
 
-      if (error) {
-        toast({
-          title: "Authentication Failed",
-          description:
-            "There was an error signing in with Google. Please try again.",
-          variant: "destructive",
-        });
-        navigate("/");
-        return;
-      }
+      try {
+        const token = searchParams.get("token");
+        const error = searchParams.get("error");
 
-      if (token) {
-        try {
-          // Set the token in cookies for 1 year (persistent login)
-          Cookies.set("token", token, { expires: 365 });
+        console.log('🔍 [AUTH-CALLBACK] Processing callback:', { token: !!token, error });
 
-          // Fetch user data with the token
-          const user = await authService.handleAuthCallback(token);
-
-          // Ensure user data is valid before updating
-          if (user && user.id) {
-            // Store user data in localStorage for extra persistence
-            localStorage.setItem("pdfpage_user", JSON.stringify(user));
-            updateUser(user);
-
-            toast({
-              title: "Welcome!",
-              description: "You have been successfully signed in with Google.",
-            });
-
-            // Small delay to ensure state updates before navigation
-            setTimeout(() => {
-              const redirectUrl = authService.getAuthRedirectUrl();
-              navigate(redirectUrl);
-            }, 500);
-          } else {
-            throw new Error("Invalid user data received");
-          }
-        } catch (error) {
-          console.error("Auth callback error:", error);
-          // Clear invalid token and user data
-          Cookies.remove("token");
-          localStorage.removeItem("pdfpage_user");
-          toast({
-            title: "Authentication Error",
-            description: "There was an error completing the sign-in process.",
-            variant: "destructive",
+        if (error) {
+          console.error('❌ [AUTH-CALLBACK] OAuth error:', error);
+          toast.error({
+            title: "Authentication Failed",
+            description: "There was an error signing in with Google. Please try again.",
           });
+          navigate("/");
+          return;
+        }
+
+        if (token) {
+          try {
+            console.log('🔑 [AUTH-CALLBACK] Processing token...');
+
+            // Set the token in cookies for 1 year (persistent login)
+            Cookies.set("auth_token", token, { expires: 365, secure: true, sameSite: 'strict' });
+            localStorage.setItem("auth_token", token);
+
+            // Fetch user data with the token
+            const user = await authService.handleAuthCallback(token);
+            console.log('👤 [AUTH-CALLBACK] User data received:', user);
+
+            // Ensure user data is valid before updating
+            if (user && user.id) {
+              // Store user data in localStorage for extra persistence
+              localStorage.setItem("user", JSON.stringify(user));
+
+              // Refresh the auth context to pick up the new user data
+              await auth.refreshAuth();
+
+              toast.success({
+                title: "Welcome!",
+                description: `Successfully signed in as ${user.name || user.email}`,
+              });
+
+              console.log('✅ [AUTH-CALLBACK] Authentication successful, redirecting...');
+
+              // Small delay to ensure state updates before navigation
+              setTimeout(() => {
+                const redirectUrl = authService.getAuthRedirectUrl();
+                navigate(redirectUrl);
+              }, 500); // Reduced delay since we're now explicitly refreshing auth
+            } else {
+              throw new Error("Invalid user data received");
+            }
+        } catch (error) {
+          console.error("❌ [AUTH-CALLBACK] Auth callback error:", error);
+
+          // Clear invalid token and user data
+          Cookies.remove("auth_token");
+          localStorage.removeItem("auth_token");
+          localStorage.removeItem("user");
+
+          toast.error({
+            title: "Authentication Error",
+            description: "There was an error completing the sign-in process. Please try again.",
+          });
+
           navigate("/");
         }
       } else {
+        console.log('⚠️ [AUTH-CALLBACK] No token or error found, redirecting to home');
         // No token or error, redirect to home
         navigate("/");
       }
+      } catch (globalError) {
+        console.error("❌ [AUTH-CALLBACK] Global error:", globalError);
+        toast.error("Authentication failed. Please try again.");
+        navigate("/");
+      } finally {
+        setIsProcessing(false);
+      }
     };
 
-    handleCallback();
-  }, [searchParams, navigate, toast, updateUser]);
+    // Only run once when component mounts
+    if (!isProcessing) {
+      handleCallback();
+    }
+  }, [searchParams, navigate, isProcessing]);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
