@@ -1,0 +1,26 @@
+{
+  "name": "pdfpage-seo-automation",
+  "version": "1.0.0",
+  "description": "Gemini AI powered SEO automation for PdfPage.in",
+  "type": "module",
+  "main": "runSEOAutomation.js",
+  "scripts": {
+    "seo": "node runSEOAutomation.js",
+    "seo-analyze": "node geminiSEOAssistant.js",
+    "install-deps": "npm install @google/generative-ai simple-git",
+    "setup": "npm run install-deps && echo 'SEO Automation setup complete!'"
+  },
+  "dependencies": {
+    "@google/generative-ai": "^0.2.1",
+    "simple-git": "^3.28.0"
+  },
+  "keywords": [
+    "seo",
+    "automation",
+    "gemini",
+    "ai",
+    "pdf-tools"
+  ],
+  "author": "PdfPage.in",
+  "license": "MIT"
+}

@@ -606,7 +606,7 @@ const Index = () => {
 
             {/* Enhanced Main Headline */}
             <div className="relative mb-5">
-              <h1 className="text-5xl sm:text-6xl lg:text-7xl font-extrabold text-gray-900 leading-tight tracking-tight">
+              <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-extrabold text-gray-900 leading-tight tracking-tight">
                 The Ultimate{" "}
                 <span className="relative inline-block">
                   <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-red via-red-600 to-red-700 animate-gradient-x">
@@ -633,7 +633,7 @@ const Index = () => {
             </div>
 
             {/* Enhanced Subtitle */}
-            <p className="text-xl sm:text-2xl text-gray-600 mb-6 max-w-4xl mx-auto leading-relaxed">
+            <p className="text-lg sm:text-xl lg:text-2xl text-gray-600 mb-6 max-w-4xl mx-auto leading-relaxed px-4">
               Convert, merge, split, compress, and edit PDFs instantly.{" "}
               <span className="font-bold text-gray-900">
                 No downloads. No registration. 100% free.
@@ -645,10 +645,10 @@ const Index = () => {
             </div>
 
             {/* Enhanced CTA Buttons */}
-            <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-4">
+            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center items-center mb-4 px-4">
               <Button
                 size="lg"
-                className="group relative bg-gradient-to-r from-brand-red via-red-600 to-red-700 hover:from-red-600 hover:via-red-700 hover:to-red-800 text-white px-10 py-4 text-lg font-bold rounded-xl shadow-xl hover:shadow-2xl transform hover:scale-105 transition-all duration-300 overflow-hidden"
+                className="group relative bg-gradient-to-r from-brand-red via-red-600 to-red-700 hover:from-red-600 hover:via-red-700 hover:to-red-800 text-white px-6 sm:px-10 py-3 sm:py-4 text-base sm:text-lg font-bold rounded-xl shadow-xl hover:shadow-2xl transform hover:scale-105 transition-all duration-300 overflow-hidden w-full sm:w-auto"
                 onClick={scrollToTools}
               >
                 {/* Shimmer effect */}
@@ -662,7 +662,7 @@ const Index = () => {
               <Button
                 variant="outline"
                 size="lg"
-                className="group border-2 border-gray-300 hover:border-brand-red hover:bg-gradient-to-r hover:from-brand-red/5 hover:to-red-50 px-10 py-4 text-lg font-semibold rounded-xl transition-all duration-300 hover:shadow-lg"
+                className="group border-2 border-gray-300 hover:border-brand-red hover:bg-gradient-to-r hover:from-brand-red/5 hover:to-red-50 px-6 sm:px-10 py-3 sm:py-4 text-base sm:text-lg font-semibold rounded-xl transition-all duration-300 hover:shadow-lg w-full sm:w-auto"
                 asChild
               >
                 <Link to="/about">
@@ -757,7 +757,7 @@ const Index = () => {
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
             {pdfTools.map((tool, index) => {
               const IconComponent = tool.icon;
 
@@ -784,7 +784,7 @@ const Index = () => {
                   onClick={handleToolClick}
                 >
                   <Card className="h-full border-0 shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2 bg-white/80 backdrop-blur-sm">
-                    <CardContent className="p-6">
+                    <CardContent className="p-4 sm:p-6">
                       {/* Badges */}
                       <div className="absolute -top-2 -right-2 flex flex-col gap-1">
                         {tool.available && (
@@ -804,10 +804,10 @@ const Index = () => {
                       </div>
 
                       {/* Content */}
-                      <h3 className="text-lg font-bold text-gray-900 mb-3 group-hover:text-brand-red transition-colors duration-200">
+                      <h3 className="text-base sm:text-lg font-bold text-gray-900 mb-2 sm:mb-3 group-hover:text-brand-red transition-colors duration-200">
                         {tool.title}
                       </h3>
-                      <p className="text-gray-600 text-sm leading-relaxed">
+                      <p className="text-gray-600 text-xs sm:text-sm leading-relaxed">
                         {tool.description}
                       </p>
 
@@ -823,24 +823,24 @@ const Index = () => {
       </section>
 
       {/* Favicon Tools Promotion Section */}
-      <section className="py-12 bg-gradient-to-br from-purple-50 to-pink-100">
+      <section className="py-8 sm:py-12 bg-gradient-to-br from-purple-50 to-pink-100">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-12">
-            <Badge className="mb-6 bg-purple-600/10 text-purple-600 border-purple-600/20 text-sm px-4 py-2">
+          <div className="text-center mb-8 sm:mb-12">
+            <Badge className="mb-4 sm:mb-6 bg-purple-600/10 text-purple-600 border-purple-600/20 text-xs sm:text-sm px-3 sm:px-4 py-1 sm:py-2">
               🌟 NEW: Professional Favicon Generator
             </Badge>
-            <h2 className="text-4xl lg:text-5xl font-bold text-gray-900 mb-6">
+            <h2 className="text-2xl sm:text-3xl lg:text-4xl xl:text-5xl font-bold text-gray-900 mb-4 sm:mb-6 px-4">
               Create Perfect Favicons
             </h2>
-            <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+            <p className="text-base sm:text-lg lg:text-xl text-gray-600 max-w-3xl mx-auto px-4">
               Generate professional favicon files from images, text, emojis, or
               logos. Get all sizes for web, iOS, and Android with one click.
             </p>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-            <div className="relative">
-              <div className="bg-white p-8 rounded-2xl shadow-xl">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 items-center">
+            <div className="relative order-2 lg:order-1">
+              <div className="bg-white p-6 sm:p-8 rounded-2xl shadow-xl">
                 <div className="flex items-center justify-center mb-6">
                   <div className="bg-gradient-to-r from-purple-600 to-blue-600 p-4 rounded-2xl">
                     <Globe className="w-12 h-12 text-white" />
@@ -869,8 +869,8 @@ const Index = () => {
               </div>
             </div>
 
-            <div>
-              <div className="grid grid-cols-2 gap-4 mb-8">
+            <div className="order-1 lg:order-2">
+              <div className="grid grid-cols-2 gap-3 sm:gap-4 mb-6 sm:mb-8">
                 {[
                   { icon: "🖼️", title: "From Image", desc: "Upload any image" },
                   {
@@ -883,13 +883,13 @@ const Index = () => {
                 ].map((tool, index) => (
                   <div
                     key={index}
-                    className="bg-white p-4 rounded-xl shadow-sm text-center"
+                    className="bg-white p-3 sm:p-4 rounded-xl shadow-sm text-center"
                   >
-                    <div className="text-2xl mb-2">{tool.icon}</div>
-                    <h3 className="font-semibold text-gray-900">
+                    <div className="text-xl sm:text-2xl mb-2">{tool.icon}</div>
+                    <h3 className="text-sm sm:text-base font-semibold text-gray-900">
                       {tool.title}
                     </h3>
-                    <p className="text-sm text-gray-600">{tool.desc}</p>
+                    <p className="text-xs sm:text-sm text-gray-600">{tool.desc}</p>
                   </div>
                 ))}
               </div>

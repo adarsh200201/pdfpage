@@ -126,9 +126,9 @@ const Footer = () => {
 
         <div className="relative z-10">
           {/* Main Footer Content */}
-          <div className="py-8">
+          <div className="py-6 sm:py-8">
             <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-8">
                 {/* Brand & About Column */}
                 <div>
                   <Link

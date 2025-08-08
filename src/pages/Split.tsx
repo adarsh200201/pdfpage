@@ -677,8 +677,8 @@ const Split: React.FC = () => {
           <div className="absolute bottom-0 left-1/3 w-72 h-72 bg-cyan-400/10 rounded-full blur-3xl"></div>
         </div>
 
-        <div className="relative text-center py-16 md:py-24">
-          <div className="max-w-4xl mx-auto px-6 md:px-8">
+        <div className="relative text-center py-8 sm:py-12 md:py-16 lg:py-24">
+          <div className="max-w-4xl mx-auto px-4 sm:px-6 md:px-8">
             {/* Back to Home Button */}
             <div className="mb-6">
               <Link to="/">

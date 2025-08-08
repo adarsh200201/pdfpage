@@ -2,8 +2,8 @@
 
 ## Current OAuth Client Configuration
 
-**Client ID:** `935131444417-s5i4mpl0droaqh5pu49jm52j8dqrv2km.apps.googleusercontent.com`
-**Client Secret:** `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`
+**Client ID:** `YOUR_GOOGLE_OAUTH_CLIENT_ID`
+**Client Secret:** `YOUR_GOOGLE_OAUTH_CLIENT_SECRET`
 
 ## Required Redirect URIs in Google Cloud Console
 
@@ -76,8 +76,8 @@ The frontend uses proxy URLs via Netlify:
 
 Ensure these are set correctly:
 ```bash
-GOOGLE_CLIENT_ID=935131444417-s5i4mpl0droaqh5pu49jm52j8dqrv2km.apps.googleusercontent.com
-GOOGLE_CLIENT_SECRET=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
+GOOGLE_CLIENT_ID=YOUR_GOOGLE_OAUTH_CLIENT_ID
+GOOGLE_CLIENT_SECRET=YOUR_GOOGLE_OAUTH_CLIENT_SECRET
 GOOGLE_CALLBACK_URL=https://pdf-backend-935131444417.asia-south1.run.app/api/auth/google/callback
 FRONTEND_URL=https://pdfpage.in
 ```

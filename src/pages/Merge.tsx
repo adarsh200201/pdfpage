@@ -407,7 +407,7 @@ const Merge = () => {
     <div className="min-h-screen bg-bg-light">
       <Header />
 
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-4xl mx-auto px-3 sm:px-4 lg:px-8 py-4 sm:py-8">
         <PromoBanner className="mb-8" />
 
         {/* Navigation */}
@@ -422,14 +422,14 @@ const Merge = () => {
         </div>
 
         {/* Header */}
-        <div className="text-center mb-8">
-          <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
-            <Combine className="w-8 h-8 text-white" />
+        <div className="text-center mb-6 sm:mb-8">
+          <div className="w-12 h-12 sm:w-16 sm:h-16 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-3 sm:mb-4">
+            <Combine className="w-6 h-6 sm:w-8 sm:h-8 text-white" />
           </div>
-          <h1 className="text-heading-medium text-text-dark mb-4">
+          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-text-dark mb-3 sm:mb-4 px-4">
             Merge PDF & Images
           </h1>
-          <p className="text-body-large text-text-light max-w-2xl mx-auto">
+          <p className="text-sm sm:text-base lg:text-lg text-text-light max-w-2xl mx-auto px-4">
             Combine PDFs and images in any order you want. Add files anywhere in
             the sequence with visual previews.
           </p>

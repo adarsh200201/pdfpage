@@ -328,52 +328,52 @@ const AllPdfTools = () => {
       <Header />
 
       {/* Hero Section */}
-      <section className="pt-8 pb-12 bg-gradient-to-br from-blue-50 via-white to-purple-50/30">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <section className="pt-6 sm:pt-8 pb-8 sm:pb-12 bg-gradient-to-br from-blue-50 via-white to-purple-50/30">
+        <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-8">
           <div className="text-center">
-            <Badge className="mb-6 bg-blue-600/10 text-blue-600 border-blue-600/20 text-sm px-4 py-2">
+            <Badge className="mb-4 sm:mb-6 bg-blue-600/10 text-blue-600 border-blue-600/20 text-xs sm:text-sm px-3 sm:px-4 py-1 sm:py-2">
               🛠️ Complete PDF Toolkit
             </Badge>
-            
-            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-gray-900 leading-tight tracking-tight mb-6">
+
+            <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl xl:text-6xl font-extrabold text-gray-900 leading-tight tracking-tight mb-4 sm:mb-6 px-4">
               All PDF Tools in One Place
             </h1>
-            
-            <p className="text-xl sm:text-2xl text-gray-600 mb-8 max-w-4xl mx-auto leading-relaxed">
-              25+ professional PDF tools for every need. Convert, edit, merge, split, compress and more. 
+
+            <p className="text-base sm:text-lg lg:text-xl xl:text-2xl text-gray-600 mb-6 sm:mb-8 max-w-4xl mx-auto leading-relaxed px-4">
+              25+ professional PDF tools for every need. Convert, edit, merge, split, compress and more.
               <span className="font-bold text-gray-900"> All tools are completely free.</span>
             </p>
 
             {/* Search Bar */}
-            <div className="max-w-2xl mx-auto mb-8">
+            <div className="max-w-2xl mx-auto mb-6 sm:mb-8 px-4">
               <div className="relative">
-                <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4 sm:w-5 sm:h-5" />
                 <Input
                   type="text"
                   placeholder="Search tools... (e.g., 'pdf to word', 'merge', 'compress')"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-12 pr-4 py-4 text-lg rounded-xl border-2 border-gray-200 focus:border-blue-500 transition-colors duration-200"
+                  className="pl-10 sm:pl-12 pr-4 py-3 sm:py-4 text-base sm:text-lg rounded-xl border-2 border-gray-200 focus:border-blue-500 transition-colors duration-200"
                 />
               </div>
               {searchTerm && (
-                <p className="text-sm text-gray-500 mt-2">
+                <p className="text-xs sm:text-sm text-gray-500 mt-2">
                   Found {filteredTools.length} tools matching "{searchTerm}"
                 </p>
               )}
             </div>
 
             {/* Stats */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 max-w-4xl mx-auto">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 max-w-4xl mx-auto px-4">
               {stats.map((stat, index) => (
                 <div key={index} className="text-center">
-                  <div className="mx-auto w-12 h-12 bg-gradient-to-br from-blue-500/10 to-blue-600/20 rounded-full flex items-center justify-center mb-2">
-                    <stat.icon className="h-6 w-6 text-blue-600" />
+                  <div className="mx-auto w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-blue-500/10 to-blue-600/20 rounded-full flex items-center justify-center mb-2">
+                    <stat.icon className="h-5 w-5 sm:h-6 sm:w-6 text-blue-600" />
                   </div>
-                  <div className="text-2xl lg:text-3xl font-extrabold text-gray-900 mb-1">
+                  <div className="text-lg sm:text-xl lg:text-2xl xl:text-3xl font-extrabold text-gray-900 mb-1">
                     {stat.number}
                   </div>
-                  <div className="text-sm text-gray-600 font-semibold">
+                  <div className="text-xs sm:text-sm text-gray-600 font-semibold">
                     {stat.label}
                   </div>
                 </div>
@@ -384,9 +384,9 @@ const AllPdfTools = () => {
       </section>
 
       {/* Category Filter */}
-      <section className="py-8 bg-white border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex flex-wrap justify-center gap-2">
+      <section className="py-4 sm:py-6 lg:py-8 bg-white border-b">
+        <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-8">
+          <div className="flex flex-wrap justify-center gap-2 sm:gap-3">
             {categories.map((category) => (
               <Button
                 key={category.name}
@@ -406,16 +406,16 @@ const AllPdfTools = () => {
       </section>
 
       {/* Tools Grid */}
-      <section className="py-16 bg-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <section className="py-8 sm:py-12 lg:py-16 bg-white">
+        <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-8">
           {filteredTools.length === 0 ? (
-            <div className="text-center py-12">
-              <FileText className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-              <h3 className="text-xl font-semibold text-gray-600 mb-2">No tools found</h3>
-              <p className="text-gray-500">Try adjusting your search or category filter</p>
+            <div className="text-center py-8 sm:py-12">
+              <FileText className="w-12 h-12 sm:w-16 sm:h-16 text-gray-300 mx-auto mb-3 sm:mb-4" />
+              <h3 className="text-lg sm:text-xl font-semibold text-gray-600 mb-2">No tools found</h3>
+              <p className="text-sm sm:text-base text-gray-500">Try adjusting your search or category filter</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
               {filteredTools.map((tool, index) => {
                 const IconComponent = tool.icon;
 
@@ -426,7 +426,7 @@ const AllPdfTools = () => {
                     className="group relative"
                   >
                     <Card className="h-full border-0 shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2 bg-white/80 backdrop-blur-sm">
-                      <CardContent className="p-6">
+                      <CardContent className="p-4 sm:p-6">
                         {/* Badges */}
                         <div className="absolute -top-2 -right-2 flex flex-col gap-1">
                           {tool.popular && (
@@ -447,15 +447,15 @@ const AllPdfTools = () => {
                         </Badge>
 
                         {/* Icon */}
-                        <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-200 shadow-lg">
-                          <IconComponent className="w-7 h-7 text-white" />
+                        <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center mb-3 sm:mb-4 group-hover:scale-110 transition-transform duration-200 shadow-lg">
+                          <IconComponent className="w-6 h-6 sm:w-7 sm:h-7 text-white" />
                         </div>
 
                         {/* Content */}
-                        <h3 className="text-lg font-bold text-gray-900 mb-3 group-hover:text-blue-600 transition-colors duration-200">
+                        <h3 className="text-base sm:text-lg font-bold text-gray-900 mb-2 sm:mb-3 group-hover:text-blue-600 transition-colors duration-200">
                           {tool.title}
                         </h3>
-                        <p className="text-gray-600 text-sm leading-relaxed mb-4">
+                        <p className="text-gray-600 text-xs sm:text-sm leading-relaxed mb-3 sm:mb-4">
                           {tool.description}
                         </p>
 
@@ -477,21 +477,21 @@ const AllPdfTools = () => {
       </section>
 
       {/* CTA Section */}
-      <section className="py-16 bg-gradient-to-r from-blue-600 to-blue-800 text-white">
+      <section className="py-8 sm:py-12 lg:py-16 bg-gradient-to-r from-blue-600 to-blue-800 text-white">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h2 className="text-4xl lg:text-5xl font-bold mb-6">
+          <h2 className="text-2xl sm:text-3xl lg:text-4xl xl:text-5xl font-bold mb-4 sm:mb-6">
             Start Using PDF Tools Now
           </h2>
-          <p className="text-xl mb-8">
-            Join millions of users who trust PDFPage for their document processing needs. 
+          <p className="text-base sm:text-lg lg:text-xl mb-6 sm:mb-8">
+            Join millions of users who trust PDFPage for their document processing needs.
             Professional tools, always free.
           </p>
-          
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+
+          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center px-4">
             <Button
               size="lg"
               variant="secondary"
-              className="bg-white text-blue-600 hover:bg-gray-100 font-bold px-8 py-4"
+              className="bg-white text-blue-600 hover:bg-gray-100 font-bold px-6 sm:px-8 py-3 sm:py-4 w-full sm:w-auto"
               asChild
             >
               <Link to="/pdf-to-word">

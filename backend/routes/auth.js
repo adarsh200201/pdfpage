@@ -825,13 +825,13 @@ router.get(
 
       if (err) {
         console.error("🔴 [GOOGLE-CALLBACK] Passport error:", err);
-        const frontendURL = process.env.FRONTEND_URL || "http://localhost:3000";
+        const frontendURL = process.env.FRONTEND_URL || "https://pdfpage.in";
         return res.redirect(`${frontendURL}/auth/callback?error=authentication_failed&details=${encodeURIComponent(err.message)}`);
       }
 
       if (!user) {
         console.error("🔴 [GOOGLE-CALLBACK] No user returned from passport");
-        const frontendURL = process.env.FRONTEND_URL || "http://localhost:3000";
+        const frontendURL = process.env.FRONTEND_URL || "https://pdfpage.in";
         return res.redirect(`${frontendURL}/auth/callback?error=no_user&info=${encodeURIComponent(info || 'Unknown error')}`);
       }
 
@@ -852,11 +852,11 @@ router.get(
       const token = generateToken(req.user._id);
 
       // Redirect to frontend with token
-      const frontendURL = process.env.FRONTEND_URL || "http://localhost:3000";
+      const frontendURL = process.env.FRONTEND_URL || "https://pdfpage.in";
       res.redirect(`${frontendURL}/auth/callback?token=${token}`);
     } catch (error) {
       console.error("🔴 [GOOGLE-CALLBACK] Error:", error);
-      const frontendURL = process.env.FRONTEND_URL || "http://localhost:3000";
+      const frontendURL = process.env.FRONTEND_URL || "https://pdfpage.in";
       res.redirect(`${frontendURL}/auth/callback?error=token_generation_failed&details=${encodeURIComponent(error.message)}`);
     }
   },

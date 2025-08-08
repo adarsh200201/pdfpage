@@ -1,0 +1,68 @@
+{
+  "timestamp": "2025-08-07T13:48:51.355Z",
+  "totalFiles": 5,
+  "averageScore": 60,
+  "totalImprovements": 5,
+  "files": [
+    {
+      "file": "../src/pages/Compress.tsx",
+      "seoScore": 60,
+      "improvements": [
+        {
+          "type": "error",
+          "issue": "Failed to parse Gemini response",
+          "suggestion": "```json\n{\n  \"seoScore\": 75,\n  \"improvements\": [\n    {\n      \"type\": \"meta\",\n      \"issue\": \"Missing meta tags\",\n      \"suggestion\": \"Add `<meta name=\\\"description\\\" content=\\\"Compress your PDFs online...",
+          "code": ""
+        }
+      ]
+    },
+    {
+      "file": "../src/pages/Convert.tsx",
+      "seoScore": 60,
+      "improvements": [
+        {
+          "type": "error",
+          "issue": "Failed to parse Gemini response",
+          "suggestion": "```json\n{\n  \"seoScore\": 60,\n  \"improvements\": [\n    {\n      \"type\": \"meta\",\n      \"issue\": \"Missing meta tags (title, description, keywords)\",\n      \"suggestion\": \"Add `<meta>` tags within the compone...",
+          "code": ""
+        }
+      ]
+    },
+    {
+      "file": "../src/pages/Split.tsx",
+      "seoScore": 60,
+      "improvements": [
+        {
+          "type": "error",
+          "issue": "Failed to parse Gemini response",
+          "suggestion": "```json\n{\n  \"seoScore\": 75,\n  \"improvements\": [\n    {\n      \"type\": \"meta\",\n      \"issue\": \"Missing meta tags\",\n      \"suggestion\": \"Add `<meta name=\\\"description\\\" content=\\\"Split PDF files online fo...",
+          "code": ""
+        }
+      ]
+    },
+    {
+      "file": "../src/App.tsx",
+      "seoScore": 60,
+      "improvements": [
+        {
+          "type": "error",
+          "issue": "Failed to parse Gemini response",
+          "suggestion": "```json\n{\n  \"seoScore\": 70,\n  \"improvements\": [\n    {\n      \"type\": \"meta\",\n      \"issue\": \"Missing page-specific meta tags\",\n      \"suggestion\": \"Implement `react-helmet-async` to dynamically add tit...",
+          "code": ""
+        }
+      ]
+    },
+    {
+      "file": "../index.html",
+      "seoScore": 60,
+      "improvements": [
+        {
+          "type": "error",
+          "issue": "Failed to parse Gemini response",
+          "suggestion": "```json\n{\n  \"seoScore\": 92,\n  \"improvements\": [\n    {\n      \"type\": \"meta\",\n      \"issue\": \"Keywords meta tag is deprecated and largely ignored by search engines.\",\n      \"suggestion\": \"Remove the `ke...",
+          "code": ""
+        }
+      ]
+    }
+  ]
+}

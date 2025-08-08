@@ -12,9 +12,7 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
         clientID: process.env.GOOGLE_CLIENT_ID,
         clientSecret: process.env.GOOGLE_CLIENT_SECRET,
         callbackURL: process.env.GOOGLE_CALLBACK_URL ||
-          (process.env.NODE_ENV === "production"
-            ? "https://pdf-backend-935131444417.asia-south1.run.app/api/auth/google/callback"
-            : "http://localhost:5000/api/auth/google/callback"),
+          "https://pdf-backend-935131444417.asia-south1.run.app/api/auth/google/callback",
       },
       async (accessToken, refreshToken, profile, done) => {
         try {

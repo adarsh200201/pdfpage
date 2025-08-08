@@ -257,7 +257,7 @@ const Header = () => {
         }`}
       >
         <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-8">
-          <div className="flex justify-between items-center h-16 sm:h-20">
+          <div className="flex justify-between items-center h-14 sm:h-16 lg:h-20">
             {/* Enhanced Logo with Modern Design */}
             <div className="flex items-center">
               <Link to="/" className="transition-all duration-300 hover:scale-105">
@@ -613,7 +613,7 @@ const Header = () => {
 
         {/* Enhanced Mobile Menu */}
         {mobileMenuOpen && (
-          <div className="lg:hidden fixed top-16 sm:top-20 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-white/20 shadow-2xl z-50 max-h-[calc(100vh-4rem)] sm:max-h-[calc(100vh-5rem)] overflow-y-auto">
+          <div className="lg:hidden fixed top-14 sm:top-16 lg:top-20 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-white/20 shadow-2xl z-50 max-h-[calc(100vh-3.5rem)] sm:max-h-[calc(100vh-4rem)] lg:max-h-[calc(100vh-5rem)] overflow-y-auto">
             <div className="px-4 pt-4 pb-6 space-y-3">
               {/* Mobile Brand Header */}
               <div className="flex items-center space-x-3 px-4 py-3 bg-gradient-to-r from-primary/5 to-blue-600/5 rounded-xl border border-primary/10 mb-4">
@@ -746,7 +746,7 @@ const Header = () => {
       </header>
       
       {/* Spacer to prevent content from hiding under fixed header */}
-      <div className="h-16 sm:h-20"></div>
+      <div className="h-14 sm:h-16 lg:h-20"></div>
     </>
   );
 };

@@ -13,6 +13,7 @@ import CoreWebVitals from "@/components/CoreWebVitals";
 import SecurityHeaders from "@/components/SecurityHeaders";
 import CriticalRenderingOptimizer from "@/components/CriticalRenderingOptimizer";
 import SearchConsoleVerification from "@/components/SearchConsoleVerification";
+import "./styles/mobile-responsive.css";
 
 import AccessibilityEnhancer from "@/components/AccessibilityEnhancer";
 import LocalBusinessSchema from "@/components/LocalBusinessSchema";
@@ -154,6 +155,8 @@ import DocToOdt from "./pages/DocToOdt";
 
 // Import the comprehensive PDF editor
 import SignPdf from "./pages/SignPdf";
+import DocumentSigning from "./pages/DocumentSigning";
+import ToastDemo from "./pages/ToastDemo";
 import AdvancedPDFEditor from "./pages/AdvancedPDFEditor";
 
 import NotFound from "./pages/NotFound";
@@ -385,6 +388,8 @@ const App = () => {
                         element={<EnhancedEditPdf />}
                       />
                       <Route path="/sign-pdf" element={<SignPdf />} />
+          <Route path="/document-signing" element={<DocumentSigning />} />
+          <Route path="/toast-demo" element={<ToastDemo />} />
                       <Route
                         path="/advanced-pdf-editor"
                         element={<AdvancedPDFEditor />}

@@ -9,6 +9,7 @@ import { Progress } from "@/components/ui/progress";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
+import toast from "@/lib/toast-utils";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   Upload,
@@ -178,11 +179,7 @@ export default function Compress() {
 
         if (validationError) {
           setError(validationError);
-          toast({
-            title: "Upload Error",
-            description: validationError,
-            variant: "destructive",
-          });
+          toast.error("Upload Error", validationError);
           return;
         }
 
@@ -297,17 +294,14 @@ export default function Compress() {
       setResult(compressionResult);
 
       // Success toast
-      toast({
+      toast.success({
         title: "🎉 Compression Complete!",
         description: `Reduced file size by ${compressionResult.compressionRatio}% (${formatFileSize(compressionResult.sizeSaved)} saved)`,
       });
     } catch (error: any) {
       if (error.name === "AbortError") {
         setProcessingStage("Compression cancelled");
-        toast({
-          title: "Compression Cancelled",
-          description: "The compression process was cancelled",
-        });
+        toast.warning("Compression Cancelled", "The compression process was cancelled");
       } else {
         const errorMessage = error.message || "Failed to compress PDF";
         setError(errorMessage);
@@ -406,7 +400,7 @@ export default function Compress() {
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
       <Header />
 
-      <div className="container mx-auto px-4 py-8 max-w-4xl">
+      <div className="container mx-auto px-3 sm:px-4 py-4 sm:py-8 max-w-4xl">
         {/* Back to Home */}
         <div className="mb-6">
           <Button variant="outline" asChild>
@@ -418,20 +412,20 @@ export default function Compress() {
         </div>
 
         {/* Header */}
-        <div className="text-center mb-8">
-          <div className="flex items-center justify-center gap-3 mb-4">
-            <div className="p-3 bg-gradient-to-r from-red-500 to-orange-500 rounded-full text-white">
-              <Minimize2 className="w-8 h-8" />
+        <div className="text-center mb-6 sm:mb-8">
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-3 mb-4">
+            <div className="p-2 sm:p-3 bg-gradient-to-r from-red-500 to-orange-500 rounded-full text-white">
+              <Minimize2 className="w-6 h-6 sm:w-8 sm:h-8" />
             </div>
-            <h1 className="text-4xl font-bold text-gray-900">
+            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900 text-center">
               PDF Compressor Pro
             </h1>
-            <Badge className="bg-gradient-to-r from-purple-500 to-blue-500 text-white">
-              <Zap className="w-4 h-4 mr-1" />
+            <Badge className="bg-gradient-to-r from-purple-500 to-blue-500 text-white text-xs sm:text-sm">
+              <Zap className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
               Enterprise Grade
             </Badge>
           </div>
-          <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+          <p className="text-base sm:text-lg lg:text-xl text-gray-600 max-w-3xl mx-auto px-4">
             <strong className="text-red-600">Ghostscript-powered</strong>{" "}
             compression achieving up to 85% size reduction. Enterprise-grade
             technology for professional PDF optimization up to 100MB.
@@ -440,11 +434,11 @@ export default function Compress() {
 
         {/* Main Content */}
         {!uploadedFile && !result && (
-          <Card className="mb-8 border-dashed border-2 border-gray-300 hover:border-gray-400 transition-colors">
-            <CardContent className="p-8">
+          <Card className="mb-6 sm:mb-8 border-dashed border-2 border-gray-300 hover:border-gray-400 transition-colors">
+            <CardContent className="p-4 sm:p-6 lg:p-8">
               <div
                 {...getRootProps()}
-                className={`text-center cursor-pointer rounded-lg p-8 transition-all ${
+                className={`text-center cursor-pointer rounded-lg p-4 sm:p-6 lg:p-8 transition-all ${
                   isDragActive
                     ? "bg-blue-50 border-blue-300 border-2 border-dashed"
                     : "hover:bg-gray-50"
@@ -464,13 +458,13 @@ export default function Compress() {
                     <p className="text-gray-600 mb-4">
                       Drag & drop your PDF file or click to browse
                     </p>
-                    <div className="flex flex-wrap justify-center gap-4 text-sm text-gray-500">
+                    <div className="flex flex-col sm:flex-row flex-wrap justify-center gap-2 sm:gap-4 text-xs sm:text-sm text-gray-500">
                       <span>�� Max file size: 100MB</span>
                       <span>• PDF files only</span>
                       <span>• Secure processing</span>
                     </div>
                   </div>
-                  <Button className="mt-4">
+                  <Button className="mt-3 sm:mt-4 w-full sm:w-auto">
                     <Upload className="w-4 h-4 mr-2" />
                     Choose PDF File
                   </Button>
