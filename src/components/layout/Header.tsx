@@ -259,10 +259,15 @@ const Header = () => {
       >
         <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-8">
           <div className="flex justify-between items-center h-14 sm:h-16 lg:h-20">
-            {/* Enhanced Logo with Modern Design */}
+            {/* Enhanced Logo with Mobile-Responsive Design */}
             <div className="flex items-center">
               <Link to="/" className="transition-all duration-300 hover:scale-105">
-                <PdfPageLogo size="lg" showHover={true} useImage={true} />
+                <PdfPageLogo
+                  size="md"
+                  showHover={true}
+                  useImage={true}
+                  className="sm:scale-110 lg:scale-125"
+                />
               </Link>
             </div>
 

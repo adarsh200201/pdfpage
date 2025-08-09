@@ -85,9 +85,9 @@ const ModernAuthBanner: React.FC<ModernAuthBannerProps> = ({
   // If user is authenticated, show their real data
   if (isAuthenticated && user) {
     return (
-      <div className={`fixed top-4 right-4 z-50 ${className}`}>
-        <div 
-          className={`bg-white border border-gray-200/50 text-gray-900 rounded-2xl shadow-2xl w-[420px] max-w-md relative backdrop-blur-sm transition-all duration-300 ${
+      <div className={`fixed top-4 left-4 right-4 sm:top-4 sm:left-auto sm:right-4 sm:w-auto z-50 ${className}`}>
+        <div
+          className={`bg-white border border-gray-200/50 text-gray-900 rounded-2xl shadow-2xl w-full sm:w-[420px] max-w-md mx-auto sm:mx-0 relative backdrop-blur-sm transition-all duration-300 ${
             isAnimating ? 'opacity-0 scale-95 translate-y-2' : 'opacity-100 scale-100 translate-y-0'
           }`}
           style={{
@@ -165,9 +165,9 @@ const ModernAuthBanner: React.FC<ModernAuthBannerProps> = ({
   }
 
   return (
-    <div className={`fixed top-4 right-4 z-50 ${className}`}>
-      <div 
-        className={`bg-white border border-gray-200/50 text-gray-900 rounded-2xl shadow-2xl w-[420px] max-w-md relative backdrop-blur-sm transition-all duration-300 ${
+    <div className={`fixed top-4 left-4 right-4 sm:top-4 sm:left-auto sm:right-4 sm:w-auto z-50 ${className}`}>
+      <div
+        className={`bg-white border border-gray-200/50 text-gray-900 rounded-2xl shadow-2xl w-full sm:w-[420px] max-w-md mx-auto sm:mx-0 relative backdrop-blur-sm transition-all duration-300 ${
           isAnimating ? 'opacity-0 scale-95 translate-y-2' : 'opacity-100 scale-100 translate-y-0'
         }`}
         style={{
@@ -184,19 +184,20 @@ const ModernAuthBanner: React.FC<ModernAuthBannerProps> = ({
           />
         </div>
 
-        {/* Close Button */}
+        {/* Enhanced Close Button - Mobile Friendly */}
         <button
           onClick={handleClose}
-          className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-all duration-200 hover:scale-110 z-10 bg-gray-100/80 hover:bg-gray-200/80 rounded-full p-1.5"
+          className="absolute top-3 right-3 text-gray-400 hover:text-gray-600 transition-all duration-200 hover:scale-110 z-10 bg-gray-100/80 hover:bg-gray-200/80 rounded-full p-2 sm:p-1.5 touch-target"
+          aria-label="Close popup"
         >
-          <X className="w-4 h-4" />
+          <X className="w-5 h-5 sm:w-4 sm:h-4" />
         </button>
 
-        {/* Content */}
-        <div className="px-6 py-5 pt-6">
-          {/* Header with Google Logo */}
-          <div className="flex items-center gap-3 mb-5">
-            <svg className="w-6 h-6" viewBox="0 0 24 24">
+        {/* Enhanced Content - Mobile Responsive */}
+        <div className="px-4 sm:px-6 py-4 sm:py-5 pt-5 sm:pt-6">
+          {/* Header with Google Logo - Mobile Optimized */}
+          <div className="flex items-center gap-2 sm:gap-3 mb-4 sm:mb-5">
+            <svg className="w-5 h-5 sm:w-6 sm:h-6" viewBox="0 0 24 24">
               <path
                 fill="#4285F4"
                 d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
@@ -214,36 +215,36 @@ const ModernAuthBanner: React.FC<ModernAuthBannerProps> = ({
                 d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
               />
             </svg>
-            <span className="text-sm font-medium text-gray-700">
+            <span className="text-xs sm:text-sm font-medium text-gray-700">
               Sign in to PdfPage with Google
             </span>
           </div>
 
-          {/* User Profile Section */}
-          <div className="mb-5 text-center">
-            <div className="w-16 h-16 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center mx-auto mb-3 shadow-lg border-4 border-white">
-              <span className="text-white font-bold text-xl">
+          {/* Enhanced User Profile Section - Mobile Responsive */}
+          <div className="mb-4 sm:mb-5 text-center">
+            <div className="w-12 h-12 sm:w-16 sm:h-16 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center mx-auto mb-2 sm:mb-3 shadow-lg border-2 sm:border-4 border-white">
+              <span className="text-white font-bold text-base sm:text-xl">
                 {displayUser.avatar}
               </span>
             </div>
-            <h3 className="font-semibold text-gray-900 text-lg mb-2">
+            <h3 className="font-semibold text-gray-900 text-base sm:text-lg mb-1 sm:mb-2">
               {displayUser.name}
             </h3>
-            <p className="text-gray-600 text-sm">{displayUser.email}</p>
+            <p className="text-gray-600 text-xs sm:text-sm">{displayUser.email}</p>
           </div>
 
-          {/* Continue Button */}
+          {/* Enhanced Continue Button - Mobile Optimized */}
           <Button
             onClick={handleGoogleSignIn}
-            className="w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-medium py-3 rounded-lg mb-4 transition-all duration-200 shadow-lg hover:shadow-xl hover:scale-[1.02]"
+            className="w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-medium py-3 sm:py-4 text-sm sm:text-base rounded-lg mb-3 sm:mb-4 transition-all duration-200 shadow-lg hover:shadow-xl hover:scale-[1.02] touch-target"
           >
             {user
               ? `🔘 Continue as ${user.name.split(" ")[0]}`
               : "Continue with Google"}
           </Button>
 
-          {/* Privacy Text */}
-          <div className="text-xs text-gray-500 leading-relaxed bg-gray-50 p-3 rounded-lg">
+          {/* Enhanced Privacy Text - Mobile Responsive */}
+          <div className="text-xs sm:text-xs text-gray-500 leading-relaxed bg-gray-50 p-2 sm:p-3 rounded-lg">
             To continue, Google will share your name, email address, and
             profile picture with this site. See our{" "}
             <a href="/privacy" className="text-blue-500 hover:underline font-medium">

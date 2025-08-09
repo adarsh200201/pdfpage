@@ -105,70 +105,71 @@ const NewIndex = () => {
       <AdvancedSEO {...getSEOData("/")} />
       <Header />
 
-      {/* Hero Section - Modern Design */}
-      <section className="relative min-h-screen flex items-center justify-center overflow-hidden bg-gradient-to-br from-slate-50 via-white to-blue-50/50">
-        {/* Animated Background Elements */}
+      {/* Optimized Hero Section - Reduced Mobile Height */}
+      <section className="relative pt-16 sm:pt-20 md:pt-24 lg:pt-20 pb-12 sm:pb-16 md:pb-20 lg:pb-24 overflow-hidden bg-gradient-to-br from-slate-50 via-white to-blue-50/50">
+        {/* Optimized Background Elements - Smaller on Mobile */}
         <div className="absolute inset-0">
-          <div className="absolute top-20 left-10 w-72 h-72 bg-gradient-to-r from-blue-400/10 to-purple-400/10 rounded-full blur-3xl animate-pulse"></div>
-          <div className="absolute bottom-20 right-10 w-96 h-96 bg-gradient-to-r from-pink-400/10 to-red-400/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '2s' }}></div>
-          <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-80 h-80 bg-gradient-to-r from-green-400/5 to-blue-400/5 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '4s' }}></div>
+          <div className="absolute top-8 sm:top-16 left-4 sm:left-8 w-32 h-32 sm:w-48 sm:h-48 md:w-64 md:h-64 bg-gradient-to-r from-blue-400/10 to-purple-400/10 rounded-full blur-3xl animate-pulse"></div>
+          <div className="absolute bottom-8 sm:bottom-16 right-4 sm:right-8 w-40 h-40 sm:w-64 sm:h-64 md:w-80 md:h-80 bg-gradient-to-r from-pink-400/10 to-red-400/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '2s' }}></div>
+          <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-36 h-36 sm:w-56 sm:h-56 md:w-72 md:h-72 bg-gradient-to-r from-green-400/5 to-blue-400/5 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '4s' }}></div>
         </div>
 
         <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8 md:gap-12 items-center min-h-[calc(100vh-12rem)] sm:min-h-[calc(100vh-10rem)] lg:min-h-[calc(100vh-8rem)]">
             
-            {/* Left Content */}
-            <div className={`transition-all duration-1000 ${isVisible ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-10'}`}>
-              {/* Trust Badge */}
-              <div className="inline-flex items-center gap-2 bg-green-50 border border-green-200 rounded-full px-4 py-2 mb-6">
-                <Star className="w-4 h-4 text-yellow-500 fill-current" />
-                <span className="text-sm font-semibold text-green-800">Trusted by 2M+ users worldwide</span>
-                <Star className="w-4 h-4 text-yellow-500 fill-current" />
+            {/* Enhanced Left Content - Mobile Optimized */}
+            <div className={`text-center lg:text-left transition-all duration-1000 ${isVisible ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-10'}`}>
+              {/* Trust Badge - Mobile Responsive */}
+              <div className="inline-flex items-center gap-1 sm:gap-2 bg-green-50 border border-green-200 rounded-full px-3 sm:px-4 py-1.5 sm:py-2 mb-4 sm:mb-6">
+                <Star className="w-3 h-3 sm:w-4 sm:h-4 text-yellow-500 fill-current" />
+                <span className="text-xs sm:text-sm font-semibold text-green-800">Trusted by 2M+ users worldwide</span>
+                <Star className="w-3 h-3 sm:w-4 sm:h-4 text-yellow-500 fill-current" />
               </div>
 
-              {/* Main Headline */}
-              <h1 className="text-4xl sm:text-5xl lg:text-6xl xl:text-7xl font-black text-gray-900 leading-tight mb-6">
-                The Ultimate
-                <br />
-                <span className="relative">
+              {/* Optimized Main Headline - Smaller Mobile Fonts */}
+              <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl xl:text-6xl font-black text-gray-900 leading-tight mb-3 sm:mb-4 md:mb-6 px-2 sm:px-0">
+                <span className="block sm:inline">The Ultimate</span>
+                <br className="hidden sm:block" />
+                <span className="block sm:inline"> </span>
+                <span className="relative inline-block">
                   <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 animate-gradient-x">
                     PDF Toolkit
                   </span>
-                  <div className="absolute -bottom-2 left-0 right-0 h-1 bg-gradient-to-r from-blue-600/60 via-purple-600/60 to-pink-600/60 rounded-full"></div>
+                  <div className="absolute -bottom-1 sm:-bottom-2 left-0 right-0 h-0.5 sm:h-1 bg-gradient-to-r from-blue-600/60 via-purple-600/60 to-pink-600/60 rounded-full"></div>
                 </span>
               </h1>
 
-              {/* Subtitle */}
-              <p className="text-xl lg:text-2xl text-gray-600 mb-8 leading-relaxed">
-                Convert, merge, split, compress, and edit PDFs 
+              {/* Optimized Subtitle - Smaller Mobile Text */}
+              <p className="text-base sm:text-lg md:text-xl lg:text-2xl text-gray-600 mb-4 sm:mb-6 md:mb-8 leading-relaxed px-2 sm:px-0">
+                Convert, merge, split, compress, and edit PDFs
                 <span className="font-bold text-gray-900"> instantly</span>.
-                <br />
-                <span className="text-lg text-green-600 font-semibold">
+                <br className="hidden sm:block" />
+                <span className="block sm:inline mt-1 sm:mt-0 text-sm sm:text-base md:text-lg text-green-600 font-semibold">
                   ✓ No downloads ✓ No registration ✓ 100% free
                 </span>
               </p>
 
-              {/* CTA Buttons */}
-              <div className="flex flex-col sm:flex-row gap-4 mb-8">
+              {/* Optimized CTA Buttons - Reduced Mobile Spacing */}
+              <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 md:gap-4 mb-4 sm:mb-6 md:mb-8 px-2 sm:px-0">
                 <Button
                   size="lg"
-                  className="group relative bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 hover:from-blue-700 hover:via-purple-700 hover:to-pink-700 text-white px-8 py-4 text-lg font-bold rounded-2xl shadow-2xl hover:shadow-3xl transform hover:scale-105 transition-all duration-300 overflow-hidden"
+                  className="group relative bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 hover:from-blue-700 hover:via-purple-700 hover:to-pink-700 text-white px-6 sm:px-8 py-3 sm:py-4 text-base sm:text-lg font-bold rounded-xl sm:rounded-2xl shadow-2xl hover:shadow-3xl transform hover:scale-105 transition-all duration-300 overflow-hidden touch-target"
                   onClick={() => document.getElementById('tools')?.scrollIntoView({ behavior: 'smooth' })}
                 >
                   <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent skew-x-12 -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
-                  <Upload className="mr-3 h-6 w-6 group-hover:scale-110 transition-transform duration-300 relative z-10" />
+                  <Upload className="mr-2 sm:mr-3 h-5 w-5 sm:h-6 sm:w-6 group-hover:scale-110 transition-transform duration-300 relative z-10" />
                   <span className="relative z-10">Start Processing Now</span>
-                  <Rocket className="ml-3 h-6 w-6 group-hover:translate-x-1 group-hover:scale-110 transition-all duration-300 relative z-10" />
+                  <Rocket className="ml-2 sm:ml-3 h-5 w-5 sm:h-6 sm:w-6 group-hover:translate-x-1 group-hover:scale-110 transition-all duration-300 relative z-10" />
                 </Button>
 
                 <Button
                   variant="outline"
                   size="lg"
-                  className="group border-2 border-gray-300 hover:border-blue-500 hover:bg-blue-50 px-8 py-4 text-lg font-semibold rounded-2xl transition-all duration-300 hover:shadow-lg"
+                  className="group border-2 border-gray-300 hover:border-blue-500 hover:bg-blue-50 px-6 sm:px-8 py-3 sm:py-4 text-base sm:text-lg font-semibold rounded-xl sm:rounded-2xl transition-all duration-300 hover:shadow-lg touch-target"
                   asChild
                 >
                   <Link to="/about">
-                    <Play className="mr-3 h-6 w-6 group-hover:scale-110 group-hover:text-blue-600 transition-all duration-300" />
+                    <Play className="mr-2 sm:mr-3 h-5 w-5 sm:h-6 sm:w-6 group-hover:scale-110 group-hover:text-blue-600 transition-all duration-300" />
                     <span className="group-hover:text-blue-600 transition-colors duration-300">
                       Watch Demo
                     </span>
@@ -176,19 +177,19 @@ const NewIndex = () => {
                 </Button>
               </div>
 
-              {/* Feature Highlights */}
-              <div className="grid grid-cols-3 gap-4">
-                <div className="flex items-center gap-2 p-3 rounded-xl bg-white/60 backdrop-blur-sm border border-gray-200 hover:shadow-md transition-all duration-300">
-                  <Shield className="w-6 h-6 text-green-500" />
-                  <span className="text-sm font-semibold text-gray-700">100% Secure</span>
+              {/* Enhanced Feature Highlights - Mobile Responsive */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 px-2 sm:px-0">
+                <div className="flex items-center gap-2 sm:gap-3 p-3 sm:p-4 rounded-xl bg-white/60 backdrop-blur-sm border border-gray-200 hover:shadow-md transition-all duration-300">
+                  <Shield className="w-5 h-5 sm:w-6 sm:h-6 text-green-500 flex-shrink-0" />
+                  <span className="text-sm sm:text-base font-semibold text-gray-700">100% Secure</span>
                 </div>
-                <div className="flex items-center gap-2 p-3 rounded-xl bg-white/60 backdrop-blur-sm border border-gray-200 hover:shadow-md transition-all duration-300">
-                  <Zap className="w-6 h-6 text-blue-500" />
-                  <span className="text-sm font-semibold text-gray-700">Lightning Fast</span>
+                <div className="flex items-center gap-2 sm:gap-3 p-3 sm:p-4 rounded-xl bg-white/60 backdrop-blur-sm border border-gray-200 hover:shadow-md transition-all duration-300">
+                  <Zap className="w-5 h-5 sm:w-6 sm:h-6 text-blue-500 flex-shrink-0" />
+                  <span className="text-sm sm:text-base font-semibold text-gray-700">Lightning Fast</span>
                 </div>
-                <div className="flex items-center gap-2 p-3 rounded-xl bg-white/60 backdrop-blur-sm border border-gray-200 hover:shadow-md transition-all duration-300">
-                  <Cloud className="w-6 h-6 text-purple-500" />
-                  <span className="text-sm font-semibold text-gray-700">Cloud Based</span>
+                <div className="flex items-center gap-2 sm:gap-3 p-3 sm:p-4 rounded-xl bg-white/60 backdrop-blur-sm border border-gray-200 hover:shadow-md transition-all duration-300">
+                  <Cloud className="w-5 h-5 sm:w-6 sm:h-6 text-purple-500 flex-shrink-0" />
+                  <span className="text-sm sm:text-base font-semibold text-gray-700">Cloud Based</span>
                 </div>
               </div>
             </div>

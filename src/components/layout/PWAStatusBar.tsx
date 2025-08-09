@@ -37,13 +37,15 @@ const PWAStatusBar: React.FC<PWAStatusBarProps> = ({
   const [updateAvailable, setUpdateAvailable] = useState(false);
   const [dismissedInstall, setDismissedInstall] = useState(false);
 
-  // Check if install prompt should be shown
+  // Check if install prompt should be shown - Enhanced for mobile
   useEffect(() => {
-    if (canInstall && showInstallPrompt && !dismissedInstall && isMobile) {
-      setShowInstallBanner(true);
-    } else {
-      setShowInstallBanner(false);
-    }
+    // Show on mobile devices when installable, or on desktop if explicitly enabled
+    const shouldShow = canInstall && showInstallPrompt && !dismissedInstall &&
+                      (isMobile || (!isMobile && showInstallPrompt));
+
+    console.log('PWA Install Check:', { canInstall, showInstallPrompt, dismissedInstall, isMobile, shouldShow });
+
+    setShowInstallBanner(shouldShow);
   }, [canInstall, showInstallPrompt, dismissedInstall, isMobile]);
 
   // Listen for service worker updates
@@ -133,37 +135,39 @@ const PWAStatusBar: React.FC<PWAStatusBarProps> = ({
         </div>
       )}
 
-      {/* Install App Banner */}
+      {/* Enhanced Install App Banner - Mobile Optimized */}
       {showInstallBanner && (
-        <div className="fixed bottom-0 left-0 right-0 z-50 bg-gradient-to-r from-blue-600 to-purple-600 text-white p-4 shadow-lg animate-slide-up">
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-3 flex-1">
-              <div className="p-2 bg-white bg-opacity-20 rounded-lg">
-                <Smartphone className="w-5 h-5" />
+        <div className="fixed bottom-0 left-0 right-0 z-50 bg-gradient-to-r from-blue-600 to-purple-600 text-white p-3 sm:p-4 shadow-lg animate-slide-up">
+          <div className="flex items-center justify-between gap-2 sm:gap-3">
+            <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
+              <div className="p-1.5 sm:p-2 bg-white bg-opacity-20 rounded-lg flex-shrink-0">
+                <Smartphone className="w-4 h-4 sm:w-5 sm:h-5" />
               </div>
               <div className="flex-1 min-w-0">
-                <div className="font-semibold text-sm">Install PdfPage App</div>
+                <div className="font-semibold text-xs sm:text-sm">Install PdfPage App</div>
                 <div className="text-xs opacity-90 truncate">
                   Get faster access and offline features
                 </div>
               </div>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
               <Button
                 size="sm"
                 variant="secondary"
                 onClick={handleDismissInstall}
-                className="px-3 py-1 text-xs"
+                className="px-2 sm:px-3 py-1 text-xs touch-target bg-white/20 hover:bg-white/30 text-white border-white/30"
+                aria-label="Dismiss install prompt"
               >
                 <X className="w-3 h-3" />
               </Button>
               <Button
                 size="sm"
                 onClick={handleInstall}
-                className="bg-white text-blue-600 hover:bg-gray-100 px-3 py-1 text-xs font-semibold"
+                className="bg-white text-blue-600 hover:bg-gray-100 px-2 sm:px-3 py-1 text-xs font-semibold touch-target"
               >
                 <Download className="w-3 h-3 mr-1" />
-                Install
+                <span className="hidden xs:inline">Install</span>
+                <span className="xs:hidden">Add</span>
               </Button>
             </div>
           </div>

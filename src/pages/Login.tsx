@@ -18,6 +18,7 @@ import {
   CheckCircle,
   Shield,
   Zap,
+  FileText,
 } from "lucide-react";
 
 const Login = () => {
@@ -105,19 +106,23 @@ const Login = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 flex flex-col">
-      {/* Header */}
-      <div className="p-4 sm:p-6">
+      {/* Enhanced Header - Mobile Responsive */}
+      <div className="p-3 sm:p-4 md:p-6">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <Link to="/" className="group">
-            <PdfPageLogo size="xl" showHover={true} />
+          <Link to="/" className="group flex items-center space-x-2">
+            <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg flex items-center justify-center">
+              <FileText className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
+            </div>
+            <span className="text-lg sm:text-xl font-bold text-gray-900">PDFPage</span>
           </Link>
 
           <Link
             to="/"
-            className="flex items-center text-gray-600 hover:text-gray-900 transition-colors"
+            className="flex items-center text-gray-600 hover:text-gray-900 transition-colors touch-target"
           >
             <ArrowLeft className="w-4 h-4 mr-2" />
-            {brandSettings.backLink}
+            <span className="hidden sm:inline">{brandSettings.backLink}</span>
+            <span className="sm:hidden">Back</span>
           </Link>
         </div>
       </div>
@@ -127,15 +132,17 @@ const Login = () => {
         <div className="w-full max-w-md">
           {/* Login Card */}
           <Card className="shadow-2xl border-0 bg-white/80 backdrop-blur-sm">
-            <CardHeader className="text-center pb-6">
-              <div className="flex justify-center mb-4">
-                <PdfPageLogo size="lg" variant="icon-only" showHover={false} useImage={true} />
+            <CardHeader className="text-center pb-4 sm:pb-6">
+              <div className="flex justify-center mb-3 sm:mb-4">
+                <div className="w-12 h-12 sm:w-16 sm:h-16 bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl flex items-center justify-center shadow-lg">
+                  <FileText className="w-6 h-6 sm:w-8 sm:h-8 text-white" />
+                </div>
               </div>
-              <h1 className="text-2xl font-bold text-gray-900 mb-2">
-                Welcome back
+              <h1 className="text-xl sm:text-2xl font-bold text-gray-900 mb-2">
+                Welcome back to PDFPage
               </h1>
-              <p className="text-gray-600">
-                Sign in to your account to continue processing images
+              <p className="text-sm sm:text-base text-gray-600">
+                Sign in to your account to continue processing PDFs
               </p>
             </CardHeader>
 
