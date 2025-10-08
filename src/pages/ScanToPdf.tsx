@@ -265,15 +265,7 @@ const ScanToPdf = () => {
       return;
     }
 
-    // Check usage limits
-    const usageCheck = await PDFService.checkUsageLimit();
-    if (!usageCheck.canUpload) {
-      setUsageLimitReached(true);
-      if (!isAuthenticated) {
-        setShowAuthModal(true);
-      }
-      return;
-    }
+    // All tools are free - no usage limits
 
     setIsProcessing(true);
     setProgress(0);
@@ -286,10 +278,10 @@ const ScanToPdf = () => {
 
       // Check file size limits
       const totalSize = files.reduce((sum, file) => sum + file.size, 0);
-      const maxSize = user?.isPremium ? 100 * 1024 * 1024 : 25 * 1024 * 1024;
+      const maxSize = user?.isPremium ? 100 * 1024 * 1024 : 50 * 1024 * 1024;
       if (totalSize > maxSize) {
         throw new Error(
-          `Combined file size exceeds ${user?.isPremium ? "100MB" : "25MB"} limit`,
+          `Combined file size exceeds ${user?.isPremium ? "100MB" : "50MB"} limit`,
         );
       }
 

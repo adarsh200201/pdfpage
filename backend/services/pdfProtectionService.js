@@ -11,43 +11,108 @@ class PDFProtectionService {
     const { permissions = {} } = options;
 
     console.log("🔐 Starting PDF protection process...");
+    console.log("🔑 Password length:", password ? password.length : 0);
 
-    // Try multiple protection methods in order of preference
-    const methods = ["ghostscript", "qpdf", "forge", "metadata"];
+    // Try node-qpdf first since the library is included
+    try {
+      console.log("🔄 Trying node-qpdf encryption...");
+      const result = await this.protectWithQPDF(inputBuffer, password, permissions);
 
-    for (const method of methods) {
-      try {
-        console.log(`🔄 Trying protection method: ${method}`);
-        const result = await this.tryProtectionMethod(
-          method,
-          inputBuffer,
-          password,
-          permissions,
-        );
-
-        if (result.success) {
-          console.log(`✅ Protection successful using: ${method}`);
-          return {
-            buffer: result.buffer,
-            method: method,
-            success: true,
-          };
-        }
-      } catch (error) {
-        console.warn(`⚠️ Method ${method} failed:`, error.message);
-        continue;
+      if (result && result.success) {
+        console.log("✅ PDF protection successful with node-qpdf");
+        return {
+          buffer: result.buffer,
+          method: "qpdf",
+          success: true,
+          encrypted: true,
+        };
       }
+    } catch (qpdfError) {
+      console.warn("⚠️ node-qpdf failed:", qpdfError && qpdfError.stack ? qpdfError.stack : qpdfError);
     }
 
-    // If all methods fail, return the original with warning
-    console.warn(
-      "⚠️ All protection methods failed, returning original file with metadata",
-    );
-    return {
-      buffer: inputBuffer,
-      method: "unprotected",
-      success: false,
-    };
+    // Try command-line qpdf if available
+    try {
+      console.log("🔄 Trying command-line qpdf...");
+
+      // Quick availability check
+      try {
+        await execAsync('qpdf --version');
+      } catch (probeErr) {
+        console.warn('qpdf CLI not available on PATH:', probeErr && probeErr.message ? probeErr.message : probeErr);
+        throw new Error('qpdf-cmd-not-available');
+      }
+
+      const result = await this.protectWithQPDFCommand(inputBuffer, password, permissions);
+
+      if (result && result.success) {
+        console.log("✅ PDF protection successful with command-line qpdf");
+        return {
+          buffer: result.buffer,
+          method: "qpdf-cmd",
+          success: true,
+          encrypted: true,
+        };
+      }
+    } catch (cmdError) {
+      console.warn("⚠️ command-line qpdf failed:", cmdError && cmdError.stack ? cmdError.stack : cmdError);
+    }
+
+    // Try Ghostscript if available
+    try {
+      console.log("🔄 Trying Ghostscript encryption...");
+
+      // Quick availability check for Ghostscript
+      try {
+        if (process.platform === 'win32') {
+          await execAsync('gswin64c --version');
+        } else {
+          await execAsync('gs --version');
+        }
+      } catch (probeGsErr) {
+        console.warn('Ghostscript not available on PATH:', probeGsErr && probeGsErr.message ? probeGsErr.message : probeGsErr);
+        throw new Error('ghostscript-not-available');
+      }
+
+      const result = await this.protectWithGhostscript(inputBuffer, password, permissions);
+
+      if (result && result.success) {
+        console.log("✅ PDF protection successful with Ghostscript");
+        return {
+          buffer: result.buffer,
+          method: "ghostscript",
+          success: true,
+          encrypted: true,
+        };
+      }
+    } catch (gsError) {
+      console.warn("⚠️ Ghostscript failed:", gsError && gsError.stack ? gsError.stack : gsError);
+    }
+
+    console.error("��� All encryption methods failed!");
+
+    // Try client-side protection as last resort (non-encrypting metadata)
+    try {
+      console.log("🔄 Attempting client-side metadata protection...");
+      const result = await this.protectWithMetadata(inputBuffer, password, permissions);
+
+      if (result && result.success) {
+        console.log("✅ Basic metadata protection applied");
+        return {
+          buffer: result.buffer,
+          method: "metadata",
+          success: true,
+          encrypted: false,
+          clientSide: true
+        };
+      }
+    } catch (metadataError) {
+      console.error("❌ Even metadata protection failed:", metadataError && metadataError.stack ? metadataError.stack : metadataError);
+    }
+
+    const error = new Error("PDF encryption failed: No working encryption tools available");
+    error.code = "ENCRYPTION_FAILED";
+    throw error;
   }
 
   static async tryProtectionMethod(method, inputBuffer, password, permissions) {
@@ -85,12 +150,11 @@ class PDFProtectionService {
       // Write input file
       await fs.promises.writeFile(inputPath, inputBuffer);
 
-      // Configure qpdf options
+      // Configure qpdf options based on library source
       const options = {
-        input: inputPath,
-        output: outputPath,
         password: password,
         keyLength: 256,
+        outputFile: outputPath,
         restrictions: {
           print: permissions.printing !== false ? "full" : "none",
           modify: permissions.editing === true ? "all" : "none",
@@ -99,8 +163,11 @@ class PDFProtectionService {
         },
       };
 
-      // Apply encryption
-      await qpdf.encrypt(options);
+      console.log("🔧 Using node-qpdf for encryption...");
+      // Use promisify since the library expects a callback
+      const { promisify } = require('util');
+      const qpdfEncrypt = promisify(qpdf.encrypt);
+      await qpdfEncrypt(inputPath, options);
 
       // Read result
       const protectedBuffer = await fs.promises.readFile(outputPath);
@@ -113,12 +180,53 @@ class PDFProtectionService {
         console.warn("Cleanup warning:", cleanupError.message);
       }
 
+      console.log("✅ node-qpdf encryption successful");
       return {
         success: true,
         buffer: protectedBuffer,
       };
     } catch (error) {
-      throw new Error(`QPDF protection failed: ${error.message}`);
+      console.error("❌ node-qpdf protection failed:", error.message);
+      throw new Error(`node-qpdf protection failed: ${error.message}`);
+    }
+  }
+
+  static async protectWithQPDFCommand(inputBuffer, password, permissions) {
+    try {
+      // Create temporary files
+      const tempDir = os.tmpdir();
+      const inputPath = path.join(tempDir, `qpdf_cmd_input_${Date.now()}.pdf`);
+      const outputPath = path.join(tempDir, `qpdf_cmd_output_${Date.now()}.pdf`);
+
+      // Write input file
+      await fs.promises.writeFile(inputPath, inputBuffer);
+
+      // Escape password for command line
+      const escapedPassword = password.replace(/[\\$`"]/g, '\\$&');
+      const qpdfCmd = `qpdf --encrypt "${escapedPassword}" "${escapedPassword}" 256 -- "${inputPath}" "${outputPath}"`;
+
+      console.log("🔧 Executing command-line qpdf...");
+      await execAsync(qpdfCmd, { timeout: 30000 });
+
+      // Read result
+      const protectedBuffer = await fs.promises.readFile(outputPath);
+
+      // Cleanup
+      try {
+        await fs.promises.unlink(inputPath);
+        await fs.promises.unlink(outputPath);
+      } catch (cleanupError) {
+        console.warn("Cleanup warning:", cleanupError.message);
+      }
+
+      console.log("✅ Command-line qpdf encryption successful");
+      return {
+        success: true,
+        buffer: protectedBuffer,
+      };
+    } catch (error) {
+      console.error("❌ Command-line qpdf protection failed:", error.message);
+      throw new Error(`Command-line qpdf protection failed: ${error.message}`);
     }
   }
 
@@ -134,10 +242,7 @@ class PDFProtectionService {
 
       // Build Ghostscript command for encryption
       // Use the full Windows path since we know it exists from logs
-      const gsExecutable =
-        process.platform === "win32"
-          ? '"C:\\Program Files\\gs\\gs10.05.1\\bin\\gswin64c.exe"'
-          : "gs";
+      const gsExecutable = await PDFProtectionService.getGhostscriptPath();
 
       const gsCommand = [
         gsExecutable,
@@ -149,9 +254,12 @@ class PDFProtectionService {
         `-sOwnerPassword=${password}`,
         "-dEncryptionLevel=3", // AES 128-bit
         "-dPermissions=-4", // Restrict permissions
-        `-sOutputFile="${outputPath}"`,
-        `"${inputPath}"`,
-      ].join(" ");
+        `-sOutputFile=${outputPath}`,
+        inputPath,
+      ];
+
+      console.log("🔧 Running Ghostscript encryption command:", gsCommand.join(" "));
+      await execAsync(gsCommand.join(" "));
 
       console.log("�� Running Ghostscript encryption...");
       await execAsync(gsCommand);
@@ -376,6 +484,40 @@ class PDFProtectionService {
     } catch (error) {
       console.error("❌ QPDF unlock failed:", error.message);
       throw new Error(`QPDF unlock failed: ${error.message}`);
+    }
+  }
+  static async getGhostscriptPath() {
+    if (process.platform === "win32") {
+      try {
+        await execAsync('where gswin64c');
+        return "gswin64c";
+      } catch (err) {
+        console.warn('gswin64c not found on PATH, trying common installation paths...');
+      }
+
+      const possiblePaths = [
+        "C:\\Program Files\\gs\\gs10.01.1\\bin\\gswin64c.exe",
+        "C:\\Program Files\\gs\\gs10.00.0\\bin\\gswin64c.exe",
+        "C:\\Program Files\\gs\\gs9.56.1\\bin\\gswin64c.exe",
+        "C:\\Program Files\\gs\\gs9.55.0\\bin\\gswin64c.exe",
+        "C:\\Program Files\\gs\\gs9.54.0\\bin\\gswin64c.exe"
+      ];
+      
+      for (const p of possiblePaths) {
+        if (fs.existsSync(p)) {
+          return `"${p}"`;
+        }
+      }
+      
+      return "gswin64c";
+    } else {
+      try {
+        await execAsync('which gs');
+        return "gs";
+      } catch (err) {
+        console.warn('gs not found on PATH, assuming it might be available anyway...');
+        return "gs";
+      }
     }
   }
 }

@@ -260,7 +260,7 @@ const ModernAuthBanner: React.FC<ModernAuthBannerProps> = ({
       </div>
 
       {/* Add CSS animation for progress bar */}
-      <style jsx>{`
+      <style>{`
         @keyframes progressBar {
           from {
             width: 0%;

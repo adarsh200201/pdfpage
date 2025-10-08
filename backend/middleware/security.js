@@ -96,7 +96,7 @@ const securityMiddleware = (app) => {
 
   // Request size limiting
   app.use((req, res, next) => {
-    const maxSize = parseInt(process.env.MAX_FILE_SIZE) || 25000000; // 25MB default
+    const maxSize = parseInt(process.env.MAX_FILE_SIZE) || 50000000; // 50MB default
 
     if (
       req.headers["content-length"] &&

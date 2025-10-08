@@ -29,12 +29,12 @@ import {
 import { cn } from "@/lib/utils";
 import { PDFService } from "@/services/pdfService";
 import { useAuth } from "@/contexts/AuthContext";
+import { useActionAuth } from "@/hooks/useActionAuth";
 import { useToast } from "@/hooks/use-toast";
 import { useToolTracking } from "@/hooks/useToolTracking";
 import { useFloatingPopup } from "@/contexts/FloatingPopupContext";
 import DownloadModal from "@/components/modals/DownloadModal";
 import { useDownloadModal } from "@/hooks/useDownloadModal";
-import { useActionAuth } from "@/hooks/useActionAuth";
 
 const Merge = () => {
   const [files, setFiles] = useState<MergeFileItem[]>([]);
@@ -57,6 +57,12 @@ const Merge = () => {
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { user, isAuthenticated } = useAuth();
+
+  // Optional authentication for enhanced features
+  const actionAuth = useActionAuth({
+    action: "merge_pdf",
+    requireAuth: false, // Not required - tools work for everyone
+  });
   const { toast } = useToast();
 
   // Floating popup tracking
@@ -69,11 +75,6 @@ const Merge = () => {
     showAd: true,
   });
 
-  // Action-level authentication
-  const actionAuth = useActionAuth({
-    action: "merge_pdf",
-    requireAuth: true,
-  });
 
   // Mixpanel tracking
   const tracking = useToolTracking({
@@ -246,7 +247,7 @@ const Merge = () => {
       );
 
       toast({
-        description: "PDF rotated 90° clockwise",
+        description: "PDF rotated 90�� clockwise",
       });
     } catch (error) {
       toast({
@@ -275,7 +276,7 @@ const Merge = () => {
       return;
     }
 
-    // Execute merge with authentication check
+    // Execute merge (works for everyone)
     await actionAuth.executeWithAuth(async () => {
       await performMerge();
     });
@@ -444,7 +445,7 @@ const Merge = () => {
                 <FileUpload
                   onFilesSelect={handleFilesSelect}
                   multiple={true}
-                  maxSize={25}
+                  maxSize={50}
                   accept=".pdf,.jpg,.jpeg,.png"
                   allowedTypes={["pdf", "image"]}
                   uploadText="Drop files here or click to browse"
@@ -576,9 +577,7 @@ const Merge = () => {
                   ) : (
                     <>
                       <Combine className="w-5 h-5 mr-2" />
-                      {actionAuth.isAuthenticated
-                        ? `Merge ${files.length} Files`
-                        : `Sign in to Merge ${files.length} Files`}
+                      {`Merge ${files.length} Files`}
                     </>
                   )}
                 </Button>
@@ -589,11 +588,6 @@ const Merge = () => {
                   </p>
                 )}
 
-                {!actionAuth.isAuthenticated && files.length >= 2 && (
-                  <p className="text-sm text-gray-600 mt-2">
-                    🔒 Sign in with Google to merge your files
-                  </p>
-                )}
               </div>
             )}
 

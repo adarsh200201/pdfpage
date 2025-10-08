@@ -156,14 +156,7 @@ const RepairPdf = () => {
     if (!file || !diagnosticResults) return;
 
     // Check usage limits
-    const usageCheck = await PDFService.checkUsageLimit();
-    if (!usageCheck.canUpload) {
-      setUsageLimitReached(true);
-      if (!isAuthenticated) {
-        setShowAuthModal(true);
-      }
-      return;
-    }
+    // All tools are free - no usage limits
 
     setIsProcessing(true);
     setProgress(0);

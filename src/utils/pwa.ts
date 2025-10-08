@@ -18,9 +18,25 @@ export async function registerServiceWorker(): Promise<ServiceWorkerRegistration
     return null;
   }
 
-  // Temporarily disable service worker to fix cache issues
-  console.log("📱 Service worker registration temporarily disabled");
-  return null;
+  // Service worker registration
+  try {
+    console.log("📱 Registering service worker...");
+
+    const registration = await navigator.serviceWorker.register("/sw.js", {
+      scope: "/",
+      updateViaCache: "none", // Always check for updates
+    });
+
+    console.log(
+      "✅ Service worker registered successfully:",
+      registration.scope,
+    );
+
+    return registration;
+  } catch (error) {
+    console.error("❌ Service worker registration failed:", error);
+    return null;
+  }
 
   try {
     console.log("📱 Registering service worker...");

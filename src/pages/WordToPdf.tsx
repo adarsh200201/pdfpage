@@ -4,8 +4,6 @@ import FileUpload from "@/components/ui/file-upload";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PromoBanner } from "@/components/ui/promo-banner";
-import AuthModal from "@/components/auth/AuthModal";
-import { useAuth } from "@/contexts/AuthContext";
 import { PDFService } from "@/services/pdfService";
 import { useToast } from "@/hooks/use-toast";
 import { Progress } from "@/components/ui/progress";
@@ -14,6 +12,8 @@ import { getSEOData } from "@/data/seo-routes";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import DownloadModal from "@/components/modals/DownloadModal";
+import { useAuth } from "@/contexts/AuthContext";
+import AuthModal from "@/components/auth/AuthModal";
 import { useDownloadModal } from "@/hooks/useDownloadModal";
 import {
   ArrowLeft,
@@ -100,10 +100,11 @@ const WordToPdf = () => {
 
   const onFilesSelect = useCallback(
     (selectedFiles: File[]) => {
-      if (!isAuthenticated && files.length > 0) {
-        setShowAuthModal(true);
-        return;
-      }
+      // Tools work for everyone - auth is optional for enhanced features
+      // if (!isAuthenticated && files.length > 3) {
+      //   setShowAuthModal(true); // Suggest auth for large batch processing
+      //   return;
+      // }
 
       const newFiles = selectedFiles.map((file) => ({
         file,
@@ -438,13 +439,13 @@ const WordToPdf = () => {
       {/* Download Modal with Ad */}
       <DownloadModal {...downloadModal.modalProps} />
 
-      {/* Auth Modal */}
+      {/* Optional Auth Modal - for enhanced features */}
       {showAuthModal && (
         <AuthModal
           isOpen={showAuthModal}
           onClose={() => setShowAuthModal(false)}
-          title="Sign in to convert multiple files"
-          description="Create a free account to convert multiple Word documents at once."
+          title="Sign up for enhanced features"
+          description="Get additional benefits like batch processing, priority support, and more."
         />
       )}
     </div>

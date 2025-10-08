@@ -26,6 +26,7 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
+
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useTranslation } from "@/hooks/useTranslation";
@@ -37,6 +38,7 @@ const Header = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [showMegaMenu, setShowMegaMenu] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+
 
   const { user, isAuthenticated, logout } = useAuth();
   const { currentLanguage, setLanguage, languages } = useLanguage();
@@ -260,7 +262,7 @@ const Header = () => {
         <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-8">
           <div className="flex justify-between items-center h-14 sm:h-16 lg:h-20">
             {/* Enhanced Logo with Mobile-Responsive Design */}
-            <div className="flex items-center">
+            <div className="flex items-center min-w-0 flex-shrink-0 mr-4 lg:mr-8">
               <Link to="/" className="transition-all duration-300 hover:scale-105">
                 <PdfPageLogo
                   size="md"
@@ -271,8 +273,8 @@ const Header = () => {
               </Link>
             </div>
 
-            {/* Enhanced Desktop Navigation */}
-            <nav className="hidden lg:flex items-center space-x-1">
+            {/* Enhanced Desktop Navigation with proper spacing */}
+            <nav className="hidden lg:flex items-center space-x-3 ml-8">
               {mainNavItems.map((item) => (
                 <Link
                   key={item.href}
@@ -355,7 +357,7 @@ const Header = () => {
                 </DropdownMenuContent>
               </DropdownMenu>
 
-              {/* Enhanced User Actions */}
+              {/* Authentication UI - Optional */}
               {isAuthenticated && user ? (
                 <DropdownMenu>
                   <DropdownMenuTrigger className="hidden md:flex items-center space-x-3 px-3 py-2 hover:bg-gray-50/80 rounded-xl transition-all duration-300 group">
@@ -369,7 +371,7 @@ const Header = () => {
                     </div>
                     <div className="hidden lg:block text-left">
                       <p className="text-sm font-semibold text-gray-900">{user.name}</p>
-                      <p className="text-xs text-gray-500">Pro User</p>
+                      <p className="text-xs text-gray-500">User</p>
                     </div>
                     <ChevronDown className="w-4 h-4 text-gray-400 group-hover:text-gray-600 transition-colors duration-300" />
                   </DropdownMenuTrigger>
@@ -628,7 +630,7 @@ const Header = () => {
                 </div>
               </div>
               {/* Main PDF Tools */}
-              <div className="space-y-2">
+              <div className="space-y-3">
                 <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider px-4">PDF Tools</h3>
                 {mainNavItems.map((item) => (
                   <Link
@@ -669,73 +671,7 @@ const Header = () => {
                 </Link>
               </div>
 
-              {/* Authentication */}
-              {!isAuthenticated && (
-                <div className="pt-3 border-t border-gray-200/80 space-y-3">
-                  <Link
-                    to="/login"
-                    className="flex items-center justify-center space-x-2 w-full px-4 py-3 text-base font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-50/80 rounded-xl transition-all duration-300 border border-gray-200"
-                    onClick={() => setMobileMenuOpen(false)}
-                  >
-                    <User className="w-4 h-4" />
-                    <span>Sign In</span>
-                  </Link>
-                  <Link
-                    to="/register"
-                    className="flex items-center justify-center space-x-2 w-full px-4 py-3 text-base font-semibold text-white bg-gradient-to-r from-primary to-blue-600 hover:from-primary/90 hover:to-blue-600/90 rounded-xl transition-all duration-300 shadow-lg"
-                    onClick={() => setMobileMenuOpen(false)}
-                  >
-                    <Crown className="w-4 h-4" />
-                    <span>Get Started</span>
-                  </Link>
-                </div>
-              )}
 
-              {/* User Menu for Authenticated Users */}
-              {isAuthenticated && user && (
-                <div className="pt-3 border-t border-gray-200/80 space-y-3">
-                  <div className="flex items-center space-x-3 px-4 py-3">
-                    <div className="w-10 h-10 bg-gradient-to-r from-primary to-blue-600 rounded-full flex items-center justify-center">
-                      <span className="text-white text-sm font-bold">
-                        {user.name.charAt(0).toUpperCase()}
-                      </span>
-                    </div>
-                    <div>
-                      <p className="text-sm font-semibold text-gray-900">{user.name}</p>
-                      <p className="text-xs text-gray-500">{user.email}</p>
-                    </div>
-                  </div>
-
-                  <Link
-                    to="/dashboard"
-                    className="flex items-center space-x-3 px-4 py-3 text-base font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-50/80 rounded-xl transition-all duration-300"
-                    onClick={() => setMobileMenuOpen(false)}
-                  >
-                    <User className="w-5 h-5" />
-                    <span>Dashboard</span>
-                  </Link>
-
-                  <Link
-                    to="/settings"
-                    className="flex items-center space-x-3 px-4 py-3 text-base font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-50/80 rounded-xl transition-all duration-300"
-                    onClick={() => setMobileMenuOpen(false)}
-                  >
-                    <Settings className="w-5 h-5" />
-                    <span>Settings</span>
-                  </Link>
-
-                  <button
-                    onClick={() => {
-                      logout();
-                      setMobileMenuOpen(false);
-                    }}
-                    className="flex items-center space-x-3 w-full px-4 py-3 text-base font-medium text-red-600 hover:bg-red-50 rounded-xl transition-all duration-300"
-                  >
-                    <LogOut className="w-5 h-5" />
-                    <span>Sign Out</span>
-                  </button>
-                </div>
-              )}
             </div>
           </div>
         )}

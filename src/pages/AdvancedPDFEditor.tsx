@@ -68,10 +68,7 @@ const AdvancedPDFEditor: React.FC = () => {
   // File upload
   const onDrop = useCallback(
     (acceptedFiles: File[]) => {
-      if (!isAuthenticated) {
-        setShowAuthModal(true);
-        return;
-      }
+      // Advanced PDF Editor works for everyone (optional auth for enhanced features)
 
       const uploadedFile = safeArrayFirst(acceptedFiles);
       if (uploadedFile && uploadedFile.type === "application/pdf") {

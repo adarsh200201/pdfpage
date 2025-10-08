@@ -320,6 +320,7 @@ const Split: React.FC = () => {
       "application/pdf": [".pdf"],
     },
     multiple: false,
+    maxSize: 50 * 1024 * 1024, // 50MB limit
   });
 
   const handleFileSelect = async (selectedFile: File) => {

@@ -26,7 +26,7 @@ const FileUpload: React.FC<FileUploadProps> = ({
   onFilesSelect,
   accept,
   multiple = true,
-  maxSize = 10,
+  maxSize = 50,
   maxFiles,
   className,
   allowedTypes = [],

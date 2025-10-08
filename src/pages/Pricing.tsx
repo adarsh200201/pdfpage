@@ -22,7 +22,7 @@ const Pricing = () => {
   const [processingPlan, setProcessingPlan] = useState<string | null>(null);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [paymentError, setPaymentError] = useState<Error | null>(null);
-  const { user, isAuthenticated, refreshUser } = useAuth();
+  const { user, isAuthenticated, refreshAuth } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -59,7 +59,7 @@ const Pricing = () => {
       );
 
       // Refresh user data to get updated premium status
-      await refreshUser();
+      await refreshAuth();
 
       // Handle queued vs immediate plan activation
       if (paymentResult.planQueued) {

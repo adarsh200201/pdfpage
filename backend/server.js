@@ -28,6 +28,40 @@ if (process.env.NODE_ENV === "development") {
 // Initialize Passport
 app.use(passport.initialize());
 
+// Security Headers
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", "checkout.razorpay.com", "www.google-analytics.com"],
+      styleSrc: ["'self'", "'unsafe-inline'", "fonts.googleapis.com"],
+      imgSrc: ["'self'", "data:", "www.google-analytics.com", "*.doubleclick.net"],
+      connectSrc: ["'self'", "www.google-analytics.com", "*.doubleclick.net", "checkout.razorpay.com"],
+      fontSrc: ["'self'", "fonts.gstatic.com"],
+      objectSrc: ["'none'"],
+      mediaSrc: ["'self'"],
+      frameSrc: ["'self'", "checkout.razorpay.com"],
+    },
+  },
+  crossOriginEmbedderPolicy: false,
+  crossOriginResourcePolicy: { policy: "cross-origin" },
+}));
+
+// HSTS
+app.use((req, res, next) => {
+  res.setHeader(
+    'Strict-Transport-Security',
+    'max-age=31536000; includeSubDomains; preload'
+  );
+  next();
+});
+
+// Referrer Policy
+app.use((req, res, next) => {
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  next();
+});
+
 // Keep-alive middleware for connection stability
 const keepAliveMiddleware = require('./middleware/keepAlive');
 app.use(keepAliveMiddleware);
@@ -205,6 +239,8 @@ app.use("/api/ocr", require("./routes/ocr"));
 app.use("/api/analytics", require("./routes/analytics"));
 app.use("/api/stats", require("./routes/stats"));
 app.use("/api/diagnostics", require("./routes/ghostscript-diagnostic"));
+// Tools diagnostic (qpdf + ghostscript + env checks)
+app.use("/api/diagnostics/tools", require("./routes/tools-diagnostic"));
 app.use("/api/libreoffice", require("./routes/libreoffice"));
 app.use("/api/libreoffice-strict", require("./routes/libreoffice-strict"));
 app.use("/api/schema-test", require("./routes/schema-test"));

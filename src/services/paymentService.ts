@@ -27,13 +27,10 @@ export const loadRazorpay = (): Promise<boolean> => {
 export const createPayment = async (
   options: PaymentOptions,
 ): Promise<string> => {
-  const token = document.cookie
-    .split("; ")
-    .find((row) => row.startsWith("token="))
-    ?.split("=")[1];
+  const token = localStorage.getItem('auth_token');
 
   // Use API config utility for consistent URL handling
-  const apiUrl = getFullApiUrl('/api/payments/create-order');
+  const apiUrl = getFullApiUrl('/payments/create-order');
 
   console.log("Creating payment with:", { options, apiUrl });
 
@@ -132,10 +129,7 @@ export const processPayment = async (
       handler: async (response: any) => {
         try {
           // Verify payment on backend
-          const token = document.cookie
-            .split("; ")
-            .find((row) => row.startsWith("token="))
-            ?.split("=")[1];
+          const token = localStorage.getItem('auth_token');
 
           const verifyUrl = getFullApiUrl('/api/payments/verify');
           const verifyResponse = await fetch(verifyUrl, {

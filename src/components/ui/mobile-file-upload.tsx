@@ -35,7 +35,7 @@ interface MobileFileUploadProps {
 const MobileFileUpload: React.FC<MobileFileUploadProps> = ({
   onFilesSelected,
   acceptedFileTypes = [],
-  maxFileSize = 10 * 1024 * 1024, // 10MB default
+  maxFileSize = 50 * 1024 * 1024, // 50MB default
   maxFiles = 1,
   multiple = false,
   className,

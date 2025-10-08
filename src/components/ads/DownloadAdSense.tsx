@@ -22,6 +22,8 @@ const DownloadAdSense: React.FC<DownloadAdSenseProps> = ({
   fallbackContent,
 }) => {
   const { user } = useAuth();
+
+  // Tools work for everyone, but we can track user type
   const [adLoaded, setAdLoaded] = useState(false);
   const [adError, setAdError] = useState(false);
   const adContainerRef = useRef<HTMLDivElement>(null);

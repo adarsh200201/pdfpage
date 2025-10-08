@@ -19,10 +19,11 @@ export const getApiBaseUrl = (): string => {
 };
 
 export const getFullApiUrl = (endpoint: string): string => {
-  const baseUrl = getApiBaseUrl();
-  const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+  // Remove any leading /api from the endpoint to prevent double /api/
+  const cleanEndpoint = endpoint.replace(/^\/api/, '');
+  const finalEndpoint = cleanEndpoint.startsWith('/') ? cleanEndpoint : `/${cleanEndpoint}`;
 
-  return `${baseUrl}${cleanEndpoint}`;
+  return `/api${finalEndpoint}`;
 };
 
 // Utility to check if backend is available

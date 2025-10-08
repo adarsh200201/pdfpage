@@ -91,14 +91,22 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         },
       });
 
-      if (response.ok) {
-        const userData = await response.json();
-        console.log('✅ [AUTH-CONTEXT] Token verified, user data:', userData);
+      // Always read the response body once
+      let responseData;
+      try {
+        responseData = await response.json();
+      } catch (parseError) {
+        console.error('❌ [AUTH-CONTEXT] Failed to parse response:', parseError);
+        responseData = null;
+      }
 
-        if (userData.user) {
-          setUser(userData.user);
+      if (response.ok && responseData) {
+        console.log('✅ [AUTH-CONTEXT] Token verified, user data:', responseData);
+
+        if (responseData.user) {
+          setUser(responseData.user);
           // Update stored user data
-          localStorage.setItem('user', JSON.stringify(userData.user));
+          localStorage.setItem('user', JSON.stringify(responseData.user));
         }
       } else {
         console.log('❌ [AUTH-CONTEXT] Token verification failed, clearing auth data');
@@ -126,7 +134,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const login = async (email: string, password: string) => {
     try {
       setIsLoading(true);
-      
+      console.log('🔐 [AUTH-CONTEXT] Attempting login...');
+
       const response = await fetch('/api/auth/login', {
         method: 'POST',
         headers: {
@@ -135,18 +144,59 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         body: JSON.stringify({ email, password }),
       });
 
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || 'Login failed');
+      console.log('📡 [AUTH-CONTEXT] Login response received, status:', response.status);
+
+      // Read response body only once and handle different content types
+      let data;
+      const contentType = response.headers.get('content-type');
+
+      try {
+        if (contentType && contentType.includes('application/json')) {
+          data = await response.json();
+          console.log('📋 [AUTH-CONTEXT] Response data parsed successfully');
+        } else {
+          // Handle non-JSON responses
+          const textResponse = await response.text();
+          console.warn('⚠️ [AUTH-CONTEXT] Non-JSON response received:', textResponse);
+          data = { message: textResponse || 'Unknown error occurred' };
+        }
+      } catch (parseError) {
+        console.error('❌ [AUTH-CONTEXT] Failed to parse login response:', parseError);
+        throw new Error('Invalid response from server');
       }
 
-      const data = await response.json();
-      
+      if (!response.ok) {
+        console.error('❌ [AUTH-CONTEXT] Login failed with status:', response.status, 'data:', data);
+
+        // Handle different error response formats
+        let errorMessage = 'Login failed';
+        if (data) {
+          if (typeof data === 'string') {
+            errorMessage = data;
+          } else if (data.message) {
+            errorMessage = data.message;
+          } else if (data.errors && Array.isArray(data.errors)) {
+            // Handle validation errors
+            errorMessage = data.errors.map(err => err.msg || err.message).join(', ');
+          }
+        }
+
+        throw new Error(errorMessage);
+      }
+
+      console.log('✅ [AUTH-CONTEXT] Login successful');
+
       // Store token and user data
-      localStorage.setItem('auth_token', data.token);
-      setUser(data.user);
+      if (data.token && data.user) {
+        localStorage.setItem('auth_token', data.token);
+        localStorage.setItem('user', JSON.stringify(data.user));
+        setUser(data.user);
+      } else {
+        console.error('❌ [AUTH-CONTEXT] Login response missing token or user data');
+        throw new Error('Invalid login response format');
+      }
     } catch (error) {
-      console.error('Login error:', error);
+      console.error('❌ [AUTH-CONTEXT] Login error:', error);
       throw error;
     } finally {
       setIsLoading(false);
@@ -171,7 +221,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const register = async (email: string, password: string, name: string) => {
     try {
       setIsLoading(true);
-      
+      console.log('📝 [AUTH-CONTEXT] Attempting registration...');
+
       const response = await fetch('/api/auth/register', {
         method: 'POST',
         headers: {
@@ -180,16 +231,57 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         body: JSON.stringify({ email, password, name }),
       });
 
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || 'Registration failed');
+      console.log('📡 [AUTH-CONTEXT] Registration response received, status:', response.status);
+
+      // Read response body only once and handle different content types
+      let data;
+      const contentType = response.headers.get('content-type');
+
+      try {
+        if (contentType && contentType.includes('application/json')) {
+          data = await response.json();
+          console.log('📋 [AUTH-CONTEXT] Registration response data parsed successfully');
+        } else {
+          // Handle non-JSON responses
+          const textResponse = await response.text();
+          console.warn('⚠️ [AUTH-CONTEXT] Non-JSON response received:', textResponse);
+          data = { message: textResponse || 'Unknown error occurred' };
+        }
+      } catch (parseError) {
+        console.error('❌ [AUTH-CONTEXT] Failed to parse register response:', parseError);
+        throw new Error('Invalid response from server');
       }
 
-      const data = await response.json();
-      
+      if (!response.ok) {
+        console.error('❌ [AUTH-CONTEXT] Registration failed with status:', response.status, 'data:', data);
+
+        // Handle different error response formats
+        let errorMessage = 'Registration failed';
+        if (data) {
+          if (typeof data === 'string') {
+            errorMessage = data;
+          } else if (data.message) {
+            errorMessage = data.message;
+          } else if (data.errors && Array.isArray(data.errors)) {
+            // Handle validation errors
+            errorMessage = data.errors.map(err => err.msg || err.message).join(', ');
+          }
+        }
+
+        throw new Error(errorMessage);
+      }
+
+      console.log('✅ [AUTH-CONTEXT] Registration successful');
+
       // Store token and user data
-      localStorage.setItem('auth_token', data.token);
-      setUser(data.user);
+      if (data.token && data.user) {
+        localStorage.setItem('auth_token', data.token);
+        localStorage.setItem('user', JSON.stringify(data.user));
+        setUser(data.user);
+      } else {
+        console.error('❌ [AUTH-CONTEXT] Registration response missing token or user data');
+        throw new Error('Invalid registration response format');
+      }
     } catch (error) {
       console.error('Registration error:', error);
       throw error;

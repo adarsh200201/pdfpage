@@ -183,10 +183,10 @@ const CropPdf = () => {
 
   const handleFileSelect = useCallback(
     (file: File) => {
-      if (file.size > 25 * 1024 * 1024) {
+      if (file.size > 50 * 1024 * 1024) {
         toast({
           title: "File too large",
-          description: "Please select a PDF smaller than 25MB.",
+          description: "Please select a PDF smaller than 50MB.",
           variant: "destructive",
         });
         return;
@@ -687,12 +687,7 @@ const CropPdf = () => {
 
     // Check authentication for non-authenticated users
     if (!isAuthenticated) {
-      const usageCheck = await PDFService.checkUsageLimit();
-      if (!usageCheck.canUpload) {
-        setUsageLimitReached(true);
-        setShowAuthModal(true);
-        return;
-      }
+      // All tools are free - no usage limits
     }
 
     setIsProcessing(true);
@@ -1029,7 +1024,7 @@ const CropPdf = () => {
                         Upload PDF to Crop
                       </CardTitle>
                       <CardDescription className="text-base">
-                        Select a PDF file to crop (up to 25MB)
+                        Select a PDF file to crop (up to 50MB)
                       </CardDescription>
                     </CardHeader>
                     <CardContent className="p-8">
@@ -1053,7 +1048,7 @@ const CropPdf = () => {
                                 : "Click to upload or drag & drop"}
                             </p>
                             <p className="text-gray-500">
-                              Support for PDF files up to 25MB
+                              Support for PDF files up to 50MB
                             </p>
                           </div>
                         </div>

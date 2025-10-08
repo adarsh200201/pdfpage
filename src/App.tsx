@@ -3,6 +3,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import ErrorBoundary from "@/components/ErrorBoundary";
+import { AuthProvider } from "@/contexts/AuthContext";
 import { NetworkStatus } from "@/components/ui/network-status";
 import PWAStatusBar from "@/components/layout/PWAStatusBar";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -27,7 +28,7 @@ import {
   Navigate,
   useLocation,
 } from "react-router-dom";
-import { AuthProvider } from "@/contexts/AuthContext";
+
 import EnhancedEditPdf from "./pages/EnhancedEditPdf";
 import RealtimeEditor from "./pages/RealtimeEditor";
 
@@ -36,6 +37,12 @@ import EnhancedPdfEditor from "./pages/EnhancedPdfEditor";
 import EnhancedWatermark from "./pages/EnhancedWatermark";
 import { LanguageProvider } from "@/contexts/LanguageContext";
 import { FloatingPopupProvider } from "@/contexts/FloatingPopupContext";
+import Login from "./pages/Login";
+import ModernLogin from "./pages/ModernLogin";
+import Register from "./pages/Register";
+import ForgotPassword from "./pages/ForgotPassword";
+import Dashboard from "./pages/Dashboard";
+import AuthCallback from "./pages/AuthCallback";
 import { MixpanelProvider } from "@/contexts/MixpanelContext";
 import { GlobalToolTrackingProvider } from "@/contexts/GlobalToolTrackingContext";
 import Index from "./pages/Index";
@@ -60,13 +67,11 @@ import ImageToFavicon from "./pages/ImageToFavicon";
 import TextToFavicon from "./pages/TextToFavicon";
 import EmojiToFavicon from "./pages/EmojiToFavicon";
 import LogoToFavicon from "./pages/LogoToFavicon";
-import Login from "./pages/Login";
-import ModernLogin from "./pages/ModernLogin";
+
 import Blog from "./pages/Blog";
 
 import SEOAudit from "./pages/SEOAudit";
-import Register from "./pages/Register";
-import ForgotPassword from "./pages/ForgotPassword";
+
 import Merge from "./pages/Merge";
 import Split from "./pages/Split";
 import Compress from "./pages/Compress";
@@ -76,7 +81,7 @@ import PdfToJpg from "./pages/PdfToJpg";
 import PdfToWord from "./pages/PdfToWord";
 import WordToPdf from "./pages/WordToPdf";
 import Pricing from "./pages/Pricing";
-import Dashboard from "./pages/Dashboard";
+
 import Rotate from "./pages/Rotate";
 import RotatePdfAdvanced from "./pages/RotatePdfAdvanced";
 import CropPdf from "./pages/CropPdf";
@@ -96,12 +101,12 @@ import Security from "./pages/Security";
 import ApiDocs from "./pages/ApiDocs";
 import Status from "./pages/Status";
 import UnlockPdf from "./pages/UnlockPdf";
+import ProtectPdf from "./pages/ProtectPdf";
 
 // Import all the real tool implementations from AllTools
 import {
   PdfToPowerPoint,
   Watermark,
-  ProtectPdf,
   OrganizePdf,
   RotatePdf,
   PdfToPdfA,
@@ -165,11 +170,7 @@ import ComingSoon from "./pages/ComingSoon";
 import ToolRedirect from "./pages/ToolRedirect";
 import ToolAvailable from "./pages/ToolAvailable";
 import AvailableTools from "./pages/AvailableTools";
-import AuthCallback from "./pages/AuthCallback";
-import OAuthTest from "./pages/OAuthTest";
-import OAuthDebugTest from "./pages/OAuthDebugTest";
-import OAuth403Fix from "./pages/OAuth403Fix";
-import WorkingOAuthTest from "./pages/WorkingOAuthTest";
+
 
 import AdminRoute from "./components/admin/AdminRoute";
 import LibreOfficeTools from "./pages/LibreOfficeTools";
@@ -304,19 +305,7 @@ const App = () => {
                         element={<LogoToFavicon />}
                       />
 
-                      {/* Authentication */}
-                      <Route path="/login" element={<ModernLogin />} />
-                      <Route path="/login/old" element={<Login />} />
-                      <Route path="/register" element={<Register />} />
-                      <Route
-                        path="/forgot-password"
-                        element={<ForgotPassword />}
-                      />
-                      <Route path="/auth/callback" element={<AuthCallback />} />
-                      <Route path="/oauth-test" element={<OAuthTest />} />
-                      <Route path="/oauth-debug" element={<OAuthDebugTest />} />
-                      <Route path="/oauth-403-fix" element={<OAuth403Fix />} />
-                      <Route path="/working-oauth-test" element={<WorkingOAuthTest />} />
+
 
                       {/* Core PDF Tools - REAL-TIME IMPLEMENTATIONS */}
                       <Route path="/merge" element={<Merge />} />
@@ -420,6 +409,16 @@ const App = () => {
 
                       {/* Legacy routes for backwards compatibility */}
                       <Route path="/tools" element={<Index />} />
+
+                      {/* Authentication Routes */}
+                      <Route path="/login" element={<ModernLogin />} />
+                      <Route path="/login/old" element={<Login />} />
+                      <Route path="/register" element={<Register />} />
+                      <Route
+                        path="/forgot-password"
+                        element={<ForgotPassword />}
+                      />
+                      <Route path="/auth/callback" element={<AuthCallback />} />
 
                       {/* Dashboard and Settings */}
                       <Route path="/pricing" element={<Pricing />} />

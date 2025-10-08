@@ -144,7 +144,7 @@ export default function Compress() {
   // Action-level authentication
   const actionAuth = useActionAuth({
     action: "compress_pdf",
-    requireAuth: true,
+    requireAuth: false, // Not required - compression works for everyone
   });
 
   // File validation
@@ -209,10 +209,8 @@ export default function Compress() {
       return;
     }
 
-    // Execute compression with authentication check
-    await actionAuth.executeWithAuth(async () => {
-      await performCompression();
-    });
+    // Execute compression (works for everyone)
+    await performCompression();
   };
 
   const performCompression = async () => {
@@ -564,9 +562,7 @@ export default function Compress() {
                     disabled={false}
                   >
                     <Zap className="w-5 h-5 mr-2" />
-                    {actionAuth.isAuthenticated
-                      ? "Compress PDF"
-                      : "Sign in to Compress PDF"}
+                    "Compress PDF"
                   </Button>
                 ) : (
                   <div className="flex flex-col items-center gap-4">
@@ -581,11 +577,6 @@ export default function Compress() {
                   </div>
                 )}
 
-                {!actionAuth.isAuthenticated && !isProcessing && (
-                  <p className="text-sm text-gray-600 mt-2">
-                    🔒 Sign in with Google to compress your PDF
-                  </p>
-                )}
               </div>
             </div>
 

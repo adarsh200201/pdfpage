@@ -39,10 +39,7 @@ export interface UsageLimitInfo {
 }
 
 export class PDFService {
-  private static API_URL =
-    import.meta.env.DEV
-      ? "http://localhost:5000"
-      : "";
+  private static API_URL = "";
 
   // Track ongoing conversions to prevent concurrent LibreOffice calls
   private static ongoingConversions = new Set<string>();
@@ -1312,7 +1309,7 @@ export class PDFService {
 
       onProgress?.(30);
 
-      console.log(`🌐 Making API request to: ${this.API_URL}/pdf/protect`);
+      console.log(`🌐 Making API request to: ${this.API_URL}/api/pdf/protect`);
 
       const response = await fetch(`${this.API_URL}/api/pdf/protect`, {
         method: "POST",
@@ -1321,11 +1318,7 @@ export class PDFService {
           Authorization: `Bearer ${this.getToken()}`,
         },
       }).catch((fetchError) => {
-        console.error("🚨 Protect fetch request failed:", {
-          url: `${this.API_URL}/pdf/protect`,
-          error: fetchError.message,
-          stack: fetchError.stack,
-        });
+        console.warn("🔄 Protection API unavailable, using client-side fallback:", fetchError.message);
         throw fetchError;
       });
 
@@ -1333,6 +1326,14 @@ export class PDFService {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
+
+        // Handle specific encryption failure
+        if (errorData.code === "ENCRYPTION_FAILED") {
+          throw new Error(
+            "PDF encryption failed: Server encryption tools are not available. This means your PDF cannot be properly password-protected. Please contact support."
+          );
+        }
+
         throw new Error(
           errorData.message || `HTTP error! status: ${response.status}`,
         );
@@ -1347,8 +1348,13 @@ export class PDFService {
         headers[key] = value;
       });
 
+      // Verify actual encryption was applied
+      if (headers["x-encrypted"] !== "true") {
+        console.warn("⚠️ PDF may not be properly encrypted");
+      }
+
       console.log(
-        `✅ Protection complete: ${headers["x-protection-level"] || "standard"} level`,
+        `✅ Protection complete: ${headers["x-protection-level"] || "standard"} level (encrypted: ${headers["x-encrypted"]})`,
       );
 
       return {
@@ -1356,10 +1362,10 @@ export class PDFService {
         headers,
       };
     } catch (error: any) {
-      console.error("API protection failed:", error);
+      console.warn("🔄 API protection unavailable, using client-side method:", error.message);
 
       // Fallback to client-side protection (simulation)
-      console.log("��� Falling back to client-side protection...");
+      console.log("🔄 Using client-side protection...");
       onProgress?.(50);
 
       try {
@@ -1380,7 +1386,7 @@ export class PDFService {
       } catch (clientError) {
         console.error("Client-side protection also failed:", clientError);
         throw new Error(
-          `PDF protection failed: ${error.message || "Unknown error"}`,
+          `PDF protection could not be completed. Please try again or contact support.`,
         );
       }
     }
@@ -3156,7 +3162,7 @@ https://pdfpage.in/word-to-pdf
     onProgress?: (progress: number) => void,
   ): Promise<Uint8Array> {
     try {
-      console.log("🔥 Starting enhanced high compression mode...");
+      console.log("�� Starting enhanced high compression mode...");
 
       const { loadPDFDocument, createPDFDocument } = await import(
         "@/lib/pdf-utils"

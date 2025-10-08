@@ -20,8 +20,8 @@ router.post(
   auth,
   [
     body("planType")
-      .isIn(["monthly", "yearly"])
-      .withMessage("Plan type must be monthly or yearly"),
+      .isIn(["monthly", "quarterly"])
+      .withMessage("Plan type must be monthly or quarterly"),
     body("amount").isNumeric().withMessage("Amount must be a number"),
   ],
   async (req, res) => {
@@ -94,8 +94,8 @@ router.post(
     body("razorpay_order_id").exists().withMessage("Order ID is required"),
     body("razorpay_signature").exists().withMessage("Signature is required"),
     body("planType")
-      .isIn(["monthly", "yearly"])
-      .withMessage("Plan type must be monthly or yearly"),
+      .isIn(["monthly", "quarterly"])
+      .withMessage("Plan type must be monthly or quarterly"),
   ],
   async (req, res) => {
     try {

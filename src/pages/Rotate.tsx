@@ -175,24 +175,16 @@ const Rotate = () => {
   const handleRotate = async () => {
     if (!file || rotation === 0) return;
 
-    // Check usage limits
-    const usageCheck = await PDFService.checkUsageLimit();
-    if (!usageCheck.canUpload) {
-      setUsageLimitReached(true);
-      if (!isAuthenticated) {
-        setShowAuthModal(true);
-      }
-      return;
-    }
+    // All tools are free - no usage limits
 
     setIsProcessing(true);
 
     try {
       // Check file size limits
-      const maxSize = user?.isPremium ? 100 * 1024 * 1024 : 25 * 1024 * 1024;
+      const maxSize = user?.isPremium ? 100 * 1024 * 1024 : 50 * 1024 * 1024;
       if (file.size > maxSize) {
         throw new Error(
-          `File size exceeds ${user?.isPremium ? "100MB" : "25MB"} limit`,
+          `File size exceeds ${user?.isPremium ? "100MB" : "50MB"} limit`,
         );
       }
 

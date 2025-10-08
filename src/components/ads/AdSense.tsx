@@ -16,6 +16,8 @@ const AdSense: React.FC<AdSenseProps> = ({
 }) => {
   const { user } = useAuth();
 
+  // Tools work for everyone, but we can track user type
+
   useEffect(() => {
     // All tools are free - no ads needed
     return;

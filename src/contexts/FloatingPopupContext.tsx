@@ -3,6 +3,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import ModernAuthBanner from "@/components/auth/FloatingGoogleSignInPopup";
 import { useFloatingGoogleSignIn } from "@/hooks/useFloatingGoogleSignIn";
 
+
 interface FloatingPopupContextType {
   trackToolUsage: () => void;
   showPopupManually: () => void;
@@ -33,10 +34,11 @@ export const FloatingPopupProvider: React.FC<FloatingPopupProviderProps> = ({
   const { isAuthenticated } = useAuth();
   const [localUsageCount, setLocalUsageCount] = useState(0);
 
+  // Optional authentication popup (only after multiple uses)
   const { showPopup, usageCount, triggerPopup, dismissPopup } =
     useFloatingGoogleSignIn({
-      showOnPageLoad: true, // Show on page load for anonymous users
-      showAfterUsageCount: [1, 2], // Show after 1st and 2nd tool usage
+      showOnPageLoad: false, // Don't force on page load
+      showAfterUsageCount: [5, 10], // Only suggest after 5 and 10 uses
     });
 
   // Load usage count from localStorage on mount
@@ -52,23 +54,23 @@ export const FloatingPopupProvider: React.FC<FloatingPopupProviderProps> = ({
     }
   }, [isAuthenticated]);
 
-  // Track tool usage
+  // Track tool usage (works for everyone)
   const trackToolUsage = () => {
-    if (isAuthenticated) {
-      return; // Don't track for authenticated users
-    }
-
     const newCount = localUsageCount + 1;
     setLocalUsageCount(newCount);
-    localStorage.setItem("anonymousUsageCount", newCount.toString());
 
-    // Trigger popup if conditions are met
-    triggerPopup(newCount);
+    if (!isAuthenticated) {
+      localStorage.setItem("anonymousUsageCount", newCount.toString());
+      // Optionally suggest signup after many uses
+      triggerPopup(newCount);
+    }
   };
 
-  // Manual popup trigger
+  // Manual popup trigger (optional)
   const showPopupManually = () => {
-    triggerPopup(localUsageCount);
+    if (!isAuthenticated) {
+      triggerPopup(localUsageCount);
+    }
   };
 
   // Get current usage count
@@ -86,7 +88,7 @@ export const FloatingPopupProvider: React.FC<FloatingPopupProviderProps> = ({
     <FloatingPopupContext.Provider value={contextValue}>
       {children}
 
-      {/* Modern Auth Banner - Only show for non-authenticated users */}
+      {/* Optional Auth Banner - Only show suggestion after many uses */}
       {showPopup && !isAuthenticated && (
         <ModernAuthBanner variant="featured" onClose={dismissPopup} />
       )}
