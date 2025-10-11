@@ -16,12 +16,10 @@ import { useAuth } from "@/contexts/AuthContext";
 import { createPayment, processPayment } from "@/services/paymentService";
 import { useToast } from "@/hooks/use-toast";
 import AuthModal from "@/components/auth/AuthModal";
-import PaymentErrorHandler from "@/components/ui/payment-error-handler";
 
 const Pricing = () => {
   const [processingPlan, setProcessingPlan] = useState<string | null>(null);
   const [showAuthModal, setShowAuthModal] = useState(false);
-  const [paymentError, setPaymentError] = useState<Error | null>(null);
   const { user, isAuthenticated, refreshAuth } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -33,7 +31,6 @@ const Pricing = () => {
     }
 
     setProcessingPlan(planType);
-    setPaymentError(null); // Clear previous errors
 
     try {
       const amount = planType === "quarterly" ? 2900 : 1100; // in paise - ₹29 for 3 months, ₹11 for 1 month
@@ -81,10 +78,6 @@ const Pricing = () => {
     } catch (error: any) {
       console.error("Payment error:", error);
 
-      // Set error for the error handler component
-      setPaymentError(error);
-
-      // Still show toast for immediate feedback
       toast({
         title: "Payment Failed",
         description: error.message || "Something went wrong. Please try again.",
@@ -93,11 +86,6 @@ const Pricing = () => {
     } finally {
       setProcessingPlan(null);
     }
-  };
-
-  const handleRetryPayment = () => {
-    setPaymentError(null);
-    // You could also retry the last attempted plan
   };
 
   const features = {
@@ -349,17 +337,6 @@ const Pricing = () => {
           </div>
         </div>
       </div>
-
-      {/* Payment Error Handler */}
-      {paymentError && (
-        <div className="max-w-4xl mx-auto mt-8 px-4">
-          <PaymentErrorHandler
-            error={paymentError}
-            onRetry={handleRetryPayment}
-            loading={processingPlan !== null}
-          />
-        </div>
-      )}
 
       {/* Auth Modal */}
       <AuthModal
