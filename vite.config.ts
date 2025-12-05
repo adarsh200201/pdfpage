@@ -6,22 +6,25 @@ import path from "path";
 export default defineConfig({
   server: {
     host: "localhost",
-    port: 3000,
+    // Dev server port used by the preview iframe. Use 48752 in local environment.
+    port: Number(process.env.VITE_DEV_SERVER_PORT) || 48752,
     strictPort: false,
     proxy: {
       '/api': {
-        target: process.env.VITE_API_URL || 'http://localhost:5000',
+        // Default backend for APIs in development is localhost:5002
+        target: process.env.VITE_API_URL || 'http://localhost:5002',
         changeOrigin: true,
-        secure: true,
+        // Backend is HTTP in dev, disable strict SSL verification for proxy
+        secure: false,
         configure: (proxy, _options) => {
           proxy.on('error', (err, _req, _res) => {
             console.log('proxy error', err);
           });
           proxy.on('proxyReq', (proxyReq, req, _res) => {
-            console.log('Sending Request to the Target:', req.method, req.url);
+            console.log('Proxy -> Target:', req.method, req.url);
           });
           proxy.on('proxyRes', (proxyRes, req, _res) => {
-            console.log('Received Response from the Target:', proxyRes.statusCode, req.url);
+            console.log('Target -> Proxy response:', proxyRes.statusCode, req.url);
           });
         },
       }
