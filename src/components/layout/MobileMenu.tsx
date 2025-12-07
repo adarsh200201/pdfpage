@@ -24,6 +24,7 @@ import {
   ArrowUpRight,
   Grid3X3,
   RefreshCw,
+  Check,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -438,7 +439,7 @@ const MobileMenu = ({ isOpen, onClose }: MobileMenuProps) => {
                         </span>
                       </div>
                       {currentLanguage.code === language.code && (
-                        <span className="text-blue-600 text-sm">✓</span>
+                        <Check className="w-4 h-4 text-blue-600" />
                       )}
                     </button>
                   ))}

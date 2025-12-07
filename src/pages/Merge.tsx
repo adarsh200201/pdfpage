@@ -649,48 +649,6 @@ const Merge = () => {
             </div>
           </div>
         )}
-
-        {/* Features */}
-        <div className="mt-8 sm:mt-12 px-4 sm:px-0">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="text-center px-2">
-              <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mx-auto mb-3">
-                <Combine className="w-6 h-6 text-blue-500" />
-              </div>
-              <h4 className="font-semibold text-text-dark mb-2 text-sm sm:text-base">
-                Flexible Positioning
-              </h4>
-              <p className="text-xs sm:text-sm text-text-light leading-relaxed max-w-xs mx-auto">
-                Insert files anywhere in the sequence with drag-and-drop or
-                insertion controls
-              </p>
-            </div>
-
-            <div className="text-center px-2">
-              <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center mx-auto mb-3">
-                <ImageIcon className="w-6 h-6 text-green-500" />
-              </div>
-              <h4 className="font-semibold text-text-dark mb-2 text-sm sm:text-base">
-                PDF + Images
-              </h4>
-              <p className="text-xs sm:text-sm text-text-light leading-relaxed max-w-xs mx-auto">
-                Combine PDFs with JPG and PNG images into a single document
-              </p>
-            </div>
-
-            <div className="text-center px-2">
-              <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center mx-auto mb-3">
-                <Eye className="w-6 h-6 text-purple-500" />
-              </div>
-              <h4 className="font-semibold text-text-dark mb-2 text-sm sm:text-base">
-                Visual Preview
-              </h4>
-              <p className="text-xs sm:text-sm text-text-light leading-relaxed max-w-xs mx-auto">
-                See thumbnail previews to easily decide where to insert content
-              </p>
-            </div>
-          </div>
-        </div>
       </div>
 
       {/* File Preview Modal */}

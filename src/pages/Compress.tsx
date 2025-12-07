@@ -2,6 +2,7 @@ import React, { useState, useCallback, useRef, useEffect } from "react";
 import { useDropzone } from "react-dropzone";
 import { Link } from "react-router-dom";
 import Header from "@/components/layout/Header";
+import BackToHome from "@/components/ui/back-to-home";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -398,34 +399,46 @@ export default function Compress() {
 
       <div className="container mx-auto px-3 sm:px-4 py-4 sm:py-8 max-w-4xl">
         {/* Back to Home */}
-        <div className="mb-6">
-          <Button variant="outline" asChild>
-            <Link to="/" className="inline-flex items-center gap-2">
-              <ArrowLeft className="w-4 h-4" />
-              Back to Home
-            </Link>
-          </Button>
-        </div>
+        <BackToHome containerClassName="mb-6" />
 
         {/* Header */}
-        <div className="text-center mb-6 sm:mb-8">
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-3 mb-4">
-            <div className="p-2 sm:p-3 bg-gradient-to-r from-red-500 to-orange-500 rounded-full text-white">
-              <Minimize2 className="w-6 h-6 sm:w-8 sm:h-8" />
-            </div>
-            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900 text-center">
-              PDF Compressor Pro
+        <div className="text-center mb-8">
+          {/* Icon */}
+          <div className="inline-flex items-center justify-center w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-r from-red-500 to-orange-500 rounded-2xl mb-4 sm:mb-6 shadow-lg shadow-red-500/25">
+            <Minimize2 className="w-8 h-8 sm:w-10 sm:h-10 text-white" />
+          </div>
+          
+          {/* Title with Badge */}
+          <div className="flex items-center justify-center gap-3 mb-3 sm:mb-4 flex-wrap">
+            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold bg-gradient-to-r from-gray-900 via-red-900 to-orange-900 bg-clip-text text-transparent">
+              Compress PDF Files
             </h1>
-            <Badge className="bg-gradient-to-r from-purple-500 to-blue-500 text-white text-xs sm:text-sm">
+            <Badge className="bg-gradient-to-r from-red-500 to-orange-500 text-white text-xs sm:text-sm px-3 py-1 shadow-md">
               <Zap className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
-              Enterprise Grade
+              Fast & Secure
             </Badge>
           </div>
-          <p className="text-base sm:text-lg lg:text-xl text-gray-600 max-w-3xl mx-auto px-4">
-            <strong className="text-red-600">Ghostscript-powered</strong>{" "}
-            compression achieving up to 85% size reduction. Enterprise-grade
-            technology for professional PDF optimization up to 100MB.
+          
+          {/* Description */}
+          <p className="text-base sm:text-lg lg:text-xl text-gray-600 max-w-2xl mx-auto px-4 leading-relaxed">
+            Reduce your PDF file size while maintaining quality. Choose from multiple compression levels to find the perfect balance between file size and visual clarity.
           </p>
+          
+          {/* Feature Pills */}
+          <div className="flex flex-wrap justify-center gap-2 mt-4 sm:mt-6 px-4">
+            <div className="inline-flex items-center px-3 py-1.5 bg-red-50 rounded-full text-sm text-red-700 border border-red-100">
+              <CheckCircle className="w-4 h-4 mr-1.5 text-red-500" />
+              Up to 85% Reduction
+            </div>
+            <div className="inline-flex items-center px-3 py-1.5 bg-blue-50 rounded-full text-sm text-blue-700 border border-blue-100">
+              <CheckCircle className="w-4 h-4 mr-1.5 text-blue-500" />
+              100MB Max File
+            </div>
+            <div className="inline-flex items-center px-3 py-1.5 bg-green-50 rounded-full text-sm text-green-700 border border-green-100">
+              <CheckCircle className="w-4 h-4 mr-1.5 text-green-500" />
+              No Registration
+            </div>
+          </div>
         </div>
 
         {/* Main Content */}
@@ -664,43 +677,6 @@ export default function Compress() {
           </Alert>
         )}
 
-        {/* Features */}
-        <div className="mt-12">
-          <h2 className="text-2xl font-bold text-center mb-8">
-            Enterprise Features
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <Card>
-              <CardContent className="p-6 text-center">
-                <Shield className="w-12 h-12 mx-auto mb-4 text-blue-600" />
-                <h3 className="font-semibold mb-2">Secure Processing</h3>
-                <p className="text-sm text-gray-600">
-                  Files are processed securely and automatically deleted after
-                  compression
-                </p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="p-6 text-center">
-                <Zap className="w-12 h-12 mx-auto mb-4 text-orange-600" />
-                <h3 className="font-semibold mb-2">Ghostscript-Only Engine</h3>
-                <p className="text-sm text-gray-600">
-                  Exclusive Ghostscript compression - the same technology used
-                  by Adobe Acrobat for maximum 85% reduction
-                </p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="p-6 text-center">
-                <Gauge className="w-12 h-12 mx-auto mb-4 text-green-600" />
-                <h3 className="font-semibold mb-2">Large File Support</h3>
-                <p className="text-sm text-gray-600">
-                  Handle files up to 100MB with optimized memory management
-                </p>
-              </CardContent>
-            </Card>
-          </div>
-        </div>
       </div>
 
       {/* Download Modal with Ad */}

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import Header from "@/components/layout/Header";
+import BackToHome from "@/components/ui/back-to-home";
 import FileUpload from "@/components/ui/file-upload";
 import { Button } from "@/components/ui/button";
 import {
@@ -258,15 +259,7 @@ const Rotate = () => {
 
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Breadcrumb */}
-        <div className="flex items-center space-x-2 mb-8">
-          <Link
-            to="/"
-            className="text-body-medium text-text-light hover:text-brand-red"
-          >
-            <ArrowLeft className="w-4 h-4 mr-1 inline" />
-            Back to Home
-          </Link>
-        </div>
+        <BackToHome />
 
         {/* Header */}
         <div className="text-center mb-8">

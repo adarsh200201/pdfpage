@@ -1,6 +1,8 @@
 import React, { useState, useRef, useCallback } from "react";
 import { useDropzone } from "react-dropzone";
 import { Link } from "react-router-dom";
+import Header from "@/components/layout/Header";
+import BackToHome from "@/components/ui/back-to-home";
 import {
   Upload,
   FileText,
@@ -8,6 +10,7 @@ import {
   Scissors,
   RotateCcw,
   CheckCircle,
+  Check,
   X,
   CloudDownload,
   Grid3X3,
@@ -770,6 +773,8 @@ const Split: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/20">
+      <Header />
+      
       {/* Hero Section */}
       <div className="relative overflow-hidden">
         {/* Background Pattern */}
@@ -780,42 +785,29 @@ const Split: React.FC = () => {
           <div className="absolute bottom-0 left-1/3 w-72 h-72 bg-cyan-400/10 rounded-full blur-3xl"></div>
         </div>
 
-        <div className="relative py-6 sm:py-8 md:py-12 lg:py-16">
+        <div className="relative py-4 sm:py-6 md:py-8">
           <div className="max-w-4xl mx-auto px-4 sm:px-6 md:px-8">
-            {/* Enhanced Back to Home Button */}
-            <div className="flex justify-start mb-6 md:mb-8">
-              <Link to="/" className="group">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="inline-flex items-center gap-2 bg-white/80 backdrop-blur-sm hover:bg-white border-gray-200/50 hover:border-blue-300 transition-all duration-200 shadow-sm hover:shadow-md"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                  }}
-                  type="button"
-                >
-                  <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform duration-200" />
-                  <span className="font-medium">Back to Home</span>
-                </Button>
-              </Link>
-            </div>
+            {/* Back to Home Button - Hidden during processing/complete */}
+            {!isProcessing && !isComplete && (
+              <BackToHome containerClassName="mb-4 md:mb-5" />
+            )}
 
             {/* Enhanced Header for Mobile */}
             <div className="text-center">{/* Icon */}
-            <div className="inline-flex items-center justify-center w-16 h-16 md:w-20 md:h-20 bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl mb-6 md:mb-8 shadow-lg shadow-blue-500/25">
+            <div className="inline-flex items-center justify-center w-16 h-16 md:w-20 md:h-20 bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl mb-4 md:mb-5 shadow-lg shadow-blue-500/25">
               <Scissors className="w-8 h-8 md:w-10 md:h-10 text-white" />
             </div>
 
-            <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold bg-gradient-to-r from-gray-900 via-blue-900 to-purple-900 bg-clip-text text-transparent mb-4 md:mb-6">
+            <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold bg-gradient-to-r from-gray-900 via-blue-900 to-purple-900 bg-clip-text text-transparent mb-3 md:mb-4">
               Split PDF Files
             </h1>
-            <p className="text-lg sm:text-xl md:text-2xl text-gray-600 max-w-3xl mx-auto mb-6 md:mb-8 leading-relaxed px-2">
+            <p className="text-lg sm:text-xl md:text-2xl text-gray-600 max-w-3xl mx-auto mb-4 md:mb-5 leading-relaxed px-2">
               Transform your PDF documents with precision. Extract individual
               pages or custom ranges with professional-grade tools.
             </p>
 
             {/* Enhanced Feature Pills for Mobile */}
-            <div className="flex flex-wrap justify-center gap-2 md:gap-3 mb-6 md:mb-8 px-2">
+            <div className="flex flex-wrap justify-center gap-2 md:gap-3 mb-4 md:mb-5 px-2">
               <div className="inline-flex items-center px-3 py-2 md:px-4 md:py-2 bg-white/80 backdrop-blur-sm rounded-full text-xs md:text-sm font-medium text-gray-700 border border-gray-200/50 shadow-sm">
                 <CheckCircle className="w-3 h-3 md:w-4 md:h-4 mr-1 md:mr-2 text-green-500" />
                 Instant Processing
@@ -834,11 +826,11 @@ const Split: React.FC = () => {
         </div>
       </div>
 
-      <div className="max-w-6xl mx-auto px-4 md:px-6 py-6 md:py-8">
+      <div className="max-w-6xl mx-auto px-4 md:px-6 py-4 md:py-6">
         {/* Enhanced File Upload Section */}
         {!file && (
-          <Card className="mb-6 md:mb-8 shadow-lg hover:shadow-xl transition-shadow duration-300">
-            <CardContent className="p-4 sm:p-6 md:p-12">
+          <Card className="mb-4 md:mb-6 shadow-lg hover:shadow-xl transition-shadow duration-300">
+            <CardContent className="p-4 sm:p-6 md:p-8">
               <div
                 {...getRootProps()}
                 className={cn(
@@ -849,7 +841,7 @@ const Split: React.FC = () => {
                 )}
               >
                 <input {...getInputProps()} />
-                <div className="space-y-4 md:space-y-6">
+                <div className="space-y-3 md:space-y-4">
                   <div className="mx-auto w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 bg-gradient-to-r from-blue-600 to-purple-600 rounded-full flex items-center justify-center shadow-lg">
                     <Upload className="w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 text-white" />
                   </div>
@@ -890,8 +882,8 @@ const Split: React.FC = () => {
 
         {/* File Info and Controls */}
         {file && !isComplete && (
-          <Card className="mb-6 md:mb-8">
-            <CardContent className="p-4 md:p-6">
+          <Card className="mb-4 md:mb-6">
+            <CardContent className="p-4 md:p-5">
               <div className="flex flex-col md:flex-row md:items-center md:justify-between space-y-4 md:space-y-0">
                 <div className="flex items-center space-x-3 md:space-x-4">
                   <div className="w-10 h-10 md:w-12 md:h-12 bg-red-100 rounded-lg flex items-center justify-center">
@@ -940,7 +932,7 @@ const Split: React.FC = () => {
               </div>
 
               {isProcessing && (
-                <div className="mt-4 md:mt-6 space-y-2">
+                <div className="mt-3 md:mt-4 space-y-2">
                   <div className="flex justify-between text-xs md:text-sm">
                     <span>Processing PDF...</span>
                     <span>{Math.round(progress)}%</span>
@@ -954,11 +946,11 @@ const Split: React.FC = () => {
 
         {/* Results Section */}
         {isComplete && pages.length > 0 && (
-          <div className="space-y-4 md:space-y-6">
+          <div className="space-y-3 md:space-y-4">
             {/* Search and View Controls */}
             <Card>
-              <CardContent className="p-4 md:p-6">
-                <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between space-y-4 lg:space-y-0 mb-4 md:mb-6">
+              <CardContent className="p-4 md:p-5">
+                <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between space-y-3 lg:space-y-0 mb-3 md:mb-4">
                   <div className="flex flex-col sm:flex-row sm:items-center space-y-2 sm:space-y-0 sm:space-x-4">
                     <div className="flex items-center space-x-2">
                       <Badge
@@ -1010,7 +1002,7 @@ const Split: React.FC = () => {
                 </div>
 
                 {/* Action Buttons */}
-                <div className="flex flex-col space-y-3 mb-4">
+                <div className="flex flex-col space-y-2 mb-3">
                   <div className="flex space-x-2">
                     <Button
                       onClick={selectAll}
@@ -1080,7 +1072,7 @@ const Split: React.FC = () => {
             {/* Pages Display */}
             {viewMode === "grid" ? (
               /* Grid View */
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-8 gap-3 md:gap-4">
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-8 gap-2 md:gap-3">
                 {filteredPages.map((page) => (
                   <Card
                     key={page.index}
@@ -1092,7 +1084,7 @@ const Split: React.FC = () => {
                     )}
                     onClick={() => togglePageSelection(page.index)}
                   >
-                    <CardContent className="p-3 md:p-4 text-center space-y-2 md:space-y-3">
+                    <CardContent className="p-2 md:p-3 text-center space-y-1.5 md:space-y-2">
                       {/* Page Preview */}
                       <div className="aspect-[3/4] bg-white border rounded-lg shadow-sm overflow-hidden relative">
                         {/* Real PDF thumbnail if available */}
@@ -1123,8 +1115,9 @@ const Split: React.FC = () => {
                               }}
                             />
                             {/* Content indicator */}
-                            <div className="absolute bottom-1 left-1 bg-green-500 text-white text-xs px-1 py-0.5 rounded">
-                              ✓ Content
+                            <div className="absolute bottom-1 left-1 bg-green-500 text-white text-xs px-1 py-0.5 rounded flex items-center gap-0.5">
+                              <CheckCircle className="w-2.5 h-2.5" />
+                              Content
                             </div>
                           </div>
                         ) : page.thumbnailLoading ? (
@@ -1165,8 +1158,8 @@ const Split: React.FC = () => {
                         {/* Downloaded indicator */}
                         {downloadedPages.has(page.index) && (
                           <div className="absolute top-1 md:top-2 left-1 md:left-2">
-                            <div className="bg-green-500 text-white text-xs px-2 py-1 rounded-full">
-                              ✓
+                            <div className="bg-green-500 text-white text-xs px-2 py-1 rounded-full flex items-center justify-center">
+                              <CheckCircle className="w-3 h-3" />
                             </div>
                           </div>
                         )}
@@ -1227,7 +1220,7 @@ const Split: React.FC = () => {
               </div>
             ) : (
               /* List View */
-              <div className="space-y-2">
+              <div className="space-y-1.5">
                 {filteredPages.map((page) => (
                   <Card
                     key={page.index}
@@ -1238,7 +1231,7 @@ const Split: React.FC = () => {
                         : "hover:ring-1 hover:ring-gray-300",
                     )}
                   >
-                    <CardContent className="p-3 md:p-4">
+                    <CardContent className="p-2.5 md:p-3">
                       <div className="flex items-center space-x-3 md:space-x-4">
                         {/* Checkbox */}
                         <div
@@ -1308,7 +1301,7 @@ const Split: React.FC = () => {
                           {downloadedPages.has(page.index) && (
                             <div className="absolute -top-1 -right-1">
                               <div className="bg-green-500 text-white text-xs w-4 h-4 rounded-full flex items-center justify-center">
-                                ✓
+                                <Check className="w-2.5 h-2.5" />
                               </div>
                             </div>
                           )}

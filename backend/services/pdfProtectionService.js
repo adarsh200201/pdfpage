@@ -7,28 +7,272 @@ const { promisify } = require("util");
 const execAsync = promisify(exec);
 
 class PDFProtectionService {
+  static async checkEncryptionAvailability() {
+    const availability = {
+      nodeQPDF: false,
+      nodeQPDF2: false,
+      qpdfCmd: false,
+      ghostscript: false,
+      forge: false,
+      pdfEncryptModule: false,
+    };
+
+    // Check node-qpdf (v1)
+    try {
+      require.resolve('node-qpdf');
+      availability.nodeQPDF = true;
+    } catch (err) {
+      availability.nodeQPDF = false;
+    }
+
+    // Check node-qpdf2 (preferred)
+    try {
+      require.resolve('node-qpdf2');
+      availability.nodeQPDF2 = true;
+    } catch (err) {
+      availability.nodeQPDF2 = false;
+    }
+
+    // Check qpdf CLI
+    try {
+      await execAsync('qpdf --version');
+      availability.qpdfCmd = true;
+    } catch (err) {
+      availability.qpdfCmd = false;
+    }
+
+    // Check Ghostscript
+    try {
+      if (process.platform === 'win32') {
+        await execAsync('gswin64c --version');
+      } else {
+        await execAsync('gs --version');
+      }
+      availability.ghostscript = true;
+    } catch (err) {
+      availability.ghostscript = false;
+    }
+
+    // Check node-forge
+    try {
+      require.resolve('node-forge');
+      availability.forge = true;
+    } catch (err) {
+      availability.forge = false;
+    }
+
+    // Check pdf-encrypt module
+    try {
+      require.resolve('pdf-encrypt');
+      availability.pdfEncryptModule = true;
+    } catch (err) {
+      availability.pdfEncryptModule = false;
+    }
+
+    return availability;
+  }
+
+  // Preferred: Encrypt using pdf-lib-encrypt (pure JS)
+  static async protectWithPdfLibEncrypt(inputBuffer, password, permissions) {
+    try {
+      const { PDFDocument } = require('pdf-lib');
+      let encryptedBuffer = null;
+
+      // Strategy 1: module exports an encrypt function
+      try {
+        const lib = require('pdf-lib-encrypt');
+        if (lib && typeof lib.encrypt === 'function') {
+          encryptedBuffer = await lib.encrypt(inputBuffer, password, {
+            ownerPassword: password,
+            keyBits: 256,
+            useAES: true,
+            permissions: {
+              printing: permissions?.printing !== false,
+              modifying: permissions?.editing === true,
+              copying: permissions?.copying === true,
+              annotating: permissions?.editing === true,
+              fillingForms: permissions?.filling !== false,
+              contentAccessibility: true,
+              documentAssembly: permissions?.editing === true,
+            },
+          });
+        }
+      } catch (e) {
+        // continue to patch-style approach
+      }
+
+      // Strategy 2: patch PDFDocument to add encrypt()
+      if (!encryptedBuffer) {
+        try {
+          const enhancer = require('pdf-lib-encrypt');
+          if (typeof enhancer === 'function') {
+            enhancer(PDFDocument);
+          }
+          const pdfDoc = await PDFDocument.load(inputBuffer);
+          if (typeof pdfDoc.encrypt === 'function') {
+            await pdfDoc.encrypt({
+              userPassword: password,
+              ownerPassword: password,
+              keyBits: 256,
+              useAES: true,
+              permissions: {
+                printing: permissions?.printing !== false,
+                modifying: permissions?.editing === true,
+                copying: permissions?.copying === true,
+                annotating: permissions?.editing === true,
+                fillingForms: permissions?.filling !== false,
+                contentAccessibility: true,
+                documentAssembly: permissions?.editing === true,
+              },
+            });
+            encryptedBuffer = await pdfDoc.save({ useObjectStreams: false });
+          }
+        } catch (e2) {
+          // fall through
+        }
+      }
+
+      if (!encryptedBuffer) {
+        throw new Error('pdf-lib-encrypt not available or unsupported API');
+      }
+
+      // verify encryption
+      const encrypted = await this.verifyEncryption(encryptedBuffer);
+      if (!encrypted) throw new Error('ENCRYPTION_NOT_APPLIED');
+
+      return { success: true, buffer: encryptedBuffer };
+    } catch (error) {
+      throw new Error(`pdf-lib-encrypt failed: ${error.message}`);
+    }
+  }
+
+  // Pure JavaScript PDF encryption using muhammara (no external dependencies)
+  static async protectWithPdfLib(inputBuffer, password, permissions) {
+    try {
+      const muhammara = require('muhammara');
+      
+      console.log('🔧 Setting up muhammara encryption...');
+      
+      // Create temporary files
+      const tempDir = os.tmpdir();
+      const inputPath = path.join(tempDir, `muhammara_input_${Date.now()}.pdf`);
+      const outputPath = path.join(tempDir, `muhammara_output_${Date.now()}.pdf`);
+
+      // Write input buffer to file
+      await fs.promises.writeFile(inputPath, inputBuffer);
+
+      console.log('🔐 Encrypting PDF with muhammara...');
+      
+      // Create PDF writer with proper encryption options
+      const pdfWriter = muhammara.createWriterToModify(inputPath, {
+        modifiedFilePath: outputPath,
+        userPassword: password,
+        ownerPassword: password,
+        userProtectionOptions: {
+          userPassword: password,
+          ownerPassword: password,
+          allowPrinting: permissions.printing !== false,
+          allowModification: permissions.editing === true,
+          allowCopy: permissions.copying === true,
+          allowAnnotations: permissions.editing === true,
+          allowFillForm: permissions.filling !== false,
+          allowAccessibility: true,
+          allowAssemble: permissions.editing === true,
+          allowPrintHighRes: permissions.printing !== false,
+        },
+      });
+
+      // Finish writing
+      pdfWriter.end();
+
+      console.log('💾 Reading encrypted PDF...');
+      const encryptedBuffer = await fs.promises.readFile(outputPath);
+
+      // Cleanup temp files
+      try {
+        await fs.promises.unlink(inputPath);
+        await fs.promises.unlink(outputPath);
+      } catch (cleanupError) {
+        console.warn('Cleanup warning:', cleanupError.message);
+      }
+
+      console.log('✅ muhammara encryption successful');
+      return {
+        success: true,
+        buffer: encryptedBuffer,
+      };
+    } catch (error) {
+      console.error('❌ muhammara protection failed:', error.message);
+      throw new Error(`muhammara protection failed: ${error.message}`);
+    }
+  }
+
+  // existing methods follow
   static async protectPDF(inputBuffer, password, options = {}) {
     const { permissions = {} } = options;
+    console.log("🔑 Using permissions:", permissions);
 
-    console.log("🔐 Starting PDF protection process...");
-    console.log("🔑 Password length:", password ? password.length : 0);
+    console.log("🔑 Using password for encryption:", password);
+    console.log("�� Password length:", password ? password.length : 0);
 
-    // Try node-qpdf first since the library is included
+    // Try pdf-lib-encrypt FIRST (pure JS)
     try {
-      console.log("🔄 Trying node-qpdf encryption...");
+      console.log('🔄 Trying pdf-lib-encrypt (FIRST)...');
+      const result = await this.protectWithPdfLibEncrypt(inputBuffer, password, permissions);
+      if (result && result.success) {
+        console.log('✅ PDF protection successful with pdf-lib-encrypt');
+        return { buffer: result.buffer, method: 'pdf-lib-encrypt', success: true, encrypted: true };
+      }
+    } catch (libErr) {
+      console.warn('⚠️ pdf-lib-encrypt failed:', libErr && libErr.message ? libErr.message : libErr);
+    }
+
+    // Try node-qpdf2 NEXT - most reliable for password encryption
+    try {
+      console.log("🔄 Trying node-qpdf2 encryption...");
       const result = await this.protectWithQPDF(inputBuffer, password, permissions);
 
       if (result && result.success) {
-        console.log("✅ PDF protection successful with node-qpdf");
+        console.log("✅ PDF protection successful with node-qpdf2");
         return {
           buffer: result.buffer,
-          method: "qpdf",
+          method: "qpdf2",
           success: true,
           encrypted: true,
         };
       }
-    } catch (qpdfError) {
-      console.warn("⚠️ node-qpdf failed:", qpdfError && qpdfError.stack ? qpdfError.stack : qpdfError);
+    } catch (qpdf2Error) {
+      console.warn("⚠️ node-qpdf2 failed:", qpdf2Error && qpdf2Error.message ? qpdf2Error.message : qpdf2Error);
+    }
+
+    // Try muhammara as fallback
+    try {
+      console.log("🔄 Trying muhammara encryption (fallback)...");
+      const result = await this.protectWithPdfLib(inputBuffer, password, permissions);
+
+      if (result && result.success) {
+        // VERIFY encryption was actually applied
+        try {
+          const encrypted = await this.verifyEncryption(result.buffer);
+          if (!encrypted) {
+            console.warn('⚠️ muhammara produced a file that is not actually encrypted');
+            throw new Error('ENCRYPTION_NOT_APPLIED');
+          }
+        } catch (verifyErr) {
+          console.warn('⚠️ Encryption verification failed for muhammara result:', verifyErr && verifyErr.message ? verifyErr.message : verifyErr);
+          throw verifyErr;
+        }
+
+        console.log("✅ PDF protection successful with muhammara");
+        return {
+          buffer: result.buffer,
+          method: "muhammara",
+          success: true,
+          encrypted: true,
+        };
+      }
+    } catch (muhammaraError) {
+      console.warn("⚠️ muhammara failed:", muhammaraError && muhammaraError.message ? muhammaraError.message : muhammaraError);
     }
 
     // Try command-line qpdf if available
@@ -46,6 +290,18 @@ class PDFProtectionService {
       const result = await this.protectWithQPDFCommand(inputBuffer, password, permissions);
 
       if (result && result.success) {
+        // VERIFY encryption applied
+        try {
+          const encrypted = await this.verifyEncryption(result.buffer);
+          if (!encrypted) {
+            console.warn('⚠️ qpdf-cmd produced a file that is not actually encrypted');
+            throw new Error('ENCRYPTION_NOT_APPLIED');
+          }
+        } catch (verifyErr) {
+          console.warn('⚠️ Encryption verification failed for qpdf-cmd result:', verifyErr && verifyErr.message ? verifyErr.message : verifyErr);
+          throw verifyErr;
+        }
+
         console.log("✅ PDF protection successful with command-line qpdf");
         return {
           buffer: result.buffer,
@@ -77,6 +333,18 @@ class PDFProtectionService {
       const result = await this.protectWithGhostscript(inputBuffer, password, permissions);
 
       if (result && result.success) {
+        // VERIFY encryption applied
+        try {
+          const encrypted = await this.verifyEncryption(result.buffer);
+          if (!encrypted) {
+            console.warn('⚠️ Ghostscript produced a file that is not actually encrypted');
+            throw new Error('ENCRYPTION_NOT_APPLIED');
+          }
+        } catch (verifyErr) {
+          console.warn('⚠️ Encryption verification failed for ghostscript result:', verifyErr && verifyErr.message ? verifyErr.message : verifyErr);
+          throw verifyErr;
+        }
+
         console.log("✅ PDF protection successful with Ghostscript");
         return {
           buffer: result.buffer,
@@ -90,6 +358,35 @@ class PDFProtectionService {
     }
 
     console.error("��� All encryption methods failed!");
+
+    // Try pdf-encrypt npm module as a last-resort server-side encryption fallback
+    try {
+      console.log("🔄 Trying pdf-encrypt npm module fallback...");
+      const result = await this.protectWithPdfEncrypt(inputBuffer, password, permissions);
+      if (result && result.success) {
+        // VERIFY encryption applied
+        try {
+          const encrypted = await this.verifyEncryption(result.buffer);
+          if (!encrypted) {
+            console.warn('⚠️ pdf-encrypt produced a file that is not actually encrypted');
+            throw new Error('ENCRYPTION_NOT_APPLIED');
+          }
+        } catch (verifyErr) {
+          console.warn('⚠️ Encryption verification failed for pdf-encrypt result:', verifyErr && verifyErr.message ? verifyErr.message : verifyErr);
+          throw verifyErr;
+        }
+
+        console.log("✅ PDF protection successful with pdf-encrypt module");
+        return {
+          buffer: result.buffer,
+          method: "pdf-encrypt",
+          success: true,
+          encrypted: true,
+        };
+      }
+    } catch (pdfEncryptErr) {
+      console.warn("⚠️ pdf-encrypt module failed:", pdfEncryptErr && pdfEncryptErr.stack ? pdfEncryptErr.stack : pdfEncryptErr);
+    }
 
     // Try client-side protection as last resort (non-encrypting metadata)
     try {
@@ -110,7 +407,7 @@ class PDFProtectionService {
       console.error("❌ Even metadata protection failed:", metadataError && metadataError.stack ? metadataError.stack : metadataError);
     }
 
-    const error = new Error("PDF encryption failed: No working encryption tools available");
+    const error = new Error("PDF encryption failed: No working encryption tools available or encryption could not be verified");
     error.code = "ENCRYPTION_FAILED";
     throw error;
   }
@@ -140,7 +437,7 @@ class PDFProtectionService {
 
   static async protectWithQPDF(inputBuffer, password, permissions) {
     try {
-      const qpdf = require("node-qpdf");
+      const { encrypt } = require('node-qpdf2');
 
       // Create temporary files
       const tempDir = os.tmpdir();
@@ -150,24 +447,23 @@ class PDFProtectionService {
       // Write input file
       await fs.promises.writeFile(inputPath, inputBuffer);
 
-      // Configure qpdf options based on library source
+      console.log("🔧 Using node-qpdf2 for encryption...");
+      
+      // node-qpdf2 encrypt API
       const options = {
+        input: inputPath,
+        output: outputPath,
         password: password,
         keyLength: 256,
-        outputFile: outputPath,
         restrictions: {
-          print: permissions.printing !== false ? "full" : "none",
-          modify: permissions.editing === true ? "all" : "none",
+          print: permissions.printing !== false ? 'full' : 'none',
+          modify: permissions.editing === true ? 'all' : 'none',
           extract: permissions.copying === true,
-          fillForm: permissions.filling !== false,
+          useAes: 'y',
         },
       };
 
-      console.log("🔧 Using node-qpdf for encryption...");
-      // Use promisify since the library expects a callback
-      const { promisify } = require('util');
-      const qpdfEncrypt = promisify(qpdf.encrypt);
-      await qpdfEncrypt(inputPath, options);
+      await encrypt(options);
 
       // Read result
       const protectedBuffer = await fs.promises.readFile(outputPath);
@@ -180,14 +476,14 @@ class PDFProtectionService {
         console.warn("Cleanup warning:", cleanupError.message);
       }
 
-      console.log("✅ node-qpdf encryption successful");
+      console.log("✅ node-qpdf2 encryption successful");
       return {
         success: true,
         buffer: protectedBuffer,
       };
     } catch (error) {
-      console.error("❌ node-qpdf protection failed:", error.message);
-      throw new Error(`node-qpdf protection failed: ${error.message}`);
+      console.error("❌ node-qpdf2 protection failed:", error.message);
+      throw new Error(`node-qpdf2 protection failed: ${error.message}`);
     }
   }
 
@@ -232,42 +528,35 @@ class PDFProtectionService {
 
   static async protectWithGhostscript(inputBuffer, password, permissions) {
     try {
-      // Create temporary files
       const tempDir = os.tmpdir();
       const inputPath = path.join(tempDir, `gs_input_${Date.now()}.pdf`);
       const outputPath = path.join(tempDir, `gs_output_${Date.now()}.pdf`);
 
-      // Write input file
       await fs.promises.writeFile(inputPath, inputBuffer);
 
-      // Build Ghostscript command for encryption
-      // Use the full Windows path since we know it exists from logs
       const gsExecutable = await PDFProtectionService.getGhostscriptPath();
 
-      const gsCommand = [
+      // Prefer AES-256 when available
+      const gsArgs = [
         gsExecutable,
         "-dBATCH",
         "-dNOPAUSE",
         "-sDEVICE=pdfwrite",
-        "-dPDFSETTINGS=/printer",
-        `-sUserPassword=${password}`,
+        "-dEncrypt=true",
+        "-dEncryptionR=5",
+        "-dKeyLength=256",
         `-sOwnerPassword=${password}`,
-        "-dEncryptionLevel=3", // AES 128-bit
-        "-dPermissions=-4", // Restrict permissions
+        `-sUserPassword=${password}`,
+        "-dPermissions=-4",
         `-sOutputFile=${outputPath}`,
         inputPath,
-      ];
+      ].join(" ");
 
-      console.log("🔧 Running Ghostscript encryption command:", gsCommand.join(" "));
-      await execAsync(gsCommand.join(" "));
+      console.log("🔧 Running Ghostscript encryption command:", gsArgs);
+      await execAsync(gsArgs);
 
-      console.log("�� Running Ghostscript encryption...");
-      await execAsync(gsCommand);
-
-      // Read result
       const protectedBuffer = await fs.promises.readFile(outputPath);
 
-      // Cleanup
       try {
         await fs.promises.unlink(inputPath);
         await fs.promises.unlink(outputPath);
@@ -275,12 +564,73 @@ class PDFProtectionService {
         console.warn("Cleanup warning:", cleanupError.message);
       }
 
-      return {
-        success: true,
-        buffer: protectedBuffer,
-      };
+      return { success: true, buffer: protectedBuffer };
     } catch (error) {
       throw new Error(`Ghostscript protection failed: ${error.message}`);
+    }
+  }
+
+  static async protectWithPdfEncrypt(inputBuffer, password, permissions) {
+    try {
+      // Use the pdf-encrypt npm module if available. We will write temp files and call the module.
+      const tempDir = os.tmpdir();
+      const inputPath = path.join(tempDir, `pdf_encrypt_input_${Date.now()}.pdf`);
+      const outputPath = path.join(tempDir, `pdf_encrypt_output_${Date.now()}.pdf`);
+
+      await fs.promises.writeFile(inputPath, inputBuffer);
+
+      let pdfEncryptModule;
+      try {
+        pdfEncryptModule = require('pdf-encrypt');
+      } catch (err) {
+        throw new Error('pdf-encrypt module not available');
+      }
+
+      // Support multiple possible APIs of the module
+      const promisified = (fn) => {
+        return (...args) => new Promise((resolve, reject) => {
+          try {
+            fn(...args, (err, res) => {
+              if (err) return reject(err);
+              resolve(res);
+            });
+          } catch (e) {
+            reject(e);
+          }
+        });
+      };
+
+      // Build options
+      const opts = {
+        userPassword: password,
+        ownerPassword: password,
+      };
+
+      // Try common invocation patterns
+      if (typeof pdfEncryptModule === 'function') {
+        // e.g. module.exports = function(input, output, opts, cb)
+        await promisified(pdfEncryptModule)(inputPath, outputPath, opts);
+      } else if (pdfEncryptModule && typeof pdfEncryptModule.encrypt === 'function') {
+        await promisified(pdfEncryptModule.encrypt)(inputPath, outputPath, opts);
+      } else if (pdfEncryptModule && pdfEncryptModule.default && typeof pdfEncryptModule.default === 'function') {
+        await promisified(pdfEncryptModule.default)(inputPath, outputPath, opts);
+      } else {
+        throw new Error('Unsupported pdf-encrypt module API');
+      }
+
+      const protectedBuffer = await fs.promises.readFile(outputPath);
+
+      // Cleanup
+      try {
+        await fs.promises.unlink(inputPath);
+        await fs.promises.unlink(outputPath);
+      } catch (cleanupError) {
+        console.warn('Cleanup warning (pdf-encrypt):', cleanupError && cleanupError.message ? cleanupError.message : cleanupError);
+      }
+
+      return { success: true, buffer: protectedBuffer };
+    } catch (error) {
+      throw new Error(`pdf-encrypt fallback failed: ${error.message}`);
     }
   }
 
@@ -518,6 +868,22 @@ class PDFProtectionService {
         console.warn('gs not found on PATH, assuming it might be available anyway...');
         return "gs";
       }
+    }
+  }
+  // Verify whether a produced PDF buffer is actually encrypted (requires loading without password to fail)
+  static async verifyEncryption(buffer) {
+    try {
+      const { PDFDocument } = require('pdf-lib');
+      // Try loading WITHOUT ignoreEncryption - if it succeeds, PDF is not encrypted
+      await PDFDocument.load(buffer);
+      return false;
+    } catch (err) {
+      const msg = err && err.message ? err.message.toLowerCase() : '';
+      if (/encrypted|password|required/i.test(msg)) {
+        return true;
+      }
+      // Unknown error - conservatively treat as not encrypted
+      return false;
     }
   }
 }

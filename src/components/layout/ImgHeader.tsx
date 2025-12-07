@@ -17,6 +17,7 @@ import {
   Settings,
   Palette,
   Scissors,
+  Check,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -179,7 +180,7 @@ const ImgHeader = () => {
                     <span className="mr-2">{language.flag}</span>
                     <span className="flex-1">{language.nativeName}</span>
                     {currentLanguage.code === language.code && (
-                      <span className="text-blue-600 text-xs">✓</span>
+                      <Check className="w-3.5 h-3.5 text-blue-600" />
                     )}
                   </DropdownMenuItem>
                 ))}

@@ -14,6 +14,7 @@ import {
   Download,
   Trash2,
   CheckCircle,
+  Check,
   Loader2,
   ArrowLeft,
   RotateCw,
@@ -1028,8 +1029,9 @@ const RotatePdfAdvanced = () => {
                                   }}
                                 />
                                 {/* Content indicator */}
-                                <div className="absolute bottom-1 left-1 bg-green-500 text-white text-xs px-1 py-0.5 rounded">
-                                  ✓ Content
+                                <div className="absolute bottom-1 left-1 bg-green-500 text-white text-xs px-1 py-0.5 rounded flex items-center gap-0.5">
+                                  <CheckCircle className="w-2.5 h-2.5" />
+                                  Content
                                 </div>
                               </div>
                             ) : page.thumbnailLoading ? (

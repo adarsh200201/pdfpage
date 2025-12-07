@@ -16,6 +16,7 @@ import {
   Settings,
   Palette,
   Sparkles,
+  Check,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -137,7 +138,7 @@ const FaviconHeader = () => {
                     <span className="mr-2">{language.flag}</span>
                     <span className="flex-1">{language.nativeName}</span>
                     {currentLanguage.code === language.code && (
-                      <span className="text-purple-600 text-xs">✓</span>
+                      <Check className="w-3.5 h-3.5 text-purple-600" />
                     )}
                   </DropdownMenuItem>
                 ))}

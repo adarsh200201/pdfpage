@@ -39,17 +39,17 @@
 
 # ========== REDIRECTS ==========
 
-# ✅ 1. Specific rule for Google OAuth
+# ✅ 1. Specific rule for Google OAuth (Updated to Render backend)
 [[redirects]]
   from = "/api/auth/*"
-  to = "https://pdf-backend-935131444417.asia-south1.run.app/api/auth/:splat"
+  to = "https://pdfpage-backend.onrender.com/api/auth/:splat"
   status = 200
   force = true
 
-# ✅ 2. General API proxy
+# ✅ 2. General API proxy (Updated to Render backend)
 [[redirects]]
   from = "/api/*"
-  to = "https://pdf-backend-935131444417.asia-south1.run.app/api/:splat"
+  to = "https://pdfpage-backend.onrender.com/api/:splat"
   status = 200
   force = true
 
@@ -94,4 +94,4 @@
     X-Content-Type-Options = "nosniff"
     X-XSS-Protection = "1; mode=block"
     Referrer-Policy = "strict-origin-when-cross-origin"
-    Content-Security-Policy = "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob: 'wasm-unsafe-eval' https://translate.google.com https://translate.googleapis.com https://translate-pa.googleapis.com https://www.googletagmanager.com https://www.google-analytics.com https://cdn.jsdelivr.net https://unpkg.com https://checkout.razorpay.com; worker-src 'self' blob: data: 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline' https:; img-src 'self' data: blob: https: http:; connect-src 'self' https://pdf-backend-935131444417.asia-south1.run.app https://translate.googleapis.com https://translate-pa.googleapis.com https://translate.google.com https://checkout.razorpay.com https://api.razorpay.com https: wss:; font-src 'self' https: data:; frame-src 'self' https://translate.google.com https://translate.googleapis.com https://www.google.com https://api.razorpay.com; object-src 'none';"
+    Content-Security-Policy = "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob: 'wasm-unsafe-eval' https://translate.google.com https://translate.googleapis.com https://translate-pa.googleapis.com https://www.googletagmanager.com https://www.google-analytics.com https://cdn.jsdelivr.net https://unpkg.com https://checkout.razorpay.com; worker-src 'self' blob: data: 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline' https:; img-src 'self' data: blob: https: http:; connect-src 'self' https://pdfpage-backend.onrender.com https://translate.googleapis.com https://translate-pa.googleapis.com https://translate.google.com https://checkout.razorpay.com https://api.razorpay.com https: wss:; font-src 'self' https: data:; frame-src 'self' https://translate.google.com https://translate.googleapis.com https://www.google.com https://api.razorpay.com; object-src 'none';"

@@ -39,7 +39,7 @@ export interface UsageLimitInfo {
 }
 
 export class PDFService {
-  private static API_URL = "";
+  private static API_URL = (import.meta.env.VITE_API_URL as string) || "/api";
 
   // Track ongoing conversions to prevent concurrent LibreOffice calls
   private static ongoingConversions = new Set<string>();
@@ -907,7 +907,7 @@ export class PDFService {
         }
 
         if (isDuplicate) {
-          console.log("�� Duplicate file detected, not caching");
+          console.log("��� Duplicate file detected, not caching");
           return;
         }
       }
@@ -1311,32 +1311,69 @@ export class PDFService {
 
       console.log(`🌐 Making API request to: ${this.API_URL}/api/pdf/protect`);
 
-      const response = await fetch(`${this.API_URL}/api/pdf/protect`, {
-        method: "POST",
-        body: formData,
-        headers: {
-          Authorization: `Bearer ${this.getToken()}`,
-        },
-      }).catch((fetchError) => {
-        console.warn("🔄 Protection API unavailable, using client-side fallback:", fetchError.message);
-        throw fetchError;
-      });
+      let response: Response | null = null;
+
+      try {
+        response = await fetch(`${this.API_URL}/api/pdf/protect`, {
+          method: "POST",
+          body: formData,
+          headers: {
+            Authorization: `Bearer ${this.getToken()}`,
+          },
+        });
+      } catch (fetchError) {
+        console.warn("🔄 Protection API fetch failed to primary API_URL:", fetchError && (fetchError as Error).message);
+        // If API_URL is an absolute URL, try same-origin relative path as a fallback
+        try {
+          if (this.API_URL && this.API_URL !== "/api" && this.API_URL.startsWith("http")) {
+            console.log("🌐 Trying same-origin fallback to /api/pdf/protect");
+            response = await fetch(`/api/pdf/protect`, {
+              method: "POST",
+              body: formData,
+              headers: {
+                Authorization: `Bearer ${this.getToken()}`,
+              },
+            });
+          } else {
+            throw fetchError;
+          }
+        } catch (fallbackError) {
+          console.warn("🔄 Protection API unavailable, using client-side fallback:", fallbackError && (fallbackError as Error).message);
+          throw fallbackError;
+        }
+      }
 
       onProgress?.(80);
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
+        // Try to parse JSON body, otherwise read plain text
+        let errorData: any = null;
+        let bodyText = null;
+        try {
+          errorData = await response.json();
+        } catch (e) {
+          try {
+            bodyText = await response.text();
+          } catch (e2) {
+            bodyText = null;
+          }
+        }
+
+        console.error('🔴 Protect API returned non-OK status', {
+          url: `${this.API_URL}/api/pdf/protect`,
+          status: response.status,
+          body: errorData || bodyText,
+        });
 
         // Handle specific encryption failure
-        if (errorData.code === "ENCRYPTION_FAILED") {
+        if (errorData && errorData.code === "ENCRYPTION_FAILED") {
           throw new Error(
             "PDF encryption failed: Server encryption tools are not available. This means your PDF cannot be properly password-protected. Please contact support."
           );
         }
 
-        throw new Error(
-          errorData.message || `HTTP error! status: ${response.status}`,
-        );
+        const message = (errorData && errorData.message) || bodyText || `HTTP error! status: ${response.status}`;
+        throw new Error(message);
       }
 
       const arrayBuffer = await response.arrayBuffer();
@@ -1348,9 +1385,9 @@ export class PDFService {
         headers[key] = value;
       });
 
-      // Verify actual encryption was applied
+      // Verify actual encryption was applied — do not hard-fail, surface a warning instead
       if (headers["x-encrypted"] !== "true") {
-        console.warn("⚠️ PDF may not be properly encrypted");
+        console.warn("⚠️ Server returned an unencrypted PDF. Headers:", headers);
       }
 
       console.log(
@@ -1362,33 +1399,11 @@ export class PDFService {
         headers,
       };
     } catch (error: any) {
-      console.warn("🔄 API protection unavailable, using client-side method:", error.message);
-
-      // Fallback to client-side protection (simulation)
-      console.log("🔄 Using client-side protection...");
-      onProgress?.(50);
-
-      try {
-        const result = await this.protectPDFClientSide(
-          file,
-          password,
-          permissions,
-          onProgress,
-        );
-        return {
-          data: result.buffer,
-          headers: {
-            "x-protection-level": "client-side",
-            "x-original-size": file.size.toString(),
-            "x-protected-size": result.length.toString(),
-          },
-        };
-      } catch (clientError) {
-        console.error("Client-side protection also failed:", clientError);
-        throw new Error(
-          `PDF protection could not be completed. Please try again or contact support.`,
-        );
-      }
+      console.error("PDF protection failed:", error);
+      throw new Error(
+        error?.message ||
+          "PDF protection failed. Server-side encryption is required for secure password protection."
+      );
     }
   }
 
@@ -3748,7 +3763,7 @@ https://pdfpage.in/word-to-pdf
       // Return best result or original if no improvement
       if (bestResult && bestResult.length < originalSize) {
         console.log(
-          `✅ Fallback compression successful: ${(((originalSize - bestResult.length) / originalSize) * 100).toFixed(1)}% reduction`,
+          `��� Fallback compression successful: ${(((originalSize - bestResult.length) / originalSize) * 100).toFixed(1)}% reduction`,
         );
         onProgress?.(100);
         return bestResult;

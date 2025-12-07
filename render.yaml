@@ -14,13 +14,23 @@ services:
       - key: MONGODB_URI
         sync: false
       - key: JWT_SECRET
-        generateValue: true
+        value: a7f2b9c8e1d4f6a3b5c7d9e1f3a5b7c9d1e3f5a7b9c1d3e5f7a9b1c3d5e7f9
       - key: RAZORPAY_KEY_ID
-        sync: false
+        value: rzp_live_Rij57cVagX37oT
       - key: RAZORPAY_KEY_SECRET
+        value: wQljQkXS1asbI9HAFtM0NJMv
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
         sync: false
       - key: GMAIL_USER
-        sync: false
+        value: noreply@pdfpage.com
       - key: GMAIL_APP_PASSWORD
         sync: false
+      - key: CLOUDINARY_CLOUD_NAME
+        value: dj8qhuudz
+      - key: CLOUDINARY_API_KEY
+        value: 862265886717521
+      - key: REMOVE_BG_API_KEY
+        value: Wzxf6MXuqEF2yGcC1vXBqZc8
     healthCheckPath: /api/health

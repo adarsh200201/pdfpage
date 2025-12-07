@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import Header from "@/components/layout/Header";
+import BackToHome from "@/components/ui/back-to-home";
 import FileUpload from "@/components/ui/file-upload";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -655,15 +656,7 @@ const PdfToJpg = () => {
         <PromoBanner className="mb-8" />
 
         {/* Navigation */}
-        <div className="flex items-center space-x-2 mb-8">
-          <Link
-            to="/"
-            className="text-body-medium text-text-light hover:text-brand-red"
-          >
-            <ArrowLeft className="w-4 h-4 mr-1 inline" />
-            Back to Home
-          </Link>
-        </div>
+        <BackToHome />
 
         {/* Header */}
         <div className="text-center mb-8">

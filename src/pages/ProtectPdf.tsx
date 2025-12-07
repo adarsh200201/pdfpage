@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { Link } from "react-router-dom";
 import Header from "@/components/layout/Header";
 import { Button } from "@/components/ui/button";
@@ -58,17 +58,37 @@ const ProtectPdf = () => {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [permissions, setPermissions] = useState({
-    printing: true,
-    copying: false,
-    editing: false,
-    filling: true,
-  });
+  const permissions: any = {};
   const [isProcessing, setIsProcessing] = useState(false);
   const [progress, setProgress] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
   const [protectionResult, setProtectionResult] = useState<ProtectionResult | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [encryptionAvailable, setEncryptionAvailable] = useState<boolean | null>(null);
+  const [encryptionAvailabilityDetails, setEncryptionAvailabilityDetails] = useState<any>(null);
+  const requestInFlightRef = useRef<boolean>(false);
+
+  // Check backend encryption availability
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const res = await fetch('/api/pdf/protect-status');
+        if (!mounted) return;
+        if (!res.ok) {
+          setEncryptionAvailable(false);
+          return;
+        }
+        const json = await res.json();
+        setEncryptionAvailable(!!json.usable);
+        setEncryptionAvailabilityDetails(json.availability || json);
+      } catch (err) {
+        console.warn('Failed to fetch protect-status:', err);
+        if (mounted) setEncryptionAvailable(false);
+      }
+    })();
+    return () => { mounted = false; };
+  }, []);
 
   const { toast } = useToast();
   
@@ -240,7 +260,14 @@ const ProtectPdf = () => {
     setProtectionResult(null);
   };
 
-  const protectPDF = async (file: File, userPassword: string, permissions: any): Promise<Uint8Array> => {
+  const protectPDF = async (file: File, userPassword: string, permissions: any): Promise<{data:Uint8Array, headers: Record<string,string>}> => {
+    // Prevent multiple simultaneous requests
+    if (requestInFlightRef.current) {
+      throw new Error('A protection request is already in progress. Please wait.');
+    }
+    
+    requestInFlightRef.current = true;
+    
     try {
       // Use the backend service for professional AES-256 encryption
       const formData = new FormData();
@@ -262,19 +289,13 @@ const ProtectPdf = () => {
           // ignore, we'll handle based on status
         }
 
-        // If server explicitly reported encryption failure or returned a 5xx, try client-side fallback
+        // Fail fast: do not perform insecure client-side fallbacks. Server-side encryption is required.
         if (errorData && errorData.code === 'ENCRYPTION_FAILED') {
-          console.log("🔄 Server encryption failed, attempting client-side protection...");
-          return await createSecuredPDFWithNotice(file, userPassword, permissions);
-        }
-
-        if (response.status >= 500) {
-          console.log(`🔄 Server returned ${response.status}, attempting client-side protection...`);
-          return await createSecuredPDFWithNotice(file, userPassword, permissions);
+          throw new Error('Server encryption tools unavailable. Cannot securely protect this PDF.');
         }
 
         if (errorData && errorData.code === 'INVALID_PASSWORD') {
-          throw new Error("Password must be at least 6 characters long and contain letters and numbers");
+          throw new Error('Password must be at least 6 characters long and contain letters and numbers');
         }
 
         throw new Error((errorData && errorData.message) || `Server error: ${response.status}`);
@@ -282,29 +303,21 @@ const ProtectPdf = () => {
 
       // Get the encrypted PDF as array buffer
       const encryptedPdfArrayBuffer = await response.arrayBuffer();
-      return new Uint8Array(encryptedPdfArrayBuffer);
+
+      // Capture headers
+      const headers: Record<string, string> = {};
+      response.headers.forEach((value, key) => {
+        headers[key] = value;
+      });
+
+      return { data: new Uint8Array(encryptedPdfArrayBuffer), headers };
     } catch (error) {
-      console.error("Error encrypting PDF:", error);
-
-      // Only attempt client-side fallback if it's not a password validation error
-      const _errMsg = (error && (error as any).message) ? (error as any).message : String(error);
-
-      if (!_errMsg.includes('Password')) {
-        try {
-          console.log("🔄 Attempting client-side protection with metadata...");
-          return await createSecuredPDFWithNotice(file, userPassword, permissions);
-        } catch (fallbackError) {
-          console.error("Fallback protection also failed:", fallbackError);
-          // Provide more specific error message
-          const fallbackMsg = (fallbackError && (fallbackError as any).message) ? (fallbackError as any).message : String(fallbackError);
-          if (fallbackMsg.includes('WinAnsi')) {
-            throw new Error("PDF contains special characters that cannot be encoded. Please try a different PDF file.");
-          }
-          throw new Error("PDF protection failed. Please ensure you have a valid PDF file and try again.");
-        }
-      }
-
+      console.error('Error encrypting PDF:', error);
+      // Re-throw to be handled by caller; do not silently fallback to an insecure client-side protection.
       throw error;
+    } finally {
+      // Always release the lock when request completes
+      requestInFlightRef.current = false;
     }
   };
 
@@ -432,23 +445,38 @@ const ProtectPdf = () => {
 
       console.log("🔐 Applying AES-256 encryption...");
 
-      // Apply professional AES-256 encryption using pdf-lib
-      const encryptedPdfBytes = await protectPDF(file.file, password, permissions);
+      // Apply professional AES-256 encryption using server
+      const result = await protectPDF(file.file, password, {});
 
       clearInterval(progressInterval);
       setProgress(100);
 
       // Create download URL
-      const blob = new Blob([encryptedPdfBytes], { type: "application/pdf" });
+      const blob = new Blob([result.data], { type: "application/pdf" });
       const downloadUrl = URL.createObjectURL(blob);
+
+      const isEncrypted = (result.headers['x-encrypted'] || '').toLowerCase() === 'true';
 
       const protectionResult: ProtectionResult = {
         originalSize: file.size,
-        protectedSize: encryptedPdfBytes.length,
+        protectedSize: result.data.length,
         downloadUrl,
         filename: `${file.name.replace(/\.pdf$/i, "")}_protected.pdf`,
-        isEncrypted: true,
+        isEncrypted,
       };
+
+      if (!isEncrypted) {
+        toast({
+          title: "⚠️ Protection Applied (Not Encrypted)",
+          description: "Server could not apply real encryption. A metadata-only notice was added. For secure password protection, install qpdf/Ghostscript on the server.",
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "🔐 PDF Protected Successfully!",
+          description: "Your PDF is now protected with professional AES-256 encryption. PDF viewers will require the password to open it.",
+        });
+      }
 
       setProtectionResult(protectionResult);
 
@@ -462,17 +490,12 @@ const ProtectPdf = () => {
           fileSize: file.file.size,
           fileType: file.file.type,
         },
-        encryptedPdfBytes.length,
+        result.data.length,
         conversionTime,
       );
 
       // Track tool usage
       trackToolUsage();
-
-      toast({
-        title: "🔐 PDF Protected Successfully!",
-        description: "Your PDF is now protected with professional AES-256 encryption. PDF viewers will require the password to open it.",
-      });
     } catch (error: any) {
       console.error("Protection failed:", error);
       setProgress(0);
@@ -569,23 +592,22 @@ const ProtectPdf = () => {
             <h1 className="text-4xl font-bold text-gray-900">Protect PDF</h1>
           </div>
           <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-            Professional AES-256 Encryption. Industry-standard encryption that PDF viewers enforce. 
-            Requires correct password to open.
+            Add password protection to your PDF files with industry-standard encryption. Secure your documents from unauthorized access.
           </p>
         </div>
 
         <div className="max-w-4xl mx-auto">
           {/* Security Notice */}
-          <Card className="mb-8 border-green-200 bg-green-50">
+          <Card className="mb-8 border-2 border-blue-300 bg-blue-50 shadow-md">
             <CardContent className="p-6">
-              <div className="flex items-start gap-3">
-                <Shield className="w-6 h-6 text-green-600 mt-0.5" />
-                <div>
-                  <h2 className="font-semibold text-green-800 mb-2">Professional AES-256 Encryption</h2>
-                  <p className="text-green-700 text-sm">
-                    This tool uses industry-standard AES-256 encryption with pdf-lib. The encrypted PDFs 
-                    require a password to open in ANY PDF viewer (Adobe Reader, Chrome, Edge, etc.). 
-                    This is real encryption, not just metadata protection.
+              <div className="flex items-center gap-4">
+                <div className="flex-shrink-0 p-3 bg-blue-600 rounded-xl shadow-sm">
+                  <Shield className="w-6 h-6 text-white" />
+                </div>
+                <div className="flex-1">
+                  <h2 className="font-semibold text-blue-900 mb-2 text-lg">Secure Encryption</h2>
+                  <p className="text-blue-800 text-sm leading-relaxed">
+                    Your PDFs are protected with industry-standard encryption. Once encrypted, the password is required to open the file in any PDF viewer.
                   </p>
                 </div>
               </div>
@@ -709,7 +731,7 @@ const ProtectPdf = () => {
                   Encryption Settings
                 </CardTitle>
                 <CardDescription>
-                  Configure password and permissions for AES-256 encryption
+                  Configure password for AES-256 encryption
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
@@ -751,71 +773,75 @@ const ProtectPdf = () => {
                   </div>
                 </div>
 
-                {/* Permissions */}
-                <div>
-                  <Label className="text-base font-semibold">Document Permissions</Label>
-                  <p className="text-sm text-gray-500 mb-3">
-                    Control what users can do after entering the password
-                  </p>
-                  <div className="grid grid-cols-2 gap-3">
-                    <label className="flex items-center space-x-2">
-                      <input
-                        type="checkbox"
-                        checked={permissions.printing}
-                        onChange={(e) =>
-                          setPermissions({
-                            ...permissions,
-                            printing: e.target.checked,
-                          })
-                        }
-                        className="rounded border-gray-300 text-red-600 focus:ring-red-500"
-                      />
-                      <span className="text-sm">Allow printing</span>
-                    </label>
-                    <label className="flex items-center space-x-2">
-                      <input
-                        type="checkbox"
-                        checked={permissions.copying}
-                        onChange={(e) =>
-                          setPermissions({
-                            ...permissions,
-                            copying: e.target.checked,
-                          })
-                        }
-                        className="rounded border-gray-300 text-red-600 focus:ring-red-500"
-                      />
-                      <span className="text-sm">Allow copying text</span>
-                    </label>
-                    <label className="flex items-center space-x-2">
-                      <input
-                        type="checkbox"
-                        checked={permissions.editing}
-                        onChange={(e) =>
-                          setPermissions({
-                            ...permissions,
-                            editing: e.target.checked,
-                          })
-                        }
-                        className="rounded border-gray-300 text-red-600 focus:ring-red-500"
-                      />
-                      <span className="text-sm">Allow editing</span>
-                    </label>
-                    <label className="flex items-center space-x-2">
-                      <input
-                        type="checkbox"
-                        checked={permissions.filling}
-                        onChange={(e) =>
-                          setPermissions({
-                            ...permissions,
-                            filling: e.target.checked,
-                          })
-                        }
-                        className="rounded border-gray-300 text-red-600 focus:ring-red-500"
-                      />
-                      <span className="text-sm">Allow form filling</span>
-                    </label>
-                  </div>
+
+                {/* Action Buttons */}
+                <div className="flex gap-4 pt-6 border-t">
+                  <Button
+                    onClick={protectFiles}
+                    disabled={
+                      files.length === 0 ||
+                      isProcessing ||
+                      !password ||
+                      password !== confirmPassword ||
+                      password.length < 6 ||
+                      encryptionAvailable === false
+                    }
+                    className="bg-red-600 hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed flex-1"
+                    size="lg"
+                  >
+                    {isProcessing ? (
+                      <>
+                        <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                        Encrypting... ({Math.round(progress)}%)
+                      </>
+                    ) : (
+                      <>
+                        <Lock className="w-5 h-5 mr-2" />
+                        Protect PDF
+                      </>
+                    )}
+                  </Button>
+
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setFiles([]);
+                      setProtectionResult(null);
+                      setPassword("");
+                      setConfirmPassword("");
+                    }}
+                    size="lg"
+                  >
+                    Clear All
+                  </Button>
                 </div>
+
+                {/* Progress Bar */}
+                {isProcessing && (
+                  <div className="mt-4">
+                    <div className="flex justify-between text-sm mb-2">
+                      <span>Applying encryption...</span>
+                      <span>{Math.round(progress)}%</span>
+                    </div>
+                    <Progress value={progress} className="h-2" />
+                  </div>
+                )}
+
+                {encryptionAvailable === false && (
+                  <div className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded">
+                    <div className="flex items-start gap-3">
+                      <AlertCircle className="w-5 h-5 text-yellow-700" />
+                      <div>
+                        <p className="font-semibold text-yellow-800">Server encryption unavailable</p>
+                        <p className="text-sm text-yellow-700">The server is unable to apply secure AES encryption right now (503). Please try again later or contact support. If you manage the server, ensure qpdf or Ghostscript is installed.</p>
+                        <details className="text-xs text-gray-600 mt-2">
+                          <summary>Technical details</summary>
+                          <pre className="mt-2 text-xs text-gray-700">{JSON.stringify(encryptionAvailabilityDetails, null, 2)}</pre>
+                        </details>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
           )}
@@ -835,13 +861,10 @@ const ProtectPdf = () => {
                   <div className="bg-green-100 border border-green-300 rounded-lg p-4 mb-6">
                     <div className="flex items-center gap-2 text-green-800">
                       <Shield className="w-5 h-5" />
-                      <span className="font-semibold">AES-256 Encryption Applied Successfully</span>
+                      <span className="font-semibold">PDF Protected Successfully</span>
                     </div>
                     <p className="text-sm text-green-700 mt-2">
-                      Your PDF is now protected with industry-standard AES-256 encryption. 
-                      This file requires the correct password to open in ANY PDF viewer 
-                      (Adobe Reader, Chrome, Firefox, Edge, etc.). This is real encryption, 
-                      not just metadata protection.
+                      Your PDF is now password-protected. The password will be required to open this file in any PDF viewer.
                     </p>
                   </div>
 
@@ -878,123 +901,7 @@ const ProtectPdf = () => {
             </Card>
           )}
 
-          {/* Action Buttons */}
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex gap-4 justify-center">
-                <Button
-                  onClick={protectFiles}
-                  disabled={
-                    files.length === 0 ||
-                    isProcessing ||
-                    !password ||
-                    password !== confirmPassword ||
-                    password.length < 6
-                  }
-                  className="bg-red-600 hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                  size="lg"
-                >
-                  {isProcessing ? (
-                    <>
-                      <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                      Encrypting... ({Math.round(progress)}%)
-                    </>
-                  ) : (
-                    <>
-                      <Lock className="w-5 h-5 mr-2" />
-                      Apply AES-256 Encryption
-                    </>
-                  )}
-                </Button>
 
-                {files.length > 0 && (
-                  <Button
-                    variant="outline"
-                    onClick={() => {
-                      setFiles([]);
-                      setProtectionResult(null);
-                      setPassword("");
-                      setConfirmPassword("");
-                    }}
-                  >
-                    Clear All
-                  </Button>
-                )}
-              </div>
-
-              {/* Progress Bar */}
-              {isProcessing && (
-                <div className="mt-6">
-                  <div className="flex justify-between text-sm mb-2">
-                    <span>Applying AES-256 encryption...</span>
-                    <span>{Math.round(progress)}%</span>
-                  </div>
-                  <Progress value={progress} className="h-2" />
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Info Section */}
-        <div className="max-w-4xl mx-auto mt-12">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Info className="w-5 h-5" />
-                AES-256 Encryption Information
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-6">
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                  <div className="flex items-start gap-3">
-                    <AlertCircle className="w-5 h-5 text-blue-600 mt-0.5" />
-                    <div>
-                      <h2 className="font-semibold text-blue-800 mb-2">What is AES-256 Encryption?</h2>
-                      <p className="text-sm text-blue-700">
-                        AES-256 (Advanced Encryption Standard with 256-bit keys) is the same encryption 
-                        standard used by banks, governments, and military organizations worldwide. It's 
-                        considered unbreakable by current computing standards and is enforced by all PDF viewers.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <h2 className="font-semibold mb-2">Encryption Features:</h2>
-                    <ul className="space-y-2 text-sm">
-                      <li>• Industry-standard AES-256 encryption</li>
-                      <li>• Password required to open in ANY PDF viewer</li>
-                      <li>• Granular permission controls</li>
-                      <li>• Client-side processing (secure)</li>
-                      <li>• Compatible with all PDF applications</li>
-                      <li>• Cannot be bypassed or removed easily</li>
-                    </ul>
-                  </div>
-                  <div>
-                    <h2 className="font-semibold mb-2">Permission Controls:</h2>
-                    <ul className="space-y-2 text-sm">
-                      <li>• <strong>Printing:</strong> Control document printing rights</li>
-                      <li>• <strong>Copying:</strong> Prevent text selection and copying</li>
-                      <li>• <strong>Editing:</strong> Block content modifications</li>
-                      <li>• <strong>Form Filling:</strong> Control form field access</li>
-                    </ul>
-                  </div>
-                </div>
-
-                <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                  <h2 className="font-semibold text-green-800 mb-2">Security Guarantee</h2>
-                  <p className="text-sm text-green-700">
-                    The encrypted PDFs generated by this tool use the pdf-lib library with true AES-256 
-                    encryption. The password is required to open the file in Adobe Reader, Chrome, Edge, 
-                    Firefox, and all other PDF viewers. This is not just metadata protection - it's real encryption.
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
         </div>
 
         <PromoBanner />
