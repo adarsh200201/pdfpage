@@ -1,5 +1,5 @@
-# API proxy rules (these take precedence)
-/api/* https://asia-south1-pdf-backend.cloudfunctions.net/pdf-backend/api/:splat 200
+# API proxy rules - Route all /api/* requests to Render backend
+/api/* https://pdfpage-backend.onrender.com/api/:splat 200
 
 # SPA fallback for all other routes
 /* /index.html 200
