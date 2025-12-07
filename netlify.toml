@@ -39,19 +39,11 @@
 
 # ========== REDIRECTS ==========
 
-# ✅ 1. Specific rule for Google OAuth (Updated to Render backend)
-[[redirects]]
-  from = "/api/auth/*"
-  to = "https://pdfpage-backend.onrender.com/api/auth/:splat"
-  status = 200
-  force = true
-
-# ✅ 2. General API proxy (Updated to Render backend)
+# ✅ API proxy rules - Route all /api/* requests to Render backend
 [[redirects]]
   from = "/api/*"
   to = "https://pdfpage-backend.onrender.com/api/:splat"
   status = 200
-  force = true
 
 # ✅ 3. SPA fallback (must be last)
 [[redirects]]
