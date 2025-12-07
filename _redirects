@@ -1,5 +1,5 @@
 # API proxy rules - Route all /api/* requests to Render backend
-/api/auth/google https://pdfpage-backend.onrender.com/api/auth/google 200
+# Note: OAuth routes (/api/auth/google) should NOT be proxied - they need direct browser redirects
 /api/* https://pdfpage-backend.onrender.com/api/:splat 200
 
 # SPA fallback for all other routes

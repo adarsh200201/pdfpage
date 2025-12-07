@@ -209,13 +209,16 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     try {
       setIsLoading(true);
 
-      // In production with _redirects proxy, use /api/auth/google (will be proxied)
-      // The _redirects file routes /api/* to backend automatically
-      const authUrl = '/api/auth/google';
+      // For OAuth, we need to redirect directly to backend (not through proxy)
+      // because OAuth requires browser redirects, not server-to-server
+      const backendUrl = getBackendUrl();
+      const authUrl = backendUrl 
+        ? `${backendUrl}/api/auth/google`  // Production: direct to Render backend
+        : '/api/auth/google';                // Development: use proxy
 
       console.log('🔐 [AUTH-CONTEXT] Redirecting to Google OAuth:', authUrl);
 
-      // Redirect to Google OAuth
+      // Redirect to Google OAuth (browser redirect, not fetch)
       window.location.href = authUrl;
     } catch (error) {
       console.error('Google login error:', error);
