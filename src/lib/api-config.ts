@@ -13,8 +13,12 @@ export const getApiUrl = (path: string = ''): string => {
 };
 
 export const getApiBaseUrl = (): string => {
-  // Always use relative path for security
-  // Backend URL should only be configured on server/proxy level
+  // In production, use full backend URL for OAuth and other external integrations
+  // In development, use relative path (proxied by Vite)
+  if (!import.meta.env.DEV && import.meta.env.VITE_API_URL) {
+    return import.meta.env.VITE_API_URL;
+  }
+  // Default to relative path for development
   return '/api';
 };
 

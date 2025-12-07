@@ -207,9 +207,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const loginWithGoogle = async () => {
     try {
       setIsLoading(true);
-      
+
+      // Get backend URL based on environment
+      const backendUrl = !import.meta.env.DEV && import.meta.env.VITE_API_URL
+        ? import.meta.env.VITE_API_URL
+        : '/api';
+
       // Redirect to Google OAuth
-      window.location.href = '/api/auth/google';
+      window.location.href = `${backendUrl}/auth/google`;
     } catch (error) {
       console.error('Google login error:', error);
       setIsLoading(false);
