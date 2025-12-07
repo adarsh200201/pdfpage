@@ -209,9 +209,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     try {
       setIsLoading(true);
 
-      // Get backend URL (without /api suffix for OAuth)
-      const backendUrl = getBackendUrl();
-      const authUrl = backendUrl ? `${backendUrl}/api/auth/google` : '/api/auth/google';
+      // In production with _redirects proxy, use /api/auth/google (will be proxied)
+      // The _redirects file routes /api/* to backend automatically
+      const authUrl = '/api/auth/google';
 
       console.log('🔐 [AUTH-CONTEXT] Redirecting to Google OAuth:', authUrl);
 
