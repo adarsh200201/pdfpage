@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode, useRef } from 'react';
-import { fetchWithRetry } from '@/lib/api-config';
+import { fetchWithRetry, getBackendUrl } from '@/lib/api-config';
 
 // Types
 export interface User {
@@ -209,13 +209,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     try {
       setIsLoading(true);
 
-      // Get backend URL based on environment
-      const backendUrl = !import.meta.env.DEV && import.meta.env.VITE_API_URL
-        ? import.meta.env.VITE_API_URL
-        : '/api';
+      // Get backend URL (without /api suffix for OAuth)
+      const backendUrl = getBackendUrl();
+      const authUrl = backendUrl ? `${backendUrl}/api/auth/google` : '/api/auth/google';
+
+      console.log('🔐 [AUTH-CONTEXT] Redirecting to Google OAuth:', authUrl);
 
       // Redirect to Google OAuth
-      window.location.href = `${backendUrl}/auth/google`;
+      window.location.href = authUrl;
     } catch (error) {
       console.error('Google login error:', error);
       setIsLoading(false);
