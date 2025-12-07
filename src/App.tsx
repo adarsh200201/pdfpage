@@ -21,6 +21,7 @@ import LocalBusinessSchema from "@/components/LocalBusinessSchema";
 import GoogleSearchOptimizer from "@/components/GoogleSearchOptimizer";
 import GoogleKnowledgePanelOptimizer from "@/components/GoogleKnowledgePanelOptimizer";
 import EnhancedBreadcrumbSchema from "@/components/EnhancedBreadcrumbSchema";
+import { BackendStatusNotification } from "@/components/BackendStatusNotification";
 import {
   BrowserRouter,
   Routes,
@@ -263,6 +264,7 @@ const App = () => {
                     <GoogleKnowledgePanelOptimizer />
                     <EnhancedBreadcrumbSchema />
                     <PWAStatusBar />
+                    <BackendStatusNotification />
                     <ScrollRestoration />
                     <Routes>
                       <Route path="/" element={<Index />} />

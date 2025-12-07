@@ -31,17 +31,60 @@ export const getFullApiUrl = (endpoint: string): string => {
 };
 
 // Utility to check if backend is available
-export const checkBackendHealth = async (): Promise<boolean> => {
-  try {
-    const healthUrl = getFullApiUrl('/health');
-    const response = await fetch(healthUrl, {
-      method: 'GET',
-      signal: AbortSignal.timeout(3000) // 3 second timeout
-    });
-    return response.ok;
-  } catch {
-    return false;
+export const checkBackendHealth = async (retries = 3): Promise<boolean> => {
+  for (let i = 0; i < retries; i++) {
+    try {
+      const healthUrl = getFullApiUrl('/health');
+      const response = await fetch(healthUrl, {
+        method: 'GET',
+        signal: AbortSignal.timeout(10000) // 10 second timeout for cold start
+      });
+      if (response.ok) return true;
+      
+      // If 503, wait and retry (Render cold start)
+      if (response.status === 503 && i < retries - 1) {
+        console.log(`⏳ Backend is starting up, waiting ${(i + 1) * 5} seconds...`);
+        await new Promise(resolve => setTimeout(resolve, (i + 1) * 5000));
+        continue;
+      }
+    } catch (error) {
+      if (i < retries - 1) {
+        console.log(`⏳ Retrying backend connection (${i + 1}/${retries})...`);
+        await new Promise(resolve => setTimeout(resolve, 3000));
+      }
+    }
   }
+  return false;
+};
+
+// Fetch with automatic retry for cold starts
+export const fetchWithRetry = async (
+  url: string,
+  options: RequestInit = {},
+  maxRetries = 2
+): Promise<Response> => {
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      const response = await fetch(url, options);
+      
+      // If 503 (service starting), wait and retry
+      if (response.status === 503 && i < maxRetries - 1) {
+        console.log(`⏳ Backend waking up, retrying in ${(i + 1) * 10} seconds...`);
+        await new Promise(resolve => setTimeout(resolve, (i + 1) * 10000));
+        continue;
+      }
+      
+      return response;
+    } catch (error) {
+      if (i < maxRetries - 1) {
+        console.log(`⏳ Request failed, retrying...`);
+        await new Promise(resolve => setTimeout(resolve, 5000));
+      } else {
+        throw error;
+      }
+    }
+  }
+  throw new Error('Max retries exceeded');
 };
 
 // Get development info for debugging (no sensitive URLs exposed)

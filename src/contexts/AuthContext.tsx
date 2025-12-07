@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode, useRef } from 'react';
+import { fetchWithRetry } from '@/lib/api-config';
 
 // Types
 export interface User {
@@ -136,7 +137,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setIsLoading(true);
       console.log('🔐 [AUTH-CONTEXT] Attempting login...');
 
-      const response = await fetch('/api/auth/login', {
+      const response = await fetchWithRetry('/api/auth/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -228,7 +229,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setIsLoading(true);
       console.log('📝 [AUTH-CONTEXT] Attempting registration...');
 
-      const response = await fetch('/api/auth/register', {
+      const response = await fetchWithRetry('/api/auth/register', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
