@@ -94,33 +94,48 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         },
       }, 3);
 
-      // Always read the response body once
-      let responseData;
-      try {
-        responseData = await response.json();
-      } catch (parseError) {
-        console.error('❌ [AUTH-CONTEXT] Failed to parse response:', parseError);
-        responseData = null;
-      }
+      // Check response status first before parsing
+      if (response.ok) {
+        try {
+          const responseData = await response.json();
+          console.log('✅ [AUTH-CONTEXT] Token verified, user data:', responseData);
 
-      if (response.ok && responseData) {
-        console.log('✅ [AUTH-CONTEXT] Token verified, user data:', responseData);
-
-        if (responseData.user) {
-          setUser(responseData.user);
-          // Update stored user data
-          localStorage.setItem('user', JSON.stringify(responseData.user));
-          // Clear pending verification flag
-          localStorage.removeItem('pending_verification');
+          if (responseData.user) {
+            setUser(responseData.user);
+            // Update stored user data
+            localStorage.setItem('user', JSON.stringify(responseData.user));
+            // Clear pending verification flag
+            localStorage.removeItem('pending_verification');
+          }
+        } catch (parseError) {
+          console.error('❌ [AUTH-CONTEXT] Failed to parse response body:', parseError);
+          // Token verification succeeded but response parse failed - use fallback
+          const pendingVerification = localStorage.getItem('pending_verification');
+          if (pendingVerification) {
+            const storedUser = localStorage.getItem('user');
+            if (storedUser) {
+              try {
+                setUser(JSON.parse(storedUser));
+              } catch (e) {
+                console.error('Failed to parse stored user:', e);
+              }
+            }
+          } else {
+            localStorage.removeItem('auth_token');
+            localStorage.removeItem('user');
+            setUser(null);
+          }
         }
       } else {
+        // Response is not OK (e.g., 503, 401)
+        console.log(`⚠️ [AUTH-CONTEXT] Backend returned ${response.status}, checking fallback mode`);
+
         // Check if we're in JWT fallback mode (pending verification)
         const pendingVerification = localStorage.getItem('pending_verification');
-        
+
         if (pendingVerification) {
-          console.log('⚠️ [AUTH-CONTEXT] Backend verification failed, but using JWT fallback mode');
+          console.log('⚠️ [AUTH-CONTEXT] Backend unavailable (likely cold start), using JWT fallback mode');
           // Keep the token and user data, backend will verify later
-          // Use the stored user data from fallback
           const storedUser = localStorage.getItem('user');
           if (storedUser) {
             try {
@@ -130,8 +145,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             }
           }
         } else {
-          console.log('❌ [AUTH-CONTEXT] Token verification failed, clearing auth data');
-          // Token is invalid, remove it
+          console.log('❌ [AUTH-CONTEXT] Backend returned error and no fallback available, clearing auth');
+          // Token is invalid or backend error with no fallback, remove it
           localStorage.removeItem('auth_token');
           localStorage.removeItem('user');
           setUser(null);
