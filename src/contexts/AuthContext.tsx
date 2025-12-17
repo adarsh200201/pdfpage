@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode, useRef } from 'react';
-import { fetchWithRetry, getBackendUrl } from '@/lib/api-config';
+import { fetchWithRetry, getBackendUrl, getFullApiUrl } from '@/lib/api-config';
 
 // Types
 export interface User {
@@ -85,12 +85,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
       console.log('🔑 [AUTH-CONTEXT] Token found, verifying with backend...');
 
-      // Verify token with backend
-      const response = await fetch('/api/auth/me', {
+      // Verify token with backend - use fetchWithRetry for cold start handling
+      const response = await fetchWithRetry(getFullApiUrl('/auth/me'), {
+        method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
         },
-      });
+      }, 3);
 
       // Always read the response body once
       let responseData;
@@ -328,14 +330,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         throw new Error('Not authenticated');
       }
 
-      const response = await fetch('/api/auth/profile', {
+      const response = await fetchWithRetry(getFullApiUrl('/auth/profile'), {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`,
         },
         body: JSON.stringify(data),
-      });
+      }, 2);
 
       if (!response.ok) {
         const error = await response.json();
@@ -354,15 +356,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const logout = async () => {
     try {
       const token = localStorage.getItem('auth_token');
-      
+
       if (token) {
-        // Notify backend of logout
-        await fetch('/api/auth/logout', {
+        // Notify backend of logout - use retry for cold start handling
+        await fetchWithRetry(getFullApiUrl('/auth/logout'), {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${token}`,
           },
-        });
+        }, 2);
       }
     } catch (error) {
       console.error('Logout error:', error);
