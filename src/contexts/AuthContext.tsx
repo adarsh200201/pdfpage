@@ -214,7 +214,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       let authUrl = '/api/auth/google';
       // In production, always use the full backend URL for OAuth (never relative)
       if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.PROD && import.meta.env.VITE_API_URL) {
-        authUrl = `${import.meta.env.VITE_API_URL}/api/auth/google`;
+        const apiUrl = import.meta.env.VITE_API_URL;
+        // Don't append /api if it's already there
+        const baseUrl = apiUrl.endsWith('/api') ? apiUrl : `${apiUrl}/api`;
+        authUrl = `${baseUrl}/auth/google`;
       }
       console.log('🔐 [AUTH-CONTEXT] Redirecting to Google OAuth:', authUrl);
       window.location.href = authUrl;
