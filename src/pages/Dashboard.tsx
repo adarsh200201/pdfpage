@@ -45,14 +45,19 @@ const Dashboard = () => {
       const apiUrl = import.meta.env.DEV
         ? "http://localhost:5000/api/auth/me"
         : "/api/auth/me";
-      const response = await fetch(apiUrl, {
+
+      // Import and use fetchWithRetry for cold start handling
+      const { fetchWithRetry } = await import('@/lib/api-config');
+
+      const response = await fetchWithRetry(apiUrl, {
         method: 'GET',
         credentials: 'include',
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
-      });
+      }, 3);
+
       if (!response.ok) throw new Error("Failed to fetch user profile");
       const data = await response.json();
       // Use stats from the profile response - the auth/me endpoint returns user data directly

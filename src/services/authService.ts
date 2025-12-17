@@ -1,5 +1,5 @@
 import Cookies from 'js-cookie';
-import { getApiBaseUrl } from '@/lib/api-config';
+import { getApiBaseUrl, fetchWithRetry } from '@/lib/api-config';
 
 // Types
 export interface User {
@@ -240,12 +240,12 @@ class AuthService {
         return null;
       }
 
-      const response = await fetch(`${this.baseUrl}/auth/me`, {
+      const response = await fetchWithRetry(`${this.baseUrl}/auth/me`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
         },
-      });
+      }, 2);
 
       if (!response.ok) {
         // Token is invalid, clear it
