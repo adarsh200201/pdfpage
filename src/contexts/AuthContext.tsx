@@ -211,14 +211,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
       // For OAuth, we need to redirect directly to backend (not through proxy)
       // because OAuth requires browser redirects, not server-to-server
-      const backendUrl = getBackendUrl();
-      const authUrl = backendUrl 
-        ? `${backendUrl}/api/auth/google`  // Production: direct to Render backend
-        : '/api/auth/google';                // Development: use proxy
-
+      let authUrl = '/api/auth/google';
+      // In production, always use the full backend URL for OAuth (never relative)
+      if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.PROD && import.meta.env.VITE_API_URL) {
+        authUrl = `${import.meta.env.VITE_API_URL}/api/auth/google`;
+      }
       console.log('🔐 [AUTH-CONTEXT] Redirecting to Google OAuth:', authUrl);
-
-      // Redirect to Google OAuth (browser redirect, not fetch)
       window.location.href = authUrl;
     } catch (error) {
       console.error('Google login error:', error);
