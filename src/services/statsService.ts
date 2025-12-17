@@ -114,7 +114,7 @@ class StatsService {
         throw networkError;
       }
 
-      const response = await fetch(`${this.API_BASE}/api/stats/dashboard`, {
+      const response = await fetch(`${this.API_BASE}/stats/dashboard`, {
         signal: controller.signal,
         method: "GET",
         credentials: 'include',
@@ -212,7 +212,7 @@ class StatsService {
       // Silently handle network failures in production, show details in development
       if (import.meta.env.DEV) {
         console.warn(
-          `Backend unavailable at ${this.API_BASE || "proxy"}/api/stats/dashboard - using fallback stats`,
+          `Backend unavailable at ${this.API_BASE || "proxy"}/stats/dashboard - using fallback stats`,
         );
         const devInfo = getDevInfo();
         console.group("🔧 Development Debug Info");
