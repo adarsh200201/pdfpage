@@ -13,14 +13,9 @@ export const getApiUrl = (path: string = ''): string => {
 };
 
 export const getApiBaseUrl = (): string => {
-  // In production, use full backend URL for OAuth and other external integrations
-  // In development, use relative path (proxied by Vite)
-  if (!import.meta.env.DEV && import.meta.env.VITE_API_URL) {
-    const apiUrl = import.meta.env.VITE_API_URL;
-    // Don't append /api if it's already there
-    return apiUrl.endsWith('/api') ? apiUrl : `${apiUrl}/api`;
-  }
-  // Default to relative path for development
+  // ALWAYS use relative path /api for all API calls
+  // This ensures requests go through Netlify proxy, avoiding CORS issues
+  // The proxy (netlify.toml) redirects /api/* to the backend
   return '/api';
 };
 
