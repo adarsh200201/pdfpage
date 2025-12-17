@@ -48,38 +48,73 @@ class AuthService {
   }
 
   /**
-   * Handle OAuth callback
+   * Handle OAuth callback with retry logic for backend cold starts
    */
   async handleAuthCallback(token: string): Promise<User> {
-    try {
-      const response = await fetch(`${this.baseUrl}/auth/me`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      });
+    const maxRetries = 3;
+    const retryDelay = 3000; // 3 seconds
 
-      if (!response.ok) {
-        throw new Error('Failed to verify authentication token');
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        console.log(`🔄 [AUTH-SERVICE] Attempt ${attempt}/${maxRetries} to verify token...`);
+
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+
+        const response = await fetch(`${this.baseUrl}/auth/me`, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          signal: controller.signal,
+        });
+
+        clearTimeout(timeoutId);
+
+        if (!response.ok) {
+          // If 503 (Service Unavailable) or 502 (Bad Gateway), retry
+          if ((response.status === 503 || response.status === 502) && attempt < maxRetries) {
+            console.log(`⏳ [AUTH-SERVICE] Backend unavailable (${response.status}), retrying in ${retryDelay/1000}s...`);
+            await new Promise(resolve => setTimeout(resolve, retryDelay));
+            continue;
+          }
+          throw new Error(`Failed to verify authentication token (${response.status})`);
+        }
+
+        const data: AuthResponse = await response.json();
+        
+        if (!data.success || !data.user) {
+          throw new Error(data.message || 'Authentication verification failed');
+        }
+
+        // Store token in cookies and localStorage
+        Cookies.set('auth_token', token, { expires: 7, secure: true, sameSite: 'strict' });
+        localStorage.setItem('auth_token', token);
+        localStorage.setItem('user', JSON.stringify(data.user));
+
+        console.log(`✅ [AUTH-SERVICE] Token verified successfully on attempt ${attempt}`);
+        return data.user;
+      } catch (error) {
+        if (error instanceof Error && error.name === 'AbortError') {
+          console.log(`⏱️ [AUTH-SERVICE] Request timed out on attempt ${attempt}`);
+          if (attempt < maxRetries) {
+            await new Promise(resolve => setTimeout(resolve, retryDelay));
+            continue;
+          }
+        }
+        
+        if (attempt === maxRetries) {
+          console.error('❌ [AUTH-SERVICE] All retry attempts failed:', error);
+          throw error;
+        }
+        
+        console.log(`⚠️ [AUTH-SERVICE] Attempt ${attempt} failed, retrying...`, error);
+        await new Promise(resolve => setTimeout(resolve, retryDelay));
       }
-
-      const data: AuthResponse = await response.json();
-      
-      if (!data.success || !data.user) {
-        throw new Error(data.message || 'Authentication verification failed');
-      }
-
-      // Store token in cookies and localStorage
-      Cookies.set('auth_token', token, { expires: 7, secure: true, sameSite: 'strict' });
-      localStorage.setItem('auth_token', token);
-      localStorage.setItem('user', JSON.stringify(data.user));
-
-      return data.user;
-    } catch (error) {
-      console.error('Auth callback error:', error);
-      throw error;
     }
+
+    throw new Error('Failed to verify authentication token after multiple attempts');
   }
 
   /**
