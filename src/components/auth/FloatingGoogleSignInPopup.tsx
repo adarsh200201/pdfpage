@@ -17,14 +17,27 @@ const ModernAuthBanner: React.FC<ModernAuthBannerProps> = ({
 }) => {
   const { loginWithGoogle, isAuthenticated, user } = useAuth();
 
-  // Dynamic user display with real data when available
-  // For non-authenticated users, show generic placeholder
-  const displayUser = {
-    name: user?.name || "Choose an account",
-    email: user?.email || "to continue to pdfpage.com",
-    avatar: user?.name ? user.name.charAt(0).toUpperCase() : "G",
-    isRealUser: !!user,
+  // Get user display information based on authentication state
+  const getUserDisplayInfo = () => {
+    if (isAuthenticated && user) {
+      return {
+        name: user.name || 'User',
+        email: user.email || '',
+        avatar: user.name ? user.name.charAt(0).toUpperCase() : 'U',
+        isRealUser: true
+      };
+    }
+    
+    // Default values for non-authenticated users
+    return {
+      name: 'Choose an account',
+      email: 'to continue to pdfpage.com',
+      avatar: 'G',
+      isRealUser: false
+    };
   };
+  
+  const displayUser = getUserDisplayInfo();
   const { toast } = useToast();
   const [isVisible, setIsVisible] = useState(true);
   const [isAnimating, setIsAnimating] = useState(false);
