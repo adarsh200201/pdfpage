@@ -51,15 +51,15 @@ class AuthService {
    * Handle OAuth callback with retry logic for backend cold starts
    */
   async handleAuthCallback(token: string): Promise<User> {
-    const maxRetries = 3;
-    const retryDelay = 3000; // 3 seconds
+    const maxRetries = 6; // Increased for Render cold starts
+    const retryDelay = 5000; // 5 seconds (30 seconds total wait time)
 
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
         console.log(`🔄 [AUTH-SERVICE] Attempt ${attempt}/${maxRetries} to verify token...`);
 
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+        const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout (increased for cold starts)
 
         const response = await fetch(`${this.baseUrl}/auth/me`, {
           method: 'GET',
