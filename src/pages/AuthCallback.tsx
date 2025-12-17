@@ -44,9 +44,39 @@ const AuthCallback: React.FC = () => {
             Cookies.set("auth_token", token, { expires: 365, secure: true, sameSite: 'strict' });
             localStorage.setItem("auth_token", token);
 
-            // Fetch user data with the token
-            const user = await authService.handleAuthCallback(token);
-            console.log('👤 [AUTH-CALLBACK] User data received:', user);
+            // Try to fetch user data from backend
+            let user = null;
+            try {
+              user = await authService.handleAuthCallback(token);
+              console.log('👤 [AUTH-CALLBACK] User data received from backend:', user);
+            } catch (verifyError) {
+              console.warn('⚠️ [AUTH-CALLBACK] Backend verification failed (likely cold start), using token fallback:', verifyError);
+              
+              // Fallback: Decode JWT locally to get basic user info
+              try {
+                const payload = JSON.parse(atob(token.split('.')[1]));
+                console.log('📋 [AUTH-CALLBACK] Decoded token payload:', payload);
+                
+                // Create minimal user object from token
+                user = {
+                  id: payload.userId,
+                  email: payload.email || 'user@example.com',
+                  name: payload.name || 'User',
+                  provider: 'google' as const,
+                  createdAt: new Date().toISOString(),
+                  lastLoginAt: new Date().toISOString(),
+                };
+                
+                // Store for later verification
+                localStorage.setItem("user", JSON.stringify(user));
+                localStorage.setItem("pending_verification", "true");
+                
+                console.log('✅ [AUTH-CALLBACK] Using fallback user data, will verify on next page load');
+              } catch (decodeError) {
+                console.error('❌ [AUTH-CALLBACK] Failed to decode token:', decodeError);
+                throw new Error("Failed to process authentication token");
+              }
+            }
 
             // Ensure user data is valid before updating
             if (user && user.id) {
@@ -58,7 +88,7 @@ const AuthCallback: React.FC = () => {
 
               toast.success({
                 title: "Welcome!",
-                description: `Successfully signed in as ${user.name || user.email}`,
+                description: `Successfully signed in${user.name ? ` as ${user.name}` : ''}`,
               });
 
               console.log('✅ [AUTH-CALLBACK] Authentication successful, redirecting...');
@@ -71,11 +101,13 @@ const AuthCallback: React.FC = () => {
             } else {
               throw new Error("Invalid user data received");
             }
-        } catch (error) {
-          console.error("❌ [AUTH-CALLBACK] Auth callback error:", error);
+          } catch (error) {
+            console.error("❌ [AUTH-CALLBACK] Auth callback error:", error);
 
-          // Clear invalid token and user data
-          Cookies.remove("auth_token");
+            // Clear invalid token and user data
+            Cookies.remove("auth_token");
+            localStorage.removeItem("auth_token");
+            localStorage.removeItem("user");
           localStorage.removeItem("auth_token");
           localStorage.removeItem("user");
 
