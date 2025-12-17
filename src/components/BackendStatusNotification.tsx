@@ -1,12 +1,20 @@
 import { useEffect, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { checkBackendHealth } from '@/lib/api-config';
 
 export function BackendStatusNotification() {
+  const location = useLocation();
   const [isChecking, setIsChecking] = useState(true);
   const [isWakingUp, setIsWakingUp] = useState(false);
   const [showNotification, setShowNotification] = useState(false);
 
   useEffect(() => {
+    // Don't show on auth callback page (we handle it with JWT fallback)
+    if (location.pathname === '/auth/callback') {
+      setIsChecking(false);
+      return;
+    }
+
     // Only check in production
     if (import.meta.env.DEV) {
       setIsChecking(false);

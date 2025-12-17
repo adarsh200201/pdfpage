@@ -108,13 +108,32 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           setUser(responseData.user);
           // Update stored user data
           localStorage.setItem('user', JSON.stringify(responseData.user));
+          // Clear pending verification flag
+          localStorage.removeItem('pending_verification');
         }
       } else {
-        console.log('❌ [AUTH-CONTEXT] Token verification failed, clearing auth data');
-        // Token is invalid, remove it
-        localStorage.removeItem('auth_token');
-        localStorage.removeItem('user');
-        setUser(null);
+        // Check if we're in JWT fallback mode (pending verification)
+        const pendingVerification = localStorage.getItem('pending_verification');
+        
+        if (pendingVerification) {
+          console.log('⚠️ [AUTH-CONTEXT] Backend verification failed, but using JWT fallback mode');
+          // Keep the token and user data, backend will verify later
+          // Use the stored user data from fallback
+          const storedUser = localStorage.getItem('user');
+          if (storedUser) {
+            try {
+              setUser(JSON.parse(storedUser));
+            } catch (e) {
+              console.error('Failed to parse stored user:', e);
+            }
+          }
+        } else {
+          console.log('❌ [AUTH-CONTEXT] Token verification failed, clearing auth data');
+          // Token is invalid, remove it
+          localStorage.removeItem('auth_token');
+          localStorage.removeItem('user');
+          setUser(null);
+        }
       }
     } catch (error) {
       console.error('❌ [AUTH-CONTEXT] Auth check failed:', error);
