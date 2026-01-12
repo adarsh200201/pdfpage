@@ -99,16 +99,6 @@ const AllPdfTools = () => {
       searchTerms: ["word to pdf", "doc to pdf", "docx", "word2pdf"]
     },
     {
-      title: "PDF to PowerPoint",
-      description: "Convert PDF files to editable PowerPoint presentations (PPTX)",
-      href: "/pdf-to-powerpoint",
-      icon: FileText,
-      category: "Conversion",
-      isNew: true,
-      keywords: "pdf to powerpoint, pdf to ppt, pdf to pptx, presentation",
-      searchTerms: ["powerpoint", "ppt", "pptx", "presentation", "slides"]
-    },
-    {
       title: "PowerPoint to PDF", 
       description: "Convert PowerPoint presentations to PDF for easy sharing",
       href: "/powerpoint-to-pdf",
@@ -155,16 +145,6 @@ const AllPdfTools = () => {
       keywords: "jpg to pdf, image to pdf, png to pdf, photo to pdf",
       searchTerms: ["jpg to pdf", "image to pdf", "png", "photo"]
     },
-    {
-      title: "HTML to PDF",
-      description: "Convert HTML files and web pages to PDF documents",
-      href: "/html-to-pdf",
-      icon: FileText,
-      category: "Conversion",
-      keywords: "html to pdf, webpage to pdf, convert website to pdf",
-      searchTerms: ["html", "webpage", "website", "web page"]
-    },
-
     // PDF Editor Tools
     {
       title: "Edit PDF",
@@ -175,24 +155,6 @@ const AllPdfTools = () => {
       popular: true,
       keywords: "edit pdf, pdf editor, modify pdf, add text to pdf",
       searchTerms: ["edit", "editor", "modify", "change", "add text"]
-    },
-    {
-      title: "Sign PDF",
-      description: "Add digital signatures, draw signatures, or upload signature images",
-      href: "/sign-pdf",
-      icon: PenTool,
-      category: "Editor",
-      keywords: "sign pdf, pdf signature, digital signature, esign",
-      searchTerms: ["sign", "signature", "esign", "digital signature"]
-    },
-    {
-      title: "Add Watermark",
-      description: "Add text or image watermarks to protect your PDF documents",
-      href: "/watermark",
-      icon: Layers,
-      category: "Editor",
-      keywords: "pdf watermark, add watermark, protect pdf",
-      searchTerms: ["watermark", "protection", "brand", "logo"]
     },
     {
       title: "Page Numbers",
@@ -234,25 +196,6 @@ const AllPdfTools = () => {
     },
 
     // Advanced Tools
-    {
-      title: "OCR PDF",
-      description: "Extract text from scanned PDFs using optical character recognition",
-      href: "/ocr-pdf",
-      icon: Eye,
-      category: "Advanced",
-      isNew: true,
-      keywords: "ocr pdf, extract text from pdf, pdf text recognition",
-      searchTerms: ["ocr", "text recognition", "extract text", "scan"]
-    },
-    {
-      title: "Scan to PDF",
-      description: "Convert document scans and images to searchable PDF format",
-      href: "/scan-to-pdf",
-      icon: FileText,
-      category: "Advanced",
-      keywords: "scan to pdf, document scanner, image to pdf",
-      searchTerms: ["scan", "scanner", "document scan"]
-    },
     {
       title: "Organize PDF",
       description: "Reorder, remove, and organize pages in your PDF documents",

@@ -33,9 +33,7 @@ import {
 import EnhancedEditPdf from "./pages/EnhancedEditPdf";
 import RealtimeEditor from "./pages/RealtimeEditor";
 
-import EnhancedPdfToPpt from "./pages/EnhancedPdfToPpt";
 import EnhancedPdfEditor from "./pages/EnhancedPdfEditor";
-import EnhancedWatermark from "./pages/EnhancedWatermark";
 import { LanguageProvider } from "@/contexts/LanguageContext";
 import { FloatingPopupProvider } from "@/contexts/FloatingPopupContext";
 import Login from "./pages/Login";
@@ -59,8 +57,7 @@ import ImgCrop from "./pages/ImgCrop";
 import ImgRemoveBg from "./pages/ImgRemoveBg";
 import ImgUpscale from "./pages/ImgUpscale";
 import ImgToPdf from "./pages/ImgToPdf";
-import ImgMeme from "./pages/ImgMeme";
-import ImgConvert from "./pages/ImgConvert";
+
 import ImageTools from "./pages/ImageTools";
 // FaviconConverter removed - replaced with separate tools
 import FaviconPage from "./pages/FaviconPage";
@@ -106,15 +103,11 @@ import ProtectPdf from "./pages/ProtectPdf";
 
 // Import all the real tool implementations from AllTools
 import {
-  PdfToPowerPoint,
-  Watermark,
   OrganizePdf,
   RotatePdf,
   PdfToPdfA,
   RepairPdf,
   PageNumbers,
-  ScanToPdf,
-  OcrPdf,
   ComparePdf,
   RedactPdf,
   PowerPointToPdf,
@@ -123,17 +116,11 @@ import {
 // Import dedicated ExcelToPdf page
 import ExcelToPdf from "./pages/ExcelToPdf";
 
-// Import dedicated HTML to PDF component
-import HtmlToPdf from "./pages/HtmlToPdf";
-
 // Import PDF converter landing page
 import PdfConverter from "./pages/PdfConverter";
 
 // Import all PDF tools page
 import AllPdfTools from "./pages/AllPdfTools";
-
-// Import professional OCR PDF component
-import OcrPdfProfessional from "./pages/OcrPdfProfessional";
 
 // Import production-grade compression component
 import CompressPro from "./pages/Compress";
@@ -146,22 +133,8 @@ import EditPdf from "./pages/EditPdf";
 
 // Import enhanced JPG to PDF component
 import JpgToPdf from "./pages/JpgToPdf";
-import TextToPdf from "./pages/TextToPdf";
-import OdtToPdf from "./pages/OdtToPdf";
-import RtfToPdf from "./pages/RtfToPdf";
-import CsvToXlsx from "./pages/CsvToXlsx";
-import OdtToDocx from "./pages/OdtToDocx";
-import RtfToDocx from "./pages/RtfToDocx";
-import DocxToOdt from "./pages/DocxToOdt";
-import XlsToCsv from "./pages/XlsToCsv";
-import XlsxToOds from "./pages/XlsxToOds";
-import PptxToOdp from "./pages/PptxToOdp";
-import PptxToPng from "./pages/PptxToPng";
-import DocToOdt from "./pages/DocToOdt";
 
 // Import the comprehensive PDF editor
-import SignPdf from "./pages/SignPdf";
-import DocumentSigning from "./pages/DocumentSigning";
 import ToastDemo from "./pages/ToastDemo";
 import AdvancedPDFEditor from "./pages/AdvancedPDFEditor";
 
@@ -207,7 +180,6 @@ const ScrollRestoration = () => {
       location.pathname.startsWith("/unlock") ||
       location.pathname.startsWith("/organize") ||
       location.pathname.startsWith("/edit-pdf") ||
-      location.pathname.startsWith("/sign-pdf") ||
       location.pathname.startsWith("/crop-pdf") ||
       location.pathname.includes("pdf");
 
@@ -282,8 +254,6 @@ const App = () => {
                       <Route path="/img/remove-bg" element={<ImgRemoveBg />} />
                       <Route path="/img/upscale" element={<ImgUpscale />} />
                       <Route path="/img/to-pdf" element={<ImgToPdf />} />
-                      <Route path="/img/meme" element={<ImgMeme />} />
-                      <Route path="/img/convert" element={<ImgConvert />} />
                       {/* Redirect old favicon URL to new tools page */}
                       <Route
                         path="/img/favicon"
@@ -327,10 +297,6 @@ const App = () => {
                       <Route path="/pdf-to-jpg" element={<PdfToJpg />} />
                       <Route path="/pdf-to-word" element={<PdfToWord />} />
                       <Route path="/word-to-pdf" element={<WordToPdf />} />
-                      <Route
-                        path="/pdf-to-powerpoint"
-                        element={<PdfToPowerPoint />}
-                      />
                       <Route path="/pdf-to-excel" element={<PdfToExcel />} />
                       <Route path="/jpg-to-pdf" element={<JpgToPdf />} />
                       <Route
@@ -338,33 +304,13 @@ const App = () => {
                         element={<PowerPointToPdf />}
                       />
                       <Route path="/excel-to-pdf" element={<ExcelToPdf />} />
-                      <Route path="/html-to-pdf" element={<HtmlToPdf />} />
-                      <Route path="/text-to-pdf" element={<TextToPdf />} />
-                      <Route path="/odt-to-pdf" element={<OdtToPdf />} />
-                      <Route path="/rtf-to-pdf" element={<RtfToPdf />} />
-                      <Route path="/csv-to-xlsx" element={<CsvToXlsx />} />
-                      <Route path="/odt-to-docx" element={<OdtToDocx />} />
-                      <Route path="/rtf-to-docx" element={<RtfToDocx />} />
-                      <Route path="/docx-to-odt" element={<DocxToOdt />} />
-                      <Route path="/xls-to-csv" element={<XlsToCsv />} />
-                      <Route path="/xlsx-to-ods" element={<XlsxToOds />} />
-                      <Route path="/pptx-to-odp" element={<PptxToOdp />} />
-                      <Route path="/pptx-to-png" element={<PptxToPng />} />
-                      <Route path="/doc-to-odt" element={<DocToOdt />} />
 
                       {/* AI-Powered Tools - ENHANCED FEATURES */}
-                      <Route
-                        path="/ai-pdf-to-ppt"
-                        element={<EnhancedPdfToPpt />}
-                      />
                       <Route
                         path="/ai-pdf-editor"
                         element={<EnhancedPdfEditor />}
                       />
-                      <Route
-                        path="/ai-watermark"
-                        element={<EnhancedWatermark />}
-                      />
+
 
                       {/* LibreOffice Tools */}
                       <Route
@@ -378,9 +324,7 @@ const App = () => {
                         path="/enhanced-edit-pdf"
                         element={<EnhancedEditPdf />}
                       />
-                      <Route path="/sign-pdf" element={<SignPdf />} />
-          <Route path="/document-signing" element={<DocumentSigning />} />
-          <Route path="/toast-demo" element={<ToastDemo />} />
+                      <Route path="/toast-demo" element={<ToastDemo />} />
                       <Route
                         path="/advanced-pdf-editor"
                         element={<AdvancedPDFEditor />}
@@ -390,7 +334,6 @@ const App = () => {
                         element={<RealtimeEditor />}
                       />
 
-                      <Route path="/watermark" element={<Watermark />} />
                       <Route path="/protect-pdf" element={<ProtectPdf />} />
                       <Route path="/unlock-pdf" element={<UnlockPdf />} />
                       <Route path="/organize-pdf" element={<OrganizePdf />} />
@@ -400,8 +343,6 @@ const App = () => {
                       {/* Advanced PDF Tools - ALL WORKING */}
                       <Route path="/pdf-to-pdfa" element={<PdfToPdfA />} />
                       <Route path="/repair-pdf" element={<RepairPdf />} />
-                      <Route path="/scan-to-pdf" element={<ScanToPdf />} />
-                      <Route path="/ocr-pdf" element={<OcrPdfProfessional />} />
                       <Route path="/compare-pdf" element={<ComparePdf />} />
                       <Route path="/redact-pdf" element={<RedactPdf />} />
                       <Route

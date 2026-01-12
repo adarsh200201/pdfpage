@@ -93,14 +93,6 @@ const EnhancedBreadcrumbSchema: React.FC = () => {
           name = "Edit PDF";
           category = "PDF Editor";
           break;
-        case 'sign-pdf':
-          name = "Sign PDF";
-          category = "PDF Editor";
-          break;
-        case 'watermark':
-          name = "Add Watermark";
-          category = "PDF Tools";
-          break;
         case 'protect-pdf':
           name = "Protect PDF";
           category = "Security Tools";
@@ -117,18 +109,6 @@ const EnhancedBreadcrumbSchema: React.FC = () => {
         case 'crop-pdf':
           name = "Crop PDF";
           category = "PDF Tools";
-          break;
-        case 'ocr-pdf':
-          name = "OCR PDF";
-          category = "Advanced Tools";
-          break;
-        case 'scan-to-pdf':
-          name = "Scan to PDF";
-          category = "Advanced Tools";
-          break;
-        case 'html-to-pdf':
-          name = "HTML to PDF";
-          category = "Conversion Tools";
           break;
         case 'remove-bg':
           name = "Remove Background";

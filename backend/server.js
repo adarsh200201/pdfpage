@@ -68,32 +68,43 @@ app.use(keepAliveMiddleware);
 
 // Global CORS middleware - runs before everything else
 app.use((req, res, next) => {
-  const origin = req.headers.origin;
+  const allowedOrigins = [
+    'https://pdfpage.in',
+    'https://pdfpagee.netlify.app',
+    'http://localhost:48752',  // Frontend dev server
+    'http://localhost:3000',   // Common frontend port
+    'http://127.0.0.1:48752',  // Localhost IP
+    'http://127.0.0.1:3000'    // Common frontend port (IP)
+  ];
 
+  const origin = req.headers.origin;
+  
   // Log CORS requests for debugging
   console.log(`🌐 [GLOBAL-CORS] ${req.method} ${req.path} from origin: ${origin}`);
 
   // Set CORS headers for all requests
-  if (origin && (
-    origin === 'https://pdfpage.in' ||
-    origin === 'https://pdfpagee.netlify.app' ||
-    origin.includes('localhost')
-  )) {
+  if (origin && allowedOrigins.some(allowed => origin.startsWith(allowed.replace('*', '')))) {
     res.header("Access-Control-Allow-Origin", origin);
+    console.log(`✅ [CORS] Allowed origin: ${origin}`);
+  } else if (process.env.NODE_ENV === 'development') {
+    // In development, allow any origin
+    res.header("Access-Control-Allow-Origin", origin || '*');
+    console.log(`⚠️ [CORS] Development mode - allowing origin: ${origin || 'any'}`);
   } else {
+    // In production, only allow specific origins
     res.header("Access-Control-Allow-Origin", "https://pdfpage.in");
   }
 
   res.header("Access-Control-Allow-Credentials", "true");
-  res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS, HEAD");
-  res.header("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With, Accept, Origin, Cache-Control, Pragma");
+  res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS, HEAD, PATCH");
+  res.header("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With, Accept, Origin, Cache-Control, Pragma, X-Auth-Token");
   res.header("Access-Control-Expose-Headers", "X-Compression-Ratio, X-Original-Size, X-Compressed-Size, X-Size-Saved, X-Compression-Level");
   res.header("Access-Control-Max-Age", "86400");
 
   // Handle preflight requests
   if (req.method === "OPTIONS") {
-    console.log(`✅ [GLOBAL-CORS] Preflight handled for ${origin}`);
-    return res.sendStatus(200);
+    console.log(`✅ [CORS] Preflight handled for ${origin}`);
+    return res.status(200).end();
   }
 
   next();
@@ -232,10 +243,8 @@ app.use("/api/users", require("./routes/users"));
 app.use("/api/payments", require("./routes/payments"));
 app.use("/api/usage", require("./routes/usage"));
 app.use("/api/pdf", require("./routes/pdf"));
-app.use("/api/ai-pdf", require("./routes/ai-pdf-tools"));
+// app.use("/api/ai-pdf", require("./routes/ai-pdf-tools")); // REMOVED: Contains PDF to PowerPoint, Watermark, OCR features
 app.use("/api/upload", require("./routes/upload"));
-app.use("/api/image", require("./routes/image"));
-app.use("/api/ocr", require("./routes/ocr"));
 app.use("/api/analytics", require("./routes/analytics"));
 app.use("/api/stats", require("./routes/stats"));
 app.use("/api/diagnostics", require("./routes/ghostscript-diagnostic"));
@@ -385,17 +394,10 @@ if (process.env.NODE_ENV === "production") {
     "/protect",
     "/excel-to-pdf",
     "/pdf-to-excel",
-    "/powerpoint-to-pdf",
-    "/pdf-to-powerpoint",
-    "/html-to-pdf",
     "/text-to-pdf",
-    "/sign",
-    "/watermark",
     "/crop",
     "/libreoffice",
     "/ai-pdf-editor",
-    "/ai-pdf-to-ppt",
-    "/ai-watermark",
   ];
 
   app.get("*", (req, res) => {
@@ -482,7 +484,7 @@ process.on("SIGTERM", async () => {
   }
 });
 
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 5002;
 
 // Handle port conflicts gracefully
 function startServer(port) {

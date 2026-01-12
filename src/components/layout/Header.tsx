@@ -138,15 +138,6 @@ const Header = () => {
       category: "Conversion",
     },
     {
-      title: "PDF to PowerPoint",
-      href: "/pdf-to-powerpoint",
-      icon: FileText,
-      color: "from-red-500 to-pink-600",
-      description: "Convert PDF files to editable PowerPoint presentations",
-      category: "Conversion",
-      isNew: true,
-    },
-    {
       title: "PowerPoint to PDF",
       href: "/powerpoint-to-pdf",
       icon: FileText,
@@ -188,14 +179,6 @@ const Header = () => {
       description: "Convert JPG, PNG, and other images to PDF",
       category: "Conversion",
     },
-    {
-      title: "HTML to PDF",
-      href: "/html-to-pdf",
-      icon: FileText,
-      color: "from-violet-500 to-purple-600",
-      description: "Convert HTML files and web pages to PDF",
-      category: "Conversion",
-    },
 
     // PDF Editor Tools
     {
@@ -206,22 +189,6 @@ const Header = () => {
       description: "Add text, images, shapes, and annotations to PDF",
       category: "Editor",
       isPopular: true,
-    },
-    {
-      title: "Sign PDF",
-      href: "/sign-pdf",
-      icon: FileText,
-      color: "from-blue-500 to-indigo-600",
-      description: "Add digital signatures, draw signatures",
-      category: "Editor",
-    },
-    {
-      title: "Add Watermark",
-      href: "/watermark",
-      icon: FileText,
-      color: "from-teal-500 to-cyan-600",
-      description: "Add text or image watermarks to protect PDF",
-      category: "Editor",
     },
 
     // Security Tools

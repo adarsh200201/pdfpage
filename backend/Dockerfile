@@ -18,7 +18,6 @@ RUN apt-get update && apt-get install -y \
     libreoffice-impress \
     unoconv \
     pandoc \
-    wkhtmltopdf \
     \
     # 🖼️ Image Processing & Graphics
     imagemagick \
@@ -31,12 +30,6 @@ RUN apt-get update && apt-get install -y \
     webp \
     libwebp-dev \
     libheif-dev \
-    \
-    # 🔤 OCR (Essential only)
-    tesseract-ocr \
-    tesseract-ocr-eng \
-    tesseract-ocr-hin \
-    gocr \
     \
     # 🖥️ Rendering & Graphics Libraries
     libgl1-mesa-glx \

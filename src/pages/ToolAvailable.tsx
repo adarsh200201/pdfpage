@@ -137,23 +137,6 @@ const toolConfigs = {
     gradient: "from-cyan-500 to-blue-600",
     icon: Image,
   },
-  "ocr-pdf": {
-    name: "PDF OCR Pro",
-    redirectTo: "/ocr-pdf",
-    description:
-      "Extract text from scanned PDFs using advanced AI-powered OCR technology with real-time processing.",
-    features: [
-      "AI-powered text recognition",
-      "Multi-language support",
-      "Real-time processing",
-      "Accuracy optimization",
-      "Searchable PDF output",
-      "Batch OCR processing",
-    ],
-    color: "indigo",
-    gradient: "from-indigo-500 to-purple-600",
-    icon: Brain,
-  },
   "rotate-pdf": {
     name: "PDF Rotator Pro",
     redirectTo: "/rotate",
@@ -170,23 +153,6 @@ const toolConfigs = {
     color: "teal",
     gradient: "from-teal-500 to-cyan-600",
     icon: RefreshCw,
-  },
-  "sign-pdf": {
-    name: "PDF Signature Pro",
-    redirectTo: "/sign-pdf",
-    description:
-      "Add digital signatures to PDFs with advanced security and real-time signature verification.",
-    features: [
-      "Digital signature creation",
-      "Real-time verification",
-      "Certificate management",
-      "Signature placement",
-      "Security validation",
-      "Compliance standards",
-    ],
-    color: "violet",
-    gradient: "from-violet-500 to-purple-600",
-    icon: Crown,
   },
   "crop-pdf": {
     name: "PDF Cropper Pro",

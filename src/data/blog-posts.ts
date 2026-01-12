@@ -284,7 +284,7 @@ Unlike iLovePDF, SmallPDF, and other competitors, we offer:
 After merging your PDFs, you might want to:
 
 1. **[Convert to Word](https://pdfpage.in/pdf-to-word)** for further editing
-2. **[Add digital signatures](https://pdfpage.in/sign-pdf)** for official documents
+2. **[Protect the document](https://pdfpage.in/protect-pdf)** for security
 3. **[Compress the merged file](https://pdfpage.in/compress-pdf)** to reduce size
 4. **[Extract specific pages](https://pdfpage.in/split-pdf)** if needed later
 
@@ -367,8 +367,7 @@ After merging your PDFs, you might want to:
         "/split-pdf",
         "/compress-pdf",
         "/pdf-to-word",
-        "/watermark",
-        "/sign-pdf"
+        "/watermark"
       ],
       canonicalUrl: "https://pdfpage.in/blog/merge-pdf-without-watermark",
       ogImage: "https://cdn.builder.io/api/v1/image/assets%2Ffcbdb28308084edfa1fffc265e57f46e%2F9b8c7d6e5f4a3b2c1d0e9f8g7h6i5j4k?format=webp&width=1200&height=630"
@@ -526,9 +525,9 @@ Looking for **iLovePDF alternatives** that offer better features, no watermarks,
 
 ### For Legal Professionals
 **Recommendation: PDFPage.in**
-- [Digital signatures](https://pdfpage.in/sign-pdf)
 - [Document protection](https://pdfpage.in/protect-pdf)
-- [OCR capabilities](https://pdfpage.in/ocr-pdf)
+- [Unlock PDF](https://pdfpage.in/unlock-pdf)
+- [Repair PDF](https://pdfpage.in/repair-pdf)
 
 ## 🔍 Feature-by-Feature Analysis
 

@@ -148,14 +148,11 @@ const PdfToPdfa = () => {
   const handleConvert = async () => {
     if (!file) return;
 
-    // Check usage limits
+    // Check usage limits (tracking only, doesn't block)
     const usageCheck = await PDFService.checkUsageLimit();
     if (!usageCheck.canUpload) {
       setUsageLimitReached(true);
-      if (!isAuthenticated) {
-        setShowAuthModal(true);
-      }
-      return;
+      // Tool is free to use - no blocking
     }
 
     setIsProcessing(true);

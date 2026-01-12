@@ -41,14 +41,6 @@ const PdfConverter = () => {
       keywords: "word to pdf, doc to pdf, docx to pdf, convert word to pdf",
     },
     {
-      title: "PDF to PowerPoint",
-      description: "Convert PDF files to editable PowerPoint presentations (PPTX).",
-      href: "/pdf-to-powerpoint", 
-      icon: FileText,
-      isNew: true,
-      keywords: "pdf to powerpoint, pdf to ppt, pdf to pptx",
-    },
-    {
       title: "PowerPoint to PDF",
       description: "Convert PowerPoint presentations to PDF format for easy sharing.",
       href: "/powerpoint-to-pdf",
@@ -84,13 +76,6 @@ const PdfConverter = () => {
       href: "/jpg-to-pdf",
       icon: FileText,
       keywords: "jpg to pdf, image to pdf, png to pdf, convert image to pdf",
-    },
-    {
-      title: "HTML to PDF",
-      description: "Convert HTML files and web pages to PDF documents.",
-      href: "/html-to-pdf",
-      icon: FileText,
-      keywords: "html to pdf, webpage to pdf, convert html to pdf",
     },
   ];
 

@@ -363,7 +363,6 @@ export const SEOChecklistTable: React.FC = () => {
     { route: "/protect-pdf", name: "Protect PDF" },
     { route: "/unlock-pdf", name: "Unlock PDF" },
     { route: "/edit-pdf", name: "PDF Editor" },
-    { route: "/sign-pdf", name: "PDF Signature" },
     { route: "/login", name: "Login Page" },
     { route: "/register", name: "Register Page" },
     { route: "/about", name: "About Page" },

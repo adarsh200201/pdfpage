@@ -22,7 +22,7 @@ RUN apt-get update && apt-get install -y \
 RUN apt-get update && apt-get install -y \
     ghostscript poppler-utils qpdf pdftk mupdf mupdf-tools \
     unoconv libreoffice libreoffice-writer libreoffice-calc libreoffice-impress \
-    pandoc wkhtmltopdf weasyprint calibre antiword catdoc \
+    pandoc weasyprint calibre antiword catdoc \
     && rm -rf /var/lib/apt/lists/*
 
 # Install image processing tools
@@ -34,11 +34,6 @@ RUN apt-get update && apt-get install -y \
     libcairo2-dev libpango1.0-dev libpangocairo-1.0-0 \
     libgdk-pixbuf2.0-dev libgif-dev librsvg2-dev \
     libfontconfig1-dev libfreetype6-dev \
-    && rm -rf /var/lib/apt/lists/*
-
-# Install OCR tools
-RUN apt-get update && apt-get install -y \
-    tesseract-ocr tesseract-ocr-all gocr ocrad \
     && rm -rf /var/lib/apt/lists/*
 
 # Install archive tools

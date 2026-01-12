@@ -29,6 +29,10 @@ export const createPayment = async (
 ): Promise<string> => {
   const token = localStorage.getItem('auth_token');
 
+  if (!token) {
+    throw new Error("Authentication required. Please login first.");
+  }
+
   // Use API config utility for consistent URL handling
   const apiUrl = getFullApiUrl('/payments/create-order');
 
@@ -103,7 +107,7 @@ export const processPayment = async (
   userEmail: string,
   userName: string,
   planType: string,
-): Promise<void> => {
+): Promise<any> => {
   const isLoaded = await loadRazorpay();
 
   if (!isLoaded) {
@@ -111,12 +115,21 @@ export const processPayment = async (
   }
 
   return new Promise((resolve, reject) => {
+    // Get the correct amount based on plan type
+    const amount = planType === "quarterly" ? 2900 : 1100; // in paise
+    const planDescription = planType === "quarterly" ? "Quarterly Premium" : "Monthly Premium";
+
+    // Debug: Log the Razorpay key being used
+    const razorpayKey = import.meta.env.VITE_RAZORPAY_KEY_ID;
+    console.log("🔑 Razorpay Key:", razorpayKey);
+    console.log("📊 Is Live Key:", razorpayKey?.includes("live") ? "✅ YES (Live)" : "❌ NO (Test)");
+
     const options = {
-      key: import.meta.env.VITE_RAZORPAY_KEY_ID,
-      amount: planType === "yearly" ? 29900 : 4900, // in paise
+      key: razorpayKey,
+      amount: amount,
       currency: "INR",
       name: "PdfPage Premium",
-      description: `${planType === "yearly" ? "Yearly" : "Monthly"} Premium Subscription`,
+      description: planDescription,
       image: "/favicon.ico",
       order_id: orderId,
       prefill: {
@@ -131,7 +144,8 @@ export const processPayment = async (
           // Verify payment on backend
           const token = localStorage.getItem('auth_token');
 
-          const verifyUrl = getFullApiUrl('/api/payments/verify');
+          // Fix: Remove leading '/api' since getFullApiUrl already adds it
+          const verifyUrl = getFullApiUrl('/payments/verify');
           const verifyResponse = await fetch(verifyUrl, {
             method: "POST",
             headers: {
@@ -150,7 +164,8 @@ export const processPayment = async (
             const verifyData = await verifyResponse.json();
             resolve(verifyData); // Return the response data including queued plan info
           } else {
-            reject(new Error("Payment verification failed"));
+            const errorData = await verifyResponse.json();
+            reject(new Error(errorData.message || "Payment verification failed"));
           }
         } catch (error) {
           reject(error);

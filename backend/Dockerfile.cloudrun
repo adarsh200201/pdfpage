@@ -12,8 +12,6 @@ RUN apt-get update && apt-get install -y \
     libc6-dev \
     curl \
     ghostscript \
-    tesseract-ocr \
-    tesseract-ocr-eng \
     poppler-utils \
     imagemagick \
     libreoffice \

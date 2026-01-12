@@ -125,17 +125,6 @@ const pdfTools = [
     features: ["Text editing", "Annotations", "Digital signatures"],
     popular: true,
   },
-  {
-    id: "watermark",
-    name: "Add Watermark",
-    description: "Add text or image watermarks to PDF files",
-    icon: Image,
-    route: "/watermark",
-    gradient: "from-cyan-500 to-cyan-600",
-    category: "Design",
-    features: ["Text watermarks", "Image watermarks", "Position control"],
-    popular: false,
-  },
 ];
 
 // Real conversion tools
@@ -147,15 +136,6 @@ const conversionTools = [
     icon: FileText,
     route: "/pdf-to-word",
     gradient: "from-blue-600 to-blue-700",
-    category: "Convert from PDF",
-  },
-  {
-    id: "pdf-to-ppt",
-    name: "PDF to PowerPoint",
-    description: "Convert PDF to PowerPoint presentations",
-    icon: Presentation,
-    route: "/pdf-to-ppt",
-    gradient: "from-orange-600 to-orange-700",
     category: "Convert from PDF",
   },
   {

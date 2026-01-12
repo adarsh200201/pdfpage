@@ -145,15 +145,6 @@ const ImgPage = () => {
       category: "edit",
     },
     {
-      title: "Add Watermark",
-      description: "Add text or image watermarks",
-      icon: Droplets,
-      path: "/img/watermark",
-      color: "text-cyan-600",
-      bgColor: "bg-cyan-50",
-      category: "protect",
-    },
-    {
       title: "JPG to PNG",
       description: "Convert JPG images to PNG format",
       icon: FileImage,
@@ -198,24 +189,6 @@ const ImgPage = () => {
       path: "/img/to-pdf",
       color: "text-emerald-600",
       bgColor: "bg-emerald-50",
-      category: "convert",
-    },
-    {
-      title: "Meme Generator",
-      description: "Create memes with text overlays",
-      icon: Palette,
-      path: "/img/meme",
-      color: "text-violet-600",
-      bgColor: "bg-violet-50",
-      category: "fun",
-    },
-    {
-      title: "Convert Format",
-      description: "Convert between all image formats",
-      icon: ArrowUpDown,
-      path: "/img/convert",
-      color: "text-teal-600",
-      bgColor: "bg-teal-50",
       category: "convert",
     },
     {
@@ -341,7 +314,7 @@ const ImgPage = () => {
                 className="flex items-center gap-1.5 px-3 py-1.5 text-xs sm:text-sm font-medium bg-green-50 text-green-700 border-green-200"
               >
                 <CheckCircle className="w-3 h-3 text-green-600" />
-                <span>12+ Tools</span>
+                <span>10+ Tools</span>
               </Badge>
               <Badge
                 variant="secondary"

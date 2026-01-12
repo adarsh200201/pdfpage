@@ -6,9 +6,7 @@ RUN apt-get update && apt-get install -y \
     # PDF tools
     ghostscript poppler-utils qpdf pdftk mupdf-tools \
     libreoffice libreoffice-writer libreoffice-calc libreoffice-impress \
-    unoconv pandoc wkhtmltopdf \
-    # OCR
-    tesseract-ocr tesseract-ocr-all gocr \
+    unoconv pandoc \
     # Fonts and rendering
     libgl1-mesa-glx libxi6 libxrender1 libxext6 libsm6 \
     fonts-dejavu fonts-liberation fonts-noto fonts-roboto \

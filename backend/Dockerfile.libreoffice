@@ -16,7 +16,6 @@ RUN apt-get update && apt-get install -y \
     libreoffice-draw \
     unoconv \
     pandoc \
-    wkhtmltopdf \
     \
     # 🖼️ Image Processing & Graphics
     imagemagick \
@@ -32,11 +31,6 @@ RUN apt-get update && apt-get install -y \
     # 🎥 Video Processing
     ffmpeg \
     x264 \
-    \
-    # 🔤 OCR & Text Processing
-    tesseract-ocr \
-    tesseract-ocr-all \
-    gocr \
     \
     # 🖥️ Rendering & Graphics Libraries
     libgl1-mesa-glx \

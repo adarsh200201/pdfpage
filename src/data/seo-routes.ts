@@ -563,22 +563,6 @@ export const SEO_ROUTES: Record<string, SEORouteData> = {
     priority: 0.9
   },
 
-  "/sign-pdf": {
-    title: "Sign PDF Online Free - Electronic Signature Tool",
-    description: "Sign PDF documents online for free. Add digital signatures, initials, and text to PDFs. Legal electronic signatures with secure processing.",
-    keywords: "sign PDF, PDF signature, electronic signature, digital signature, e-sign PDF, PDF signing tool",
-    canonical: "/sign-pdf",
-    ogImage: "/og-images/pdf-signature-tool.jpg",
-    toolName: "PDF Signature Tool",
-    toolCategory: "PDF Editing Tools",
-    rating: 4.8,
-    reviewCount: 9800,
-    monthlyUsers: 410000,
-    processingTime: "Instant",
-    contentType: "tool",
-    priority: 0.9
-  },
-
   // Utility Pages
   "/login": {
     title: "Login to PDFPage - Access Your Account",

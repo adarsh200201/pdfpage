@@ -327,12 +327,11 @@ const RedactPdf = () => {
 
     // Check usage limits
     const usageCheck = await PDFService.checkUsageLimit();
+    // Authentication removed - tool is now free to use for everyone
+    // Usage limits are tracked but don't block usage
     if (!usageCheck.canUpload) {
       setUsageLimitReached(true);
-      if (!isAuthenticated) {
-        setShowAuthModal(true);
-      }
-      return;
+      // Don't block - just track usage
     }
 
     setIsProcessing(true);

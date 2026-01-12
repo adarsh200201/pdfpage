@@ -179,11 +179,6 @@ Ready to make your PDFs editable? **[Convert PDF to Word now →](https://pdfpag
         url: "/word-to-pdf",
         description: "Convert Word documents back to PDF format"
       },
-      {
-        name: "OCR PDF",
-        url: "/ocr-pdf",
-        description: "Extract text from scanned PDF documents"
-      }
     ],
     seoData: {
       h1: "Convert PDF to Word Easily Online - Free & No Registration (2025)",
@@ -199,7 +194,6 @@ Ready to make your PDFs editable? **[Convert PDF to Word now →](https://pdfpag
         "/pdf-to-word",
         "/word-to-pdf",
         "/unlock-pdf",
-        "/ocr-pdf",
         "/edit-pdf",
         "/merge-pdf"
       ],
@@ -652,11 +646,6 @@ Ready to experience **truly private PDF processing**? No accounts, no tracking, 
         url: "/protect-pdf",
         description: "Add password protection to secure documents"
       },
-      {
-        name: "Sign PDF",
-        url: "/sign-pdf",
-        description: "Add digital signatures securely"
-      }
     ],
     seoData: {
       h1: "Secure PDF Tools Without Login - Privacy-First Document Processing",
