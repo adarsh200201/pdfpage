@@ -252,23 +252,7 @@ app.use("/api/diagnostics", require("./routes/ghostscript-diagnostic"));
 app.use("/api/diagnostics/tools", require("./routes/tools-diagnostic"));
 app.use("/api/libreoffice", require("./routes/libreoffice"));
 app.use("/api/libreoffice-strict", require("./routes/libreoffice-strict"));
-app.use("/api/schema-test", require("./routes/schema-test"));
 app.use("/api/cron", require("./routes/cron-status"));
-
-// Test routes (for schema verification)
-if (
-  process.env.NODE_ENV === "development" ||
-  process.env.ENABLE_TEST_ROUTES === "true"
-) {
-  app.use("/api/test", require("./routes/test"));
-
-  // Serve test HTML page
-  app.get("/test-schema", (req, res) => {
-    res.sendFile(__dirname + "/test-schema.html");
-  });
-}
-
-// This root endpoint will be moved to before the catch-all route
 
 // Health check endpoint
 app.get("/api/health", (req, res) => {
