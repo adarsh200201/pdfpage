@@ -503,7 +503,7 @@ function startServer(port) {
         console.log(`🔄 Nodemon will restart automatically...`);
         process.exit(1); // Let nodemon handle the restart
       } else {
-        console.log(`��� Cannot start server - port ${port} is occupied`);
+        console.log(`❌ Cannot start server - port ${port} is occupied`);
         process.exit(1);
       }
     } else {
@@ -516,9 +516,3 @@ function startServer(port) {
 }
 
 startServer(PORT);
-
-// Initialize cron jobs after server starts
-setTimeout(() => {
-  require("./init-cron")();
-}, 3000);
-// Restart again
