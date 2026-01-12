@@ -17,11 +17,19 @@ const router = express.Router();
 // Apply CORS middleware to all auth routes
 router.use(corsMiddleware);
 
-// Helper function to generate JWT token
-const generateToken = (userId) => {
-  return jwt.sign({ userId }, process.env.JWT_SECRET, {
-    expiresIn: process.env.JWT_EXPIRE || "30d",
-  });
+// Helper function to generate JWT token with user info for fallback decoding
+const generateToken = (user) => {
+  return jwt.sign(
+    { 
+      userId: user._id || user.id, 
+      email: user.email,
+      name: user.name 
+    }, 
+    process.env.JWT_SECRET, 
+    {
+      expiresIn: process.env.JWT_EXPIRE || "30d",
+    }
+  );
 };
 
 // Helper function to send token response
@@ -29,7 +37,7 @@ const sendTokenResponse = (user, statusCode, res) => {
   console.log("🔑 [JWT] Generating token for user:", user._id);
 
   try {
-    const token = generateToken(user._id);
+    const token = generateToken(user);
     console.log("✅ [JWT] Token generated successfully");
 
     const userData = {
@@ -884,8 +892,8 @@ router.get(
       req.user.lastLogin = new Date();
       await req.user.save();
 
-      // Generate JWT token
-      const token = generateToken(req.user._id);
+      // Generate JWT token with user info (email, name) for frontend fallback decoding
+      const token = generateToken(req.user);
 
       // Redirect to frontend with token
       const frontendURL = process.env.FRONTEND_URL || "https://pdfpage.in";

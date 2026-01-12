@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import {
   Menu,
@@ -38,11 +38,17 @@ const Header = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [showMegaMenu, setShowMegaMenu] = useState(false);
   const [scrolled, setScrolled] = useState(false);
-
+  const navigate = useNavigate();
 
   const { user, isAuthenticated, logout } = useAuth();
   const { currentLanguage, setLanguage, languages } = useLanguage();
   const { t } = useTranslation();
+
+  // Handle logout with navigation
+  const handleLogout = async () => {
+    await logout();
+    navigate('/');
+  };
 
   // Handle scroll effect
   useEffect(() => {
@@ -366,7 +372,7 @@ const Header = () => {
                       </Link>
                     </DropdownMenuItem>
                     <DropdownMenuSeparator className="my-2" />
-                    <DropdownMenuItem onClick={logout} className="flex items-center space-x-3 px-3 py-2 rounded-lg transition-all duration-200 text-red-600 hover:bg-red-50">
+                    <DropdownMenuItem onClick={handleLogout} className="flex items-center space-x-3 px-3 py-2 rounded-lg transition-all duration-200 text-red-600 hover:bg-red-50 cursor-pointer">
                       <LogOut className="w-4 h-4" />
                       <span className="text-sm font-medium">{t("nav.logout")}</span>
                     </DropdownMenuItem>

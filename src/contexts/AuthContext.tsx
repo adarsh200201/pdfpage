@@ -369,24 +369,44 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   // Logout
   const logout = async () => {
+    console.log('🔐 [AUTH-CONTEXT] Logging out user...');
     try {
       const token = localStorage.getItem('auth_token');
 
       if (token) {
         // Notify backend of logout - use retry for cold start handling
-        await fetchWithRetry(getFullApiUrl('/auth/logout'), {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-          },
-        }, 2);
+        try {
+          await fetchWithRetry(getFullApiUrl('/auth/logout'), {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+            },
+          }, 2);
+          console.log('✅ [AUTH-CONTEXT] Backend logout successful');
+        } catch (backendError) {
+          console.warn('⚠️ [AUTH-CONTEXT] Backend logout failed (non-blocking):', backendError);
+        }
       }
     } catch (error) {
       console.error('Logout error:', error);
     } finally {
-      // Clear local state regardless of backend response
+      // Clear ALL local state regardless of backend response
+      console.log('🧹 [AUTH-CONTEXT] Clearing all local auth data...');
       localStorage.removeItem('auth_token');
+      localStorage.removeItem('user');
+      localStorage.removeItem('pending_verification');
+      
+      // Also clear cookies if js-cookie is available
+      try {
+        const Cookies = (await import('js-cookie')).default;
+        Cookies.remove('auth_token');
+        console.log('✅ [AUTH-CONTEXT] Cookies cleared');
+      } catch (cookieError) {
+        console.warn('⚠️ [AUTH-CONTEXT] Could not clear cookies:', cookieError);
+      }
+      
       setUser(null);
+      console.log('✅ [AUTH-CONTEXT] Logout complete');
     }
   };
 
