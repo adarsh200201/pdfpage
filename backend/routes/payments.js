@@ -6,11 +6,17 @@ const User = require("../models/User");
 const { auth } = require("../middleware/auth");
 const router = express.Router();
 
-// Initialize Razorpay
-const razorpay = new Razorpay({
-  key_id: process.env.RAZORPAY_KEY_ID,
-  key_secret: process.env.RAZORPAY_KEY_SECRET,
-});
+// Initialize Razorpay (check if credentials are available)
+let razorpay = null;
+if (process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET) {
+  razorpay = new Razorpay({
+    key_id: process.env.RAZORPAY_KEY_ID,
+    key_secret: process.env.RAZORPAY_KEY_SECRET,
+  });
+  console.log("✅ Razorpay initialized successfully");
+} else {
+  console.warn("⚠️ Razorpay credentials not configured - payment features disabled");
+}
 
 // @route   POST /api/payments/create-order
 // @desc    Create Razorpay order
@@ -26,6 +32,15 @@ router.post(
   ],
   async (req, res) => {
     try {
+      // Check if Razorpay is configured
+      if (!razorpay) {
+        console.error("❌ Payment attempted but Razorpay is not configured");
+        return res.status(503).json({
+          success: false,
+          message: "Payment service is not configured. Please contact support.",
+        });
+      }
+
       const errors = validationResult(req);
       if (!errors.isEmpty()) {
         return res.status(400).json({
@@ -99,6 +114,14 @@ router.post(
   ],
   async (req, res) => {
     try {
+      // Check if Razorpay is configured
+      if (!razorpay) {
+        return res.status(503).json({
+          success: false,
+          message: "Payment service is not configured. Please contact support.",
+        });
+      }
+
       const errors = validationResult(req);
       if (!errors.isEmpty()) {
         return res.status(400).json({
