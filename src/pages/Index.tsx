@@ -5,12 +5,12 @@ import Footer from "@/components/layout/Footer";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
 import AdSense from "@/components/ads/AdSense";
 import { PromoBanner } from "@/components/ui/promo-banner";
 import AdvancedSEO from "@/components/AdvancedSEO";
 import CriticalCSS from "@/components/CriticalCSS";
-import { useRealTimeStats } from "@/hooks/useRealTimeStats";
 import { useMixpanel } from "@/hooks/useMixpanel";
 import { getSEOData } from "@/data/seo-routes";
 import {
@@ -22,7 +22,6 @@ import {
   ImageIcon,
   Shield,
   Zap,
-  Users,
   Crown,
   CheckCircle,
   Star,
@@ -40,9 +39,9 @@ import {
   Heart,
   Play,
   Layers,
-  Eye,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
-// import GoogleOAuthTest from "@/components/GoogleOAuthTest";
 
 // Performance optimized components - keeping sections inline for better maintainability
 
@@ -113,6 +112,14 @@ const FloatingElement = ({
     {children}
   </div>
 );
+
+const getInitials = (name: string) =>
+  name
+    .split(" ")
+    .filter(Boolean)
+    .map((n) => n[0]?.toUpperCase())
+    .join("")
+    .slice(0, 2);
 
 const Index = () => {
   const [currentTestimonial, setCurrentTestimonial] = useState(0);
@@ -351,20 +358,6 @@ const Index = () => {
     },
   ];
 
-  // Use real-time stats instead of dummy data
-  const {
-    stats,
-    isLoading: statsLoading,
-    error: statsError,
-    lastUpdated,
-    refresh: refreshStats,
-  } = useRealTimeStats({
-    fileText: FileText,
-    users: Users,
-    globe: Globe,
-    shield: Shield,
-  });
-
   // Auto-rotate testimonials (deferred for performance)
   useEffect(() => {
     // Start testimonial rotation after initial load
@@ -486,7 +479,7 @@ const Index = () => {
             </div>
 
             {/* Enhanced Subtitle with Tech Keywords */}
-            <div className="mb-6">
+            <div className="mb-2">
               <p className="text-xl sm:text-2xl lg:text-3xl text-gray-700 mb-4 max-w-5xl mx-auto leading-relaxed px-4 font-medium">
                 AI-powered PDF processing with{" "}
                 <span className="font-bold text-transparent bg-clip-text bg-gradient-to-r from-brand-red to-orange-600">
@@ -519,183 +512,18 @@ const Index = () => {
               </p>
             </div>
 
-            {/* Gradient separator */}
-            <div className="flex justify-center mb-6">
-              <div className="w-96 h-1 bg-gradient-to-r from-transparent via-brand-red/50 to-transparent rounded-full shadow-lg"></div>
-            </div>
 
-            {/* Enhanced CTA Buttons */}
-            <div className="flex flex-col sm:flex-row gap-4 sm:gap-6 justify-center items-center mb-6 px-4">
-              <Button
-                size="lg"
-                className="group relative bg-gradient-to-r from-brand-red via-red-600 to-orange-600 hover:from-red-600 hover:via-red-700 hover:to-orange-700 text-white px-8 sm:px-12 py-4 sm:py-5 text-lg sm:text-xl font-bold rounded-2xl shadow-2xl hover:shadow-3xl transform hover:scale-105 transition-all duration-300 overflow-hidden w-full sm:w-auto border-2 border-red-500/20"
-                onClick={scrollToTools}
-              >
-                {/* Enhanced shimmer effect */}
-                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent skew-x-12 -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
-                {/* Glow effect */}
-                <div className="absolute inset-0 bg-gradient-to-r from-red-600/20 via-orange-600/20 to-red-600/20 rounded-2xl blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 -z-10"></div>
-
-                <Upload className="mr-3 h-6 w-6 group-hover:scale-110 group-hover:rotate-12 transition-all duration-300 relative z-10" />
-                <span className="relative z-10">🚀 Start Creating</span>
-                <ArrowRight className="ml-3 h-6 w-6 group-hover:translate-x-1 transition-transform duration-300 relative z-10" />
-              </Button>
-
-              <Button
-                variant="outline"
-                size="lg"
-                className="group border-2 border-gray-300 hover:border-blue-500 hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 px-8 sm:px-12 py-4 sm:py-5 text-lg sm:text-xl font-bold rounded-2xl transition-all duration-300 hover:shadow-xl w-full sm:w-auto bg-white/80 backdrop-blur-sm"
-                asChild
-              >
-                <Link to="/about">
-                  <Play className="mr-3 h-6 w-6 group-hover:scale-110 group-hover:text-blue-600 transition-all duration-300" />
-                  <span className="group-hover:text-blue-600 transition-colors duration-300">
-                    ✨ Watch Magic
-                  </span>
-                </Link>
-              </Button>
-            </div>
-
-            {/* Enhanced Feature Grid with Modern Icons */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-4xl mx-auto">
-              <div className="group flex flex-col items-center p-4 rounded-3xl hover:bg-white/70 hover:shadow-xl transition-all duration-300 border border-transparent hover:border-green-200/50">
-                <div className="relative w-14 h-14 bg-gradient-to-br from-green-100 to-emerald-200 rounded-3xl flex items-center justify-center mb-3 group-hover:scale-110 group-hover:rotate-3 transition-all duration-300 shadow-lg">
-                  <Shield className="h-7 w-7 text-green-600" />
-                  <div className="absolute inset-0 bg-gradient-to-br from-white/40 to-transparent rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-                  <div className="absolute -inset-1 bg-green-400/20 rounded-3xl blur-md opacity-0 group-hover:opacity-100 transition-opacity duration-300 -z-10"></div>
-                </div>
-                <span className="text-sm font-bold text-gray-700 group-hover:text-green-700 transition-colors duration-300 text-center">
-                  🔒 Bank-Level Security
-                </span>
-              </div>
-
-              <div className="group flex flex-col items-center p-4 rounded-3xl hover:bg-white/70 hover:shadow-xl transition-all duration-300 border border-transparent hover:border-blue-200/50">
-                <div className="relative w-14 h-14 bg-gradient-to-br from-blue-100 to-sky-200 rounded-3xl flex items-center justify-center mb-3 group-hover:scale-110 group-hover:rotate-3 transition-all duration-300 shadow-lg">
-                  <Zap className="h-7 w-7 text-blue-600" />
-                  <div className="absolute inset-0 bg-gradient-to-br from-white/40 to-transparent rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-                  <div className="absolute -inset-1 bg-blue-400/20 rounded-3xl blur-md opacity-0 group-hover:opacity-100 transition-opacity duration-300 -z-10"></div>
-                </div>
-                <span className="text-sm font-bold text-gray-700 group-hover:text-blue-700 transition-colors duration-300 text-center">
-                  ⚡ AI-Fast Processing
-                </span>
-              </div>
-
-              <div className="group flex flex-col items-center p-4 rounded-3xl hover:bg-white/70 hover:shadow-xl transition-all duration-300 border border-transparent hover:border-purple-200/50">
-                <div className="relative w-14 h-14 bg-gradient-to-br from-purple-100 to-violet-200 rounded-3xl flex items-center justify-center mb-3 group-hover:scale-110 group-hover:rotate-3 transition-all duration-300 shadow-lg">
-                  <Cloud className="h-7 w-7 text-purple-600" />
-                  <div className="absolute inset-0 bg-gradient-to-br from-white/40 to-transparent rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-                  <div className="absolute -inset-1 bg-purple-400/20 rounded-3xl blur-md opacity-0 group-hover:opacity-100 transition-opacity duration-300 -z-10"></div>
-                </div>
-                <span className="text-sm font-bold text-gray-700 group-hover:text-purple-700 transition-colors duration-300 text-center">
-                  ☁️ Smart Cloud Sync
-                </span>
-              </div>
-
-              <div className="group flex flex-col items-center p-4 rounded-3xl hover:bg-white/70 hover:shadow-xl transition-all duration-300 border border-transparent hover:border-orange-200/50">
-                <div className="relative w-14 h-14 bg-gradient-to-br from-orange-100 to-amber-200 rounded-3xl flex items-center justify-center mb-3 group-hover:scale-110 group-hover:rotate-3 transition-all duration-300 shadow-lg">
-                  <Sparkles className="h-7 w-7 text-orange-600" />
-                  <div className="absolute inset-0 bg-gradient-to-br from-white/40 to-transparent rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-                  <div className="absolute -inset-1 bg-orange-400/20 rounded-3xl blur-md opacity-0 group-hover:opacity-100 transition-opacity duration-300 -z-10"></div>
-                </div>
-                <span className="text-sm font-bold text-gray-700 group-hover:text-orange-700 transition-colors duration-300 text-center">
-                  ✨ AI Magic Tools
-                </span>
-              </div>
-            </div>
           </div>
-        </div>
-      </section>
-      {/* Enhanced Modern Stats Section */}
-      <section className="pt-4 pb-6 bg-gradient-to-r from-white via-gray-50 to-white relative overflow-hidden">
-        {/* Background decoration */}
-        <div className="absolute inset-0 opacity-30">
-          <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-brand-red/50 to-transparent"></div>
-          <div className="absolute bottom-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-blue-500/50 to-transparent"></div>
-        </div>
-
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-          <div className="text-center mb-6">
-            <div className="inline-flex items-center gap-2 bg-gradient-to-r from-gray-100 to-gray-50 border border-gray-200/60 rounded-full px-4 py-2 shadow-sm">
-              <TrendingUp className="w-4 h-4 text-green-600" />
-              <span className="text-sm font-bold text-gray-700">Live Performance Metrics</span>
-              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
-            {stats.map((stat, index) => (
-              <div key={index} className="text-center group relative">
-                {/* Background card with gradient */}
-                <div className="absolute inset-0 bg-gradient-to-br from-white to-gray-50/50 rounded-3xl shadow-lg opacity-0 group-hover:opacity-100 transition-all duration-300 transform scale-95 group-hover:scale-100"></div>
-
-                <div className="relative p-6 rounded-3xl transition-all duration-300">
-                  {/* Enhanced icon container */}
-                  <div className="mx-auto w-16 h-16 bg-gradient-to-br from-brand-red/10 via-red-500/15 to-orange-500/10 rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 group-hover:rotate-3 transition-all duration-300 shadow-lg relative overflow-hidden">
-                    {/* Icon glow effect */}
-                    <div className="absolute inset-0 bg-gradient-to-br from-brand-red/20 to-orange-500/20 rounded-2xl blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 -z-10"></div>
-                    <stat.icon className="h-8 w-8 text-brand-red relative z-10" />
-                    {/* Shine effect */}
-                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent -skew-x-12 -translate-x-full group-hover:translate-x-full transition-transform duration-1000 rounded-2xl"></div>
-                  </div>
-
-                  {/* Enhanced number display */}
-                  <div className="text-3xl lg:text-4xl font-black text-gray-900 mb-2 group-hover:text-brand-red transition-colors duration-300">
-                    {statsLoading ? (
-                      <div className="animate-pulse bg-gradient-to-r from-gray-200 via-gray-300 to-gray-200 h-10 w-20 mx-auto rounded-lg"></div>
-                    ) : (
-                      <div className="relative">
-                        <AnimatedCounter end={stat.number} suffix={stat.suffix} />
-                        {/* Number glow effect on hover */}
-                        <div className="absolute inset-0 text-brand-red/50 blur-sm opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                          <AnimatedCounter end={stat.number} suffix={stat.suffix} />
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Enhanced label */}
-                  <div className="text-sm text-gray-600 font-bold uppercase tracking-wide group-hover:text-gray-800 transition-colors duration-300">
-                    {stat.label}
-                  </div>
-
-                  {/* Progress bar decoration */}
-                  <div className="mt-3 w-full h-1 bg-gray-200 rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-gradient-to-r from-brand-red to-orange-500 rounded-full transform scale-x-0 group-hover:scale-x-100 transition-transform duration-500 origin-left"
-                      style={{ transitionDelay: `${index * 100}ms` }}
-                    ></div>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {statsError && (
-            <div className="text-center mt-4">
-              <div className="inline-flex items-center gap-2 bg-orange-50 border border-orange-200 rounded-lg px-3 py-2">
-                <Eye className="w-4 h-4 text-orange-600" />
-                <span className="text-sm text-orange-700 font-medium">
-                  {statsError} ⚠️ Showing cached data
-                </span>
-              </div>
-            </div>
-          )}
         </div>
       </section>
       {/* Enhanced PDF Tools Grid */}
       <section
         id="tools"
-        className="py-12 bg-gradient-to-b from-white to-gray-50"
+        className="pt-2 pb-12 bg-gradient-to-b from-white to-gray-50"
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
-            <h2 className="text-4xl lg:text-5xl font-bold text-gray-900 mb-6">
-              Professional PDF Tools
-            </h2>
-            <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-              Choose from our comprehensive suite of PDF processing tools. All
-              tools work directly in your browser.
-            </p>
+            {/* Removed Professional PDF Tools section as requested */}
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
@@ -759,104 +587,6 @@ const Index = () => {
                 </Link>
               );
             })}
-          </div>
-        </div>
-      </section>
-
-      {/* Favicon Tools Promotion Section */}
-      <section className="py-8 sm:py-12 bg-gradient-to-br from-purple-50 to-pink-100">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-8 sm:mb-12">
-            <Badge className="mb-4 sm:mb-6 bg-purple-600/10 text-purple-600 border-purple-600/20 text-xs sm:text-sm px-3 sm:px-4 py-1 sm:py-2">
-              🌟 NEW: Professional Favicon Generator
-            </Badge>
-            <h2 className="text-2xl sm:text-3xl lg:text-4xl xl:text-5xl font-bold text-gray-900 mb-4 sm:mb-6 px-4">
-              Create Perfect Favicons
-            </h2>
-            <p className="text-base sm:text-lg lg:text-xl text-gray-600 max-w-3xl mx-auto px-4">
-              Generate professional favicon files from images, text, emojis, or
-              logos. Get all sizes for web, iOS, and Android with one click.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 items-center">
-            <div className="relative order-2 lg:order-1">
-              <div className="bg-white p-6 sm:p-8 rounded-2xl shadow-xl">
-                <div className="flex items-center justify-center mb-6">
-                  <div className="bg-gradient-to-r from-purple-600 to-blue-600 p-4 rounded-2xl">
-                    <Globe className="w-12 h-12 text-white" />
-                  </div>
-                </div>
-                <h3 className="text-2xl font-bold text-gray-900 text-center mb-4">
-                  Complete Favicon Package
-                </h3>
-                <div className="space-y-3">
-                  {[
-                    "Image to favicon conversion",
-                    "Text to favicon generator",
-                    "Emoji to favicon creator",
-                    "Logo optimization",
-                    "All platform sizes (8 formats)",
-                    "PWA manifest generation",
-                    "HTML code included",
-                    "Instant batch download",
-                  ].map((feature, index) => (
-                    <div key={index} className="flex items-center">
-                      <CheckCircle className="w-5 h-5 text-green-500 mr-3 flex-shrink-0" />
-                      <span className="text-gray-700">{feature}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            <div className="order-1 lg:order-2">
-              <div className="grid grid-cols-2 gap-3 sm:gap-4 mb-6 sm:mb-8">
-                {[
-                  { icon: "🖼️", title: "From Image", desc: "Upload any image" },
-                  {
-                    icon: "✍️",
-                    title: "From Text",
-                    desc: "Custom fonts & colors",
-                  },
-                  { icon: "😀", title: "From Emoji", desc: "Fun & creative" },
-                  { icon: "⭐", title: "From Logo", desc: "Professional look" },
-                ].map((tool, index) => (
-                  <div
-                    key={index}
-                    className="bg-white p-3 sm:p-4 rounded-xl shadow-sm text-center"
-                  >
-                    <div className="text-xl sm:text-2xl mb-2">{tool.icon}</div>
-                    <h3 className="text-sm sm:text-base font-semibold text-gray-900">
-                      {tool.title}
-                    </h3>
-                    <p className="text-xs sm:text-sm text-gray-600">{tool.desc}</p>
-                  </div>
-                ))}
-              </div>
-
-              <div className="flex flex-col sm:flex-row gap-3">
-                <Link to="/favicon">
-                  <Button
-                    size="lg"
-                    className="bg-purple-600 hover:bg-purple-700 text-white"
-                  >
-                    <Globe className="w-5 h-5 mr-2" />
-                    Explore Favicon Tools
-                  </Button>
-                </Link>
-                <Link to="/img/favicon">
-                  <Button
-                    size="lg"
-                    variant="outline"
-                    className="border-purple-600 text-purple-600 hover:bg-purple-50"
-                  >
-                    <Sparkles className="w-5 h-5 mr-2" />
-                    Start Creating
-                  </Button>
-                </Link>
-              </div>
-            </div>
           </div>
         </div>
       </section>
@@ -930,20 +660,43 @@ const Index = () => {
         </div>
       </section>
 
-      {/* Testimonials Carousel */}
-      <section className="py-12 bg-white">
+      {/* Testimonials Section */}
+      <section className="py-12 bg-gradient-to-b from-white to-indigo-50/40">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
-            <h2 className="text-4xl lg:text-5xl font-bold text-gray-900 mb-6">
+            <p className="inline-flex items-center gap-2 text-sm font-semibold text-indigo-600 mb-3">
+              <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-indigo-100 text-xs font-bold text-indigo-700">
+                ★
+              </span>
+              Loved by teams worldwide
+            </p>
+            <h2 className="text-4xl lg:text-5xl font-bold text-gray-900 mb-4">
               Loved by Millions
             </h2>
-            <p className="text-xl text-gray-600">
-              See what our users are saying about PdfPage
+            <p className="text-lg sm:text-xl text-gray-600 max-w-2xl mx-auto">
+              See what our users are saying about PdfPage — real stories from
+              people who use our tools every day.
             </p>
           </div>
 
-          <div className="max-w-4xl mx-auto">
-            <Card className="border-0 shadow-2xl bg-gradient-to-br from-white to-gray-50">
+          <div className="max-w-4xl mx-auto relative">
+            {/* Navigation Buttons */}
+            <button
+              onClick={() => setCurrentTestimonial((prev) => (prev - 1 + testimonials.length) % testimonials.length)}
+              className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-4 z-10 w-10 h-10 rounded-full bg-white shadow-lg flex items-center justify-center hover:bg-gray-50 transition-colors"
+              aria-label="Previous testimonial"
+            >
+              <ChevronLeft className="w-5 h-5 text-gray-600" />
+            </button>
+            <button
+              onClick={() => setCurrentTestimonial((prev) => (prev + 1) % testimonials.length)}
+              className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-4 z-10 w-10 h-10 rounded-full bg-white shadow-lg flex items-center justify-center hover:bg-gray-50 transition-colors"
+              aria-label="Next testimonial"
+            >
+              <ChevronRight className="w-5 h-5 text-gray-600" />
+            </button>
+
+            <Card className="border-0 shadow-2xl bg-gradient-to-br from-white to-slate-50/90">
               <CardContent className="p-8 lg:p-12">
                 <div className="text-center">
                   <div className="flex justify-center mb-6">
@@ -962,12 +715,15 @@ const Index = () => {
                   </blockquote>
 
                   <div className="flex items-center justify-center gap-4">
-                    <img
-                      src={testimonials[currentTestimonial].avatar}
-                      alt={testimonials[currentTestimonial].name}
-                      className="w-16 h-16 rounded-full"
-                      loading="lazy"
-                    />
+                    <Avatar className="w-16 h-16 shadow-lg ring-2 ring-white">
+                      <AvatarImage
+                        src={testimonials[currentTestimonial].avatar}
+                        alt={testimonials[currentTestimonial].name}
+                      />
+                      <AvatarFallback className="text-sm font-semibold text-gray-700 bg-indigo-50">
+                        {getInitials(testimonials[currentTestimonial].name)}
+                      </AvatarFallback>
+                    </Avatar>
                     <div className="text-left">
                       <div className="font-bold text-gray-900 text-lg">
                         {testimonials[currentTestimonial].name}

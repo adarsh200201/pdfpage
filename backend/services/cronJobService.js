@@ -111,9 +111,9 @@ class CronJobService {
       return;
     }
 
-    // Run every 14 minutes (*/14 * * * *)
+    // Run every 5 seconds for aggressive keep-alive in Render
     this.cronJob = cron.schedule(
-      "*/14 * * * *",
+      "*/5 * * * * *",
       async () => {
         logger.info("Executing keep-alive cron job");
         await this.keepServerAwake();
@@ -128,7 +128,7 @@ class CronJobService {
     this.isRunning = true;
 
     logger.info("Keep-alive cron job started", {
-      schedule: "Every 14 minutes",
+      schedule: "Every 5 seconds",
       timezone: "UTC",
       serverUrl: SERVER_URL,
       cronitorMonitor: MONITOR_KEY,
@@ -163,7 +163,7 @@ class CronJobService {
       errorCount: this.errorCount,
       serverUrl: SERVER_URL,
       cronitorMonitor: MONITOR_KEY,
-      schedule: "Every 14 minutes",
+      schedule: "Every 5 seconds",
     };
   }
 

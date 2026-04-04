@@ -12,7 +12,7 @@ import AppMinimal from "./AppMinimal.tsx";
 import ErrorBoundarySimple from "./ErrorBoundarySimple.tsx";
 import "./index.css";
 // import "./lib/pdf-config"; // Configure PDF.js before any components load - TEMPORARILY DISABLED
-import { initializePWA } from "./utils/pwa"; // PWA initialization
+import { initializePWA, unregisterDevServiceWorkers } from "./utils/pwa"; // PWA initialization
 
 // Import debug utilities in development - DISABLED for MIME type debugging
 // if (import.meta.env.DEV) {
@@ -30,7 +30,13 @@ import { initializePWA } from "./utils/pwa"; // PWA initialization
 //   });
 // }
 
-// Initialize PWA features
+// In development, aggressively clean up any existing service workers & caches
+// to avoid stale React bundles that can cause invalid hook errors.
+if (import.meta.env.DEV) {
+  unregisterDevServiceWorkers();
+}
+
+// Initialize PWA features (no-op in dev, real SW in production)
 initializePWA();
 
 // App switcher for debugging

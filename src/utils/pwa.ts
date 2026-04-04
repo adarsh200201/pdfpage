@@ -112,10 +112,18 @@ export function getPWACapabilities() {
 export function initializePWA(): void {
   console.log("🚀 Initializing PWA features...");
 
+  // In development, skip service worker to avoid cached bundles
+  if (import.meta.env.DEV) {
+    console.log(
+      "🔧 PWA: Skipping service worker and install prompt in development to avoid caching issues.",
+    );
+    return;
+  }
+
   const capabilities = getPWACapabilities();
   console.log("📱 PWA Features:", capabilities);
 
-  // Register service worker
+  // Register service worker (production only)
   registerServiceWorker();
 
   // Setup install prompt
@@ -174,5 +182,35 @@ export async function clearAllCaches(): Promise<void> {
     await Promise.all(cacheNames.map((cacheName) => caches.delete(cacheName)));
 
     console.log("🗑️ All caches cleared");
+  }
+}
+
+// Development-only helper: fully disable existing service workers and caches
+// This prevents stale cached React bundles from causing invalid hook errors in dev.
+export async function unregisterDevServiceWorkers(): Promise<void> {
+  if (typeof window === "undefined") return;
+
+  try {
+    if ("serviceWorker" in navigator) {
+      const registrations = await navigator.serviceWorker.getRegistrations();
+
+      if (registrations.length > 0) {
+        console.log(
+          "🧹 Dev: Unregistering",
+          registrations.length,
+          "existing service worker(s)...",
+        );
+        await Promise.all(registrations.map((reg) => reg.unregister()));
+      }
+    }
+
+    // Also clear caches to remove any old optimized bundles
+    await clearAllCaches().catch(() => {
+      // Non-fatal in dev
+    });
+
+    console.log("✅ Dev: Service workers and caches cleaned up");
+  } catch (error) {
+    console.warn("⚠️ Dev: Failed to fully unregister service workers:", error);
   }
 }

@@ -3,9 +3,10 @@
 
 /* Base Mobile Styles (320px+) */
 @media (max-width: 640px) {
-  /* Prevent horizontal scroll */
+  /* Prevent horizontal scroll but enable vertical */
   html, body {
     overflow-x: hidden;
+    overflow-y: auto;
     width: 100%;
   }
 

@@ -44,6 +44,10 @@ const Header = () => {
   const { currentLanguage, setLanguage, languages } = useLanguage();
   const { t } = useTranslation();
 
+  const firstName = user?.name
+    ? user.name.split(" ")[0]
+    : user?.email?.split("@")[0] || "User";
+
   // Handle logout with navigation
   const handleLogout = async () => {
     await logout();
@@ -58,6 +62,15 @@ const Header = () => {
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
+
+  // Always scroll to top when clicking the logo
+  const handleLogoClick = (e: any) => {
+    if (window.location.pathname === "/") {
+      // Stay on the same page, just scroll to top
+      e.preventDefault();
+    }
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
 
   const mainNavItems = [
     {
@@ -236,7 +249,11 @@ const Header = () => {
           <div className="flex justify-between items-center h-14 sm:h-16 lg:h-20">
             {/* Enhanced Logo with Mobile-Responsive Design */}
             <div className="flex items-center min-w-0 flex-shrink-0 mr-4 lg:mr-8">
-              <Link to="/" className="transition-all duration-300 hover:scale-105">
+              <Link
+                to="/"
+                onClick={handleLogoClick}
+                className="transition-all duration-300 hover:scale-105"
+              >
                 <PdfPageLogo
                   size="md"
                   showHover={true}
@@ -299,37 +316,8 @@ const Header = () => {
 
             {/* Enhanced Right Side Actions */}
             <div className="flex items-center space-x-3">
-              {/* Modern Language Selector */}
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <button className="hidden sm:flex items-center space-x-2 px-2 sm:px-3 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-50/80 rounded-lg transition-all duration-300 group">
-                    <Globe className="w-4 h-4 group-hover:text-primary transition-colors duration-300" />
-                    <span className="text-xs font-bold">{currentLanguage.code.toUpperCase()}</span>
-                  </button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent className="w-64 p-2 bg-white/95 backdrop-blur-md border border-white/20 shadow-xl">
-                  <div className="grid gap-1">
-                    {languages.map((language) => (
-                      <DropdownMenuItem
-                        key={language.code}
-                        onClick={() => setLanguage(language)}
-                        className={`flex items-center space-x-3 px-3 py-2 rounded-lg transition-all duration-200 cursor-pointer ${
-                          currentLanguage.code === language.code
-                            ? "bg-primary/10 text-primary border border-primary/20"
-                            : "hover:bg-gray-50"
-                        }`}
-                      >
-                        <span className="text-lg">{language.flag}</span>
-                        <span className="flex-1 text-sm font-medium">{language.nativeName}</span>
-                        {currentLanguage.code === language.code && (
-                          <div className="w-2 h-2 bg-primary rounded-full"></div>
-                        )}
-                      </DropdownMenuItem>
-                    ))}
-                  </div>
-                </DropdownMenuContent>
-              </DropdownMenu>
-
+              
+              
               {/* Authentication UI - Optional */}
               {isAuthenticated && user ? (
                 <DropdownMenu>
@@ -343,7 +331,7 @@ const Header = () => {
                       <div className="absolute -inset-0.5 bg-gradient-to-r from-primary to-blue-600 rounded-xl opacity-0 group-hover:opacity-50 transition-opacity duration-300 blur-sm -z-10"></div>
                     </div>
                     <div className="hidden lg:block text-left">
-                      <p className="text-sm font-semibold text-gray-900">{user.name}</p>
+                      <p className="text-sm font-semibold text-gray-900">{firstName}</p>
                       <p className="text-xs text-gray-500">User</p>
                     </div>
                     <ChevronDown className="w-4 h-4 text-gray-400 group-hover:text-gray-600 transition-colors duration-300" />

@@ -27,14 +27,28 @@
     /* Reset Google Translate margins */
     top: 0px !important;
     margin-top: 0px !important;
-    /* Prevent rubber band scrolling on iOS */
-    overscroll-behavior-y: none;
+    /* Keep native vertical scroll behavior stable on mobile */
+    overscroll-behavior-y: auto;
+    -webkit-overflow-scrolling: touch;
     /* Improve touch responsiveness */
-    touch-action: manipulation;
+    touch-action: pan-y pan-x;
     /* Prevent horizontal scroll on mobile */
     overflow-x: hidden;
+    /* Enable vertical scrolling explicitly */
+    overflow-y: auto;
     /* Ensure minimum font size for accessibility */
     font-size: 16px;
+  }
+
+  /* Ensure global page scrolling is never blocked */
+  html, body {
+    height: auto;
+    min-height: 100%;
+    overflow-y: auto !important;
+  }
+
+  body {
+    position: relative;
   }
 
   /* Enhanced Mobile Responsiveness */
@@ -66,6 +80,7 @@
   html, body {
     max-width: 100vw;
     overflow-x: hidden;
+    overflow-y: auto;
   }
 
   /* PWA Install Button Styles */

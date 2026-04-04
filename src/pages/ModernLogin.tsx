@@ -19,6 +19,7 @@ import {
   Cloud,
   Lock,
 } from "lucide-react";
+import PdfPageLogo from "@/components/ui/PdfPageLogo";
 import { cn } from "@/lib/utils";
 
 const ModernLogin: React.FC = () => {
@@ -108,18 +109,26 @@ const ModernLogin: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
-      {/* Header */}
-      <div className="relative bg-white shadow-sm border-b">
+      {/* Header - reuse homepage logo style */}
+      <div className="relative bg-white/95 backdrop-blur-sm border-b shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-4">
+          <div className="flex justify-between items-center py-3 sm:py-4">
             <Link
               to="/"
-              className="flex items-center space-x-2 text-2xl font-bold text-gray-900"
+              onClick={(e) => {
+                if (window.location.pathname === "/") {
+                  e.preventDefault();
+                }
+                window.scrollTo({ top: 0, behavior: "smooth" });
+              }}
+              className="flex items-center space-x-3 group"
             >
-              <div className="w-8 h-8 bg-gradient-to-r from-red-500 to-orange-500 rounded-lg flex items-center justify-center">
-                <FileText className="w-5 h-5 text-white" />
-              </div>
-              <span>PdfPage</span>
+              <PdfPageLogo
+                size="md"
+                showHover={true}
+                useImage={true}
+                className="sm:scale-110 lg:scale-125"
+              />
             </Link>
 
             <div className="flex items-center space-x-4">
@@ -296,6 +305,37 @@ const ModernLogin: React.FC = () => {
                 <div className="flex items-center space-x-1">
                   <Shield className="w-4 h-4" />
                   <span>100% Secure</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Loved by Millions - testimonials */}
+            <div className="pt-4 border-t border-gray-100">
+              <h3 className="text-2xl font-bold text-gray-900 mb-4">
+                Loved by Millions
+              </h3>
+              <p className="text-sm text-gray-600 mb-4">
+                See what our users are saying about PdfPage
+              </p>
+              <div className="bg-white/80 border border-gray-100 rounded-2xl p-5 shadow-sm">
+                <div className="flex items-center mb-3">
+                  <div className="flex text-yellow-400 mr-2">
+                    {[...Array(5)].map((_, i) => (
+                      <span key={i}>★</span>
+                    ))}
+                  </div>
+                  <span className="text-xs font-semibold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">
+                    4.9/5 average rating
+                  </span>
+                </div>
+                <p className="text-base text-gray-800 italic mb-3">
+                  "As a consultant, I work with PDFs daily. The conversion tools are incredibly accurate and fast. Highly recommended!"
+                </p>
+                <div className="text-sm text-gray-700 font-semibold">
+                  Michael Chen
+                </div>
+                <div className="text-xs text-gray-500">
+                  Small Business Owner at Chen&apos;s Consulting
                 </div>
               </div>
             </div>

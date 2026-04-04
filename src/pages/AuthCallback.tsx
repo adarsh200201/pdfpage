@@ -95,8 +95,9 @@ const AuthCallback: React.FC = () => {
 
               // Small delay to ensure state updates before navigation
               setTimeout(() => {
-                const redirectUrl = authService.getAuthRedirectUrl();
-                navigate(redirectUrl);
+                // Always send user to the main Smart PDF Studio homepage
+                // to avoid any legacy/duplicate home UIs
+                navigate("/", { replace: true });
               }, 500); // Reduced delay since we're now explicitly refreshing auth
             } else {
               throw new Error("Invalid user data received");

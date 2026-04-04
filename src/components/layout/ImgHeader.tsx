@@ -41,6 +41,10 @@ const ImgHeader = () => {
   const { currentLanguage, setLanguage, languages } = useLanguage();
   const { t } = useTranslation();
 
+  const firstName = user?.name
+    ? user.name.split(" ")[0]
+    : user?.email?.split("@")[0] || "User";
+
   const imageNavItems = [
     { label: t("img.jpgToPng"), href: "/img/jpg-to-png" },
     { label: t("img.pngToJpg"), href: "/img/png-to-jpg" },
@@ -158,47 +162,25 @@ const ImgHeader = () => {
 
           {/* Right Side Actions */}
           <div className="flex items-center space-x-4">
-            {/* Language Selector */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button className="hidden md:flex items-center text-text-medium hover:text-blue-600 transition-colors duration-200 cursor-pointer">
-                  <Globe className="w-4 h-4 mr-1" />
-                  {currentLanguage.code.toUpperCase()}
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent className="max-h-80 overflow-y-auto w-56">
-                {languages.map((language) => (
-                  <DropdownMenuItem
-                    key={language.code}
-                    onClick={() => setLanguage(language)}
-                    className={`cursor-pointer ${
-                      currentLanguage.code === language.code
-                        ? "bg-blue-50 text-blue-600"
-                        : ""
-                    }`}
-                  >
-                    <span className="mr-2">{language.flag}</span>
-                    <span className="flex-1">{language.nativeName}</span>
-                    {currentLanguage.code === language.code && (
-                      <Check className="w-3.5 h-3.5 text-blue-600" />
-                    )}
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
+          
 
             {/* User Actions */}
             {isAuthenticated && user ? (
               <DropdownMenu>
-                <DropdownMenuTrigger className="hidden md:flex items-center space-x-2">
-                  <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
-                    <span className="text-white text-sm font-semibold">
-                      {user.name.charAt(0).toUpperCase()}
-                    </span>
+                <DropdownMenuTrigger className="hidden md:flex items-center space-x-3 px-3 py-2 hover:bg-gray-50/80 rounded-xl transition-all duration-300 group">
+                  <div className="relative">
+                    <div className="w-9 h-9 bg-gradient-to-r from-primary to-blue-600 rounded-xl flex items-center justify-center shadow-lg">
+                      <span className="text-white text-sm font-bold">
+                        {user.name.charAt(0).toUpperCase()}
+                      </span>
+                    </div>
+                    <div className="absolute -inset-0.5 bg-gradient-to-r from-primary to-blue-600 rounded-xl opacity-0 group-hover:opacity-50 transition-opacity duration-300 blur-sm -z-10" />
                   </div>
-                  <span className="text-text-dark font-medium">
-                    {user.name}
-                  </span>
+                  <div className="hidden lg:block text-left">
+                    <p className="text-sm font-semibold text-gray-900">{firstName}</p>
+                    <p className="text-xs text-gray-500">User</p>
+                  </div>
+                  <ChevronDown className="w-4 h-4 text-gray-400 group-hover:text-gray-600 transition-colors duration-300" />
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-56">
                   <div className="px-3 py-2 border-b border-gray-100">

@@ -11,6 +11,7 @@ const morgan = require("morgan");
 const rateLimit = require("express-rate-limit");
 const cookieParser = require("cookie-parser");
 const passport = require("./config/passport");
+const cronJobService = require("./services/cronJobService");
 
 const app = express();
 
@@ -253,6 +254,16 @@ app.use("/api/diagnostics/tools", require("./routes/tools-diagnostic"));
 app.use("/api/libreoffice", require("./routes/libreoffice"));
 app.use("/api/libreoffice-strict", require("./routes/libreoffice-strict"));
 app.use("/api/cron", require("./routes/cron-status"));
+
+// Auto-start keep-alive cron when server boots (useful for Render)
+// In local development you can disable by setting DISABLE_KEEP_ALIVE_CRON=true
+if (process.env.DISABLE_KEEP_ALIVE_CRON !== "true") {
+  try {
+    cronJobService.startKeepAliveCron();
+  } catch (err) {
+    logger.error("Failed to start keep-alive cron", { error: err.message });
+  }
+}
 
 // Health check endpoint
 app.get("/api/health", (req, res) => {
