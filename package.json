@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "vite",
     "dev:full": "concurrently \"npm run backend:dev\" \"npm run dev\"",
-    "build": "vite build",
+    "build": "node ./node_modules/vite/bin/vite.js build",
     "backend:dev": "npm run dev --prefix backend",
     "backend:start": "npm run start --prefix backend",
     "install:all": "npm install && npm install --prefix backend",
