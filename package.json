@@ -54,7 +54,7 @@
     "@types/mixpanel-browser": "2.60.0",
     "@types/three": "^0.176.0",
     "@vitejs/plugin-react": "4.7.0",
-    "canvas": "3.1.2",
+    "canvas": "^2.11.2",
     "class-variance-authority": "^0.7.1",
     "classnames": "2.5.1",
     "clsx": "^2.1.1",
