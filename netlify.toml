@@ -4,3 +4,21 @@
 
 [build.environment]
   NODE_VERSION = "20"
+
+# Cache headers configuration
+[[headers]]
+  for = "/*.html"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+
+# Cache versioned assets aggressively (Vite adds hashes to filenames)
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+# Cache fonts
+[[headers]]
+  for = "/*.{woff,woff2,ttf,otf,eot}"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
