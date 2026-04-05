@@ -67,7 +67,7 @@ export const SEO_CONFIG = {
     enableImageOptimization: true,
     enableCriticalCSS: true,
     enableServiceWorker: true,
-    cacheStrategy: "cache-first",
+    cacheStrategy: "network-first",
     compressionLevel: "high"
   },
 

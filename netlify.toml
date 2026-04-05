@@ -10,6 +10,10 @@
   for = "/*.html"
   [headers.values]
     Cache-Control = "public, max-age=0, must-revalidate"
+    X-Frame-Options = "SAMEORIGIN"
+    X-Content-Type-Options = "nosniff"
+    X-XSS-Protection = "1; mode=block"
+    Referrer-Policy = "origin-when-cross-origin"
 
 # Cache versioned assets aggressively (Vite adds hashes to filenames)
 [[headers]]
@@ -22,3 +26,9 @@
   for = "/*.{woff,woff2,ttf,otf,eot}"
   [headers.values]
     Cache-Control = "public, max-age=31536000, immutable"
+
+# Service worker should not be cached
+[[headers]]
+  for = "/sw.js"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"

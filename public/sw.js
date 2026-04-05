@@ -1,129 +1,146 @@
-// Service Worker for PWA support
-const CACHE_NAME = 'pdfpage-v1';
-const urlsToCache = [
+// Service Worker for PDFPage - Cache-first for assets, Network-first for HTML
+const CACHE_VERSION = 'v1';
+const CACHE_NAME = `pdfpage-${CACHE_VERSION}`;
+const ASSETS_CACHE = `pdfpage-assets-${CACHE_VERSION}`;
+
+// Files to cache on install
+const PRECACHE_URLS = [
   '/',
-  '/index.html',
 ];
 
-// Install event - cache essential files
+// Install event - cache only critical assets
 self.addEventListener('install', (event) => {
+  console.log('[SW] Installing service worker...');
   event.waitUntil(
-    caches.open(CACHE_NAME)
-      .then((cache) => {
-        console.log('[SW] Opened cache');
-        return cache.addAll(urlsToCache);
-      })
-      .catch((cacheError) => {
-        console.log('[SW] Cache add failed:', cacheError);
-        // Don't fail installation if caching fails
-        return Promise.resolve();
-      })
+    caches.open(ASSETS_CACHE).then((cache) => {
+      console.log('[SW] Caching critical assets');
+      return cache.addAll(PRECACHE_URLS).catch((err) => {
+        console.log('[SW] Precache failed (non-critical):', err);
+      });
+    })
   );
   self.skipWaiting();
 });
 
 // Activate event - clean up old caches
 self.addEventListener('activate', (event) => {
+  console.log('[SW] Activating service worker...');
   event.waitUntil(
-    caches.keys()
-      .then((cacheNames) => {
-        return Promise.all(
-          cacheNames
-            .filter((cacheName) => cacheName !== CACHE_NAME)
-            .map((cacheName) => {
-              console.log('[SW] Deleting old cache:', cacheName);
-              return caches.delete(cacheName);
-            })
-        );
-      })
-      .catch((activateError) => {
-        console.log('[SW] Activate error:', activateError);
-      })
+    caches.keys().then((cacheNames) => {
+      return Promise.all(
+        cacheNames.map((cacheName) => {
+          if (cacheName !== CACHE_NAME && cacheName !== ASSETS_CACHE) {
+            console.log('[SW] Deleting old cache:', cacheName);
+            return caches.delete(cacheName);
+          }
+        })
+      );
+    })
   );
   self.clients.claim();
 });
 
-// Fetch event - serve from cache, fallback to network
+// Fetch event - Network-first for HTML, Cache-first for assets
 self.addEventListener('fetch', (event) => {
   const { request } = event;
-  
+  const url = new URL(request.url);
+
   // Skip non-GET requests
   if (request.method !== 'GET') {
     return;
   }
 
-  // Skip API requests - always go to network
-  if (request.url.includes('/api/')) {
+  // Network-first for HTML (always check server first)
+  if (request.headers.get('accept')?.includes('text/html') || url.pathname === '/' || url.pathname.endsWith('.html')) {
     event.respondWith(
       fetch(request)
-        .catch((fetchError) => {
-          console.log('[SW] API fetch failed:', fetchError);
-          return new Response('API request failed', {
-            status: 503,
-            statusText: 'Service Unavailable',
+        .then((response) => {
+          // Cache successful HTML responses
+          if (response.ok) {
+            const responseToCache = response.clone();
+            caches.open(CACHE_NAME).then((cache) => {
+              cache.put(request, responseToCache);
+            });
+          }
+          return response;
+        })
+        .catch(() => {
+          // Fall back to cache if network fails
+          return caches.match(request).then((cachedResponse) => {
+            return cachedResponse || new Response('Offline - Page not available', {
+              status: 503,
+              statusText: 'Service Unavailable',
+              headers: new Headers({
+                'Content-Type': 'text/plain',
+              }),
+            });
           });
         })
     );
     return;
   }
 
-  // For other requests, try cache first, then network
+  // Cache-first for assets (JS, CSS, images, fonts, etc.)
   event.respondWith(
-    caches.match(request)
-      .then((response) => {
-        if (response) {
-          return response;
-        }
-        
-        return fetch(request)
+    caches.match(request).then((cachedResponse) => {
+      if (cachedResponse) {
+        // Update cache in background
+        fetch(request)
           .then((response) => {
-            // Don't cache non-successful responses
-            if (!response || response.status !== 200 || response.type === 'error') {
-              return response;
-            }
-
-            // Clone the response before caching
-            const responseToCache = response.clone();
-            caches.open(CACHE_NAME)
-              .then((cache) => {
+            if (response.ok) {
+              const responseToCache = response.clone();
+              caches.open(ASSETS_CACHE).then((cache) => {
                 cache.put(request, responseToCache);
-              })
-              .catch((cacheError) => {
-                console.log('[SW] Error caching response:', cacheError);
               });
-
-            return response;
+            }
           })
-          .catch((fetchError) => {
-            console.log('[SW] Fetch failed:', fetchError);
-            // Return offline page or error response
-            return new Response('Offline - page not available', {
-              status: 503,
-              statusText: 'Service Unavailable',
-            });
+          .catch(() => {
+            // Silent fail for background updates
           });
-      })
-      .catch((matchError) => {
-        console.log('[SW] Cache match error:', matchError);
-        return new Response('Error loading page', {
-          status: 500,
-          statusText: 'Internal Error',
+        return cachedResponse;
+      }
+
+      // Not in cache, fetch from network
+      return fetch(request)
+        .then((response) => {
+          // Cache successful responses for assets
+          if (response.ok) {
+            const responseToCache = response.clone();
+            const cacheName = request.url.includes('/assets/') ? ASSETS_CACHE : CACHE_NAME;
+            caches.open(cacheName).then((cache) => {
+              cache.put(request, responseToCache);
+            });
+          }
+          return response;
+        })
+        .catch(() => {
+          // Return offline response for failed asset requests
+          return new Response('Offline - Asset not available', {
+            status: 503,
+            statusText: 'Service Unavailable',
+            headers: new Headers({
+              'Content-Type': 'text/plain',
+            }),
+          });
         });
-      })
+    })
   );
 });
 
-// Message event for cache clearing
+// Handle messages from clients
 self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
   if (event.data && event.data.type === 'CLEAR_CACHE') {
-    caches.delete(CACHE_NAME)
-      .then(() => {
-        console.log('[SW] Cache cleared');
-        event.ports[0].postMessage({ success: true });
-      })
-      .catch((clearError) => {
-        console.log('[SW] Error clearing cache:', clearError);
-        event.ports[0].postMessage({ success: false, error: clearError });
+    caches.keys().then((cacheNames) => {
+      Promise.all(
+        cacheNames.map((cacheName) => caches.delete(cacheName))
+      ).then(() => {
+        console.log('[SW] All caches cleared');
       });
+    });
   }
 });
+
+console.log('[SW] Service worker loaded and ready');
