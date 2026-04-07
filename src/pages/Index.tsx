@@ -13,6 +13,9 @@ import AdvancedSEO from "@/components/AdvancedSEO";
 import CriticalCSS from "@/components/CriticalCSS";
 import { useMixpanel } from "@/hooks/useMixpanel";
 import { getSEOData } from "@/data/seo-routes";
+import sarahImg from "@/assets/testimonials/sarahImg.jpg";
+import michaelImg from "@/assets/testimonials/michaelImg.jpg";
+import emilyImg from "@/assets/testimonials/emilyImg.jpg";
 import {
   Combine,
   Scissors,
@@ -324,52 +327,51 @@ const Index = () => {
       isWorking: true,
     },
   ];
-
-  const testimonials = [
-    {
-      name: "Sarah Johnson",
-      role: "Marketing Manager",
-      company: "TechCorp",
-      content:
-        "PdfPage has revolutionized how our team handles documents. The merge and split tools save us hours every week!",
-      rating: 5,
-      avatar:
-        "https://images.unsplash.com/photo-1494790108755-2616b612b786?w=64&h=64&fit=crop&crop=face",
-    },
-    {
-      name: "Michael Chen",
-      role: "Small Business Owner",
-      company: "Chen's Consulting",
-      content:
-        "As a consultant, I work with PDFs daily. The conversion tools are incredibly accurate and fast. Highly recommended!",
-      rating: 5,
-      avatar:
-        "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=64&h=64&fit=crop&crop=face",
-    },
-    {
-      name: "Emily Rodriguez",
-      role: "Student",
-      company: "University of California",
-      content:
-        "Free, fast, and reliable. Perfect for academic work. The compress tool helped me submit assignments under size limits!",
-      rating: 5,
-      avatar:
-        "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=64&h=64&fit=crop&crop=face",
-    },
-  ];
+const testimonials = [
+  {
+    name: "Sarah Johnson",
+    role: "Marketing Manager",
+    company: "TechCorp",
+    content:
+      "PdfPage has revolutionized how our team handles documents. The merge and split tools save us hours every week!",
+    rating: 5,
+    avatar: sarahImg,
+  },
+  {
+    name: "Michael Chen",
+    role: "Small Business Owner",
+    company: "Chen's Consulting",
+    content:
+      "As a consultant, I work with PDFs daily. The conversion tools are incredibly accurate and fast. Highly recommended!",
+    rating: 5,
+    avatar: michaelImg,
+  },
+  {
+    name: "Emily Rodriguez",
+    role: "Student",
+    company: "University of California",
+    content:
+      "Free, fast, and reliable. Perfect for academic work. The compress tool helped me submit assignments under size limits!",
+    rating: 5,
+    avatar: emilyImg,
+  },
+];
 
   // Auto-rotate testimonials (deferred for performance)
-  useEffect(() => {
-    // Start testimonial rotation after initial load
-    const startDelay = setTimeout(() => {
-      const interval = setInterval(() => {
-        setCurrentTestimonial((prev) => (prev + 1) % testimonials.length);
-      }, 5000);
-      return () => clearInterval(interval);
-    }, 2000);
+ useEffect(() => {
+  let interval;
 
-    return () => clearTimeout(startDelay);
-  }, [testimonials.length]);
+  const startDelay = setTimeout(() => {
+    interval = setInterval(() => {
+      setCurrentTestimonial((prev) => (prev + 1) % testimonials.length);
+    }, 5000);
+  }, 2000);
+
+  return () => {
+    clearTimeout(startDelay);
+    if (interval) clearInterval(interval);
+  };
+}, [testimonials.length]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-white">
@@ -664,12 +666,7 @@ const Index = () => {
       <section className="py-12 bg-gradient-to-b from-white to-indigo-50/40">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
-            <p className="inline-flex items-center gap-2 text-sm font-semibold text-indigo-600 mb-3">
-              <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-indigo-100 text-xs font-bold text-indigo-700">
-                ★
-              </span>
-              Loved by teams worldwide
-            </p>
+         
             <h2 className="text-4xl lg:text-5xl font-bold text-gray-900 mb-4">
               Loved by Millions
             </h2>
@@ -679,7 +676,7 @@ const Index = () => {
             </p>
           </div>
 
-          <div className="max-w-4xl mx-auto relative">
+          <div className="max-w-6xl mx-auto relative">
             {/* Navigation Buttons */}
             <button
               onClick={() => setCurrentTestimonial((prev) => (prev - 1 + testimonials.length) % testimonials.length)}
@@ -884,7 +881,7 @@ const Index = () => {
                 <Button
                   size="lg"
                   variant="outline"
-                  className="border-2 border-red-600 text-red-600 hover:bg-red-600 hover:text-white px-8 py-4 font-bold shadow-xl bg-red-50/80 backdrop-blur-sm"
+                  className="border-2 border-red-600 text-red-600 hover:bg-red-600 hover:text-white px-8 py-4 font-bold shadow-xl  backdrop-blur-sm"
                   asChild
                 >
                   <Link to="/pricing">View Pricing</Link>
