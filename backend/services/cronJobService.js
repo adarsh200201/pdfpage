@@ -2,15 +2,15 @@ const cron = require("node-cron");
 const axios = require("axios");
 const logger = require("../utils/logger");
 
-// Cronitor configuration
-const CRONITOR_API_KEY =
-  process.env.CRONITOR_API_KEY || "b612058cd75c4f23a6f7674fb9e8c09c";
-const MONITOR_KEY = process.env.CRONITOR_MONITOR_KEY || "render-keep-alive"; // You'll get this from Cronitor dashboard
+// ============================================================
+// CRITICAL FIX: cron was running every 5 SECONDS (*/5 * * * * *)
+// That's 12 HTTP calls/min + 24 Cronitor pings = OOM on Render free tier
+// Fixed to run every 5 MINUTES (*/5 * * * *) - still prevents sleep
+// Render free tier sleeps after 15 min of inactivity, so 5 min is safe
+// ============================================================
+
 const SERVER_URL =
   process.env.RENDER_SERVER_URL || "https://pdfpage-backend.onrender.com";
-
-// Cronitor ping URLs
-const CRONITOR_BASE_URL = `https://cronitor.link/${MONITOR_KEY}`;
 
 class CronJobService {
   constructor() {
@@ -18,29 +18,7 @@ class CronJobService {
     this.lastPingTime = null;
     this.successCount = 0;
     this.errorCount = 0;
-  }
-
-  // Send state to Cronitor
-  async sendCronitorPing(state, message = "") {
-    try {
-      const url = `${CRONITOR_BASE_URL}/${state}`;
-      const params = message ? { msg: message } : {};
-
-      await axios.get(url, {
-        params,
-        timeout: 5000,
-        headers: {
-          "User-Agent": "PdfPage-KeepAlive/1.0",
-        },
-      });
-
-      logger.info(`Cronitor ping sent: ${state}`, { message });
-    } catch (error) {
-      logger.error("Failed to send Cronitor ping", {
-        state,
-        error: error.message,
-      });
-    }
+    this.cronJob = null;
   }
 
   // Keep server awake by pinging itself
@@ -48,12 +26,9 @@ class CronJobService {
     const pingUrl = `${SERVER_URL}/api/health/ping`;
 
     try {
-      // Send "run" state to Cronitor
-      await this.sendCronitorPing("run", "Starting keep-alive ping");
-
       const startTime = Date.now();
       const response = await axios.get(pingUrl, {
-        timeout: 10000,
+        timeout: 15000,
         headers: {
           "User-Agent": "PdfPage-KeepAlive/1.0",
         },
@@ -71,12 +46,6 @@ class CronJobService {
         serverUptime: response.data?.uptime,
       });
 
-      // Send "complete" state to Cronitor
-      await this.sendCronitorPing(
-        "complete",
-        `Ping successful in ${responseTime}ms. Server uptime: ${response.data?.uptime}s`,
-      );
-
       return {
         success: true,
         responseTime,
@@ -86,15 +55,22 @@ class CronJobService {
     } catch (error) {
       this.errorCount++;
 
-      logger.error("Keep-alive ping failed", {
-        url: pingUrl,
-        error: error.message,
-        errorCount: this.errorCount,
-        errorCode: error.code,
-      });
-
-      // Send "fail" state to Cronitor
-      await this.sendCronitorPing("fail", `Ping failed: ${error.message}`);
+      // Only log as warning, not error - 503 during cold start is expected
+      const isExpectedError = error.response?.status === 503 || error.code === "ECONNREFUSED";
+      if (isExpectedError) {
+        logger.warn("Keep-alive ping - server may be cold starting", {
+          url: pingUrl,
+          error: error.message,
+          errorCount: this.errorCount,
+        });
+      } else {
+        logger.error("Keep-alive ping failed", {
+          url: pingUrl,
+          error: error.message,
+          errorCount: this.errorCount,
+          errorCode: error.code,
+        });
+      }
 
       return {
         success: false,
@@ -111,12 +87,19 @@ class CronJobService {
       return;
     }
 
-    // Run every 5 seconds for aggressive keep-alive in Render
+    // ✅ FIXED: Run every 5 MINUTES - not 5 seconds!
+    // Render free tier sleeps after 15 min of inactivity
+    // 5-min interval keeps it awake with minimal resource usage
     this.cronJob = cron.schedule(
-      "*/5 * * * * *",
+      "*/5 * * * *",
       async () => {
-        logger.info("Executing keep-alive cron job");
-        await this.keepServerAwake();
+        try {
+          logger.info("Executing keep-alive cron job");
+          await this.keepServerAwake();
+        } catch (err) {
+          // Never let cron callback crash the process
+          logger.error("Keep-alive cron callback error (non-fatal)", { error: err.message });
+        }
       },
       {
         scheduled: false,
@@ -128,16 +111,18 @@ class CronJobService {
     this.isRunning = true;
 
     logger.info("Keep-alive cron job started", {
-      schedule: "Every 5 seconds",
+      schedule: "Every 5 minutes",
       timezone: "UTC",
       serverUrl: SERVER_URL,
-      cronitorMonitor: MONITOR_KEY,
+      note: "Render free tier sleeps after 15min - 5min interval is sufficient",
     });
 
-    // Send initial ping to confirm service is working
+    // Send initial ping after 30s startup delay (give server time to fully init)
     setTimeout(() => {
-      this.keepServerAwake();
-    }, 5000); // Wait 5 seconds after startup
+      this.keepServerAwake().catch(err => {
+        logger.warn("Initial keep-alive ping failed (non-fatal)", { error: err.message });
+      });
+    }, 30000);
   }
 
   // Stop the cron job
@@ -162,8 +147,7 @@ class CronJobService {
       successCount: this.successCount,
       errorCount: this.errorCount,
       serverUrl: SERVER_URL,
-      cronitorMonitor: MONITOR_KEY,
-      schedule: "Every 5 seconds",
+      schedule: "Every 5 minutes",
     };
   }
 
@@ -171,17 +155,6 @@ class CronJobService {
   async manualPing() {
     logger.info("Manual keep-alive ping triggered");
     return await this.keepServerAwake();
-  }
-
-  // Test Cronitor connection
-  async testCronitor() {
-    try {
-      await this.sendCronitorPing("run", "Testing Cronitor connection");
-      await this.sendCronitorPing("complete", "Cronitor test successful");
-      return { success: true, message: "Cronitor connection test successful" };
-    } catch (error) {
-      return { success: false, error: error.message };
-    }
   }
 }
 

@@ -34,8 +34,25 @@ const cookieParser = require("cookie-parser");
 const passport = require("./config/passport");
 const cronJobService = require("./services/cronJobService");
 
+// ============================================================
+// PROCESS-LEVEL CRASH PROTECTION
+// Without these, any unhandled error kills Node silently on Render
+// Render free tier does NOT auto-restart crashed services
+// ============================================================
+process.on("uncaughtException", (err) => {
+  console.error("❌ UNCAUGHT EXCEPTION (non-fatal, server will continue):", err.message);
+  console.error(err.stack);
+  // Don't process.exit() - let the server keep running
+});
+
+process.on("unhandledRejection", (reason, promise) => {
+  console.error("❌ UNHANDLED PROMISE REJECTION (non-fatal):", reason);
+  // Don't process.exit() - let the server keep running
+});
+// ============================================================
 
 const app = express();
+
 
 // Trust proxy configuration - more secure for rate limiting
 // In development, only trust localhost
