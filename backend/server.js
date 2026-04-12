@@ -1,6 +1,27 @@
 // Load environment variables first
 require("dotenv").config();
 
+// ============================================================
+// STARTUP ENVIRONMENT VALIDATION
+// ============================================================
+const requiredEnvVars = ["MONGODB_URI", "JWT_SECRET"];
+const missingVars = requiredEnvVars.filter(v => !process.env[v]);
+if (missingVars.length > 0) {
+  console.error("❌ FATAL: Missing required environment variables:", missingVars.join(", "));
+  console.error("   Please set these variables in Render dashboard > Environment.");
+  // Don't process.exit here - let server start without DB so it can return a helpful error
+}
+
+// Warn about Razorpay (payments won't work without it, but server can still run)
+if (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_KEY_SECRET) {
+  console.warn("⚠️  WARNING: RAZORPAY_KEY_ID or RAZORPAY_KEY_SECRET not set - payment features disabled");
+} else {
+  const keyId = process.env.RAZORPAY_KEY_ID;
+  const isLiveKey = keyId.includes("live");
+  console.log(`💳 Razorpay configured: ${isLiveKey ? "✅ LIVE KEY" : "⚠️ TEST KEY"} (${keyId.substring(0, 15)}...)`);
+}
+// ============================================================
+
 const express = require("express");
 const mongoose = require("mongoose");
 const logger = require("./utils/logger");
@@ -12,6 +33,7 @@ const rateLimit = require("express-rate-limit");
 const cookieParser = require("cookie-parser");
 const passport = require("./config/passport");
 const cronJobService = require("./services/cronJobService");
+
 
 const app = express();
 
@@ -237,6 +259,34 @@ app.get("/api/test-cors", (req, res) => {
     timestamp: new Date().toISOString()
   });
 });
+
+// Environment status endpoint - shows which critical vars are set (not their values)
+app.get("/api/env-status", (req, res) => {
+  const criticalVars = [
+    "MONGODB_URI", "JWT_SECRET", "RAZORPAY_KEY_ID", "RAZORPAY_KEY_SECRET",
+    "GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET", "NODE_ENV", "PORT", "FRONTEND_URL"
+  ];
+  const status = {};
+  criticalVars.forEach(v => {
+    const val = process.env[v];
+    if (!val) {
+      status[v] = "❌ NOT SET";
+    } else if (v === "RAZORPAY_KEY_ID") {
+      const isLive = val.includes("live");
+      status[v] = isLive ? `✅ LIVE KEY (${val.substring(0, 12)}...)` : `⚠️ TEST KEY (${val.substring(0, 12)}...)`;
+    } else {
+      status[v] = `✅ SET (${val.length} chars)`;
+    }
+  });
+  res.json({
+    environment: process.env.NODE_ENV || "unknown",
+    status,
+    razorpayInitialized: !!(process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET),
+    mongoDbUri: process.env.MONGODB_URI ? "✅ Configured" : "❌ Missing",
+    timestamp: new Date().toISOString()
+  });
+});
+
 
 // Routes
 app.use("/api/auth", require("./routes/auth"));

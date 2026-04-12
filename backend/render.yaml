@@ -1,0 +1,59 @@
+services:
+  - type: web
+    name: pdfpage-backend
+    runtime: node
+    region: singapore
+    plan: free
+    buildCommand: npm install
+    startCommand: node server.js
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      # CRITICAL: Set these in Render Dashboard > Environment (do NOT commit real values)
+      - key: MONGODB_URI
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: JWT_EXPIRE
+        value: 30d
+      # Razorpay Payment Gateway
+      - key: RAZORPAY_KEY_ID
+        sync: false
+      - key: RAZORPAY_KEY_SECRET
+        sync: false
+      # Google OAuth
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      - key: GOOGLE_CALLBACK_URL
+        value: https://pdfpage-backend.onrender.com/api/auth/google/callback
+      # Email
+      - key: SMTP_HOST
+        value: smtp.gmail.com
+      - key: SMTP_PORT
+        value: 587
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASS
+        sync: false
+      - key: EMAIL_FROM
+        value: noreply@pdfpage.com
+      # Cloudinary
+      - key: CLOUDINARY_CLOUD_NAME
+        sync: false
+      - key: CLOUDINARY_API_KEY
+        sync: false
+      - key: CLOUDINARY_API_SECRET
+        sync: false
+      # Frontend URL
+      - key: FRONTEND_URL
+        value: https://pdfpage.in
+      # Keep-alive
+      - key: RENDER_SERVER_URL
+        value: https://pdfpage-backend.onrender.com
+      - key: DISABLE_KEEP_ALIVE_CRON
+        value: false
